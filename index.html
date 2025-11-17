@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Stream Viewer - Dual View</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .json-view {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .activity-row {
+            transition: all 0.2s;
+        }
+        .activity-row:hover {
+            background-color: #f3f4f6;
+        }
+        .activity-selected {
+            background-color: #dbeafe;
+        }
+        .view-toggle {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .view-toggle:hover {
+            transform: scale(1.05);
+        }
+        .view-active {
+            background-color: #3b82f6;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <div class="bg-indigo-600 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                    <h1 class="text-2xl font-bold">Activity Stream Viewer</h1>
+                </div>
+                <div class="text-sm opacity-90">
+                    <span class="font-semibold">Backend:</span> ActivityStreams JSON | 
+                    <span class="font-semibold">Frontend:</span> Dual View
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Toggle -->
+    <div class="max-w-7xl mx-auto px-4 py-4">
+        <div class="flex space-x-2 bg-white rounded-lg shadow p-1 w-fit">
+            <button id="tableViewBtn" class="view-toggle view-active px-4 py-2 rounded-md font-medium">
+                Table View
+            </button>
+            <button id="jsonViewBtn" class="view-toggle px-4 py-2 rounded-md font-medium bg-gray-100">
+                JSON View
+            </button>
+            <button id="splitViewBtn" class="view-toggle px-4 py-2 rounded-md font-medium bg-gray-100">
+                Split View
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="max-w-7xl mx-auto px-4 pb-8">
+        <!-- Split View Container -->
+        <div id="splitViewContainer" class="hidden grid grid-cols-2 gap-4">
+            <!-- Table View (Left) -->
+            <div class="bg-white rounded-lg shadow-lg p-4">
+                <h2 class="text-lg font-semibold mb-4 text-gray-800">Activity Table</h2>
+                <div id="tableViewSplit" class="overflow-x-auto overflow-y-auto max-h-[600px]"></div>
+            </div>
+
+            <!-- JSON View (Right) -->
+            <div class="bg-gray-900 text-green-400 rounded-lg shadow-lg p-4">
+                <h2 class="text-lg font-semibold mb-4 text-white">Raw JSON Stream</h2>
+                <div id="jsonViewSplit" class="json-view overflow-auto max-h-[600px]"></div>
+            </div>
+        </div>
+
+        <!-- Table View (Full) -->
+        <div id="tableViewFull" class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">Activities</h2>
+                <button id="addActivityBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                    + Add Activity
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Timestamp</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Type</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Actor</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Summary</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activityTableBody" class="divide-y divide-gray-200">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- JSON View (Full) -->
+        <div id="jsonViewFull" class="hidden bg-gray-900 text-green-400 rounded-lg shadow-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-white">ActivityStreams JSON</h2>
+                <div class="space-x-2">
+                    <button id="copyJsonBtn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                        Copy JSON
+                    </button>
+                    <button id="downloadJsonBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        Download
+                    </button>
+                </div>
+            </div>
+            <div id="jsonContent" class="json-view overflow-auto max-h-[600px]"></div>
+        </div>
+    </div>
+
+    <!-- Add Activity Modal -->
+    <div id="addActivityModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 class="text-xl font-semibold mb-4">Add New Activity</h3>
+            <form id="activityForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Activity Type</label>
+                    <select id="activityType" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        <option value="Create">Create</option>
+                        <option value="Update">Update</option>
+                        <option value="Delete">Delete</option>
+                        <option value="Add">Add</option>
+                        <option value="Remove">Remove</option>
+                        <option value="Like">Like</option>
+                        <option value="Follow">Follow</option>
+                        <option value="Announce">Announce</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Actor Name</label>
+                    <input type="text" id="actorName" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="John Doe">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Summary</label>
+                    <textarea id="activitySummary" class="w-full border border-gray-300 rounded-md px-3 py-2" rows="3" placeholder="Describe the activity..."></textarea>
+                </div>
+                <div class="flex space-x-2 pt-2">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                        Create Activity
+                    </button>
+                    <button type="button" id="cancelActivityBtn" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full p-6 max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">Activity Details</h3>
+                <button id="closeDetailBtn" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="detailContent" class="json-view bg-gray-900 text-green-400 p-4 rounded-md"></div>
+        </div>
+    </div>
+
+    <script>
+        // Sample ActivityStream Data
+        let activities = [
+            {
+                "@context": "https://www.w3.org/ns/activitystreams",
+                "type": "Create",
+                "id": "activity-001",
+                "published": "2025-11-17T10:30:00Z",
+                "actor": {
+                    "type": "Person",
+                    "id": "@michael:groundtruth.nashville",
+                    "name": "Michael Clem"
+                },
+                "object": {
+                    "type": "Article",
+                    "id": "article-001",
+                    "name": "Investigation Report: Housing Services Discrepancies",
+                    "content": "Analysis of $3.2M in financial irregularities..."
+                },
+                "summary": "Michael Clem created a new investigation report",
+                "status": "published"
+            },
+            {
+                "@context": "https://www.w3.org/ns/activitystreams",
+                "type": "Update",
+                "id": "activity-002",
+                "published": "2025-11-17T11:45:00Z",
+                "actor": {
+                    "type": "Person",
+                    "id": "@system:groundtruth.nashville",
+                    "name": "System Bot"
+                },
+                "object": {
+                    "type": "Document",
+                    "id": "doc-045",
+                    "name": "ARPA Fund Analysis"
+                },
+                "summary": "Updated ARPA fund tracking document with new data",
+                "status": "updated"
+            },
+            {
+                "@context": "https://www.w3.org/ns/activitystreams",
+                "type": "Add",
+                "id": "activity-003",
+                "published": "2025-11-17T14:20:00Z",
+                "actor": {
+                    "type": "Person",
+                    "id": "@contributor:groundtruth.nashville",
+                    "name": "Jane Smith"
+                },
+                "object": {
+                    "type": "Note",
+                    "id": "note-023",
+                    "content": "Found additional procurement records from 2024"
+                },
+                "target": {
+                    "type": "Collection",
+                    "id": "collection-procurement",
+                    "name": "Procurement Investigation"
+                },
+                "summary": "Jane Smith added notes to procurement investigation",
+                "status": "active"
+            },
+            {
+                "@context": "https://www.w3.org/ns/activitystreams",
+                "type": "Announce",
+                "id": "activity-004",
+                "published": "2025-11-17T16:00:00Z",
+                "actor": {
+                    "type": "Organization",
+                    "id": "@groundtruth:nashville",
+                    "name": "Ground Truth Nashville"
+                },
+                "object": {
+                    "type": "Article",
+                    "id": "article-001",
+                    "name": "Investigation Report: Housing Services Discrepancies"
+                },
+                "summary": "Ground Truth Nashville published new investigation",
+                "status": "announced"
+            }
+        ];
+
+        // View State
+        let currentView = 'table';
+        let selectedActivity = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            renderTableView();
+            updateJsonView();
+            setupEventListeners();
+        });
+
+        // Render Table View
+        function renderTableView(isSplit = false) {
+            const targetId = isSplit ? 'tableViewSplit' : 'activityTableBody';
+            const target = document.getElementById(targetId);
+            
+            if (isSplit) {
+                // Render full table for split view
+                target.innerHTML = `
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-600 uppercase">Time</th>
+                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-600 uppercase">Type</th>
+                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-600 uppercase">Actor</th>
+                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-600 uppercase">Summary</th>
+                            </tr>
+                        </thead>
+                        <tbody id="splitTableBody" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                `;
+                renderTableRows('splitTableBody');
+            } else {
+                // Render rows only for full view
+                renderTableRows(targetId);
+            }
+        }
+
+        function renderTableRows(tbodyId) {
+            const tbody = document.getElementById(tbodyId);
+            tbody.innerHTML = '';
+
+            activities.forEach((activity, index) => {
+                const row = document.createElement('tr');
+                row.className = 'activity-row cursor-pointer';
+                row.onclick = () => showActivityDetail(activity);
+                
+                const timestamp = new Date(activity.published).toLocaleString();
+                const actorName = activity.actor.name;
+                const status = activity.status || 'active';
+                
+                const isSplit = tbodyId === 'splitTableBody';
+                
+                if (isSplit) {
+                    // Compact version for split view
+                    row.innerHTML = `
+                        <td class="px-2 py-2 text-xs text-gray-700">${new Date(activity.published).toLocaleTimeString()}</td>
+                        <td class="px-2 py-2 text-xs">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                ${activity.type}
+                            </span>
+                        </td>
+                        <td class="px-2 py-2 text-xs text-gray-700">${actorName}</td>
+                        <td class="px-2 py-2 text-xs text-gray-700">${activity.summary.substring(0, 40)}...</td>
+                    `;
+                } else {
+                    // Full version for table view
+                    row.innerHTML = `
+                        <td class="px-4 py-3 text-sm text-gray-700">${timestamp}</td>
+                        <td class="px-4 py-3 text-sm">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                ${activity.type}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-700">${actorName}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">${activity.summary}</td>
+                        <td class="px-4 py-3 text-sm">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(status)}">
+                                ${status}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm">
+                            <button onclick="event.stopPropagation(); showActivityDetail(activities[${index}])" class="text-indigo-600 hover:text-indigo-800 font-medium">
+                                View
+                            </button>
+                        </td>
+                    `;
+                }
+                tbody.appendChild(row);
+            });
+        }
+
+        // Update JSON View
+        function updateJsonView() {
+            const jsonContent = document.getElementById('jsonContent');
+            const jsonViewSplit = document.getElementById('jsonViewSplit');
+            
+            const jsonString = JSON.stringify({
+                "@context": "https://www.w3.org/ns/activitystreams",
+                "type": "OrderedCollection",
+                "totalItems": activities.length,
+                "orderedItems": activities
+            }, null, 2);
+            
+            const formatted = syntaxHighlight(jsonString);
+            jsonContent.innerHTML = formatted;
+            jsonViewSplit.innerHTML = formatted;
+        }
+
+        // Syntax Highlighting for JSON
+        function syntaxHighlight(json) {
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'text-green-400';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'text-blue-400';
+                    } else {
+                        cls = 'text-yellow-300';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'text-purple-400';
+                } else if (/null/.test(match)) {
+                    cls = 'text-red-400';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        // Get Status Color
+        function getStatusColor(status) {
+            const colors = {
+                published: 'bg-green-100 text-green-800',
+                updated: 'bg-yellow-100 text-yellow-800',
+                active: 'bg-blue-100 text-blue-800',
+                announced: 'bg-purple-100 text-purple-800',
+                pending: 'bg-gray-100 text-gray-800'
+            };
+            return colors[status] || colors.active;
+        }
+
+        // Show Activity Detail
+        function showActivityDetail(activity) {
+            const modal = document.getElementById('detailModal');
+            const content = document.getElementById('detailContent');
+            content.innerHTML = syntaxHighlight(JSON.stringify(activity, null, 2));
+            modal.classList.remove('hidden');
+        }
+
+        // Setup Event Listeners
+        function setupEventListeners() {
+            // View Toggle
+            document.getElementById('tableViewBtn').addEventListener('click', () => switchView('table'));
+            document.getElementById('jsonViewBtn').addEventListener('click', () => switchView('json'));
+            document.getElementById('splitViewBtn').addEventListener('click', () => switchView('split'));
+
+            // Add Activity
+            document.getElementById('addActivityBtn').addEventListener('click', () => {
+                document.getElementById('addActivityModal').classList.remove('hidden');
+            });
+
+            document.getElementById('cancelActivityBtn').addEventListener('click', () => {
+                document.getElementById('addActivityModal').classList.add('hidden');
+            });
+
+            document.getElementById('activityForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                addNewActivity();
+            });
+
+            // Detail Modal
+            document.getElementById('closeDetailBtn').addEventListener('click', () => {
+                document.getElementById('detailModal').classList.add('hidden');
+            });
+
+            // JSON Actions
+            document.getElementById('copyJsonBtn').addEventListener('click', () => {
+                const json = JSON.stringify(activities, null, 2);
+                navigator.clipboard.writeText(json).then(() => {
+                    alert('JSON copied to clipboard!');
+                });
+            });
+
+            document.getElementById('downloadJsonBtn').addEventListener('click', () => {
+                const json = JSON.stringify(activities, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'activities.json';
+                a.click();
+            });
+        }
+
+        // Switch View
+        function switchView(view) {
+            currentView = view;
+            
+            // Reset button styles
+            document.querySelectorAll('.view-toggle').forEach(btn => {
+                btn.classList.remove('view-active', 'bg-gray-100');
+                btn.classList.add('bg-gray-100');
+            });
+
+            // Hide all views
+            document.getElementById('tableViewFull').classList.add('hidden');
+            document.getElementById('jsonViewFull').classList.add('hidden');
+            document.getElementById('splitViewContainer').classList.add('hidden');
+
+            // Show selected view
+            if (view === 'table') {
+                document.getElementById('tableViewBtn').classList.add('view-active');
+                document.getElementById('tableViewBtn').classList.remove('bg-gray-100');
+                document.getElementById('tableViewFull').classList.remove('hidden');
+            } else if (view === 'json') {
+                document.getElementById('jsonViewBtn').classList.add('view-active');
+                document.getElementById('jsonViewBtn').classList.remove('bg-gray-100');
+                document.getElementById('jsonViewFull').classList.remove('hidden');
+            } else if (view === 'split') {
+                document.getElementById('splitViewBtn').classList.add('view-active');
+                document.getElementById('splitViewBtn').classList.remove('bg-gray-100');
+                document.getElementById('splitViewContainer').classList.remove('hidden');
+                document.getElementById('splitViewContainer').classList.remove('grid');
+                document.getElementById('splitViewContainer').classList.add('grid');
+                renderTableView(true); // Pass true for split view
+                updateJsonView(); // Update JSON view for split mode
+            }
+        }
+
+        // Add New Activity
+        function addNewActivity() {
+            const type = document.getElementById('activityType').value;
+            const actorName = document.getElementById('actorName').value;
+            const summary = document.getElementById('activitySummary').value;
+
+            const newActivity = {
+                "@context": "https://www.w3.org/ns/activitystreams",
+                "type": type,
+                "id": `activity-${String(activities.length + 1).padStart(3, '0')}`,
+                "published": new Date().toISOString(),
+                "actor": {
+                    "type": "Person",
+                    "id": `@${actorName.toLowerCase().replace(' ', '.')}:system`,
+                    "name": actorName
+                },
+                "summary": summary || `${actorName} performed ${type} activity`,
+                "status": "active"
+            };
+
+            activities.unshift(newActivity); // Add to beginning
+            
+            // Refresh the appropriate view
+            if (currentView === 'split') {
+                renderTableView(true);
+            } else {
+                renderTableView(false);
+            }
+            updateJsonView();
+            
+            // Close modal and reset form
+            document.getElementById('addActivityModal').classList.add('hidden');
+            document.getElementById('activityForm').reset();
+        }
+
+        // Make activities accessible globally for inline onclick
+        window.activities = activities;
+        window.showActivityDetail = showActivityDetail;
+    </script>
+</body>
+</html>
