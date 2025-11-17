@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ActivityStream Spreadsheet with Field Types</title>
+    <title>ActivityStream Spreadsheet - Airtable Style</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .json-view {
@@ -36,6 +36,21 @@
         .cell-recently-changed {
             animation: flash-yellow 0.5s ease-out;
         }
+        .cell-with-history {
+            position: relative;
+        }
+        .cell-with-history::after {
+            content: '📝';
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 10px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .cell-with-history:hover::after {
+            opacity: 0.5;
+        }
         @keyframes flash-yellow {
             0% { background-color: #fef3c7; }
             100% { background-color: transparent; }
@@ -55,7 +70,7 @@
             display: inline-flex;
             align-items: center;
             padding: 2px 8px;
-            border-radius: 4px;
+            border-radius: 3px;
             font-size: 12px;
             font-weight: 600;
             white-space: nowrap;
@@ -79,39 +94,119 @@
             opacity: 0.6;
             margin-right: 4px;
         }
-        .dropdown-menu {
-            position: absolute;
+        
+        /* History Panel Styles */
+        .history-panel {
+            position: fixed;
+            right: 0;
+            top: 0;
+            height: 100vh;
+            width: 400px;
             background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
             z-index: 1000;
-            min-width: 200px;
+            display: flex;
+            flex-direction: column;
         }
-        .dropdown-item {
-            padding: 8px 12px;
+        .history-panel.open {
+            transform: translateX(0);
+        }
+        .history-entry {
+            border-left: 3px solid #e5e7eb;
+            padding-left: 12px;
+            transition: all 0.2s;
+        }
+        .history-entry:hover {
+            border-left-color: #3b82f6;
+            background-color: #f9fafb;
+        }
+        .history-entry.restorable {
             cursor: pointer;
-            transition: background 0.15s;
+        }
+        .value-change {
             display: flex;
             align-items: center;
             gap: 8px;
+            font-family: 'Courier New', monospace;
         }
-        .dropdown-item:hover {
-            background-color: #f3f4f6;
+        .value-old {
+            color: #dc2626;
+            text-decoration: line-through;
         }
-        .dropdown-divider {
-            height: 1px;
-            background-color: #e5e7eb;
-            margin: 4px 0;
+        .value-new {
+            color: #16a34a;
+            font-weight: 600;
+        }
+        
+        /* AIRTABLE-STYLE FIELD TYPE PICKER - MINIMALIST */
+        .airtable-field-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .airtable-field-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: background-color 0.1s ease;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .airtable-field-item:hover {
+            background-color: #fafafa;
+        }
+        
+        .airtable-field-item.selected {
+            background-color: #f0f7ff;
+        }
+        
+        .airtable-field-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+            color: #666;
+        }
+        
+        .airtable-field-name {
+            flex: 1;
+            font-size: 14px;
+            color: #000;
+            font-weight: 400;
+        }
+        
+        .airtable-field-chevron {
+            width: 16px;
+            height: 16px;
+            color: #999;
+            flex-shrink: 0;
+        }
+        
+        .modal-overlay {
+            backdrop-filter: blur(1px);
+        }
+        
+        /* Minimalist modal styling - less rounded */
+        .modal-container {
+            border-radius: 6px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
         }
         
         /* Custom select styling */
         .custom-select {
             position: absolute;
             background: white;
-            border: 2px solid #3b82f6;
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             z-index: 100;
             min-width: 150px;
             max-height: 200px;
@@ -148,18 +243,54 @@
             width: 100%;
         }
         
-        /* Number input styling */
-        input[type="number"] {
-            border: none;
-            background: transparent;
-            font-family: inherit;
-            font-size: inherit;
+        /* Search input - less rounded */
+        .search-input {
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            padding: 8px 12px;
             width: 100%;
+            font-size: 14px;
+            transition: border-color 0.15s;
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        /* Filter pills */
+        .filter-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px;
+            background-color: #dbeafe;
+            color: #1e40af;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .filter-pill button {
+            margin-left: 4px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .filter-pill button:hover {
+            opacity: 1;
+        }
+        
+        /* Button styling - less rounded */
+        .btn {
+            border-radius: 4px;
+            transition: all 0.15s;
         }
         
         @media (max-width: 768px) {
             .cell-editable {
                 min-width: 80px;
+            }
+            .history-panel {
+                width: 100%;
             }
         }
     </style>
@@ -175,12 +306,15 @@
                     </svg>
                     <div class="min-w-0">
                         <h1 class="text-lg md:text-2xl font-bold truncate">ActivityStream Spreadsheet</h1>
-                        <p class="text-xs md:text-sm opacity-90 hidden sm:block">With Airtable-style Field Types</p>
+                        <p class="text-xs md:text-sm opacity-90 hidden sm:block">With Full Edit History & Airtable UI</p>
                     </div>
                 </div>
-                <div class="text-xs md:text-sm opacity-90 hidden lg:block">
-                    <span class="font-semibold">Backend:</span> ActivityStreams JSON
-                </div>
+                <button id="showHistoryBtn" class="btn bg-white bg-opacity-20 hover:bg-opacity-30 px-3 md:px-4 py-2 transition-colors text-sm md:text-base flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span class="hidden sm:inline">Edit History</span>
+                </button>
             </div>
         </div>
     </div>
@@ -188,19 +322,22 @@
     <!-- View Toggle & Stats -->
     <div class="max-w-7xl mx-auto px-4 py-3 md:py-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-            <div class="flex space-x-1 md:space-x-2 bg-white rounded-lg shadow p-1 w-full sm:w-auto overflow-x-auto">
-                <button id="spreadsheetViewBtn" class="view-toggle view-active px-3 md:px-4 py-2 rounded-md font-medium text-sm md:text-base whitespace-nowrap flex-1 sm:flex-none">
+            <div class="flex space-x-1 md:space-x-2 bg-white shadow p-1 w-full sm:w-auto overflow-x-auto" style="border-radius: 4px;">
+                <button id="spreadsheetViewBtn" class="view-toggle view-active px-3 md:px-4 py-2 font-medium text-sm md:text-base whitespace-nowrap flex-1 sm:flex-none btn">
                     <span class="hidden sm:inline">Spreadsheet View</span>
                     <span class="sm:hidden">Sheet</span>
                 </button>
-                <button id="eventsViewBtn" class="view-toggle px-3 md:px-4 py-2 rounded-md font-medium bg-gray-100 text-sm md:text-base whitespace-nowrap flex-1 sm:flex-none">
+                <button id="eventsViewBtn" class="view-toggle px-3 md:px-4 py-2 font-medium bg-gray-100 text-sm md:text-base whitespace-nowrap flex-1 sm:flex-none btn">
                     <span class="hidden sm:inline">Event Stream</span>
                     <span class="sm:hidden">Events</span>
                 </button>
             </div>
-            <div class="bg-white rounded-lg shadow px-3 md:px-4 py-2 text-sm flex items-center space-x-3 md:space-x-4 w-full sm:w-auto">
+            <div class="bg-white shadow px-3 md:px-4 py-2 text-sm flex items-center space-x-3 md:space-x-4 w-full sm:w-auto" style="border-radius: 4px;">
                 <span class="text-gray-600">
                     Events: <span id="eventCount" class="font-bold text-indigo-600">0</span>
+                </span>
+                <span class="text-gray-600">
+                    Edits: <span id="editCount" class="font-bold text-green-600">0</span>
                 </span>
                 <span class="text-gray-600 hidden md:inline">
                     Last Edit: <span id="lastEdit" class="font-bold text-indigo-600">Never</span>
@@ -212,11 +349,14 @@
     <!-- Main Content Area -->
     <div class="max-w-7xl mx-auto px-4 pb-8">
         <!-- Spreadsheet View (Full) -->
-        <div id="spreadsheetViewFull" class="bg-white rounded-lg shadow-lg p-6">
+        <div id="spreadsheetViewFull" class="bg-white shadow-lg p-6" style="border-radius: 6px;">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                 <h2 class="text-lg md:text-xl font-semibold text-gray-800">Housing Services Investigation Tracker</h2>
                 <div class="flex space-x-2 w-full sm:w-auto">
-                    <button id="addRowBtn" class="flex-1 sm:flex-none bg-indigo-600 text-white px-3 md:px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors text-sm md:text-base">
+                    <button id="addColumnBtn" class="btn flex-1 sm:flex-none bg-gray-600 text-white px-3 md:px-4 py-2 hover:bg-gray-700 transition-colors text-sm md:text-base">
+                        + Add Column
+                    </button>
+                    <button id="addRowBtn" class="btn flex-1 sm:flex-none bg-indigo-600 text-white px-3 md:px-4 py-2 hover:bg-indigo-700 transition-colors text-sm md:text-base">
                         + Add Row
                     </button>
                 </div>
@@ -226,36 +366,34 @@
                     <thead class="bg-gray-100 sticky top-0">
                         <tr id="headerRow">
                             <th class="border border-gray-300 px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase w-12">#</th>
-                            <!-- Column headers will be inserted here -->
                         </tr>
                     </thead>
                     <tbody id="spreadsheetBody">
-                        <!-- Rows will be inserted here -->
                     </tbody>
                 </table>
             </div>
-            <div class="mt-4 text-xs md:text-sm text-gray-500 space-y-2 bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4">
+            <div class="mt-4 text-xs md:text-sm text-gray-500 space-y-2 bg-blue-50 border border-blue-200 p-3 md:p-4" style="border-radius: 4px;">
                 <p class="flex items-start space-x-2">
                     <span class="flex-shrink-0">💡</span>
-                    <span><strong>Click any cell to edit.</strong> Field types determine how data is displayed and edited.</span>
+                    <span><strong>Click any cell to edit.</strong> Right-click to see full edit history for that cell.</span>
                 </p>
                 <p class="flex items-start space-x-2">
                     <span class="flex-shrink-0">🎯</span>
-                    <span><strong>Click column headers</strong> to change field types (Text, Select, Date, Currency, etc.)</span>
+                    <span><strong>Click column headers</strong> to change field types with the Airtable-style picker!</span>
                 </p>
                 <p class="flex items-start space-x-2">
-                    <span class="flex-shrink-0">✨</span>
-                    <span><strong>Try it:</strong> Click the "Status" header and change it to Single Select with color options!</span>
+                    <span class="flex-shrink-0">📝</span>
+                    <span><strong>Track everything:</strong> Every edit is tracked with full audit trail!</span>
                 </p>
             </div>
         </div>
 
         <!-- Event Stream View (Full) -->
-        <div id="eventsViewFull" class="hidden bg-gray-900 text-green-400 rounded-lg shadow-lg p-6">
+        <div id="eventsViewFull" class="hidden bg-gray-900 text-green-400 shadow-lg p-6" style="border-radius: 6px;">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold text-white">ActivityStream Event Log</h2>
                 <div class="space-x-2">
-                    <button id="copyEventsBtn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                    <button id="copyEventsBtn" class="btn bg-green-600 text-white px-4 py-2 hover:bg-green-700">
                         Copy JSON
                     </button>
                 </div>
@@ -264,59 +402,155 @@
         </div>
     </div>
 
-    <!-- Type Picker Modal -->
-    <div id="typePickerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div class="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
+    <!-- Edit History Panel -->
+    <div id="historyPanel" class="history-panel">
+        <div class="bg-indigo-600 text-white p-6 flex-shrink-0">
+            <div class="flex justify-between items-start mb-4">
                 <div>
-                    <h3 class="text-xl font-semibold">Change Field Type</h3>
-                    <p class="text-sm text-gray-600 mt-1">Column: <span id="typePickerColumn" class="font-semibold"></span></p>
+                    <h3 class="text-xl font-bold">Edit History</h3>
+                    <p class="text-sm opacity-90 mt-1">Full audit trail of all changes</p>
                 </div>
-                <button id="closeTypePickerBtn" class="text-gray-500 hover:text-gray-700">
+                <button id="closeHistoryBtn" class="text-white hover:bg-white hover:bg-opacity-20 p-2 transition-colors" style="border-radius: 4px;">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            <div class="p-6" id="typePickerContent">
-                <!-- Type options will be inserted here -->
+            <div class="space-y-3">
+                <input 
+                    type="text" 
+                    id="historySearch" 
+                    class="search-input text-gray-900"
+                    placeholder="Search history..."
+                >
+                <select id="historyColumnFilter" class="search-input text-gray-900">
+                    <option value="">All Fields</option>
+                </select>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-white opacity-75">Filter mode:</span>
+                    <button id="filterModeToggle" class="btn text-xs px-3 py-1 bg-white bg-opacity-20 hover:bg-opacity-30 transition-colors">
+                        <span id="filterModeText">AND</span>
+                    </button>
+                </div>
+            </div>
+            <div id="activeFilters" class="mt-3 flex flex-wrap gap-2"></div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-6" id="historyContent"></div>
+        <div class="border-t border-gray-200 p-4 flex-shrink-0 bg-gray-50">
+            <div class="text-xs text-gray-600 flex justify-between">
+                <span>Total Edits: <strong id="historyTotalEdits">0</strong></span>
+                <span>Showing: <strong id="historyShownEdits">0</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Airtable-Style Type Picker Modal -->
+    <div id="typePickerModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-4 z-50">
+        <div class="modal-container bg-white max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div class="border-b border-gray-200 p-4 flex-shrink-0">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <h3 class="text-base font-semibold text-gray-900">Customize field type</h3>
+                        <p class="text-sm text-gray-600 mt-1">
+                            <span id="typePickerColumn" class="font-medium"></span>
+                        </p>
+                    </div>
+                    <button id="closeTypePickerBtn" class="text-gray-400 hover:text-gray-600 transition-colors p-1">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <input type="text" id="typePickerSearch" class="search-input text-gray-900 mt-2" placeholder="Find a field type">
+            </div>
+            <div class="flex-1 overflow-y-auto" id="typePickerContent">
+                <!-- Airtable-style list will be inserted here -->
+            </div>
+            <div class="border-t border-gray-200 p-3 flex justify-end gap-2 bg-gray-50">
+                <button id="cancelPickerBtn" class="btn px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors text-sm font-medium">
+                    Cancel
+                </button>
+                <button id="savePickerBtn" class="btn px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium">
+                    Save
+                </button>
             </div>
         </div>
     </div>
 
     <!-- Type Config Modal -->
-    <div id="typeConfigModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+    <div id="typeConfigModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-4 z-50">
+        <div class="modal-container bg-white max-w-md w-full">
             <div class="bg-gray-50 border-b border-gray-200 p-4 flex justify-between items-center">
-                <h3 class="text-lg font-semibold">Configure Field</h3>
-                <button id="closeTypeConfigBtn" class="text-gray-500 hover:text-gray-700">
+                <h3 class="text-base font-semibold text-gray-900">Configure Field</h3>
+                <button id="closeTypeConfigBtn" class="text-gray-400 hover:text-gray-600 transition-colors p-1">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            <div class="p-6" id="typeConfigContent">
-                <!-- Configuration form will be inserted here -->
-            </div>
-            <div class="bg-gray-50 border-t border-gray-200 p-4 flex justify-end space-x-2">
-                <button id="cancelTypeConfigBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+            <div class="p-6" id="typeConfigContent"></div>
+            <div class="bg-gray-50 border-t border-gray-200 p-3 flex justify-end space-x-2">
+                <button id="cancelTypeConfigBtn" class="btn px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors font-medium text-sm">
                     Cancel
                 </button>
-                <button id="saveTypeConfigBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-                    Save Changes
+                <button id="saveTypeConfigBtn" class="btn px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium text-sm">
+                    Save
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- Add Column Modal -->
+    <div id="addColumnModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-4 z-50">
+        <div class="modal-container bg-white max-w-md w-full">
+            <div class="bg-gray-50 border-b border-gray-200 p-4 flex justify-between items-center">
+                <h3 class="text-base font-semibold text-gray-900">Add New Column</h3>
+                <button id="closeAddColumnBtn" class="text-gray-400 hover:text-gray-600 transition-colors p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Column Name</label>
+                    <input type="text" id="newColumnName" class="search-input text-gray-900" placeholder="Enter column name">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Field Type</label>
+                    <select id="newColumnType" class="search-input text-gray-900">
+                        <option value="TEXT">Single line text</option>
+                        <option value="LONG_TEXT">Long text</option>
+                        <option value="NUMBER">Number</option>
+                        <option value="CURRENCY">Currency</option>
+                        <option value="DATE">Date</option>
+                        <option value="EMAIL">Email</option>
+                        <option value="URL">URL</option>
+                        <option value="PHONE">Phone number</option>
+                        <option value="SINGLE_SELECT">Single select</option>
+                        <option value="CHECKBOX">Checkbox</option>
+                    </select>
+                </div>
+            </div>
+            <div class="bg-gray-50 border-t border-gray-200 p-3 flex justify-end space-x-2">
+                <button id="cancelAddColumnBtn" class="btn px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors font-medium text-sm">
+                    Cancel
+                </button>
+                <button id="saveAddColumnBtn" class="btn px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium text-sm">
+                    Add Column
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script>
         // Field Type Definitions
         const FIELD_TYPES = {
             TEXT: {
                 id: 'TEXT',
-                name: 'Single Line Text',
-                icon: '📝',
-                group: 'text',
+                name: 'Single line text',
+                icon: 'type',
                 defaultValue: '',
                 render: (value) => value || '',
                 validate: (value) => typeof value === 'string',
@@ -324,19 +558,52 @@
             },
             LONG_TEXT: {
                 id: 'LONG_TEXT',
-                name: 'Long Text',
-                icon: '📄',
-                group: 'text',
+                name: 'Long text',
+                icon: 'align-left',
                 defaultValue: '',
                 render: (value) => value || '',
                 validate: (value) => typeof value === 'string',
                 needsConfig: false
             },
+            EMAIL: {
+                id: 'EMAIL',
+                name: 'Email',
+                icon: 'mail',
+                defaultValue: '',
+                render: (value) => {
+                    if (!value) return '';
+                    return `<a href="mailto:${value}" class="text-blue-600 hover:underline">${value}</a>`;
+                },
+                validate: (value) => {
+                    if (!value) return true;
+                    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+                },
+                needsConfig: false
+            },
+            URL: {
+                id: 'URL',
+                name: 'URL',
+                icon: 'link',
+                defaultValue: '',
+                render: (value) => {
+                    if (!value) return '';
+                    return `<a href="${value}" target="_blank" class="text-blue-600 hover:underline">🔗 Link</a>`;
+                },
+                validate: (value) => {
+                    if (!value) return true;
+                    try {
+                        new URL(value);
+                        return true;
+                    } catch {
+                        return false;
+                    }
+                },
+                needsConfig: false
+            },
             NUMBER: {
                 id: 'NUMBER',
                 name: 'Number',
-                icon: '#️⃣',
-                group: 'number',
+                icon: 'hash',
                 defaultValue: 0,
                 render: (value) => value !== '' && value !== null ? Number(value).toLocaleString() : '',
                 validate: (value) => value === '' || !isNaN(value),
@@ -345,8 +612,7 @@
             CURRENCY: {
                 id: 'CURRENCY',
                 name: 'Currency',
-                icon: '💰',
-                group: 'number',
+                icon: 'dollar-sign',
                 defaultValue: 0,
                 render: (value, config = {}) => {
                     if (value === '' || value === null) return '';
@@ -358,11 +624,34 @@
                 validate: (value) => value === '' || !isNaN(value),
                 needsConfig: false
             },
+            DATE: {
+                id: 'DATE',
+                name: 'Date',
+                icon: 'calendar',
+                defaultValue: '',
+                render: (value) => {
+                    if (!value) return '';
+                    return new Date(value).toLocaleDateString();
+                },
+                validate: (value) => {
+                    if (!value) return true;
+                    return !isNaN(new Date(value).getTime());
+                },
+                needsConfig: false
+            },
+            PHONE: {
+                id: 'PHONE',
+                name: 'Phone number',
+                icon: 'phone',
+                defaultValue: '',
+                render: (value) => value || '',
+                validate: (value) => true,
+                needsConfig: false
+            },
             SINGLE_SELECT: {
                 id: 'SINGLE_SELECT',
-                name: 'Single Select',
-                icon: '🎯',
-                group: 'select',
+                name: 'Single select',
+                icon: 'check-circle',
                 defaultValue: '',
                 render: (value, config = {}) => {
                     if (!value) return '';
@@ -383,72 +672,48 @@
                     }
                 }
             },
+            MULTI_SELECT: {
+                id: 'MULTI_SELECT',
+                name: 'Multiple select',
+                icon: 'list-checks',
+                defaultValue: [],
+                render: (value) => {
+                    if (!value || value.length === 0) return '';
+                    return value.map(v => `<span class="badge badge-blue mr-1">${v}</span>`).join('');
+                },
+                validate: (value) => Array.isArray(value),
+                needsConfig: false
+            },
             CHECKBOX: {
                 id: 'CHECKBOX',
                 name: 'Checkbox',
-                icon: '☑️',
-                group: 'select',
+                icon: 'check-square',
                 defaultValue: false,
                 render: (value) => value ? '✅' : '⬜',
                 validate: (value) => typeof value === 'boolean',
                 needsConfig: false
             },
-            DATE: {
-                id: 'DATE',
-                name: 'Date',
-                icon: '📅',
-                group: 'date',
+            ATTACHMENT: {
+                id: 'ATTACHMENT',
+                name: 'Attachment',
+                icon: 'paperclip',
                 defaultValue: '',
-                render: (value) => {
-                    if (!value) return '';
-                    return new Date(value).toLocaleDateString();
-                },
-                validate: (value) => {
-                    if (!value) return true;
-                    return !isNaN(new Date(value).getTime());
-                },
+                render: (value) => value ? '📎 File' : '',
+                validate: (value) => true,
                 needsConfig: false
             },
-            EMAIL: {
-                id: 'EMAIL',
-                name: 'Email',
-                icon: '📧',
-                group: 'text',
+            USER: {
+                id: 'USER',
+                name: 'User',
+                icon: 'user',
                 defaultValue: '',
-                render: (value) => {
-                    if (!value) return '';
-                    return `<a href="mailto:${value}" class="text-blue-600 hover:underline">${value}</a>`;
-                },
-                validate: (value) => {
-                    if (!value) return true;
-                    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-                },
-                needsConfig: false
-            },
-            URL: {
-                id: 'URL',
-                name: 'URL',
-                icon: '🔗',
-                group: 'text',
-                defaultValue: '',
-                render: (value) => {
-                    if (!value) return '';
-                    return `<a href="${value}" target="_blank" class="text-blue-600 hover:underline">🔗 Link</a>`;
-                },
-                validate: (value) => {
-                    if (!value) return true;
-                    try {
-                        new URL(value);
-                        return true;
-                    } catch {
-                        return false;
-                    }
-                },
+                render: (value) => value || '',
+                validate: (value) => true,
                 needsConfig: false
             }
         };
 
-        // Column definitions with types
+        // Column definitions
         let columns = [
             { id: 'case_id', name: 'Case ID', type: 'TEXT', width: '100px' },
             { id: 'client_name', name: 'Client Name', type: 'TEXT', width: '150px' },
@@ -524,10 +789,11 @@
             }
         ];
 
-        // Event stream
+        // Edit history
+        let editHistory = [];
         let eventStream = [];
         let eventIdCounter = 1;
-
+        
         // Current actor
         const currentUser = {
             type: 'Person',
@@ -535,24 +801,40 @@
             name: 'Michael Clem'
         };
 
-        // State for type picker
+        // State
         let typePickerState = {
             columnId: null,
-            columnIndex: null
+            columnIndex: null,
+            selectedType: null
+        };
+
+        let historyPanelState = {
+            searchQuery: '',
+            columnFilter: '',
+            cellFilter: null,
+            filterMode: 'AND' // 'AND' or 'OR'
         };
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            initIcons();
             initializeSpreadsheet();
             setupEventListeners();
             updateStats();
+            populateColumnFilter();
         });
+
+        // Helper to safely create icons
+        function initIcons() {
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                lucide.createIcons();
+            }
+        }
 
         // Initialize spreadsheet
         function initializeSpreadsheet() {
             renderSpreadsheet();
             
-            // Create initial creation events
             spreadsheetData.forEach((row, rowIndex) => {
                 createEvent('Create', {
                     rowIndex: rowIndex,
@@ -568,11 +850,9 @@
             const headerRow = document.getElementById('headerRow');
             const tbody = document.getElementById('spreadsheetBody');
             
-            // Clear existing content
             headerRow.innerHTML = '<th class="border border-gray-300 px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase w-12">#</th>';
             tbody.innerHTML = '';
 
-            // Render headers
             columns.forEach((col, colIndex) => {
                 const th = document.createElement('th');
                 th.className = 'border border-gray-300 px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase column-header';
@@ -582,7 +862,7 @@
                 th.innerHTML = `
                     <div class="flex items-center justify-between">
                         <span class="flex items-center">
-                            <span class="type-icon">${fieldType.icon}</span>
+                            <i data-lucide="${fieldType.icon}" class="w-4 h-4 mr-2 opacity-60"></i>
                             ${col.name}
                         </span>
                         <svg class="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -599,18 +879,15 @@
                 headerRow.appendChild(th);
             });
 
-            // Render rows
             spreadsheetData.forEach((row, rowIndex) => {
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50';
 
-                // Row number
                 const tdNum = document.createElement('td');
                 tdNum.className = 'border border-gray-300 px-2 py-2 text-xs text-gray-500 text-center bg-gray-50';
                 tdNum.textContent = rowIndex + 1;
                 tr.appendChild(tdNum);
 
-                // Data cells
                 columns.forEach((col) => {
                     const td = document.createElement('td');
                     td.className = 'border border-gray-300 cell-editable';
@@ -618,19 +895,30 @@
                     td.dataset.columnId = col.id;
                     td.dataset.columnType = col.type;
                     
+                    const cellHistory = getCellHistory(rowIndex, col.id);
+                    if (cellHistory.length > 0) {
+                        td.classList.add('cell-with-history');
+                    }
+                    
                     renderCell(td, row[col.id], col);
                     
-                    // Click handler based on type
                     td.onclick = (e) => handleCellClick(e, rowIndex, col, td);
+                    
+                    td.oncontextmenu = (e) => {
+                        e.preventDefault();
+                        showCellHistory(rowIndex, col.id);
+                    };
                     
                     tr.appendChild(td);
                 });
 
                 tbody.appendChild(tr);
             });
+            
+            initIcons();
         }
 
-        // Render individual cell based on type
+        // Render individual cell
         function renderCell(td, value, column) {
             const fieldType = FIELD_TYPES[column.type];
             
@@ -642,32 +930,27 @@
             }
         }
 
-        // Handle cell click based on type
+        // Handle cell click
         function handleCellClick(e, rowIndex, column, td) {
-            const fieldType = FIELD_TYPES[column.type];
             const currentValue = spreadsheetData[rowIndex][column.id];
             
             if (column.type === 'CHECKBOX') {
-                // Toggle checkbox
                 const newValue = !currentValue;
                 handleCellEdit(rowIndex, column.id, currentValue, newValue);
                 return;
             }
             
             if (column.type === 'SINGLE_SELECT') {
-                // Show dropdown
                 showSelectDropdown(td, rowIndex, column, currentValue);
                 return;
             }
             
             if (column.type === 'DATE') {
-                // Show date picker
                 showDatePicker(td, rowIndex, column, currentValue);
                 return;
             }
             
-            // For text/number types, make contentEditable
-            if (['TEXT', 'LONG_TEXT', 'NUMBER', 'CURRENCY', 'EMAIL', 'URL'].includes(column.type)) {
+            if (['TEXT', 'LONG_TEXT', 'NUMBER', 'CURRENCY', 'EMAIL', 'URL', 'PHONE'].includes(column.type)) {
                 makeEditable(td, rowIndex, column, currentValue);
                 return;
             }
@@ -676,13 +959,13 @@
         // Make cell editable
         function makeEditable(td, rowIndex, column, currentValue) {
             const originalValue = currentValue;
+            let isFinishing = false; // Prevent duplicate calls
             
             td.contentEditable = true;
             td.textContent = currentValue || '';
             td.focus();
             td.classList.add('cell-editing');
             
-            // Select all text
             const range = document.createRange();
             range.selectNodeContents(td);
             const selection = window.getSelection();
@@ -690,11 +973,23 @@
             selection.addRange(range);
             
             const finishEdit = () => {
+                if (isFinishing) return; // Already finishing
+                isFinishing = true;
+                
+                // Remove event listeners to prevent further calls
+                td.onblur = null;
+                td.onkeydown = null;
+                
                 td.contentEditable = false;
                 td.classList.remove('cell-editing');
-                const newValue = td.textContent.trim();
+                let newValue = td.textContent.trim();
                 
-                if (newValue !== originalValue) {
+                // Convert to number for number/currency fields
+                if (column.type === 'NUMBER' || column.type === 'CURRENCY') {
+                    newValue = newValue === '' ? '' : parseFloat(newValue.replace(/[^0-9.-]/g, ''));
+                }
+                
+                if (String(newValue) !== String(originalValue)) {
                     handleCellEdit(rowIndex, column.id, originalValue, newValue);
                 } else {
                     renderCell(td, originalValue, column);
@@ -716,7 +1011,6 @@
 
         // Show select dropdown
         function showSelectDropdown(td, rowIndex, column, currentValue) {
-            // Remove any existing dropdowns
             document.querySelectorAll('.custom-select').forEach(el => el.remove());
             
             const dropdown = document.createElement('div');
@@ -743,7 +1037,6 @@
                 dropdown.appendChild(optionEl);
             });
             
-            // Position dropdown
             const rect = td.getBoundingClientRect();
             dropdown.style.position = 'fixed';
             dropdown.style.top = `${rect.bottom + 4}px`;
@@ -751,7 +1044,6 @@
             
             document.body.appendChild(dropdown);
             
-            // Close on click outside
             setTimeout(() => {
                 document.addEventListener('click', function closeDropdown(e) {
                     if (!dropdown.contains(e.target) && e.target !== td) {
@@ -764,16 +1056,26 @@
 
         // Show date picker
         function showDatePicker(td, rowIndex, column, currentValue) {
+            let isFinishing = false; // Prevent duplicate calls
+            
             const input = document.createElement('input');
             input.type = 'date';
             input.value = currentValue || '';
-            input.className = 'w-full px-2 py-1 border-2 border-indigo-500 rounded';
+            input.className = 'w-full px-2 py-1 border-2 border-indigo-500';
+            input.style.borderRadius = '3px';
             
             td.innerHTML = '';
             td.appendChild(input);
             input.focus();
             
             const finishEdit = () => {
+                if (isFinishing) return; // Already finishing
+                isFinishing = true;
+                
+                // Remove event listeners to prevent further calls
+                input.onblur = null;
+                input.onchange = null;
+                
                 const newValue = input.value;
                 if (newValue !== currentValue) {
                     handleCellEdit(rowIndex, column.id, currentValue, newValue);
@@ -788,13 +1090,29 @@
 
         // Handle cell edit
         function handleCellEdit(rowIndex, columnId, oldValue, newValue) {
-            // Update data
+            // Don't record if values are actually the same
+            if (oldValue === newValue) {
+                return;
+            }
+            
             spreadsheetData[rowIndex][columnId] = newValue;
 
-            // Get column info
             const column = columns.find(c => c.id === columnId);
+            
+            const historyEntry = {
+                id: `edit-${Date.now()}-${Math.random()}`,
+                timestamp: new Date().toISOString(),
+                actor: currentUser,
+                rowIndex: rowIndex,
+                columnId: columnId,
+                columnName: column.name,
+                columnType: column.type,
+                oldValue: oldValue,
+                newValue: newValue,
+                caseId: spreadsheetData[rowIndex].case_id || `Row ${rowIndex + 1}`
+            };
+            editHistory.unshift(historyEntry);
 
-            // Create ActivityStream event
             createEvent('Update', {
                 rowIndex: rowIndex,
                 columnId: columnId,
@@ -803,14 +1121,13 @@
                 oldValue: oldValue,
                 newValue: newValue,
                 caseId: spreadsheetData[rowIndex].case_id
-            }, `Updated ${column.name} in row ${rowIndex + 1}`);
+            }, `Updated ${column.name} from "${oldValue}" to "${newValue}" in ${spreadsheetData[rowIndex].case_id}`);
 
-            // Re-render the spreadsheet
             renderSpreadsheet();
             updateEventStream();
             updateStats();
+            renderHistory();
             
-            // Flash the changed cell
             setTimeout(() => {
                 const cell = document.querySelector(`[data-row-index="${rowIndex}"][data-column-id="${columnId}"]`);
                 if (cell) {
@@ -820,67 +1137,336 @@
             }, 0);
         }
 
-        // Open type picker
+        // Get history for a specific cell
+        function getCellHistory(rowIndex, columnId) {
+            return editHistory.filter(entry => 
+                entry.rowIndex === rowIndex && entry.columnId === columnId
+            );
+        }
+
+        // Show history for specific cell
+        function showCellHistory(rowIndex, columnId) {
+            const column = columns.find(c => c.id === columnId);
+            historyPanelState.cellFilter = { rowIndex, columnId };
+            historyPanelState.columnFilter = columnId;
+            
+            document.getElementById('historyColumnFilter').value = columnId;
+            document.getElementById('historyPanel').classList.add('open');
+            renderHistory();
+        }
+
+        // Render history panel
+        function renderHistory() {
+            const content = document.getElementById('historyContent');
+            
+            let filtered = [...editHistory];
+            
+            // Build filter conditions
+            const hasSearchQuery = historyPanelState.searchQuery !== '';
+            const hasColumnFilter = historyPanelState.columnFilter !== '';
+            const hasCellFilter = historyPanelState.cellFilter !== null;
+            
+            if (historyPanelState.filterMode === 'AND') {
+                // AND logic: entry must match ALL active filters
+                if (hasSearchQuery) {
+                    const query = historyPanelState.searchQuery.toLowerCase();
+                    filtered = filtered.filter(entry => 
+                        entry.columnName.toLowerCase().includes(query) ||
+                        String(entry.oldValue).toLowerCase().includes(query) ||
+                        String(entry.newValue).toLowerCase().includes(query) ||
+                        entry.caseId.toLowerCase().includes(query)
+                    );
+                }
+                
+                if (hasColumnFilter) {
+                    filtered = filtered.filter(entry => entry.columnId === historyPanelState.columnFilter);
+                }
+                
+                if (hasCellFilter) {
+                    filtered = filtered.filter(entry => 
+                        entry.rowIndex === historyPanelState.cellFilter.rowIndex &&
+                        entry.columnId === historyPanelState.cellFilter.columnId
+                    );
+                }
+            } else {
+                // OR logic: entry must match AT LEAST ONE active filter
+                const activeFilters = [];
+                
+                if (hasSearchQuery) {
+                    const query = historyPanelState.searchQuery.toLowerCase();
+                    activeFilters.push(entry => 
+                        entry.columnName.toLowerCase().includes(query) ||
+                        String(entry.oldValue).toLowerCase().includes(query) ||
+                        String(entry.newValue).toLowerCase().includes(query) ||
+                        entry.caseId.toLowerCase().includes(query)
+                    );
+                }
+                
+                if (hasColumnFilter) {
+                    activeFilters.push(entry => entry.columnId === historyPanelState.columnFilter);
+                }
+                
+                if (hasCellFilter) {
+                    activeFilters.push(entry => 
+                        entry.rowIndex === historyPanelState.cellFilter.rowIndex &&
+                        entry.columnId === historyPanelState.cellFilter.columnId
+                    );
+                }
+                
+                if (activeFilters.length > 0) {
+                    filtered = filtered.filter(entry => 
+                        activeFilters.some(filterFn => filterFn(entry))
+                    );
+                }
+            }
+            
+            document.getElementById('historyTotalEdits').textContent = editHistory.length;
+            document.getElementById('historyShownEdits').textContent = filtered.length;
+            
+            if (filtered.length === 0) {
+                content.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-gray-400 text-5xl mb-4">📝</div>
+                        <p class="text-gray-600 font-medium">No edit history</p>
+                        <p class="text-gray-500 text-sm mt-1">Changes will appear here as you edit cells</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            content.innerHTML = filtered.map((entry, index) => {
+                const timeAgo = getTimeAgo(entry.timestamp);
+                const column = columns.find(c => c.id === entry.columnId);
+                const fieldType = FIELD_TYPES[entry.columnType];
+                
+                return `
+                    <div class="history-entry restorable mb-4 p-3" data-entry-id="${entry.id}" style="border-radius: 4px;">
+                        <div class="flex items-start justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="${fieldType.icon}" class="w-5 h-5"></i>
+                                <div>
+                                    <div class="font-semibold text-sm text-gray-900">${entry.columnName}</div>
+                                    <div class="text-xs text-gray-500">${entry.caseId} • ${timeAgo}</div>
+                                </div>
+                            </div>
+                            <button class="restore-btn text-indigo-600 hover:text-indigo-800 text-xs font-medium" data-entry-id="${entry.id}">
+                                Restore
+                            </button>
+                        </div>
+                        <div class="value-change text-sm">
+                            <span class="value-old">${formatValue(entry.oldValue, column)}</span>
+                            <span class="text-gray-400">→</span>
+                            <span class="value-new">${formatValue(entry.newValue, column)}</span>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-500">
+                            by ${entry.actor.name}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            initIcons();
+            
+            content.querySelectorAll('.restore-btn').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const entryId = btn.dataset.entryId;
+                    restoreValue(entryId);
+                };
+            });
+            
+            renderActiveFilters();
+        }
+
+        // Format value for display
+        function formatValue(value, column) {
+            if (value === '' || value === null || value === undefined) return '(empty)';
+            if (column && column.type === 'DATE') {
+                return new Date(value).toLocaleDateString();
+            }
+            if (column && column.type === 'CURRENCY') {
+                return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+            }
+            return String(value);
+        }
+
+        // Get time ago string
+        function getTimeAgo(timestamp) {
+            const now = new Date();
+            const then = new Date(timestamp);
+            const seconds = Math.floor((now - then) / 1000);
+            
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            return `${Math.floor(seconds / 86400)}d ago`;
+        }
+
+        // Restore previous value
+        function restoreValue(entryId) {
+            const entry = editHistory.find(e => e.id === entryId);
+            if (!entry) return;
+            
+            handleCellEdit(entry.rowIndex, entry.columnId, entry.newValue, entry.oldValue);
+            
+            showNotification(`✓ Restored ${entry.columnName} to previous value`);
+        }
+
+        // Render active filters
+        function renderActiveFilters() {
+            const container = document.getElementById('activeFilters');
+            container.innerHTML = '';
+            
+            const activeFilterCount = [
+                historyPanelState.columnFilter,
+                historyPanelState.cellFilter,
+                historyPanelState.searchQuery
+            ].filter(Boolean).length;
+            
+            if (activeFilterCount > 1) {
+                const modePill = document.createElement('div');
+                modePill.className = 'filter-pill bg-white bg-opacity-20 text-white';
+                modePill.innerHTML = `Mode: ${historyPanelState.filterMode}`;
+                container.appendChild(modePill);
+            }
+            
+            if (historyPanelState.columnFilter) {
+                const column = columns.find(c => c.id === historyPanelState.columnFilter);
+                const pill = document.createElement('div');
+                pill.className = 'filter-pill';
+                pill.innerHTML = `
+                    ${column.name}
+                    <button onclick="clearColumnFilter()">✕</button>
+                `;
+                container.appendChild(pill);
+            }
+            
+            if (historyPanelState.cellFilter) {
+                const pill = document.createElement('div');
+                pill.className = 'filter-pill';
+                pill.innerHTML = `
+                    Cell (${historyPanelState.cellFilter.rowIndex + 1}, ${historyPanelState.cellFilter.columnId})
+                    <button onclick="clearCellFilter()">✕</button>
+                `;
+                container.appendChild(pill);
+            }
+        }
+
+        // Clear filters
+        function clearColumnFilter() {
+            historyPanelState.columnFilter = '';
+            document.getElementById('historyColumnFilter').value = '';
+            renderHistory();
+        }
+
+        function clearCellFilter() {
+            historyPanelState.cellFilter = null;
+            renderHistory();
+        }
+
+        // Populate column filter dropdown
+        function populateColumnFilter() {
+            const select = document.getElementById('historyColumnFilter');
+            select.innerHTML = '<option value="">All Fields</option>';
+            
+            columns.forEach(col => {
+                const option = document.createElement('option');
+                option.value = col.id;
+                option.textContent = col.name;
+                select.appendChild(option);
+            });
+        }
+
+        // Open type picker (AIRTABLE STYLE)
         function openTypePicker(columnId, columnIndex) {
             const column = columns.find(c => c.id === columnId);
-            typePickerState = { columnId, columnIndex };
-            
-            document.getElementById('typePickerColumn').textContent = column.name;
-            
-            const content = document.getElementById('typePickerContent');
-            content.innerHTML = '';
-            
-            // Group types
-            const groups = {
-                text: { name: '📝 Text Types', types: [] },
-                number: { name: '🔢 Number Types', types: [] },
-                select: { name: '🎯 Selection Types', types: [] },
-                date: { name: '📅 Date Types', types: [] }
+            typePickerState = { 
+                columnId, 
+                columnIndex, 
+                selectedType: column.type // Start with current type selected
             };
             
-            Object.values(FIELD_TYPES).forEach(type => {
-                groups[type.group].types.push(type);
-            });
+            console.log('Opening type picker for column:', column.name, 'Current type:', column.type);
             
-            Object.values(groups).forEach(group => {
-                if (group.types.length === 0) return;
-                
-                const groupEl = document.createElement('div');
-                groupEl.className = 'mb-4';
-                groupEl.innerHTML = `<h4 class="text-sm font-semibold text-gray-700 mb-2">${group.name}</h4>`;
-                
-                const typesContainer = document.createElement('div');
-                typesContainer.className = 'space-y-1';
-                
-                group.types.forEach(type => {
-                    const typeEl = document.createElement('div');
-                    typeEl.className = 'dropdown-item rounded';
-                    if (type.id === column.type) {
-                        typeEl.classList.add('bg-indigo-50');
-                    }
-                    typeEl.innerHTML = `
-                        <span class="text-xl">${type.icon}</span>
-                        <span class="flex-1">${type.name}</span>
-                        ${type.id === column.type ? '<span class="text-indigo-600">✓</span>' : ''}
-                    `;
-                    
-                    typeEl.onclick = () => {
-                        if (type.needsConfig) {
-                            showTypeConfig(type);
-                        } else {
-                            changeFieldType(columnId, type.id);
-                        }
-                    };
-                    
-                    typesContainer.appendChild(typeEl);
-                });
-                
-                groupEl.appendChild(typesContainer);
-                content.appendChild(groupEl);
-            });
+            document.getElementById('typePickerColumn').textContent = column.name;
+            document.getElementById('typePickerSearch').value = '';
+            
+            renderAirtableFieldTypes();
             
             document.getElementById('typePickerModal').classList.remove('hidden');
         }
+
+        // Render Airtable-style field types
+        function renderAirtableFieldTypes(searchQuery = '') {
+            const content = document.getElementById('typePickerContent');
+            const column = columns.find(c => c.id === typePickerState.columnId);
+            
+            const filteredTypes = Object.values(FIELD_TYPES).filter(type => 
+                !searchQuery || type.name.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+            
+            content.innerHTML = '<ul class="airtable-field-list">';
+            
+            filteredTypes.forEach(type => {
+                const isSelected = type.id === typePickerState.selectedType;
+                const li = document.createElement('li');
+                li.className = `airtable-field-item ${isSelected ? 'selected' : ''}`;
+                li.dataset.typeId = type.id;
+                
+                li.innerHTML = `
+                    <div class="airtable-field-icon">
+                        <i data-lucide="${type.icon}"></i>
+                    </div>
+                    <div class="airtable-field-name">${type.name}</div>
+                    ${type.needsConfig ? '<div class="airtable-field-chevron"><i data-lucide="chevron-right"></i></div>' : ''}
+                `;
+                
+                li.onclick = () => {
+                    console.log('Selected field type:', type.id, type.name);
+                    typePickerState.selectedType = type.id;
+                    
+                    // Update selected state
+                    content.querySelectorAll('.airtable-field-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    li.classList.add('selected');
+                };
+                
+                content.querySelector('.airtable-field-list').appendChild(li);
+            });
+            
+            content.innerHTML += '</ul>';
+            initIcons();
+        }
+
+        // Save field type selection
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('savePickerBtn').addEventListener('click', () => {
+                console.log('Save button clicked. Selected type:', typePickerState.selectedType);
+                console.log('Column ID:', typePickerState.columnId);
+                
+                if (!typePickerState.selectedType) {
+                    alert('Please select a field type');
+                    return;
+                }
+                
+                const fieldType = FIELD_TYPES[typePickerState.selectedType];
+                console.log('Field type object:', fieldType);
+                
+                if (fieldType.needsConfig) {
+                    console.log('Field needs config, showing config modal');
+                    showTypeConfig(fieldType);
+                } else {
+                    console.log('Field does not need config, changing type directly');
+                    changeFieldType(typePickerState.columnId, typePickerState.selectedType, {});
+                }
+            });
+            
+            // Add search functionality
+            document.getElementById('typePickerSearch').addEventListener('input', (e) => {
+                renderAirtableFieldTypes(e.target.value);
+            });
+        });
 
         // Show type configuration
         function showTypeConfig(fieldType) {
@@ -897,8 +1483,8 @@
                             <div id="optionsList" class="space-y-2">
                                 ${(config.options || []).map((opt, i) => `
                                     <div class="flex items-center space-x-2">
-                                        <input type="text" value="${opt}" class="flex-1 border border-gray-300 rounded px-3 py-2" data-option-index="${i}" />
-                                        <select class="border border-gray-300 rounded px-3 py-2" data-color-index="${i}">
+                                        <input type="text" value="${opt}" class="flex-1 border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-option-index="${i}" style="border-radius: 4px;" />
+                                        <select class="border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-color-index="${i}" style="border-radius: 4px;">
                                             <option value="blue" ${config.colors[opt] === 'blue' ? 'selected' : ''}>🔵 Blue</option>
                                             <option value="green" ${config.colors[opt] === 'green' ? 'selected' : ''}>🟢 Green</option>
                                             <option value="yellow" ${config.colors[opt] === 'yellow' ? 'selected' : ''}>🟡 Yellow</option>
@@ -906,7 +1492,7 @@
                                             <option value="purple" ${config.colors[opt] === 'purple' ? 'selected' : ''}>🟣 Purple</option>
                                             <option value="gray" ${config.colors[opt] === 'gray' ? 'selected' : ''}>⚪ Gray</option>
                                         </select>
-                                        <button class="text-red-600 hover:text-red-800 p-2" onclick="removeOption(${i})">
+                                        <button class="text-red-600 hover:text-red-800 p-2" onclick="this.parentElement.remove()">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                             </svg>
@@ -914,8 +1500,11 @@
                                     </div>
                                 `).join('')}
                             </div>
-                            <button id="addOptionBtn" class="mt-2 text-indigo-600 hover:text-indigo-800 text-sm font-medium">
-                                + Add Option
+                            <button id="addOptionBtn" class="mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                Add Option
                             </button>
                         </div>
                     </div>
@@ -924,24 +1513,24 @@
                 document.getElementById('addOptionBtn').onclick = addOption;
             }
             
+            document.getElementById('typePickerModal').classList.add('hidden');
             document.getElementById('typeConfigModal').classList.remove('hidden');
             
-            // Save handler
             document.getElementById('saveTypeConfigBtn').onclick = () => {
                 const newConfig = extractConfig(fieldType);
                 changeFieldType(typePickerState.columnId, fieldType.id, newConfig);
             };
         }
 
-        // Add option to select config
+        // Add option
         function addOption() {
             const optionsList = document.getElementById('optionsList');
             const index = optionsList.children.length;
             const optionEl = document.createElement('div');
             optionEl.className = 'flex items-center space-x-2';
             optionEl.innerHTML = `
-                <input type="text" value="Option ${index + 1}" class="flex-1 border border-gray-300 rounded px-3 py-2" data-option-index="${index}" />
-                <select class="border border-gray-300 rounded px-3 py-2" data-color-index="${index}">
+                <input type="text" value="Option ${index + 1}" class="flex-1 border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-option-index="${index}" style="border-radius: 4px;" />
+                <select class="border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-color-index="${index}" style="border-radius: 4px;">
                     <option value="blue">🔵 Blue</option>
                     <option value="green">🟢 Green</option>
                     <option value="yellow">🟡 Yellow</option>
@@ -958,7 +1547,7 @@
             optionsList.appendChild(optionEl);
         }
 
-        // Extract config from form
+        // Extract config
         function extractConfig(fieldType) {
             if (fieldType.id === 'SINGLE_SELECT') {
                 const options = [];
@@ -986,11 +1575,31 @@
             const oldType = column.type;
             const oldConfig = column.config || {};
             
-            // Update column definition
+            // Actually update the column
             column.type = newType;
             column.config = newConfig;
             
-            // Create schema change event
+            // Convert existing data to match new type if needed
+            spreadsheetData.forEach((row, rowIndex) => {
+                const oldValue = row[columnId];
+                const fieldType = FIELD_TYPES[newType];
+                
+                // Try to convert the value to the new type
+                if (newType === 'NUMBER' || newType === 'CURRENCY') {
+                    const num = parseFloat(oldValue);
+                    row[columnId] = isNaN(num) ? fieldType.defaultValue : num;
+                } else if (newType === 'CHECKBOX') {
+                    row[columnId] = Boolean(oldValue);
+                } else if (newType === 'DATE') {
+                    row[columnId] = oldValue || fieldType.defaultValue;
+                } else if (newType === 'SINGLE_SELECT') {
+                    const options = newConfig.options || [];
+                    row[columnId] = options.includes(oldValue) ? oldValue : (options[0] || fieldType.defaultValue);
+                } else {
+                    row[columnId] = oldValue || fieldType.defaultValue;
+                }
+            });
+            
             createEvent('FieldTypeChanged', {
                 columnId: columnId,
                 columnName: column.name,
@@ -1001,16 +1610,14 @@
                 affectedRows: spreadsheetData.length
             }, `Changed '${column.name}' field type from ${FIELD_TYPES[oldType].name} to ${FIELD_TYPES[newType].name}`);
             
-            // Close modals
             document.getElementById('typePickerModal').classList.add('hidden');
             document.getElementById('typeConfigModal').classList.add('hidden');
             
-            // Re-render spreadsheet
             renderSpreadsheet();
             updateEventStream();
             updateStats();
+            populateColumnFilter();
             
-            // Show notification
             showNotification(`✓ Changed ${column.name} to ${FIELD_TYPES[newType].name}`);
         }
 
@@ -1030,7 +1637,7 @@
             return event;
         }
 
-        // Update event stream display
+        // Update event stream
         function updateEventStream() {
             const eventsContent = document.getElementById('eventsContent');
             
@@ -1085,11 +1692,66 @@
             updateStats();
         }
 
+        // Add new column
+        function addNewColumn() {
+            const columnName = document.getElementById('newColumnName').value.trim();
+            const columnType = document.getElementById('newColumnType').value;
+            
+            if (!columnName) {
+                alert('Please enter a column name');
+                return;
+            }
+            
+            // Generate column ID from name
+            const columnId = columnName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            
+            // Check if column ID already exists
+            if (columns.find(c => c.id === columnId)) {
+                alert('A column with this name already exists');
+                return;
+            }
+            
+            const fieldType = FIELD_TYPES[columnType];
+            const newColumn = {
+                id: columnId,
+                name: columnName,
+                type: columnType,
+                width: '150px',
+                config: fieldType.needsConfig ? fieldType.defaultConfig : {}
+            };
+            
+            columns.push(newColumn);
+            
+            // Add default value to all existing rows
+            spreadsheetData.forEach(row => {
+                row[columnId] = fieldType.defaultValue;
+            });
+            
+            createEvent('ColumnAdded', {
+                columnId: columnId,
+                columnName: columnName,
+                columnType: columnType,
+                position: columns.length - 1,
+                affectedRows: spreadsheetData.length
+            }, `Added new column '${columnName}' (${fieldType.name})`);
+            
+            document.getElementById('addColumnModal').classList.add('hidden');
+            document.getElementById('newColumnName').value = '';
+            
+            renderSpreadsheet();
+            updateEventStream();
+            updateStats();
+            populateColumnFilter();
+            
+            showNotification(`✓ Added column: ${columnName}`);
+        }
+
         // Show notification
         function showNotification(message) {
             const notification = document.createElement('div');
-            notification.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+            notification.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 shadow-lg z-50';
             notification.style.transition = 'opacity 0.3s ease-out';
+            notification.style.borderRadius = '4px';
             notification.innerHTML = `
                 <div class="flex items-center space-x-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1109,6 +1771,7 @@
         // Update stats
         function updateStats() {
             document.getElementById('eventCount').textContent = eventStream.length;
+            document.getElementById('editCount').textContent = editHistory.length;
             if (eventStream.length > 0) {
                 const lastEvent = eventStream[0];
                 document.getElementById('lastEdit').textContent = new Date(lastEvent.published).toLocaleTimeString();
@@ -1117,25 +1780,63 @@
 
         // Setup event listeners
         function setupEventListeners() {
-            // View toggle
             document.getElementById('spreadsheetViewBtn').addEventListener('click', () => switchView('spreadsheet'));
             document.getElementById('eventsViewBtn').addEventListener('click', () => switchView('events'));
-
-            // Add row
             document.getElementById('addRowBtn').addEventListener('click', addNewRow);
+            document.getElementById('addColumnBtn').addEventListener('click', () => {
+                document.getElementById('addColumnModal').classList.remove('hidden');
+            });
 
-            // Close modals
+            document.getElementById('showHistoryBtn').addEventListener('click', () => {
+                document.getElementById('historyPanel').classList.add('open');
+                renderHistory();
+            });
+            document.getElementById('closeHistoryBtn').addEventListener('click', () => {
+                document.getElementById('historyPanel').classList.remove('open');
+                historyPanelState.cellFilter = null;
+            });
+
+            document.getElementById('historySearch').addEventListener('input', (e) => {
+                historyPanelState.searchQuery = e.target.value;
+                renderHistory();
+            });
+
+            document.getElementById('historyColumnFilter').addEventListener('change', (e) => {
+                historyPanelState.columnFilter = e.target.value;
+                historyPanelState.cellFilter = null;
+                renderHistory();
+            });
+
+            document.getElementById('filterModeToggle').addEventListener('click', () => {
+                historyPanelState.filterMode = historyPanelState.filterMode === 'AND' ? 'OR' : 'AND';
+                document.getElementById('filterModeText').textContent = historyPanelState.filterMode;
+                renderHistory();
+            });
+
             document.getElementById('closeTypePickerBtn').addEventListener('click', () => {
                 document.getElementById('typePickerModal').classList.add('hidden');
             });
+            
+            document.getElementById('cancelPickerBtn').addEventListener('click', () => {
+                document.getElementById('typePickerModal').classList.add('hidden');
+            });
+            
             document.getElementById('closeTypeConfigBtn').addEventListener('click', () => {
                 document.getElementById('typeConfigModal').classList.add('hidden');
             });
             document.getElementById('cancelTypeConfigBtn').addEventListener('click', () => {
                 document.getElementById('typeConfigModal').classList.add('hidden');
+                document.getElementById('typePickerModal').classList.remove('hidden');
             });
 
-            // Export events
+            document.getElementById('closeAddColumnBtn').addEventListener('click', () => {
+                document.getElementById('addColumnModal').classList.add('hidden');
+            });
+            document.getElementById('cancelAddColumnBtn').addEventListener('click', () => {
+                document.getElementById('addColumnModal').classList.add('hidden');
+            });
+            document.getElementById('saveAddColumnBtn').addEventListener('click', addNewColumn);
+
             document.getElementById('copyEventsBtn').addEventListener('click', () => {
                 const json = JSON.stringify(eventStream, null, 2);
                 navigator.clipboard.writeText(json).then(() => {
