@@ -389,16 +389,29 @@
         </div>
 
         <!-- Event Stream View (Full) -->
-        <div id="eventsViewFull" class="hidden bg-gray-900 text-green-400 shadow-lg p-6" style="border-radius: 6px;">
+        <div id="eventsViewFull" class="hidden bg-white shadow-lg p-6" style="border-radius: 6px;">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold text-white">ActivityStream Event Log</h2>
-                <div class="space-x-2">
-                    <button id="copyEventsBtn" class="btn bg-green-600 text-white px-4 py-2 hover:bg-green-700">
+                <h2 class="text-xl font-semibold text-gray-900">ActivityStream Event Log</h2>
+                <div class="flex gap-2">
+                    <button id="eventsCardViewBtn" class="btn view-toggle view-active px-4 py-2 text-sm font-medium">
+                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                        </svg>
+                        Card View
+                    </button>
+                    <button id="eventsJsonViewBtn" class="btn view-toggle bg-gray-100 px-4 py-2 text-sm font-medium">
+                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                        </svg>
+                        JSON View
+                    </button>
+                    <button id="copyEventsBtn" class="btn bg-indigo-600 text-white px-4 py-2 hover:bg-indigo-700 text-sm font-medium">
                         Copy JSON
                     </button>
                 </div>
             </div>
-            <div id="eventsContent" class="json-view overflow-auto max-h-[600px]"></div>
+            <div id="eventsContent" class="overflow-auto max-h-[600px]"></div>
+            <div id="eventsJsonContent" class="json-view overflow-auto max-h-[600px] bg-gray-900 text-green-400 p-4 hidden" style="border-radius: 6px;"></div>
         </div>
     </div>
 
@@ -468,10 +481,7 @@
             </div>
             <div class="border-t border-gray-200 p-3 flex justify-end gap-2 bg-gray-50">
                 <button id="cancelPickerBtn" class="btn px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors text-sm font-medium">
-                    Cancel
-                </button>
-                <button id="savePickerBtn" class="btn px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium">
-                    Save
+                    Close
                 </button>
             </div>
         </div>
@@ -873,6 +883,7 @@
                 
                 th.onclick = (e) => {
                     e.stopPropagation();
+                    console.log('Column header clicked:', col.name, col.id, colIndex);
                     openTypePicker(col.id, colIndex);
                 };
                 
@@ -1405,7 +1416,9 @@
                 !searchQuery || type.name.toLowerCase().includes(searchQuery.toLowerCase())
             );
             
-            content.innerHTML = '<ul class="airtable-field-list">';
+            // Create the list element properly
+            const ul = document.createElement('ul');
+            ul.className = 'airtable-field-list';
             
             filteredTypes.forEach(type => {
                 const isSelected = type.id === typePickerState.selectedType;
@@ -1423,59 +1436,43 @@
                 
                 li.onclick = () => {
                     console.log('Selected field type:', type.id, type.name);
-                    typePickerState.selectedType = type.id;
                     
-                    // Update selected state
-                    content.querySelectorAll('.airtable-field-item').forEach(item => {
-                        item.classList.remove('selected');
-                    });
-                    li.classList.add('selected');
+                    // For types that need configuration, open the config modal
+                    if (type.needsConfig) {
+                        typePickerState.selectedType = type.id;
+                        showTypeConfig(type);
+                    } else {
+                        // For simple types, immediately apply the change
+                        changeFieldType(typePickerState.columnId, type.id, {});
+                    }
                 };
                 
-                content.querySelector('.airtable-field-list').appendChild(li);
+                ul.appendChild(li);
             });
             
-            content.innerHTML += '</ul>';
+            // Replace content with the new list
+            content.innerHTML = '';
+            content.appendChild(ul);
             initIcons();
         }
 
-        // Save field type selection
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('savePickerBtn').addEventListener('click', () => {
-                console.log('Save button clicked. Selected type:', typePickerState.selectedType);
-                console.log('Column ID:', typePickerState.columnId);
-                
-                if (!typePickerState.selectedType) {
-                    alert('Please select a field type');
-                    return;
-                }
-                
-                const fieldType = FIELD_TYPES[typePickerState.selectedType];
-                console.log('Field type object:', fieldType);
-                
-                if (fieldType.needsConfig) {
-                    console.log('Field needs config, showing config modal');
-                    showTypeConfig(fieldType);
-                } else {
-                    console.log('Field does not need config, changing type directly');
-                    changeFieldType(typePickerState.columnId, typePickerState.selectedType, {});
-                }
-            });
-            
-            // Add search functionality
-            document.getElementById('typePickerSearch').addEventListener('input', (e) => {
-                renderAirtableFieldTypes(e.target.value);
-            });
-        });
+        // Save field type selection - moved to setupEventListeners()
 
         // Show type configuration
         function showTypeConfig(fieldType) {
+            console.log('=== showTypeConfig called ===');
+            console.log('fieldType:', fieldType);
+            
             const column = columns.find(c => c.id === typePickerState.columnId);
             const config = column.config || fieldType.defaultConfig;
+            
+            console.log('column:', column);
+            console.log('config:', config);
             
             const content = document.getElementById('typeConfigContent');
             
             if (fieldType.id === 'SINGLE_SELECT') {
+                console.log('Setting up SINGLE_SELECT config');
                 content.innerHTML = `
                     <div class="space-y-4">
                         <div>
@@ -1513,13 +1510,19 @@
                 document.getElementById('addOptionBtn').onclick = addOption;
             }
             
+            console.log('Hiding type picker modal');
             document.getElementById('typePickerModal').classList.add('hidden');
+            console.log('Showing type config modal');
             document.getElementById('typeConfigModal').classList.remove('hidden');
             
+            console.log('Setting up saveTypeConfigBtn onclick');
             document.getElementById('saveTypeConfigBtn').onclick = () => {
+                console.log('Save config button clicked');
                 const newConfig = extractConfig(fieldType);
+                console.log('Extracted config:', newConfig);
                 changeFieldType(typePickerState.columnId, fieldType.id, newConfig);
             };
+            console.log('=== showTypeConfig complete ===');
         }
 
         // Add option
@@ -1570,14 +1573,28 @@
 
         // Change field type
         function changeFieldType(columnId, newType, newConfig = {}) {
+            console.log('=== changeFieldType called ===');
+            console.log('columnId:', columnId);
+            console.log('newType:', newType);
+            console.log('newConfig:', newConfig);
+            
             const columnIndex = columns.findIndex(c => c.id === columnId);
+            console.log('columnIndex:', columnIndex);
+            
             const column = columns[columnIndex];
+            console.log('column:', column);
+            
             const oldType = column.type;
             const oldConfig = column.config || {};
+            
+            console.log('oldType:', oldType);
+            console.log('oldConfig:', oldConfig);
             
             // Actually update the column
             column.type = newType;
             column.config = newConfig;
+            
+            console.log('Column updated. New type:', column.type);
             
             // Convert existing data to match new type if needed
             spreadsheetData.forEach((row, rowIndex) => {
@@ -1600,6 +1617,8 @@
                 }
             });
             
+            console.log('Data converted for', spreadsheetData.length, 'rows');
+            
             createEvent('FieldTypeChanged', {
                 columnId: columnId,
                 columnName: column.name,
@@ -1610,15 +1629,28 @@
                 affectedRows: spreadsheetData.length
             }, `Changed '${column.name}' field type from ${FIELD_TYPES[oldType].name} to ${FIELD_TYPES[newType].name}`);
             
+            console.log('Event created');
+            
             document.getElementById('typePickerModal').classList.add('hidden');
             document.getElementById('typeConfigModal').classList.add('hidden');
             
+            console.log('Modals hidden');
+            
             renderSpreadsheet();
+            console.log('Spreadsheet rendered');
+            
             updateEventStream();
+            console.log('Event stream updated');
+            
             updateStats();
+            console.log('Stats updated');
+            
             populateColumnFilter();
+            console.log('Column filter populated');
             
             showNotification(`✓ Changed ${column.name} to ${FIELD_TYPES[newType].name}`);
+            console.log('Notification shown');
+            console.log('=== changeFieldType complete ===');
         }
 
         // Create ActivityStream event
@@ -1640,7 +1672,85 @@
         // Update event stream
         function updateEventStream() {
             const eventsContent = document.getElementById('eventsContent');
+            const eventsJsonContent = document.getElementById('eventsJsonContent');
             
+            // Render card view
+            if (eventStream.length === 0) {
+                eventsContent.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-gray-400 text-5xl mb-4">📊</div>
+                        <p class="text-gray-600 font-medium">No events yet</p>
+                        <p class="text-gray-500 text-sm mt-1">Activity will appear here as you make changes</p>
+                    </div>
+                `;
+            } else {
+                eventsContent.innerHTML = eventStream.map(event => {
+                    const time = new Date(event.published).toLocaleTimeString();
+                    const date = new Date(event.published).toLocaleDateString();
+                    let icon = '📝';
+                    let actionButtons = '';
+                    
+                    // Determine icon and action buttons based on event type
+                    if (event.type === 'FieldTypeChanged') {
+                        icon = '🔧';
+                        // Don't show undo button if this is already an undo event
+                        if (!event.object.isUndo) {
+                            actionButtons = `
+                                <button class="undo-field-type-btn text-indigo-600 hover:text-indigo-800 text-xs font-medium flex items-center gap-1" 
+                                        data-event-id="${event.id}">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                                    </svg>
+                                    Undo Change
+                                </button>
+                            `;
+                        }
+                    } else if (event.type === 'Update') {
+                        icon = '✏️';
+                    } else if (event.type === 'Create') {
+                        icon = '➕';
+                    } else if (event.type === 'ColumnAdded') {
+                        icon = '📊';
+                    }
+                    
+                    return `
+                        <div class="bg-white border border-gray-200 p-4 mb-3" style="border-radius: 6px;">
+                            <div class="flex items-start justify-between mb-2">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-2xl">${icon}</span>
+                                    <div>
+                                        <div class="font-semibold text-gray-900">${event.type}${event.object.isUndo ? ' (Undo)' : ''}</div>
+                                        <div class="text-xs text-gray-500">${date} at ${time}</div>
+                                    </div>
+                                </div>
+                                ${actionButtons}
+                            </div>
+                            <div class="text-sm text-gray-700 ml-11">${event.summary}</div>
+                            ${event.type === 'FieldTypeChanged' ? `
+                                <div class="ml-11 mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                    <div><strong>Column:</strong> ${event.object.columnName}</div>
+                                    <div class="flex items-center gap-2 mt-1">
+                                        <span class="badge badge-gray">${FIELD_TYPES[event.object.oldType].name}</span>
+                                        <span>→</span>
+                                        <span class="badge badge-blue">${FIELD_TYPES[event.object.newType].name}</span>
+                                    </div>
+                                    <div class="mt-1"><strong>Affected rows:</strong> ${event.object.affectedRows}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+                
+                // Attach undo handlers
+                document.querySelectorAll('.undo-field-type-btn').forEach(btn => {
+                    btn.onclick = () => {
+                        const eventId = btn.dataset.eventId;
+                        undoFieldTypeChange(eventId);
+                    };
+                });
+            }
+            
+            // Render JSON view
             const jsonString = JSON.stringify({
                 "@context": "https://www.w3.org/ns/activitystreams",
                 "type": "OrderedCollection",
@@ -1648,7 +1758,7 @@
                 "orderedItems": eventStream
             }, null, 2);
             
-            eventsContent.innerHTML = syntaxHighlight(jsonString);
+            eventsJsonContent.innerHTML = syntaxHighlight(jsonString);
         }
 
         // Syntax highlighting
@@ -1669,6 +1779,78 @@
                 }
                 return '<span class="' + cls + '">' + match + '</span>';
             });
+        }
+
+        // Undo field type change
+        function undoFieldTypeChange(eventId) {
+            const event = eventStream.find(e => e.id === eventId);
+            if (!event || event.type !== 'FieldTypeChanged') {
+                console.error('Event not found or not a field type change');
+                return;
+            }
+            
+            const { columnId, columnName, oldType, newType, oldConfig } = event.object;
+            
+            // Confirm the undo
+            if (!confirm(`Are you sure you want to revert "${columnName}" back to ${FIELD_TYPES[oldType].name}?`)) {
+                return;
+            }
+            
+            // Revert to the old type
+            const columnIndex = columns.findIndex(c => c.id === columnId);
+            if (columnIndex === -1) {
+                alert('Column not found');
+                return;
+            }
+            
+            const column = columns[columnIndex];
+            const currentType = column.type;
+            const currentConfig = column.config || {};
+            
+            // Update the column
+            column.type = oldType;
+            column.config = oldConfig || {};
+            
+            // Restore data to old type
+            spreadsheetData.forEach((row, rowIndex) => {
+                const currentValue = row[columnId];
+                const fieldType = FIELD_TYPES[oldType];
+                
+                // Try to convert back
+                if (oldType === 'NUMBER' || oldType === 'CURRENCY') {
+                    const num = parseFloat(currentValue);
+                    row[columnId] = isNaN(num) ? fieldType.defaultValue : num;
+                } else if (oldType === 'CHECKBOX') {
+                    row[columnId] = Boolean(currentValue);
+                } else if (oldType === 'DATE') {
+                    row[columnId] = currentValue || fieldType.defaultValue;
+                } else if (oldType === 'SINGLE_SELECT') {
+                    const options = (oldConfig?.options) || [];
+                    row[columnId] = options.includes(currentValue) ? currentValue : (options[0] || fieldType.defaultValue);
+                } else {
+                    row[columnId] = currentValue || fieldType.defaultValue;
+                }
+            });
+            
+            // Create an undo event
+            createEvent('FieldTypeChanged', {
+                columnId: columnId,
+                columnName: columnName,
+                oldType: currentType,
+                newType: oldType,
+                oldConfig: currentConfig,
+                newConfig: oldConfig,
+                affectedRows: spreadsheetData.length,
+                isUndo: true,
+                undoOfEvent: eventId
+            }, `Reverted '${columnName}' field type from ${FIELD_TYPES[currentType].name} back to ${FIELD_TYPES[oldType].name}`);
+            
+            renderSpreadsheet();
+            updateEventStream();
+            updateStats();
+            populateColumnFilter();
+            
+            showNotification(`✓ Reverted ${columnName} to ${FIELD_TYPES[oldType].name}`);
         }
 
         // Add new row
@@ -1842,6 +2024,30 @@
                 navigator.clipboard.writeText(json).then(() => {
                     showNotification('✓ Events copied to clipboard!');
                 });
+            });
+            
+            // Events view toggle
+            document.getElementById('eventsCardViewBtn').addEventListener('click', () => {
+                document.getElementById('eventsCardViewBtn').classList.add('view-active');
+                document.getElementById('eventsCardViewBtn').classList.remove('bg-gray-100');
+                document.getElementById('eventsJsonViewBtn').classList.remove('view-active');
+                document.getElementById('eventsJsonViewBtn').classList.add('bg-gray-100');
+                document.getElementById('eventsContent').classList.remove('hidden');
+                document.getElementById('eventsJsonContent').classList.add('hidden');
+            });
+            
+            document.getElementById('eventsJsonViewBtn').addEventListener('click', () => {
+                document.getElementById('eventsJsonViewBtn').classList.add('view-active');
+                document.getElementById('eventsJsonViewBtn').classList.remove('bg-gray-100');
+                document.getElementById('eventsCardViewBtn').classList.remove('view-active');
+                document.getElementById('eventsCardViewBtn').classList.add('bg-gray-100');
+                document.getElementById('eventsJsonContent').classList.remove('hidden');
+                document.getElementById('eventsContent').classList.add('hidden');
+            });
+            
+            // Type picker search functionality
+            document.getElementById('typePickerSearch').addEventListener('input', (e) => {
+                renderAirtableFieldTypes(e.target.value);
             });
         }
 
