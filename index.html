@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Activity Stream Viewer - Dual View</title>
+    <title>ActivityStream Spreadsheet with Field Types</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .json-view {
@@ -11,14 +11,34 @@
             font-size: 12px;
             white-space: pre-wrap;
         }
-        .activity-row {
+        .cell-editable {
+            min-height: 20px;
+            padding: 4px 8px;
+            cursor: text;
+            border: 1px solid transparent;
             transition: all 0.2s;
+            position: relative;
         }
-        .activity-row:hover {
+        .cell-editable:hover {
             background-color: #f3f4f6;
+            border-color: #e5e7eb;
         }
-        .activity-selected {
-            background-color: #dbeafe;
+        .cell-editable:focus {
+            outline: none;
+            background-color: #fff;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+        .cell-editing {
+            background-color: #fffbeb;
+            border-color: #fbbf24;
+        }
+        .cell-recently-changed {
+            animation: flash-yellow 0.5s ease-out;
+        }
+        @keyframes flash-yellow {
+            0% { background-color: #fef3c7; }
+            100% { background-color: transparent; }
         }
         .view-toggle {
             cursor: pointer;
@@ -31,349 +51,1000 @@
             background-color: #3b82f6;
             color: white;
         }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .badge-green { background-color: #d1fae5; color: #065f46; }
+        .badge-yellow { background-color: #fef3c7; color: #92400e; }
+        .badge-red { background-color: #fee2e2; color: #991b1b; }
+        .badge-blue { background-color: #dbeafe; color: #1e40af; }
+        .badge-purple { background-color: #e9d5ff; color: #6b21a8; }
+        .badge-gray { background-color: #f3f4f6; color: #374151; }
+        
+        .column-header {
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+        }
+        .column-header:hover {
+            background-color: #f9fafb;
+        }
+        .type-icon {
+            opacity: 0.6;
+            margin-right: 4px;
+        }
+        .dropdown-menu {
+            position: absolute;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            z-index: 1000;
+            min-width: 200px;
+        }
+        .dropdown-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dropdown-item:hover {
+            background-color: #f3f4f6;
+        }
+        .dropdown-divider {
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 4px 0;
+        }
+        
+        /* Custom select styling */
+        .custom-select {
+            position: absolute;
+            background: white;
+            border: 2px solid #3b82f6;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            min-width: 150px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .custom-select-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .custom-select-option:hover {
+            background-color: #f3f4f6;
+        }
+        .custom-select-option.selected {
+            background-color: #dbeafe;
+        }
+        
+        /* Checkbox styling */
+        .checkbox-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        
+        /* Date input styling */
+        input[type="date"] {
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: inherit;
+            width: 100%;
+        }
+        
+        /* Number input styling */
+        input[type="number"] {
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: inherit;
+            width: 100%;
+        }
+        
+        @media (max-width: 768px) {
+            .cell-editable {
+                min-width: 80px;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
     <!-- Header -->
     <div class="bg-indigo-600 text-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 py-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        <div class="max-w-7xl mx-auto px-4 py-3 md:py-4">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center space-x-2 md:space-x-3 min-w-0">
+                    <svg class="w-6 h-6 md:w-8 md:h-8 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                     </svg>
-                    <h1 class="text-2xl font-bold">Activity Stream Viewer</h1>
+                    <div class="min-w-0">
+                        <h1 class="text-lg md:text-2xl font-bold truncate">ActivityStream Spreadsheet</h1>
+                        <p class="text-xs md:text-sm opacity-90 hidden sm:block">With Airtable-style Field Types</p>
+                    </div>
                 </div>
-                <div class="text-sm opacity-90">
-                    <span class="font-semibold">Backend:</span> ActivityStreams JSON | 
-                    <span class="font-semibold">Frontend:</span> Dual View
+                <div class="text-xs md:text-sm opacity-90 hidden lg:block">
+                    <span class="font-semibold">Backend:</span> ActivityStreams JSON
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- View Toggle -->
-    <div class="max-w-7xl mx-auto px-4 py-4">
-        <div class="flex space-x-2 bg-white rounded-lg shadow p-1 w-fit">
-            <button id="tableViewBtn" class="view-toggle view-active px-4 py-2 rounded-md font-medium">
-                Table View
-            </button>
-            <button id="jsonViewBtn" class="view-toggle px-4 py-2 rounded-md font-medium bg-gray-100">
-                JSON View
-            </button>
-            <button id="splitViewBtn" class="view-toggle px-4 py-2 rounded-md font-medium bg-gray-100">
-                Split View
-            </button>
+    <!-- View Toggle & Stats -->
+    <div class="max-w-7xl mx-auto px-4 py-3 md:py-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div class="flex space-x-1 md:space-x-2 bg-white rounded-lg shadow p-1 w-full sm:w-auto overflow-x-auto">
+                <button id="spreadsheetViewBtn" class="view-toggle view-active px-3 md:px-4 py-2 rounded-md font-medium text-sm md:text-base whitespace-nowrap flex-1 sm:flex-none">
+                    <span class="hidden sm:inline">Spreadsheet View</span>
+                    <span class="sm:hidden">Sheet</span>
+                </button>
+                <button id="eventsViewBtn" class="view-toggle px-3 md:px-4 py-2 rounded-md font-medium bg-gray-100 text-sm md:text-base whitespace-nowrap flex-1 sm:flex-none">
+                    <span class="hidden sm:inline">Event Stream</span>
+                    <span class="sm:hidden">Events</span>
+                </button>
+            </div>
+            <div class="bg-white rounded-lg shadow px-3 md:px-4 py-2 text-sm flex items-center space-x-3 md:space-x-4 w-full sm:w-auto">
+                <span class="text-gray-600">
+                    Events: <span id="eventCount" class="font-bold text-indigo-600">0</span>
+                </span>
+                <span class="text-gray-600 hidden md:inline">
+                    Last Edit: <span id="lastEdit" class="font-bold text-indigo-600">Never</span>
+                </span>
+            </div>
         </div>
     </div>
 
     <!-- Main Content Area -->
     <div class="max-w-7xl mx-auto px-4 pb-8">
-        <!-- Split View Container -->
-        <div id="splitViewContainer" class="hidden grid grid-cols-2 gap-4">
-            <!-- Table View (Left) -->
-            <div class="bg-white rounded-lg shadow-lg p-4">
-                <h2 class="text-lg font-semibold mb-4 text-gray-800">Activity Table</h2>
-                <div id="tableViewSplit" class="overflow-x-auto overflow-y-auto max-h-[600px]"></div>
+        <!-- Spreadsheet View (Full) -->
+        <div id="spreadsheetViewFull" class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                <h2 class="text-lg md:text-xl font-semibold text-gray-800">Housing Services Investigation Tracker</h2>
+                <div class="flex space-x-2 w-full sm:w-auto">
+                    <button id="addRowBtn" class="flex-1 sm:flex-none bg-indigo-600 text-white px-3 md:px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors text-sm md:text-base">
+                        + Add Row
+                    </button>
+                </div>
             </div>
-
-            <!-- JSON View (Right) -->
-            <div class="bg-gray-900 text-green-400 rounded-lg shadow-lg p-4">
-                <h2 class="text-lg font-semibold mb-4 text-white">Raw JSON Stream</h2>
-                <div id="jsonViewSplit" class="json-view overflow-auto max-h-[600px]"></div>
-            </div>
-        </div>
-
-        <!-- Table View (Full) -->
-        <div id="tableViewFull" class="bg-white rounded-lg shadow-lg p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold text-gray-800">Activities</h2>
-                <button id="addActivityBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
-                    + Add Activity
-                </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Timestamp</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Type</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Actor</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Summary</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Status</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Actions</th>
+            <div class="overflow-auto">
+                <table id="spreadsheetTable" class="min-w-full border-collapse">
+                    <thead class="bg-gray-100 sticky top-0">
+                        <tr id="headerRow">
+                            <th class="border border-gray-300 px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase w-12">#</th>
+                            <!-- Column headers will be inserted here -->
                         </tr>
                     </thead>
-                    <tbody id="activityTableBody" class="divide-y divide-gray-200">
-                        <!-- Populated by JavaScript -->
+                    <tbody id="spreadsheetBody">
+                        <!-- Rows will be inserted here -->
                     </tbody>
                 </table>
             </div>
+            <div class="mt-4 text-xs md:text-sm text-gray-500 space-y-2 bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4">
+                <p class="flex items-start space-x-2">
+                    <span class="flex-shrink-0">💡</span>
+                    <span><strong>Click any cell to edit.</strong> Field types determine how data is displayed and edited.</span>
+                </p>
+                <p class="flex items-start space-x-2">
+                    <span class="flex-shrink-0">🎯</span>
+                    <span><strong>Click column headers</strong> to change field types (Text, Select, Date, Currency, etc.)</span>
+                </p>
+                <p class="flex items-start space-x-2">
+                    <span class="flex-shrink-0">✨</span>
+                    <span><strong>Try it:</strong> Click the "Status" header and change it to Single Select with color options!</span>
+                </p>
+            </div>
         </div>
 
-        <!-- JSON View (Full) -->
-        <div id="jsonViewFull" class="hidden bg-gray-900 text-green-400 rounded-lg shadow-lg p-6">
+        <!-- Event Stream View (Full) -->
+        <div id="eventsViewFull" class="hidden bg-gray-900 text-green-400 rounded-lg shadow-lg p-6">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold text-white">ActivityStreams JSON</h2>
+                <h2 class="text-xl font-semibold text-white">ActivityStream Event Log</h2>
                 <div class="space-x-2">
-                    <button id="copyJsonBtn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                    <button id="copyEventsBtn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
                         Copy JSON
-                    </button>
-                    <button id="downloadJsonBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                        Download
                     </button>
                 </div>
             </div>
-            <div id="jsonContent" class="json-view overflow-auto max-h-[600px]"></div>
+            <div id="eventsContent" class="json-view overflow-auto max-h-[600px]"></div>
         </div>
     </div>
 
-    <!-- Add Activity Modal -->
-    <div id="addActivityModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 class="text-xl font-semibold mb-4">Add New Activity</h3>
-            <form id="activityForm" class="space-y-4">
+    <!-- Type Picker Modal -->
+    <div id="typePickerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Activity Type</label>
-                    <select id="activityType" class="w-full border border-gray-300 rounded-md px-3 py-2">
-                        <option value="Create">Create</option>
-                        <option value="Update">Update</option>
-                        <option value="Delete">Delete</option>
-                        <option value="Add">Add</option>
-                        <option value="Remove">Remove</option>
-                        <option value="Like">Like</option>
-                        <option value="Follow">Follow</option>
-                        <option value="Announce">Announce</option>
-                    </select>
+                    <h3 class="text-xl font-semibold">Change Field Type</h3>
+                    <p class="text-sm text-gray-600 mt-1">Column: <span id="typePickerColumn" class="font-semibold"></span></p>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Actor Name</label>
-                    <input type="text" id="actorName" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="John Doe">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Summary</label>
-                    <textarea id="activitySummary" class="w-full border border-gray-300 rounded-md px-3 py-2" rows="3" placeholder="Describe the activity..."></textarea>
-                </div>
-                <div class="flex space-x-2 pt-2">
-                    <button type="submit" class="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
-                        Create Activity
-                    </button>
-                    <button type="button" id="cancelActivityBtn" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
-                        Cancel
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Detail Modal -->
-    <div id="detailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full p-6 max-h-[80vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold">Activity Details</h3>
-                <button id="closeDetailBtn" class="text-gray-500 hover:text-gray-700">
+                <button id="closeTypePickerBtn" class="text-gray-500 hover:text-gray-700">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            <div id="detailContent" class="json-view bg-gray-900 text-green-400 p-4 rounded-md"></div>
+            <div class="p-6" id="typePickerContent">
+                <!-- Type options will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Type Config Modal -->
+    <div id="typeConfigModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div class="bg-gray-50 border-b border-gray-200 p-4 flex justify-between items-center">
+                <h3 class="text-lg font-semibold">Configure Field</h3>
+                <button id="closeTypeConfigBtn" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6" id="typeConfigContent">
+                <!-- Configuration form will be inserted here -->
+            </div>
+            <div class="bg-gray-50 border-t border-gray-200 p-4 flex justify-end space-x-2">
+                <button id="cancelTypeConfigBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+                    Cancel
+                </button>
+                <button id="saveTypeConfigBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                    Save Changes
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Sample ActivityStream Data
-        let activities = [
+        // Field Type Definitions
+        const FIELD_TYPES = {
+            TEXT: {
+                id: 'TEXT',
+                name: 'Single Line Text',
+                icon: '📝',
+                group: 'text',
+                defaultValue: '',
+                render: (value) => value || '',
+                validate: (value) => typeof value === 'string',
+                needsConfig: false
+            },
+            LONG_TEXT: {
+                id: 'LONG_TEXT',
+                name: 'Long Text',
+                icon: '📄',
+                group: 'text',
+                defaultValue: '',
+                render: (value) => value || '',
+                validate: (value) => typeof value === 'string',
+                needsConfig: false
+            },
+            NUMBER: {
+                id: 'NUMBER',
+                name: 'Number',
+                icon: '#️⃣',
+                group: 'number',
+                defaultValue: 0,
+                render: (value) => value !== '' && value !== null ? Number(value).toLocaleString() : '',
+                validate: (value) => value === '' || !isNaN(value),
+                needsConfig: false
+            },
+            CURRENCY: {
+                id: 'CURRENCY',
+                name: 'Currency',
+                icon: '💰',
+                group: 'number',
+                defaultValue: 0,
+                render: (value, config = {}) => {
+                    if (value === '' || value === null) return '';
+                    return new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: config.currency || 'USD'
+                    }).format(value);
+                },
+                validate: (value) => value === '' || !isNaN(value),
+                needsConfig: false
+            },
+            SINGLE_SELECT: {
+                id: 'SINGLE_SELECT',
+                name: 'Single Select',
+                icon: '🎯',
+                group: 'select',
+                defaultValue: '',
+                render: (value, config = {}) => {
+                    if (!value) return '';
+                    const color = (config.colors && config.colors[value]) || 'gray';
+                    return `<span class="badge badge-${color}">${value}</span>`;
+                },
+                validate: (value, config = {}) => {
+                    if (!value) return true;
+                    return !config.options || config.options.includes(value);
+                },
+                needsConfig: true,
+                defaultConfig: {
+                    options: ['Option 1', 'Option 2', 'Option 3'],
+                    colors: {
+                        'Option 1': 'blue',
+                        'Option 2': 'green',
+                        'Option 3': 'purple'
+                    }
+                }
+            },
+            CHECKBOX: {
+                id: 'CHECKBOX',
+                name: 'Checkbox',
+                icon: '☑️',
+                group: 'select',
+                defaultValue: false,
+                render: (value) => value ? '✅' : '⬜',
+                validate: (value) => typeof value === 'boolean',
+                needsConfig: false
+            },
+            DATE: {
+                id: 'DATE',
+                name: 'Date',
+                icon: '📅',
+                group: 'date',
+                defaultValue: '',
+                render: (value) => {
+                    if (!value) return '';
+                    return new Date(value).toLocaleDateString();
+                },
+                validate: (value) => {
+                    if (!value) return true;
+                    return !isNaN(new Date(value).getTime());
+                },
+                needsConfig: false
+            },
+            EMAIL: {
+                id: 'EMAIL',
+                name: 'Email',
+                icon: '📧',
+                group: 'text',
+                defaultValue: '',
+                render: (value) => {
+                    if (!value) return '';
+                    return `<a href="mailto:${value}" class="text-blue-600 hover:underline">${value}</a>`;
+                },
+                validate: (value) => {
+                    if (!value) return true;
+                    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+                },
+                needsConfig: false
+            },
+            URL: {
+                id: 'URL',
+                name: 'URL',
+                icon: '🔗',
+                group: 'text',
+                defaultValue: '',
+                render: (value) => {
+                    if (!value) return '';
+                    return `<a href="${value}" target="_blank" class="text-blue-600 hover:underline">🔗 Link</a>`;
+                },
+                validate: (value) => {
+                    if (!value) return true;
+                    try {
+                        new URL(value);
+                        return true;
+                    } catch {
+                        return false;
+                    }
+                },
+                needsConfig: false
+            }
+        };
+
+        // Column definitions with types
+        let columns = [
+            { id: 'case_id', name: 'Case ID', type: 'TEXT', width: '100px' },
+            { id: 'client_name', name: 'Client Name', type: 'TEXT', width: '150px' },
+            { id: 'program', name: 'Program', type: 'TEXT', width: '200px' },
+            { id: 'amount', name: 'Amount', type: 'CURRENCY', width: '120px', config: { currency: 'USD' } },
+            { id: 'date_placed', name: 'Date Placed', type: 'DATE', width: '120px' },
+            { id: 'promised_voucher', name: 'Promised Voucher', type: 'SINGLE_SELECT', width: '130px', config: {
+                options: ['Yes', 'No'],
+                colors: { 'Yes': 'green', 'No': 'red' }
+            }},
+            { id: 'voucher_issued', name: 'Voucher Issued', type: 'SINGLE_SELECT', width: '130px', config: {
+                options: ['Yes', 'No', 'N/A'],
+                colors: { 'Yes': 'green', 'No': 'red', 'N/A': 'gray' }
+            }},
+            { id: 'status', name: 'Status', type: 'SINGLE_SELECT', width: '150px', config: {
+                options: ['Active', 'At Risk', 'Facing Eviction', 'Already Evicted', 'Stable'],
+                colors: {
+                    'Active': 'blue',
+                    'At Risk': 'yellow',
+                    'Facing Eviction': 'red',
+                    'Already Evicted': 'red',
+                    'Stable': 'green'
+                }
+            }},
+            { id: 'notes', name: 'Notes', type: 'LONG_TEXT', width: '300px' }
+        ];
+
+        // Sample spreadsheet data
+        let spreadsheetData = [
             {
-                "@context": "https://www.w3.org/ns/activitystreams",
-                "type": "Create",
-                "id": "activity-001",
-                "published": "2025-11-17T10:30:00Z",
-                "actor": {
-                    "type": "Person",
-                    "id": "@michael:groundtruth.nashville",
-                    "name": "Michael Clem"
-                },
-                "object": {
-                    "type": "Article",
-                    "id": "article-001",
-                    "name": "Investigation Report: Housing Services Discrepancies",
-                    "content": "Analysis of $3.2M in financial irregularities..."
-                },
-                "summary": "Michael Clem created a new investigation report",
-                "status": "published"
+                case_id: 'HS-001',
+                client_name: 'Smith Family',
+                program: 'Non-Traditional Rapid Rehousing',
+                amount: 12500,
+                date_placed: '2024-03-15',
+                promised_voucher: 'Yes',
+                voucher_issued: 'No',
+                status: 'Facing Eviction',
+                notes: 'Placed outside Coordinated Entry. Promised Section 8 never materialized.'
             },
             {
-                "@context": "https://www.w3.org/ns/activitystreams",
-                "type": "Update",
-                "id": "activity-002",
-                "published": "2025-11-17T11:45:00Z",
-                "actor": {
-                    "type": "Person",
-                    "id": "@system:groundtruth.nashville",
-                    "name": "System Bot"
-                },
-                "object": {
-                    "type": "Document",
-                    "id": "doc-045",
-                    "name": "ARPA Fund Analysis"
-                },
-                "summary": "Updated ARPA fund tracking document with new data",
-                "status": "updated"
+                case_id: 'HS-002',
+                client_name: 'Johnson, Maria',
+                program: 'Non-Traditional Rapid Rehousing',
+                amount: 8200,
+                date_placed: '2024-04-22',
+                promised_voucher: 'Yes',
+                voucher_issued: 'No',
+                status: 'Already Evicted',
+                notes: 'Evicted June 2024. No voucher received. Family now in shelter.'
             },
             {
-                "@context": "https://www.w3.org/ns/activitystreams",
-                "type": "Add",
-                "id": "activity-003",
-                "published": "2025-11-17T14:20:00Z",
-                "actor": {
-                    "type": "Person",
-                    "id": "@contributor:groundtruth.nashville",
-                    "name": "Jane Smith"
-                },
-                "object": {
-                    "type": "Note",
-                    "id": "note-023",
-                    "content": "Found additional procurement records from 2024"
-                },
-                "target": {
-                    "type": "Collection",
-                    "id": "collection-procurement",
-                    "name": "Procurement Investigation"
-                },
-                "summary": "Jane Smith added notes to procurement investigation",
-                "status": "active"
+                case_id: 'HS-003',
+                client_name: 'Williams, Robert',
+                program: 'Emergency Housing Fund',
+                amount: 15000,
+                date_placed: '2024-05-10',
+                promised_voucher: 'No',
+                voucher_issued: 'N/A',
+                status: 'Stable',
+                notes: 'Proper documentation. Coordinated Entry process followed.'
             },
             {
-                "@context": "https://www.w3.org/ns/activitystreams",
-                "type": "Announce",
-                "id": "activity-004",
-                "published": "2025-11-17T16:00:00Z",
-                "actor": {
-                    "type": "Organization",
-                    "id": "@groundtruth:nashville",
-                    "name": "Ground Truth Nashville"
-                },
-                "object": {
-                    "type": "Article",
-                    "id": "article-001",
-                    "name": "Investigation Report: Housing Services Discrepancies"
-                },
-                "summary": "Ground Truth Nashville published new investigation",
-                "status": "announced"
+                case_id: 'HS-004',
+                client_name: 'Davis Family',
+                program: 'Non-Traditional Rapid Rehousing',
+                amount: 11800,
+                date_placed: '2024-06-05',
+                promised_voucher: 'Yes',
+                voucher_issued: 'No',
+                status: 'At Risk',
+                notes: 'Section 8 promised by Calvin. Still waiting. Rent assistance ending soon.'
             }
         ];
 
-        // View State
-        let currentView = 'table';
-        let selectedActivity = null;
+        // Event stream
+        let eventStream = [];
+        let eventIdCounter = 1;
+
+        // Current actor
+        const currentUser = {
+            type: 'Person',
+            id: '@michael:groundtruth.nashville',
+            name: 'Michael Clem'
+        };
+
+        // State for type picker
+        let typePickerState = {
+            columnId: null,
+            columnIndex: null
+        };
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            renderTableView();
-            updateJsonView();
+            initializeSpreadsheet();
             setupEventListeners();
+            updateStats();
         });
 
-        // Render Table View
-        function renderTableView(isSplit = false) {
-            const targetId = isSplit ? 'tableViewSplit' : 'activityTableBody';
-            const target = document.getElementById(targetId);
+        // Initialize spreadsheet
+        function initializeSpreadsheet() {
+            renderSpreadsheet();
             
-            if (isSplit) {
-                // Render full table for split view
-                target.innerHTML = `
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-600 uppercase">Time</th>
-                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-600 uppercase">Type</th>
-                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-600 uppercase">Actor</th>
-                                <th class="px-2 py-2 text-left text-xs font-medium text-gray-600 uppercase">Summary</th>
-                            </tr>
-                        </thead>
-                        <tbody id="splitTableBody" class="divide-y divide-gray-200"></tbody>
-                    </table>
-                `;
-                renderTableRows('splitTableBody');
-            } else {
-                // Render rows only for full view
-                renderTableRows(targetId);
-            }
+            // Create initial creation events
+            spreadsheetData.forEach((row, rowIndex) => {
+                createEvent('Create', {
+                    rowIndex: rowIndex,
+                    rowData: row
+                }, `Initial data import for row ${rowIndex + 1}`);
+            });
+            
+            updateEventStream();
         }
 
-        function renderTableRows(tbodyId) {
-            const tbody = document.getElementById(tbodyId);
+        // Render spreadsheet
+        function renderSpreadsheet() {
+            const headerRow = document.getElementById('headerRow');
+            const tbody = document.getElementById('spreadsheetBody');
+            
+            // Clear existing content
+            headerRow.innerHTML = '<th class="border border-gray-300 px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase w-12">#</th>';
             tbody.innerHTML = '';
 
-            activities.forEach((activity, index) => {
-                const row = document.createElement('tr');
-                row.className = 'activity-row cursor-pointer';
-                row.onclick = () => showActivityDetail(activity);
+            // Render headers
+            columns.forEach((col, colIndex) => {
+                const th = document.createElement('th');
+                th.className = 'border border-gray-300 px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase column-header';
+                th.style.width = col.width;
                 
-                const timestamp = new Date(activity.published).toLocaleString();
-                const actorName = activity.actor.name;
-                const status = activity.status || 'active';
+                const fieldType = FIELD_TYPES[col.type];
+                th.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="flex items-center">
+                            <span class="type-icon">${fieldType.icon}</span>
+                            ${col.name}
+                        </span>
+                        <svg class="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </div>
+                `;
                 
-                const isSplit = tbodyId === 'splitTableBody';
+                th.onclick = (e) => {
+                    e.stopPropagation();
+                    openTypePicker(col.id, colIndex);
+                };
                 
-                if (isSplit) {
-                    // Compact version for split view
-                    row.innerHTML = `
-                        <td class="px-2 py-2 text-xs text-gray-700">${new Date(activity.published).toLocaleTimeString()}</td>
-                        <td class="px-2 py-2 text-xs">
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                ${activity.type}
-                            </span>
-                        </td>
-                        <td class="px-2 py-2 text-xs text-gray-700">${actorName}</td>
-                        <td class="px-2 py-2 text-xs text-gray-700">${activity.summary.substring(0, 40)}...</td>
-                    `;
-                } else {
-                    // Full version for table view
-                    row.innerHTML = `
-                        <td class="px-4 py-3 text-sm text-gray-700">${timestamp}</td>
-                        <td class="px-4 py-3 text-sm">
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                ${activity.type}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-sm text-gray-700">${actorName}</td>
-                        <td class="px-4 py-3 text-sm text-gray-700">${activity.summary}</td>
-                        <td class="px-4 py-3 text-sm">
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(status)}">
-                                ${status}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-sm">
-                            <button onclick="event.stopPropagation(); showActivityDetail(activities[${index}])" class="text-indigo-600 hover:text-indigo-800 font-medium">
-                                View
-                            </button>
-                        </td>
-                    `;
-                }
-                tbody.appendChild(row);
+                headerRow.appendChild(th);
+            });
+
+            // Render rows
+            spreadsheetData.forEach((row, rowIndex) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+
+                // Row number
+                const tdNum = document.createElement('td');
+                tdNum.className = 'border border-gray-300 px-2 py-2 text-xs text-gray-500 text-center bg-gray-50';
+                tdNum.textContent = rowIndex + 1;
+                tr.appendChild(tdNum);
+
+                // Data cells
+                columns.forEach((col) => {
+                    const td = document.createElement('td');
+                    td.className = 'border border-gray-300 cell-editable';
+                    td.dataset.rowIndex = rowIndex;
+                    td.dataset.columnId = col.id;
+                    td.dataset.columnType = col.type;
+                    
+                    renderCell(td, row[col.id], col);
+                    
+                    // Click handler based on type
+                    td.onclick = (e) => handleCellClick(e, rowIndex, col, td);
+                    
+                    tr.appendChild(td);
+                });
+
+                tbody.appendChild(tr);
             });
         }
 
-        // Update JSON View
-        function updateJsonView() {
-            const jsonContent = document.getElementById('jsonContent');
-            const jsonViewSplit = document.getElementById('jsonViewSplit');
+        // Render individual cell based on type
+        function renderCell(td, value, column) {
+            const fieldType = FIELD_TYPES[column.type];
+            
+            if (column.type === 'CHECKBOX') {
+                td.innerHTML = `<div class="checkbox-cell">${fieldType.render(value)}</div>`;
+                td.style.cursor = 'pointer';
+            } else {
+                td.innerHTML = fieldType.render(value, column.config);
+            }
+        }
+
+        // Handle cell click based on type
+        function handleCellClick(e, rowIndex, column, td) {
+            const fieldType = FIELD_TYPES[column.type];
+            const currentValue = spreadsheetData[rowIndex][column.id];
+            
+            if (column.type === 'CHECKBOX') {
+                // Toggle checkbox
+                const newValue = !currentValue;
+                handleCellEdit(rowIndex, column.id, currentValue, newValue);
+                return;
+            }
+            
+            if (column.type === 'SINGLE_SELECT') {
+                // Show dropdown
+                showSelectDropdown(td, rowIndex, column, currentValue);
+                return;
+            }
+            
+            if (column.type === 'DATE') {
+                // Show date picker
+                showDatePicker(td, rowIndex, column, currentValue);
+                return;
+            }
+            
+            // For text/number types, make contentEditable
+            if (['TEXT', 'LONG_TEXT', 'NUMBER', 'CURRENCY', 'EMAIL', 'URL'].includes(column.type)) {
+                makeEditable(td, rowIndex, column, currentValue);
+                return;
+            }
+        }
+
+        // Make cell editable
+        function makeEditable(td, rowIndex, column, currentValue) {
+            const originalValue = currentValue;
+            
+            td.contentEditable = true;
+            td.textContent = currentValue || '';
+            td.focus();
+            td.classList.add('cell-editing');
+            
+            // Select all text
+            const range = document.createRange();
+            range.selectNodeContents(td);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            const finishEdit = () => {
+                td.contentEditable = false;
+                td.classList.remove('cell-editing');
+                const newValue = td.textContent.trim();
+                
+                if (newValue !== originalValue) {
+                    handleCellEdit(rowIndex, column.id, originalValue, newValue);
+                } else {
+                    renderCell(td, originalValue, column);
+                }
+            };
+            
+            td.onblur = finishEdit;
+            td.onkeydown = (e) => {
+                if (e.key === 'Enter' && column.type !== 'LONG_TEXT') {
+                    e.preventDefault();
+                    finishEdit();
+                }
+                if (e.key === 'Escape') {
+                    td.textContent = originalValue || '';
+                    finishEdit();
+                }
+            };
+        }
+
+        // Show select dropdown
+        function showSelectDropdown(td, rowIndex, column, currentValue) {
+            // Remove any existing dropdowns
+            document.querySelectorAll('.custom-select').forEach(el => el.remove());
+            
+            const dropdown = document.createElement('div');
+            dropdown.className = 'custom-select';
+            
+            const options = column.config?.options || [];
+            options.forEach(option => {
+                const optionEl = document.createElement('div');
+                optionEl.className = 'custom-select-option';
+                if (option === currentValue) {
+                    optionEl.classList.add('selected');
+                }
+                
+                const color = column.config?.colors?.[option] || 'gray';
+                optionEl.innerHTML = `<span class="badge badge-${color}">${option}</span>`;
+                
+                optionEl.onclick = () => {
+                    if (option !== currentValue) {
+                        handleCellEdit(rowIndex, column.id, currentValue, option);
+                    }
+                    dropdown.remove();
+                };
+                
+                dropdown.appendChild(optionEl);
+            });
+            
+            // Position dropdown
+            const rect = td.getBoundingClientRect();
+            dropdown.style.position = 'fixed';
+            dropdown.style.top = `${rect.bottom + 4}px`;
+            dropdown.style.left = `${rect.left}px`;
+            
+            document.body.appendChild(dropdown);
+            
+            // Close on click outside
+            setTimeout(() => {
+                document.addEventListener('click', function closeDropdown(e) {
+                    if (!dropdown.contains(e.target) && e.target !== td) {
+                        dropdown.remove();
+                        document.removeEventListener('click', closeDropdown);
+                    }
+                });
+            }, 0);
+        }
+
+        // Show date picker
+        function showDatePicker(td, rowIndex, column, currentValue) {
+            const input = document.createElement('input');
+            input.type = 'date';
+            input.value = currentValue || '';
+            input.className = 'w-full px-2 py-1 border-2 border-indigo-500 rounded';
+            
+            td.innerHTML = '';
+            td.appendChild(input);
+            input.focus();
+            
+            const finishEdit = () => {
+                const newValue = input.value;
+                if (newValue !== currentValue) {
+                    handleCellEdit(rowIndex, column.id, currentValue, newValue);
+                } else {
+                    renderCell(td, currentValue, column);
+                }
+            };
+            
+            input.onblur = finishEdit;
+            input.onchange = finishEdit;
+        }
+
+        // Handle cell edit
+        function handleCellEdit(rowIndex, columnId, oldValue, newValue) {
+            // Update data
+            spreadsheetData[rowIndex][columnId] = newValue;
+
+            // Get column info
+            const column = columns.find(c => c.id === columnId);
+
+            // Create ActivityStream event
+            createEvent('Update', {
+                rowIndex: rowIndex,
+                columnId: columnId,
+                columnName: column.name,
+                columnType: column.type,
+                oldValue: oldValue,
+                newValue: newValue,
+                caseId: spreadsheetData[rowIndex].case_id
+            }, `Updated ${column.name} in row ${rowIndex + 1}`);
+
+            // Re-render the spreadsheet
+            renderSpreadsheet();
+            updateEventStream();
+            updateStats();
+            
+            // Flash the changed cell
+            setTimeout(() => {
+                const cell = document.querySelector(`[data-row-index="${rowIndex}"][data-column-id="${columnId}"]`);
+                if (cell) {
+                    cell.classList.add('cell-recently-changed');
+                    setTimeout(() => cell.classList.remove('cell-recently-changed'), 500);
+                }
+            }, 0);
+        }
+
+        // Open type picker
+        function openTypePicker(columnId, columnIndex) {
+            const column = columns.find(c => c.id === columnId);
+            typePickerState = { columnId, columnIndex };
+            
+            document.getElementById('typePickerColumn').textContent = column.name;
+            
+            const content = document.getElementById('typePickerContent');
+            content.innerHTML = '';
+            
+            // Group types
+            const groups = {
+                text: { name: '📝 Text Types', types: [] },
+                number: { name: '🔢 Number Types', types: [] },
+                select: { name: '🎯 Selection Types', types: [] },
+                date: { name: '📅 Date Types', types: [] }
+            };
+            
+            Object.values(FIELD_TYPES).forEach(type => {
+                groups[type.group].types.push(type);
+            });
+            
+            Object.values(groups).forEach(group => {
+                if (group.types.length === 0) return;
+                
+                const groupEl = document.createElement('div');
+                groupEl.className = 'mb-4';
+                groupEl.innerHTML = `<h4 class="text-sm font-semibold text-gray-700 mb-2">${group.name}</h4>`;
+                
+                const typesContainer = document.createElement('div');
+                typesContainer.className = 'space-y-1';
+                
+                group.types.forEach(type => {
+                    const typeEl = document.createElement('div');
+                    typeEl.className = 'dropdown-item rounded';
+                    if (type.id === column.type) {
+                        typeEl.classList.add('bg-indigo-50');
+                    }
+                    typeEl.innerHTML = `
+                        <span class="text-xl">${type.icon}</span>
+                        <span class="flex-1">${type.name}</span>
+                        ${type.id === column.type ? '<span class="text-indigo-600">✓</span>' : ''}
+                    `;
+                    
+                    typeEl.onclick = () => {
+                        if (type.needsConfig) {
+                            showTypeConfig(type);
+                        } else {
+                            changeFieldType(columnId, type.id);
+                        }
+                    };
+                    
+                    typesContainer.appendChild(typeEl);
+                });
+                
+                groupEl.appendChild(typesContainer);
+                content.appendChild(groupEl);
+            });
+            
+            document.getElementById('typePickerModal').classList.remove('hidden');
+        }
+
+        // Show type configuration
+        function showTypeConfig(fieldType) {
+            const column = columns.find(c => c.id === typePickerState.columnId);
+            const config = column.config || fieldType.defaultConfig;
+            
+            const content = document.getElementById('typeConfigContent');
+            
+            if (fieldType.id === 'SINGLE_SELECT') {
+                content.innerHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Options</label>
+                            <div id="optionsList" class="space-y-2">
+                                ${(config.options || []).map((opt, i) => `
+                                    <div class="flex items-center space-x-2">
+                                        <input type="text" value="${opt}" class="flex-1 border border-gray-300 rounded px-3 py-2" data-option-index="${i}" />
+                                        <select class="border border-gray-300 rounded px-3 py-2" data-color-index="${i}">
+                                            <option value="blue" ${config.colors[opt] === 'blue' ? 'selected' : ''}>🔵 Blue</option>
+                                            <option value="green" ${config.colors[opt] === 'green' ? 'selected' : ''}>🟢 Green</option>
+                                            <option value="yellow" ${config.colors[opt] === 'yellow' ? 'selected' : ''}>🟡 Yellow</option>
+                                            <option value="red" ${config.colors[opt] === 'red' ? 'selected' : ''}>🔴 Red</option>
+                                            <option value="purple" ${config.colors[opt] === 'purple' ? 'selected' : ''}>🟣 Purple</option>
+                                            <option value="gray" ${config.colors[opt] === 'gray' ? 'selected' : ''}>⚪ Gray</option>
+                                        </select>
+                                        <button class="text-red-600 hover:text-red-800 p-2" onclick="removeOption(${i})">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <button id="addOptionBtn" class="mt-2 text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                                + Add Option
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('addOptionBtn').onclick = addOption;
+            }
+            
+            document.getElementById('typeConfigModal').classList.remove('hidden');
+            
+            // Save handler
+            document.getElementById('saveTypeConfigBtn').onclick = () => {
+                const newConfig = extractConfig(fieldType);
+                changeFieldType(typePickerState.columnId, fieldType.id, newConfig);
+            };
+        }
+
+        // Add option to select config
+        function addOption() {
+            const optionsList = document.getElementById('optionsList');
+            const index = optionsList.children.length;
+            const optionEl = document.createElement('div');
+            optionEl.className = 'flex items-center space-x-2';
+            optionEl.innerHTML = `
+                <input type="text" value="Option ${index + 1}" class="flex-1 border border-gray-300 rounded px-3 py-2" data-option-index="${index}" />
+                <select class="border border-gray-300 rounded px-3 py-2" data-color-index="${index}">
+                    <option value="blue">🔵 Blue</option>
+                    <option value="green">🟢 Green</option>
+                    <option value="yellow">🟡 Yellow</option>
+                    <option value="red">🔴 Red</option>
+                    <option value="purple">🟣 Purple</option>
+                    <option value="gray" selected>⚪ Gray</option>
+                </select>
+                <button class="text-red-600 hover:text-red-800 p-2" onclick="this.parentElement.remove()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </button>
+            `;
+            optionsList.appendChild(optionEl);
+        }
+
+        // Extract config from form
+        function extractConfig(fieldType) {
+            if (fieldType.id === 'SINGLE_SELECT') {
+                const options = [];
+                const colors = {};
+                
+                document.querySelectorAll('[data-option-index]').forEach(input => {
+                    const value = input.value.trim();
+                    if (value) {
+                        options.push(value);
+                        const colorSelect = document.querySelector(`[data-color-index="${input.dataset.optionIndex}"]`);
+                        colors[value] = colorSelect.value;
+                    }
+                });
+                
+                return { options, colors };
+            }
+            
+            return {};
+        }
+
+        // Change field type
+        function changeFieldType(columnId, newType, newConfig = {}) {
+            const columnIndex = columns.findIndex(c => c.id === columnId);
+            const column = columns[columnIndex];
+            const oldType = column.type;
+            const oldConfig = column.config || {};
+            
+            // Update column definition
+            column.type = newType;
+            column.config = newConfig;
+            
+            // Create schema change event
+            createEvent('FieldTypeChanged', {
+                columnId: columnId,
+                columnName: column.name,
+                oldType: oldType,
+                newType: newType,
+                oldConfig: oldConfig,
+                newConfig: newConfig,
+                affectedRows: spreadsheetData.length
+            }, `Changed '${column.name}' field type from ${FIELD_TYPES[oldType].name} to ${FIELD_TYPES[newType].name}`);
+            
+            // Close modals
+            document.getElementById('typePickerModal').classList.add('hidden');
+            document.getElementById('typeConfigModal').classList.add('hidden');
+            
+            // Re-render spreadsheet
+            renderSpreadsheet();
+            updateEventStream();
+            updateStats();
+            
+            // Show notification
+            showNotification(`✓ Changed ${column.name} to ${FIELD_TYPES[newType].name}`);
+        }
+
+        // Create ActivityStream event
+        function createEvent(type, data, summary) {
+            const event = {
+                "@context": "https://www.w3.org/ns/activitystreams",
+                "type": type,
+                "id": `event-${String(eventIdCounter++).padStart(4, '0')}`,
+                "published": new Date().toISOString(),
+                "actor": currentUser,
+                "object": data,
+                "summary": summary
+            };
+
+            eventStream.unshift(event);
+            return event;
+        }
+
+        // Update event stream display
+        function updateEventStream() {
+            const eventsContent = document.getElementById('eventsContent');
             
             const jsonString = JSON.stringify({
                 "@context": "https://www.w3.org/ns/activitystreams",
                 "type": "OrderedCollection",
-                "totalItems": activities.length,
-                "orderedItems": activities
+                "totalItems": eventStream.length,
+                "orderedItems": eventStream
             }, null, 2);
             
-            const formatted = syntaxHighlight(jsonString);
-            jsonContent.innerHTML = formatted;
-            jsonViewSplit.innerHTML = formatted;
+            eventsContent.innerHTML = syntaxHighlight(jsonString);
         }
 
-        // Syntax Highlighting for JSON
+        // Syntax highlighting
         function syntaxHighlight(json) {
             json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
@@ -393,144 +1064,106 @@
             });
         }
 
-        // Get Status Color
-        function getStatusColor(status) {
-            const colors = {
-                published: 'bg-green-100 text-green-800',
-                updated: 'bg-yellow-100 text-yellow-800',
-                active: 'bg-blue-100 text-blue-800',
-                announced: 'bg-purple-100 text-purple-800',
-                pending: 'bg-gray-100 text-gray-800'
-            };
-            return colors[status] || colors.active;
+        // Add new row
+        function addNewRow() {
+            const newRow = {};
+            columns.forEach(col => {
+                const fieldType = FIELD_TYPES[col.type];
+                newRow[col.id] = fieldType.defaultValue;
+            });
+            
+            spreadsheetData.push(newRow);
+            const rowIndex = spreadsheetData.length - 1;
+            
+            createEvent('Create', {
+                rowIndex: rowIndex,
+                rowData: newRow
+            }, `Added new row ${rowIndex + 1}`);
+            
+            renderSpreadsheet();
+            updateEventStream();
+            updateStats();
         }
 
-        // Show Activity Detail
-        function showActivityDetail(activity) {
-            const modal = document.getElementById('detailModal');
-            const content = document.getElementById('detailContent');
-            content.innerHTML = syntaxHighlight(JSON.stringify(activity, null, 2));
-            modal.classList.remove('hidden');
+        // Show notification
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+            notification.style.transition = 'opacity 0.3s ease-out';
+            notification.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span>${message}</span>
+                </div>
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
         }
 
-        // Setup Event Listeners
+        // Update stats
+        function updateStats() {
+            document.getElementById('eventCount').textContent = eventStream.length;
+            if (eventStream.length > 0) {
+                const lastEvent = eventStream[0];
+                document.getElementById('lastEdit').textContent = new Date(lastEvent.published).toLocaleTimeString();
+            }
+        }
+
+        // Setup event listeners
         function setupEventListeners() {
-            // View Toggle
-            document.getElementById('tableViewBtn').addEventListener('click', () => switchView('table'));
-            document.getElementById('jsonViewBtn').addEventListener('click', () => switchView('json'));
-            document.getElementById('splitViewBtn').addEventListener('click', () => switchView('split'));
+            // View toggle
+            document.getElementById('spreadsheetViewBtn').addEventListener('click', () => switchView('spreadsheet'));
+            document.getElementById('eventsViewBtn').addEventListener('click', () => switchView('events'));
 
-            // Add Activity
-            document.getElementById('addActivityBtn').addEventListener('click', () => {
-                document.getElementById('addActivityModal').classList.remove('hidden');
+            // Add row
+            document.getElementById('addRowBtn').addEventListener('click', addNewRow);
+
+            // Close modals
+            document.getElementById('closeTypePickerBtn').addEventListener('click', () => {
+                document.getElementById('typePickerModal').classList.add('hidden');
+            });
+            document.getElementById('closeTypeConfigBtn').addEventListener('click', () => {
+                document.getElementById('typeConfigModal').classList.add('hidden');
+            });
+            document.getElementById('cancelTypeConfigBtn').addEventListener('click', () => {
+                document.getElementById('typeConfigModal').classList.add('hidden');
             });
 
-            document.getElementById('cancelActivityBtn').addEventListener('click', () => {
-                document.getElementById('addActivityModal').classList.add('hidden');
-            });
-
-            document.getElementById('activityForm').addEventListener('submit', (e) => {
-                e.preventDefault();
-                addNewActivity();
-            });
-
-            // Detail Modal
-            document.getElementById('closeDetailBtn').addEventListener('click', () => {
-                document.getElementById('detailModal').classList.add('hidden');
-            });
-
-            // JSON Actions
-            document.getElementById('copyJsonBtn').addEventListener('click', () => {
-                const json = JSON.stringify(activities, null, 2);
+            // Export events
+            document.getElementById('copyEventsBtn').addEventListener('click', () => {
+                const json = JSON.stringify(eventStream, null, 2);
                 navigator.clipboard.writeText(json).then(() => {
-                    alert('JSON copied to clipboard!');
+                    showNotification('✓ Events copied to clipboard!');
                 });
             });
-
-            document.getElementById('downloadJsonBtn').addEventListener('click', () => {
-                const json = JSON.stringify(activities, null, 2);
-                const blob = new Blob([json], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'activities.json';
-                a.click();
-            });
         }
 
-        // Switch View
+        // Switch view
         function switchView(view) {
-            currentView = view;
-            
-            // Reset button styles
             document.querySelectorAll('.view-toggle').forEach(btn => {
                 btn.classList.remove('view-active', 'bg-gray-100');
                 btn.classList.add('bg-gray-100');
             });
 
-            // Hide all views
-            document.getElementById('tableViewFull').classList.add('hidden');
-            document.getElementById('jsonViewFull').classList.add('hidden');
-            document.getElementById('splitViewContainer').classList.add('hidden');
+            document.getElementById('spreadsheetViewFull').classList.add('hidden');
+            document.getElementById('eventsViewFull').classList.add('hidden');
 
-            // Show selected view
-            if (view === 'table') {
-                document.getElementById('tableViewBtn').classList.add('view-active');
-                document.getElementById('tableViewBtn').classList.remove('bg-gray-100');
-                document.getElementById('tableViewFull').classList.remove('hidden');
-            } else if (view === 'json') {
-                document.getElementById('jsonViewBtn').classList.add('view-active');
-                document.getElementById('jsonViewBtn').classList.remove('bg-gray-100');
-                document.getElementById('jsonViewFull').classList.remove('hidden');
-            } else if (view === 'split') {
-                document.getElementById('splitViewBtn').classList.add('view-active');
-                document.getElementById('splitViewBtn').classList.remove('bg-gray-100');
-                document.getElementById('splitViewContainer').classList.remove('hidden');
-                document.getElementById('splitViewContainer').classList.remove('grid');
-                document.getElementById('splitViewContainer').classList.add('grid');
-                renderTableView(true); // Pass true for split view
-                updateJsonView(); // Update JSON view for split mode
+            if (view === 'spreadsheet') {
+                document.getElementById('spreadsheetViewBtn').classList.add('view-active');
+                document.getElementById('spreadsheetViewBtn').classList.remove('bg-gray-100');
+                document.getElementById('spreadsheetViewFull').classList.remove('hidden');
+            } else if (view === 'events') {
+                document.getElementById('eventsViewBtn').classList.add('view-active');
+                document.getElementById('eventsViewBtn').classList.remove('bg-gray-100');
+                document.getElementById('eventsViewFull').classList.remove('hidden');
             }
         }
-
-        // Add New Activity
-        function addNewActivity() {
-            const type = document.getElementById('activityType').value;
-            const actorName = document.getElementById('actorName').value;
-            const summary = document.getElementById('activitySummary').value;
-
-            const newActivity = {
-                "@context": "https://www.w3.org/ns/activitystreams",
-                "type": type,
-                "id": `activity-${String(activities.length + 1).padStart(3, '0')}`,
-                "published": new Date().toISOString(),
-                "actor": {
-                    "type": "Person",
-                    "id": `@${actorName.toLowerCase().replace(' ', '.')}:system`,
-                    "name": actorName
-                },
-                "summary": summary || `${actorName} performed ${type} activity`,
-                "status": "active"
-            };
-
-            activities.unshift(newActivity); // Add to beginning
-            
-            // Refresh the appropriate view
-            if (currentView === 'split') {
-                renderTableView(true);
-            } else {
-                renderTableView(false);
-            }
-            updateJsonView();
-            
-            // Close modal and reset form
-            document.getElementById('addActivityModal').classList.add('hidden');
-            document.getElementById('activityForm').reset();
-        }
-
-        // Make activities accessible globally for inline onclick
-        window.activities = activities;
-        window.showActivityDetail = showActivityDetail;
     </script>
 </body>
 </html>
