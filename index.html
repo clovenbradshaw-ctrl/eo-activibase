@@ -6,6 +6,19 @@
     <title>Workbase - Activity-Sourced Database</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #764ba2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-600: #4b5563;
+            --gray-900: #111827;
+        }
+        
         * {
             box-sizing: border-box;
         }
@@ -14,18 +27,22 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
         }
         
-        /* Softer, more spacious cells */
+        /* ============================================================================
+           CELL STYLES
+           ============================================================================ */
+        
         .cell-editable {
             min-height: 36px;
             padding: 12px 16px;
             cursor: text;
             border-right: 1px solid #f0f0f0;
-            transition: all 0.15s ease;
+            transition: all 0.2s ease;
             position: relative;
         }
         
         .cell-editable:hover {
-            background-color: #fafafa;
+            background: linear-gradient(to right, transparent, rgba(59, 130, 246, 0.03), transparent);
+            border-left: 2px solid rgba(59, 130, 246, 0.2);
         }
         
         .cell-editable:focus {
@@ -58,7 +75,10 @@
             opacity: 0.5;
         }
         
-        /* Column headers with gradient */
+        /* ============================================================================
+           TABLE & HEADER STYLES
+           ============================================================================ */
+        
         .column-header {
             background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
             padding: 12px 16px;
@@ -71,6 +91,7 @@
             cursor: pointer;
             transition: background 0.15s;
             user-select: none;
+            position: relative;
         }
         
         .column-header:hover {
@@ -88,7 +109,170 @@
         .column-header[data-type="CHECKBOX"] { border-top: 3px solid #8b5cf6; }
         .column-header[data-type="LINK_TO_RECORD"] { border-top: 3px solid #06b6d4; }
         
-        /* Badges */
+        tr:hover {
+            background-color: #fafafa;
+        }
+        
+        tr:hover .row-number {
+            background: #3b82f6;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .row-number {
+            transition: all 0.2s ease;
+        }
+        
+        /* ============================================================================
+           CONTEXT MENU
+           ============================================================================ */
+        
+        .context-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            min-width: 200px;
+            overflow: hidden;
+        }
+        
+        .context-menu-item {
+            padding: 10px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .context-menu-item:hover {
+            background: #f3f4f6;
+        }
+        
+        .context-menu-item.danger:hover {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .context-menu-separator {
+            height: 1px;
+            background: #e5e7eb;
+            margin: 4px 0;
+        }
+        
+        /* ============================================================================
+           MODAL SYSTEM - Airtable Style
+           ============================================================================ */
+        
+        .modal-overlay {
+            backdrop-filter: blur(2px);
+            animation: fadeIn 0.2s ease;
+        }
+        
+        .modal-container {
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .modal-header {
+            padding: 24px 24px 16px 24px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .modal-body {
+            padding: 24px;
+        }
+        
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #f0f0f0;
+            background: #fafafa;
+        }
+        
+        .config-section {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+            margin-top: 0;
+        }
+        
+        .config-section.visible {
+            max-height: 500px;
+            opacity: 1;
+            margin-top: 16px;
+        }
+        
+        /* ============================================================================
+           BUTTONS
+           ============================================================================ */
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.15s ease;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: white;
+            border: 1px solid #e5e7eb;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        /* ============================================================================
+           BADGES
+           ============================================================================ */
+        
         .badge {
             display: inline-flex;
             align-items: center;
@@ -108,62 +292,10 @@
         .badge-cyan { background-color: #cffafe; color: #155e75; }
         .badge-pink { background-color: #fce7f3; color: #9f1239; }
         
-        /* Buttons */
-        .btn {
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.15s ease;
-            border: none;
-            cursor: pointer;
-        }
+        /* ============================================================================
+           SIDE PANELS
+           ============================================================================ */
         
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-        
-        .btn-secondary {
-            background: white;
-            border: 1px solid #e5e7eb;
-            color: #374151;
-        }
-        
-        .btn-secondary:hover {
-            background: #f9fafb;
-            border-color: #d1d5db;
-        }
-        
-        /* Modals */
-        .modal-overlay {
-            backdrop-filter: blur(2px);
-            animation: fadeIn 0.15s ease;
-        }
-        
-        .modal-container {
-            border-radius: 8px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-            animation: slideUp 0.2s ease;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        @keyframes slideUp {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
-        /* Side panels */
         .side-panel {
             position: fixed;
             right: 0;
@@ -183,7 +315,10 @@
             transform: translateX(0);
         }
         
-        /* Relationship cards */
+        /* ============================================================================
+           RELATIONSHIP CARDS
+           ============================================================================ */
+        
         .relationship-card {
             background: white;
             border: 1px solid #e5e7eb;
@@ -198,7 +333,10 @@
             transform: translateY(-1px);
         }
         
-        /* History entries */
+        /* ============================================================================
+           HISTORY ENTRIES
+           ============================================================================ */
+        
         .history-entry {
             border-left: 3px solid #e5e7eb;
             padding: 12px;
@@ -211,6 +349,11 @@
         .history-entry:hover {
             border-left-color: #3b82f6;
             background-color: #f9fafb;
+        }
+        
+        .history-entry.revert {
+            border-left-color: #f59e0b;
+            background-color: #fffbeb;
         }
         
         .value-change {
@@ -231,15 +374,19 @@
             font-weight: 600;
         }
         
-        /* Input styling */
+        /* ============================================================================
+           INPUT STYLING
+           ============================================================================ */
+        
         input[type="text"], input[type="number"], input[type="date"], 
         input[type="email"], input[type="url"], select, textarea {
             width: 100%;
-            padding: 8px 12px;
+            padding: 10px 12px;
             border: 1px solid #e5e7eb;
             border-radius: 6px;
             font-size: 14px;
             transition: all 0.15s ease;
+            background: white;
         }
         
         input:focus, select:focus, textarea:focus {
@@ -248,7 +395,23 @@
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
         
-        /* Table selector tabs */
+        input::placeholder {
+            color: #9ca3af;
+        }
+        
+        /* Airtable-style select */
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%236B7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+        
+        /* ============================================================================
+           TABS
+           ============================================================================ */
+        
         .table-tab {
             padding: 8px 16px;
             border-radius: 6px 6px 0 0;
@@ -271,7 +434,6 @@
             margin-bottom: -1px;
         }
         
-        /* View tabs */
         .view-tab {
             padding: 6px 12px;
             border-radius: 6px;
@@ -294,7 +456,10 @@
             border-color: #93c5fd;
         }
         
-        /* Link pills */
+        /* ============================================================================
+           LINK PILLS
+           ============================================================================ */
+        
         .link-pill {
             display: inline-flex;
             align-items: center;
@@ -315,48 +480,10 @@
             transform: translateY(-1px);
         }
         
-        /* Schema mode toggle */
-        .schema-toggle {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 4px 8px;
-            background: #f3f4f6;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
+        /* ============================================================================
+           TOAST NOTIFICATIONS
+           ============================================================================ */
         
-        .schema-toggle:hover {
-            background: #e5e7eb;
-        }
-        
-        .schema-toggle.active {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-        
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: #f3f4f6;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: #d1d5db;
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: #9ca3af;
-        }
-        
-        /* Notification toast */
         .toast {
             position: fixed;
             bottom: 24px;
@@ -375,7 +502,10 @@
             to { transform: translateX(0); opacity: 1; }
         }
         
-        /* Empty states */
+        /* ============================================================================
+           EMPTY STATES
+           ============================================================================ */
+        
         .empty-state {
             text-align: center;
             padding: 48px 24px;
@@ -388,7 +518,10 @@
             opacity: 0.5;
         }
         
-        /* Filter builder */
+        /* ============================================================================
+           FILTER BUILDER
+           ============================================================================ */
+        
         .filter-row {
             display: flex;
             gap: 8px;
@@ -401,6 +534,66 @@
         
         .filter-row select, .filter-row input {
             flex: 1;
+            padding: 6px 10px;
+            font-size: 13px;
+        }
+        
+        /* ============================================================================
+           SCROLLBAR STYLING
+           ============================================================================ */
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f3f4f6;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+        
+        /* ============================================================================
+           LABEL STYLING
+           ============================================================================ */
+        
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        .form-hint {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 6px;
+        }
+        
+        /* ============================================================================
+           PROPERTY EDITOR
+           ============================================================================ */
+        
+        .property-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 8px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        
+        .property-row input {
             padding: 6px 10px;
             font-size: 13px;
         }
@@ -418,8 +611,8 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button id="historyBtn" class="btn btn-secondary">
-                        <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button id="historyBtn" class="btn btn-secondary" aria-label="View history">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                         History
@@ -433,8 +626,7 @@
 
     <!-- Table Tabs -->
     <div class="max-w-7xl mx-auto px-6 pt-4">
-        <div class="flex items-center gap-2 border-b border-gray-200" id="tableTabsContainer">
-            <!-- Tabs will be inserted here -->
+        <div class="flex items-center gap-2 border-b border-gray-200" id="tableTabsContainer" role="tablist">
         </div>
     </div>
 
@@ -444,14 +636,13 @@
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2" id="viewTabsContainer">
-                        <!-- View tabs will be inserted here -->
+                    <div class="flex items-center gap-2" id="viewTabsContainer" role="tablist">
                     </div>
                     <button id="addViewBtn" class="text-sm text-blue-600 hover:text-blue-800">+ Add View</button>
                 </div>
                 <div class="flex items-center gap-2">
                     <button id="filterBtn" class="btn btn-secondary text-sm">
-                        <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
                         </svg>
                         Filter
@@ -476,33 +667,17 @@
                 </table>
             </div>
         </div>
-
-        <!-- Relationships View -->
-        <div id="relationshipsView" class="hidden bg-white rounded-lg shadow-sm border border-gray-200">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-lg font-semibold">All Relationships</h2>
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm text-gray-600">Total: <strong id="relationshipCount">0</strong></span>
-                        <button id="addRelationshipFromViewBtn" class="btn btn-primary btn-sm">+ Add Relationship</button>
-                    </div>
-                </div>
-                <div id="relationshipsContainer">
-                    <!-- Relationships will be inserted here -->
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- History Panel -->
-    <div id="historyPanel" class="side-panel">
+    <div id="historyPanel" class="side-panel" role="complementary" aria-label="Edit history">
         <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 flex-shrink-0">
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h3 class="text-xl font-bold">Edit History</h3>
                     <p class="text-sm opacity-90 mt-1">Full audit trail of all changes</p>
                 </div>
-                <button id="closeHistoryBtn" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition">
+                <button id="closeHistoryBtn" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition" aria-label="Close history">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -514,8 +689,9 @@
                     id="historySearch" 
                     class="w-full text-gray-900 rounded-lg"
                     placeholder="Search history..."
+                    aria-label="Search history"
                 >
-                <select id="historyFilter" class="w-full text-gray-900 rounded-lg">
+                <select id="historyFilter" class="w-full text-gray-900 rounded-lg" aria-label="Filter history by type">
                     <option value="all">All Changes</option>
                     <option value="cell">Cell Edits</option>
                     <option value="record">Record Changes</option>
@@ -535,11 +711,14 @@
     </div>
 
     <!-- Expanded Record Modal -->
-    <div id="expandedRecordModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div class="border-b border-gray-200 p-6 flex items-center justify-between flex-shrink-0">
-                <h2 class="text-2xl font-bold text-gray-900" id="expandedRecordTitle">Record Details</h2>
-                <button id="closeExpandedRecordBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+    <div id="expandedRecordModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50" role="dialog" aria-modal="true">
+        <div class="modal-container bg-white w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between flex-shrink-0">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900" id="expandedRecordTitle">Record Details</h2>
+                    <p class="text-sm text-gray-500 mt-1">View and edit all fields</p>
+                </div>
+                <button id="closeExpandedRecordBtn" class="text-gray-400 hover:text-gray-600 transition p-2" aria-label="Close modal">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -548,10 +727,8 @@
             <div class="flex-1 overflow-hidden">
                 <div class="grid grid-cols-1 md:grid-cols-3 h-full">
                     <div class="md:col-span-2 p-6 overflow-y-auto border-r border-gray-200" id="expandedRecordMain">
-                        <!-- Main content -->
                     </div>
-                    <div class="p-6 overflow-y-auto bg-gray-50" id="expandedRecordSidebar">
-                        <!-- Sidebar content -->
+                    <div class="overflow-y-auto bg-gray-50" id="expandedRecordSidebar">
                     </div>
                 </div>
             </div>
@@ -559,46 +736,50 @@
     </div>
 
     <!-- Add/Edit Relationship Modal -->
-    <div id="relationshipEditorModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+    <div id="relationshipEditorModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50" role="dialog" aria-modal="true">
         <div class="modal-container bg-white w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div class="border-b border-gray-200 p-6 flex items-center justify-between flex-shrink-0">
+            <div class="modal-header flex items-center justify-between flex-shrink-0">
                 <div>
                     <h2 class="text-xl font-bold text-gray-900">Add Relationship</h2>
+                    <p class="text-sm text-gray-500 mt-1">Connect records with meaningful relationships</p>
                 </div>
-                <button id="closeRelationshipEditorBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                <button id="closeRelationshipEditorBtn" class="text-gray-400 hover:text-gray-600 transition p-2" aria-label="Close modal">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            <div class="flex-1 overflow-y-auto p-6" id="relationshipEditorContent">
-                <!-- Editor content -->
+            <div class="flex-1 overflow-y-auto modal-body" id="relationshipEditorContent">
             </div>
-            <div class="border-t border-gray-200 p-4 flex justify-end gap-2 flex-shrink-0">
+            <div class="modal-footer flex justify-end gap-2 flex-shrink-0">
                 <button id="cancelRelationshipBtn" class="btn btn-secondary">Cancel</button>
                 <button id="saveRelationshipBtn" class="btn btn-primary">Save Relationship</button>
             </div>
         </div>
     </div>
 
-    <!-- Add Field Modal -->
-    <div id="addFieldModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-md">
-            <div class="border-b border-gray-200 p-6 flex items-center justify-between">
-                <h2 class="text-xl font-bold text-gray-900">Add Field</h2>
-                <button id="closeAddFieldBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+    <!-- Add/Edit Field Modal - Airtable Style -->
+    <div id="addFieldModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50" role="dialog" aria-modal="true">
+        <div class="modal-container bg-white w-full max-w-lg">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900" id="fieldModalTitle">Add Field</h2>
+                    <p class="text-sm text-gray-500 mt-1">Create a new field for your table</p>
+                </div>
+                <button id="closeAddFieldBtn" class="text-gray-400 hover:text-gray-600 transition p-2" aria-label="Close modal">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            <div class="p-6 space-y-4">
+            <div class="modal-body space-y-5">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Field Name</label>
-                    <input type="text" id="newFieldName" placeholder="e.g., Status, Amount, Contact Person">
+                    <label class="form-label" for="newFieldName">Field Name</label>
+                    <input type="text" id="newFieldName" placeholder="e.g., Status, Amount, Contact Person" autofocus>
+                    <p class="form-hint">A descriptive name for your field</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Field Type</label>
+                    <label class="form-label" for="newFieldType">Field Type</label>
                     <select id="newFieldType">
                         <option value="TEXT">Single line text</option>
                         <option value="LONG_TEXT">Long text</option>
@@ -613,14 +794,16 @@
                         <option value="LINK_TO_RECORD">Link to another record</option>
                     </select>
                 </div>
-                <div id="linkToRecordConfig" class="hidden">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Link to Table</label>
-                    <select id="linkToTable">
-                        <!-- Options will be populated -->
-                    </select>
+                <div id="linkToRecordConfig" class="config-section">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <label class="form-label" for="linkToTable">Link to Table</label>
+                        <select id="linkToTable">
+                        </select>
+                        <p class="form-hint">Select which table to link to</p>
+                    </div>
                 </div>
             </div>
-            <div class="border-t border-gray-200 p-4 flex justify-end gap-2">
+            <div class="modal-footer flex justify-end gap-2">
                 <button id="cancelAddFieldBtn" class="btn btn-secondary">Cancel</button>
                 <button id="saveAddFieldBtn" class="btn btn-primary">Add Field</button>
             </div>
@@ -628,23 +811,27 @@
     </div>
 
     <!-- Add View Modal -->
-    <div id="addViewModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+    <div id="addViewModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50" role="dialog" aria-modal="true">
         <div class="modal-container bg-white w-full max-w-md">
-            <div class="border-b border-gray-200 p-6 flex items-center justify-between">
-                <h2 class="text-xl font-bold text-gray-900">Create View</h2>
-                <button id="closeAddViewBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Create View</h2>
+                    <p class="text-sm text-gray-500 mt-1">Filter and organize your data</p>
+                </div>
+                <button id="closeAddViewBtn" class="text-gray-400 hover:text-gray-600 transition p-2" aria-label="Close modal">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            <div class="p-6 space-y-4">
+            <div class="modal-body space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">View Name</label>
-                    <input type="text" id="newViewName" placeholder="e.g., Active Items, Completed, By Status">
+                    <label class="form-label" for="newViewName">View Name</label>
+                    <input type="text" id="newViewName" placeholder="e.g., Active Items, Completed, By Status" autofocus>
+                    <p class="form-hint">Give your view a descriptive name</p>
                 </div>
             </div>
-            <div class="border-t border-gray-200 p-4 flex justify-end gap-2">
+            <div class="modal-footer flex justify-end gap-2">
                 <button id="cancelAddViewBtn" class="btn btn-secondary">Cancel</button>
                 <button id="saveAddViewBtn" class="btn btn-primary">Create View</button>
             </div>
@@ -652,25 +839,27 @@
     </div>
 
     <!-- Filter Modal -->
-    <div id="filterModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+    <div id="filterModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50" role="dialog" aria-modal="true">
         <div class="modal-container bg-white w-full max-w-2xl">
-            <div class="border-b border-gray-200 p-6 flex items-center justify-between">
-                <h2 class="text-xl font-bold text-gray-900">Filter View</h2>
-                <button id="closeFilterBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Filter View</h2>
+                    <p class="text-sm text-gray-500 mt-1">Show only records that match your criteria</p>
+                </div>
+                <button id="closeFilterBtn" class="text-gray-400 hover:text-gray-600 transition p-2" aria-label="Close modal">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            <div class="p-6">
+            <div class="modal-body">
                 <div class="mb-4">
-                    <button id="addFilterRuleBtn" class="text-sm text-blue-600 hover:text-blue-800">+ Add Filter Rule</button>
+                    <button id="addFilterRuleBtn" class="text-sm text-blue-600 hover:text-blue-800 font-medium">+ Add Filter Rule</button>
                 </div>
                 <div id="filterRulesContainer" class="space-y-2">
-                    <!-- Filter rules will be inserted here -->
                 </div>
             </div>
-            <div class="border-t border-gray-200 p-4 flex justify-end gap-2">
+            <div class="modal-footer flex justify-end gap-2">
                 <button id="clearFiltersBtn" class="btn btn-secondary">Clear All</button>
                 <button id="applyFiltersBtn" class="btn btn-primary">Apply Filters</button>
             </div>
@@ -678,27 +867,32 @@
     </div>
 
     <!-- Add Table Modal -->
-    <div id="addTableModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+    <div id="addTableModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50" role="dialog" aria-modal="true">
         <div class="modal-container bg-white w-full max-w-md">
-            <div class="border-b border-gray-200 p-6 flex items-center justify-between">
-                <h2 class="text-xl font-bold text-gray-900">Create Table</h2>
-                <button id="closeAddTableBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Create Table</h2>
+                    <p class="text-sm text-gray-500 mt-1">Add a new table to organize your data</p>
+                </div>
+                <button id="closeAddTableBtn" class="text-gray-400 hover:text-gray-600 transition p-2" aria-label="Close modal">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            <div class="p-6 space-y-4">
+            <div class="modal-body space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Table Name</label>
-                    <input type="text" id="newTableName" placeholder="e.g., Projects, Contacts, Tasks">
+                    <label class="form-label" for="newTableName">Table Name</label>
+                    <input type="text" id="newTableName" placeholder="e.g., Projects, Contacts, Tasks" autofocus>
+                    <p class="form-hint">Choose a name that describes what you'll store</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Icon (emoji)</label>
+                    <label class="form-label" for="newTableIcon">Icon (emoji)</label>
                     <input type="text" id="newTableIcon" placeholder="📊" maxlength="2">
+                    <p class="form-hint">Add a visual identifier for your table</p>
                 </div>
             </div>
-            <div class="border-t border-gray-200 p-4 flex justify-end gap-2">
+            <div class="modal-footer flex justify-end gap-2">
                 <button id="cancelAddTableBtn" class="btn btn-secondary">Cancel</button>
                 <button id="saveAddTableBtn" class="btn btn-primary">Create Table</button>
             </div>
@@ -717,7 +911,6 @@
             currentViewId: null,
             eventStream: [],
             eventIdCounter: 1,
-            relationshipSchemas: new Map(),
             currentUser: {
                 type: 'Person',
                 id: 'user_' + Date.now(),
@@ -726,7 +919,9 @@
             tempRelationship: null,
             historyFilter: 'all',
             historySearch: '',
-            suppressEvents: false // Flag to suppress events during initialization
+            suppressEvents: false,
+            modalStack: [],
+            editingFieldId: null // For editing existing fields
         };
 
         // Field type definitions
@@ -862,18 +1057,16 @@
                 switchTable(state.currentTableId);
             }
             setupEventListeners();
+            setupKeyboardShortcuts();
             initIcons();
         }
 
         function createSampleData() {
-            // Suppress events during initialization
             state.suppressEvents = true;
             
-            // Create sample tables
             const projectsId = createTable('Projects', '📊');
             const contactsId = createTable('Contacts', '👤');
             
-            // Add fields to Projects
             const projectsTable = state.tables.get(projectsId);
             projectsTable.schema = [
                 { id: 'name', name: 'Project Name', type: 'TEXT', width: '200px' },
@@ -891,7 +1084,6 @@
                 { id: 'notes', name: 'Notes', type: 'LONG_TEXT', width: '300px' }
             ];
             
-            // Add sample records to Projects
             addRecord(projectsId, {
                 name: 'Website Redesign',
                 status: 'In Progress',
@@ -908,7 +1100,6 @@
                 notes: 'iOS and Android native apps'
             });
             
-            // Add fields to Contacts
             const contactsTable = state.tables.get(contactsId);
             contactsTable.schema = [
                 { id: 'name', name: 'Full Name', type: 'TEXT', width: '200px' },
@@ -917,7 +1108,6 @@
                 { id: 'company', name: 'Company', type: 'TEXT', width: '150px' }
             ];
             
-            // Add sample records to Contacts
             addRecord(contactsId, {
                 name: 'John Smith',
                 email: 'john@example.com',
@@ -926,8 +1116,6 @@
             });
             
             state.currentTableId = projectsId;
-            
-            // Re-enable events
             state.suppressEvents = false;
         }
 
@@ -943,13 +1131,11 @@
                 views: new Map()
             });
             
-            // Create default view (suppress event for this system-generated view)
             const oldSuppressState = state.suppressEvents;
             state.suppressEvents = true;
             const defaultViewId = createView(tableId, 'All ' + name, {}, true);
             state.suppressEvents = oldSuppressState;
             
-            // Create event for table creation (only if not suppressed globally)
             createEvent('Create', {
                 type: 'Table',
                 id: tableId,
@@ -975,7 +1161,6 @@
                 state.currentViewId = viewId;
             }
             
-            // Only create event if not suppressed
             if (!suppressEvent && !state.suppressEvents) {
                 createEvent('Create', {
                     type: 'View',
@@ -1007,11 +1192,10 @@
         }
 
         // ============================================================================
-        // EVENT SOURCING
+        // EVENT SOURCING - WITH EFFICIENT REVERTS
         // ============================================================================
         
         function createEvent(type, object, summary) {
-            // Skip event creation if suppressed (during initialization)
             if (state.suppressEvents) return null;
             
             const event = {
@@ -1022,6 +1206,29 @@
                 'actor': state.currentUser,
                 'object': object,
                 'summary': summary
+            };
+
+            state.eventStream.unshift(event);
+            return event;
+        }
+
+        // Space-efficient revert: just point to the event being reverted to
+        function createRevertEvent(targetEventId, scope) {
+            const targetEvent = state.eventStream.find(e => e.id === targetEventId);
+            if (!targetEvent) return null;
+            
+            const event = {
+                '@context': 'https://www.w3.org/ns/activitystreams',
+                'type': 'Undo',
+                'id': `event-${String(state.eventIdCounter++).padStart(4, '0')}`,
+                'published': new Date().toISOString(),
+                'actor': state.currentUser,
+                'object': {
+                    type: 'Revert',
+                    targetEventId: targetEventId,
+                    scope: scope // 'cell', 'row', 'column', 'view', 'table'
+                },
+                'summary': `Reverted to ${targetEvent.id} (${scope})`
             };
 
             state.eventStream.unshift(event);
@@ -1039,6 +1246,8 @@
             state.tables.forEach((table, tableId) => {
                 const tab = document.createElement('div');
                 tab.className = `table-tab ${tableId === state.currentTableId ? 'active' : ''}`;
+                tab.setAttribute('role', 'tab');
+                tab.setAttribute('aria-selected', tableId === state.currentTableId);
                 tab.innerHTML = `
                     <span class="text-lg mr-2">${table.icon}</span>
                     <span>${table.name}</span>
@@ -1052,7 +1261,6 @@
             state.currentTableId = tableId;
             const table = state.tables.get(tableId);
             
-            // Switch to first view of this table
             if (table.views.size > 0) {
                 state.currentViewId = Array.from(table.views.keys())[0];
             }
@@ -1068,7 +1276,7 @@
 
         function getCurrentView() {
             const table = getCurrentTable();
-            return table.views.get(state.currentViewId);
+            return table?.views.get(state.currentViewId);
         }
 
         // ============================================================================
@@ -1085,6 +1293,8 @@
             table.views.forEach((view, viewId) => {
                 const tab = document.createElement('button');
                 tab.className = `view-tab ${viewId === state.currentViewId ? 'active' : ''}`;
+                tab.setAttribute('role', 'tab');
+                tab.setAttribute('aria-selected', viewId === state.currentViewId);
                 tab.textContent = view.name;
                 tab.onclick = () => switchView(viewId);
                 container.appendChild(tab);
@@ -1098,26 +1308,8 @@
         }
 
         function renderCurrentView() {
-            // For now, always show grid view
-            // Later can add board/gallery views
             document.getElementById('gridView').classList.remove('hidden');
-            document.getElementById('relationshipsView').classList.add('hidden');
             renderGridView();
-        }
-
-        function toggleRelationshipsView() {
-            const gridView = document.getElementById('gridView');
-            const relView = document.getElementById('relationshipsView');
-            
-            if (relView.classList.contains('hidden')) {
-                gridView.classList.add('hidden');
-                relView.classList.remove('hidden');
-                renderRelationshipsView();
-            } else {
-                gridView.classList.remove('hidden');
-                relView.classList.add('hidden');
-                renderGridView();
-            }
         }
 
         function renderGridView() {
@@ -1128,12 +1320,10 @@
             const schema = table.schema;
             let records = Array.from(table.records.values());
             
-            // Apply filters
             if (view && view.filters.length > 0) {
                 records = applyFilters(records, view.filters, schema);
             }
             
-            // Render header
             const headerRow = document.getElementById('tableHeader');
             headerRow.innerHTML = '<th class="column-header" style="width: 50px;">#</th>';
             
@@ -1143,6 +1333,7 @@
                 const th = document.createElement('th');
                 th.className = 'column-header';
                 th.dataset.type = field.type;
+                th.dataset.fieldId = field.id;
                 th.style.width = field.width || '150px';
                 
                 const fieldType = FIELD_TYPES[field.type];
@@ -1154,22 +1345,39 @@
                         </div>
                     </div>
                 `;
+                
+                // Right-click context menu on column header
+                th.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    showColumnContextMenu(e, field);
+                };
+                
                 headerRow.appendChild(th);
             });
             
-            // Render body
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = '';
             
             records.forEach((record, index) => {
                 const tr = document.createElement('tr');
-                tr.className = 'hover:bg-gray-50 transition cursor-pointer';
-                tr.onclick = () => openExpandedRecord(record.id);
+                tr.className = 'hover:bg-gray-50 transition';
+                tr.dataset.recordId = record.id;
                 
-                // Row number
+                tr.onclick = (e) => {
+                    if (e.target === tr || e.target.closest('.row-number')) {
+                        openExpandedRecord(record.id);
+                    }
+                };
+                
+                // Row number with context menu
                 const tdNum = document.createElement('td');
-                tdNum.className = 'cell-editable text-center bg-gray-50 font-medium text-gray-500';
+                tdNum.className = 'row-number cell-editable text-center bg-gray-50 font-medium text-gray-500';
                 tdNum.textContent = index + 1;
+                tdNum.style.cursor = 'pointer';
+                tdNum.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    showRowContextMenu(e, record.id);
+                };
                 tr.appendChild(tdNum);
                 
                 // Data cells
@@ -1181,7 +1389,6 @@
                     td.dataset.recordId = record.id;
                     td.dataset.fieldId = field.id;
                     
-                    // Check if cell has history
                     if (getCellHistory(record.id, field.id).length > 0) {
                         td.classList.add('cell-with-history');
                     }
@@ -1203,12 +1410,16 @@
                             e.stopPropagation();
                             makeEditable(td, record.id, field);
                         };
+                        td.ondblclick = (e) => {
+                            e.stopPropagation();
+                            openExpandedRecord(record.id, field.id);
+                        };
                     }
                     
-                    // Right-click for history
+                    // Right-click for cell history
                     td.oncontextmenu = (e) => {
                         e.preventDefault();
-                        showCellHistory(record.id, field.id);
+                        showCellContextMenu(e, record.id, field.id);
                     };
                     
                     tr.appendChild(td);
@@ -1250,83 +1461,238 @@
             });
         }
 
-        function renderRelationshipsView() {
-            // Get all Add events (relationships)
-            const relationships = state.eventStream.filter(e => 
-                e.type === 'Add' && 
-                e.object && 
-                e.object.target
-            );
+        // ============================================================================
+        // CONTEXT MENUS
+        // ============================================================================
+        
+        function showColumnContextMenu(e, field) {
+            removeExistingContextMenu();
             
-            document.getElementById('relationshipCount').textContent = relationships.length;
+            const menu = document.createElement('div');
+            menu.className = 'context-menu';
+            menu.style.top = `${e.clientY}px`;
+            menu.style.left = `${e.clientX}px`;
             
-            const container = document.getElementById('relationshipsContainer');
+            const history = getColumnHistory(field.id);
             
-            if (relationships.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">🔗</div>
-                        <p class="text-lg font-medium text-gray-600">No relationships yet</p>
-                        <p class="text-sm text-gray-500 mt-2">Create connections between records to see them here</p>
+            menu.innerHTML = `
+                <div class="context-menu-item" onclick="editField('${field.id}')">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                    Edit Field
+                </div>
+                <div class="context-menu-item" onclick="showColumnHistory('${field.id}')">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    View History (${history.length})
+                </div>
+                ${history.length > 0 ? `
+                    <div class="context-menu-item" onclick="revertColumn('${field.id}')">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                        </svg>
+                        Revert Column
                     </div>
-                `;
+                ` : ''}
+                <div class="context-menu-separator"></div>
+                <div class="context-menu-item danger" onclick="deleteField('${field.id}')">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                    Delete Field
+                </div>
+            `;
+            
+            document.body.appendChild(menu);
+            
+            setTimeout(() => {
+                document.addEventListener('click', function closeMenu() {
+                    removeExistingContextMenu();
+                    document.removeEventListener('click', closeMenu);
+                });
+            }, 0);
+        }
+
+        function showRowContextMenu(e, recordId) {
+            removeExistingContextMenu();
+            
+            const menu = document.createElement('div');
+            menu.className = 'context-menu';
+            menu.style.top = `${e.clientY}px`;
+            menu.style.left = `${e.clientX}px`;
+            
+            const history = getRecordHistory(recordId);
+            
+            menu.innerHTML = `
+                <div class="context-menu-item" onclick="openExpandedRecord('${recordId}')">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                    View Record
+                </div>
+                <div class="context-menu-item" onclick="showRecordHistory('${recordId}')">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    View History (${history.length})
+                </div>
+                ${history.length > 0 ? `
+                    <div class="context-menu-item" onclick="revertRow('${recordId}')">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                        </svg>
+                        Revert Row
+                    </div>
+                ` : ''}
+                <div class="context-menu-separator"></div>
+                <div class="context-menu-item danger" onclick="deleteRecord('${recordId}')">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                    Delete Record
+                </div>
+            `;
+            
+            document.body.appendChild(menu);
+            
+            setTimeout(() => {
+                document.addEventListener('click', function closeMenu() {
+                    removeExistingContextMenu();
+                    document.removeEventListener('click', closeMenu);
+                });
+            }, 0);
+        }
+
+        function showCellContextMenu(e, recordId, fieldId) {
+            removeExistingContextMenu();
+            
+            const menu = document.createElement('div');
+            menu.className = 'context-menu';
+            menu.style.top = `${e.clientY}px`;
+            menu.style.left = `${e.clientX}px`;
+            
+            const history = getCellHistory(recordId, fieldId);
+            
+            menu.innerHTML = `
+                <div class="context-menu-item" onclick="showCellHistory('${recordId}', '${fieldId}')">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    View History (${history.length})
+                </div>
+                ${history.length > 0 ? `
+                    <div class="context-menu-item" onclick="revertCell('${recordId}', '${fieldId}')">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                        </svg>
+                        Revert Cell
+                    </div>
+                ` : ''}
+            `;
+            
+            document.body.appendChild(menu);
+            
+            setTimeout(() => {
+                document.addEventListener('click', function closeMenu() {
+                    removeExistingContextMenu();
+                    document.removeEventListener('click', closeMenu);
+                });
+            }, 0);
+        }
+
+        function removeExistingContextMenu() {
+            const existing = document.querySelector('.context-menu');
+            if (existing) existing.remove();
+        }
+
+        // ============================================================================
+        // BATCH REVERT FUNCTIONS
+        // ============================================================================
+        
+        function revertCell(recordId, fieldId) {
+            const history = getCellHistory(recordId, fieldId);
+            if (history.length === 0) {
+                showToast('No history to revert');
                 return;
             }
             
-            // Group by relationship type
-            const grouped = {};
-            relationships.forEach(rel => {
-                const type = rel.object.relationship || 'Untyped';
-                if (!grouped[type]) grouped[type] = [];
-                grouped[type].push(rel);
-            });
+            // Get the most recent change to revert
+            const lastChange = history[0];
             
-            container.innerHTML = Object.entries(grouped).map(([type, rels]) => `
-                <div class="mb-6">
-                    <h3 class="text-sm font-semibold text-gray-700 mb-3 uppercase">${type} (${rels.length})</h3>
-                    <div class="space-y-2">
-                        ${rels.map(rel => renderRelationshipCard(rel)).join('')}
-                    </div>
-                </div>
-            `).join('');
+            // Apply the revert
+            updateRecord(recordId, fieldId, lastChange.object.oldValue, lastChange.object.newValue);
             
-            initIcons();
+            // Create efficient revert event
+            createRevertEvent(lastChange.id, 'cell');
+            
+            showToast('✓ Reverted cell');
         }
 
-        function renderRelationshipCard(event) {
-            const rel = event.object;
-            const props = rel.relationshipProperties || {};
-            const hasProps = Object.keys(props).length > 0;
+        function revertRow(recordId) {
+            const history = getRecordHistory(recordId);
+            if (history.length === 0) {
+                showToast('No history to revert');
+                return;
+            }
             
-            return `
-                <div class="relationship-card">
-                    <div class="flex items-start justify-between">
-                        <div class="flex-1">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="font-medium text-sm">${rel.name || rel.id}</span>
-                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                                </svg>
-                                <span class="font-medium text-sm">${rel.target.name || rel.target.id}</span>
-                            </div>
-                            <span class="badge badge-blue text-xs">${rel.relationship}</span>
-                            ${hasProps ? `
-                                <div class="text-xs text-gray-600 space-y-1 mt-2 pl-4 border-l-2 border-gray-200">
-                                    ${Object.entries(props).map(([key, value]) => `
-                                        <div class="flex gap-2">
-                                            <span class="font-medium">${formatPropertyName(key)}:</span>
-                                            <span>${formatPropertyValue(value)}</span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-                        <button onclick="restoreFromHistory('${event.id}')" class="text-blue-600 hover:text-blue-800 transition ml-4 text-xs">
-                            Undo
-                        </button>
-                    </div>
-                </div>
-            `;
+            // Revert all cell changes for this record
+            const cellChanges = history.filter(e => e.type === 'Update' && e.object.type === 'CellEdit');
+            
+            if (cellChanges.length === 0) {
+                showToast('No changes to revert');
+                return;
+            }
+            
+            // Group by field to get the most recent change for each field
+            const fieldMap = new Map();
+            cellChanges.forEach(change => {
+                const fieldId = change.object.fieldId;
+                if (!fieldMap.has(fieldId)) {
+                    fieldMap.set(fieldId, change);
+                }
+            });
+            
+            // Revert each field
+            fieldMap.forEach((change, fieldId) => {
+                updateRecord(recordId, fieldId, change.object.oldValue, change.object.newValue);
+            });
+            
+            // Create efficient revert event pointing to the last change
+            createRevertEvent(cellChanges[0].id, 'row');
+            
+            renderGridView();
+            showToast(`✓ Reverted row (${fieldMap.size} changes)`);
+        }
+
+        function revertColumn(fieldId) {
+            const history = getColumnHistory(fieldId);
+            if (history.length === 0) {
+                showToast('No history to revert');
+                return;
+            }
+            
+            // Group by record to get the most recent change for each record
+            const recordMap = new Map();
+            history.forEach(change => {
+                const recordId = change.object.recordId;
+                if (!recordMap.has(recordId)) {
+                    recordMap.set(recordId, change);
+                }
+            });
+            
+            // Revert each record
+            recordMap.forEach((change, recordId) => {
+                updateRecord(recordId, fieldId, change.object.oldValue, change.object.newValue);
+            });
+            
+            // Create efficient revert event
+            createRevertEvent(history[0].id, 'column');
+            
+            renderGridView();
+            showToast(`✓ Reverted column (${recordMap.size} changes)`);
         }
 
         // ============================================================================
@@ -1348,7 +1714,6 @@
                 return;
             }
             
-            // Text-based editing
             const originalHTML = cell.innerHTML;
             cell.contentEditable = true;
             cell.textContent = currentValue || '';
@@ -1360,13 +1725,12 @@
             selection.removeAllRanges();
             selection.addRange(range);
             
-            let isFinishing = false; // Prevent double-fire
+            let isFinishing = false;
             
             const finishEdit = () => {
-                if (isFinishing) return; // Already finishing, skip
+                if (isFinishing) return;
                 isFinishing = true;
                 
-                // Remove handlers immediately to prevent double-fire
                 cell.onblur = null;
                 cell.onkeydown = null;
                 
@@ -1416,13 +1780,12 @@
             cell.appendChild(input);
             input.focus();
             
-            let isFinishing = false; // Prevent double-fire
+            let isFinishing = false;
             
             const finishEdit = () => {
                 if (isFinishing) return;
                 isFinishing = true;
                 
-                // Remove handlers immediately
                 input.onblur = null;
                 input.onchange = null;
                 
@@ -1493,7 +1856,6 @@
             
             renderGridView();
             
-            // Flash the cell
             setTimeout(() => {
                 const cell = document.querySelector(`[data-record-id="${recordId}"][data-field-id="${fieldId}"]`);
                 if (cell) {
@@ -1503,6 +1865,48 @@
             }, 0);
             
             showToast(`✓ Updated ${field.name}`);
+        }
+
+        function deleteRecord(recordId) {
+            if (!confirm('Delete this record? This cannot be undone.')) return;
+            
+            const table = getCurrentTable();
+            const record = table.records.get(recordId);
+            table.records.delete(recordId);
+            
+            createEvent('Delete', {
+                type: 'Record',
+                recordId: recordId,
+                data: record
+            }, `Deleted record`);
+            
+            renderGridView();
+            showToast('✓ Deleted record');
+        }
+
+        function deleteField(fieldId) {
+            if (!confirm('Delete this field? This will remove data from all records.')) return;
+            
+            const table = getCurrentTable();
+            const fieldIndex = table.schema.findIndex(f => f.id === fieldId);
+            if (fieldIndex === -1) return;
+            
+            const field = table.schema[fieldIndex];
+            table.schema.splice(fieldIndex, 1);
+            
+            // Remove field from all records
+            table.records.forEach(record => {
+                delete record[fieldId];
+            });
+            
+            createEvent('Delete', {
+                type: 'Field',
+                fieldId: fieldId,
+                fieldName: field.name
+            }, `Deleted field "${field.name}"`);
+            
+            renderGridView();
+            showToast('✓ Deleted field');
         }
 
         // ============================================================================
@@ -1518,19 +1922,63 @@
             );
         }
 
+        function getRecordHistory(recordId) {
+            return state.eventStream.filter(e => {
+                if (e.type === 'Update' && e.object.type === 'CellEdit' && e.object.recordId === recordId) {
+                    return true;
+                }
+                if (e.type === 'Create' && e.object.type === 'Record' && e.object.recordId === recordId) {
+                    return true;
+                }
+                return false;
+            });
+        }
+
+        function getColumnHistory(fieldId) {
+            return state.eventStream.filter(e => 
+                e.type === 'Update' && 
+                e.object.type === 'CellEdit' &&
+                e.object.fieldId === fieldId
+            );
+        }
+
         function showCellHistory(recordId, fieldId) {
             const table = getCurrentTable();
             const field = table.schema.find(f => f.id === fieldId);
             const record = table.records.get(recordId);
             
             document.getElementById('historyPanel').classList.add('open');
-            renderHistory(`${record.name || recordId} - ${field.name}`);
+            state.historyFilter = 'cell';
+            state.historySearch = `${record.name || recordId} - ${field.name}`;
+            document.getElementById('historySearch').value = state.historySearch;
+            document.getElementById('historyFilter').value = 'cell';
+            renderHistory();
+        }
+
+        function showRecordHistory(recordId) {
+            document.getElementById('historyPanel').classList.add('open');
+            state.historyFilter = 'all';
+            state.historySearch = recordId;
+            document.getElementById('historySearch').value = state.historySearch;
+            document.getElementById('historyFilter').value = 'all';
+            renderHistory();
+        }
+
+        function showColumnHistory(fieldId) {
+            const table = getCurrentTable();
+            const field = table.schema.find(f => f.id === fieldId);
+            
+            document.getElementById('historyPanel').classList.add('open');
+            state.historyFilter = 'cell';
+            state.historySearch = field.name;
+            document.getElementById('historySearch').value = state.historySearch;
+            document.getElementById('historyFilter').value = 'cell';
+            renderHistory();
         }
 
         function renderHistory(subtitle = '') {
             let filtered = [...state.eventStream];
             
-            // Apply type filter
             if (state.historyFilter !== 'all') {
                 filtered = filtered.filter(e => {
                     switch(state.historyFilter) {
@@ -1550,7 +1998,6 @@
                 });
             }
             
-            // Apply search filter
             if (state.historySearch) {
                 const query = state.historySearch.toLowerCase();
                 filtered = filtered.filter(e => 
@@ -1585,27 +2032,44 @@
         function renderHistoryEntry(event) {
             const timeAgo = getTimeAgo(event.published);
             let icon = '📝';
-            let canRestore = false;
+            let canRevert = false;
+            let isRevert = false;
             
-            if (event.type === 'Update' && event.object.type === 'CellEdit') {
+            if (event.type === 'Undo' && event.object.type === 'Revert') {
+                icon = '⏮️';
+                isRevert = true;
+                const targetEvent = state.eventStream.find(e => e.id === event.object.targetEventId);
+                return `
+                    <div class="history-entry revert">
+                        <div class="flex items-start gap-3 mb-2">
+                            <span class="text-xl">${icon}</span>
+                            <div class="flex-1">
+                                <div class="font-medium text-sm text-gray-900">Revert (${event.object.scope})</div>
+                                <div class="text-xs text-gray-500">${timeAgo}</div>
+                            </div>
+                        </div>
+                        <div class="text-sm text-gray-700 ml-11">→ Reverted to ${event.object.targetEventId}</div>
+                    </div>
+                `;
+            } else if (event.type === 'Update' && event.object.type === 'CellEdit') {
                 icon = '✏️';
-                canRestore = true;
+                canRevert = true;
             } else if (event.type === 'Create') {
                 icon = '➕';
             } else if (event.type === 'Add') {
                 icon = '🔗';
-                canRestore = true;
+                canRevert = true;
             }
             
             return `
-                <div class="history-entry" ${canRestore ? `onclick="restoreFromHistory('${event.id}')"` : ''}>
+                <div class="history-entry ${isRevert ? 'revert' : ''}" ${canRevert ? `onclick="restoreFromHistory('${event.id}')"` : ''}>
                     <div class="flex items-start gap-3 mb-2">
                         <span class="text-xl">${icon}</span>
                         <div class="flex-1">
                             <div class="font-medium text-sm text-gray-900">${event.type}</div>
                             <div class="text-xs text-gray-500">${timeAgo}</div>
                         </div>
-                        ${canRestore ? `
+                        ${canRevert ? `
                             <button class="text-blue-600 hover:text-blue-800 text-xs font-medium">
                                 Restore
                             </button>
@@ -1628,17 +2092,15 @@
             if (!event) return;
             
             if (event.type === 'Update' && event.object.type === 'CellEdit') {
-                // Restore cell value
                 updateRecord(event.object.recordId, event.object.fieldId, event.object.oldValue, event.object.newValue);
+                createRevertEvent(eventId, 'cell');
                 showToast('✓ Restored previous value');
             } else if (event.type === 'Add' && event.object.target) {
-                // Remove relationship
                 const newEvent = createEvent('Remove', {
                     relationshipId: event.id,
                     ...event.object
                 }, `Removed ${event.object.relationship} relationship`);
                 
-                renderRelationshipsView();
                 showToast('✓ Removed relationship');
             }
         }
@@ -1658,27 +2120,27 @@
         // EXPANDED RECORD VIEW
         // ============================================================================
         
-        function openExpandedRecord(recordId) {
+        function openExpandedRecord(recordId, focusFieldId = null) {
             const table = getCurrentTable();
             const record = table.records.get(recordId);
+            const history = getRecordHistory(recordId);
             
             document.getElementById('expandedRecordTitle').textContent = record.name || recordId;
             
-            // Render main content
             const mainContent = document.getElementById('expandedRecordMain');
             mainContent.innerHTML = `
                 <div class="space-y-4">
                     ${table.schema.map(field => {
                         const fieldType = FIELD_TYPES[field.type];
                         const value = record[field.id];
-                        const history = getCellHistory(recordId, field.id);
+                        const fieldHistory = getCellHistory(recordId, field.id);
                         return `
-                            <div class="border-b border-gray-200 pb-4">
+                            <div class="border-b border-gray-200 pb-4 ${focusFieldId === field.id ? 'bg-blue-50 p-4 rounded-lg' : ''}">
                                 <div class="flex items-center justify-between mb-2">
                                     <label class="text-sm font-medium text-gray-700">${field.name}</label>
-                                    ${history.length > 0 ? `
+                                    ${fieldHistory.length > 0 ? `
                                         <button onclick="showCellHistory('${recordId}', '${field.id}')" class="text-xs text-blue-600 hover:text-blue-800">
-                                            📝 ${history.length} edits
+                                            📝 ${fieldHistory.length} ${fieldHistory.length === 1 ? 'edit' : 'edits'}
                                         </button>
                                     ` : ''}
                                 </div>
@@ -1689,43 +2151,82 @@
                 </div>
             `;
             
-            // Render sidebar (relationships)
-            const relationships = getRecordRelationships(recordId);
             const sidebarContent = document.getElementById('expandedRecordSidebar');
             sidebarContent.innerHTML = `
-                <div>
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-sm font-semibold text-gray-700 uppercase">Relationships</h3>
-                        <span class="badge badge-blue">${relationships.length}</span>
-                    </div>
-                    ${relationships.length === 0 ? `
-                        <p class="text-sm text-gray-500">No relationships yet</p>
-                    ` : `
-                        <div class="space-y-2">
-                            ${relationships.map(rel => renderRelationshipCard(rel)).join('')}
+                <div class="p-6">
+                    <div class="mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-semibold text-gray-700 uppercase">History</h3>
+                            <span class="badge badge-blue">${history.length}</span>
                         </div>
-                    `}
-                    <button onclick="openRelationshipEditor('${recordId}')" class="btn btn-secondary w-full mt-4 text-sm">
-                        + Add Relationship
-                    </button>
+                        ${history.length === 0 ? `
+                            <p class="text-sm text-gray-500">No changes yet</p>
+                        ` : `
+                            <div class="space-y-2 max-h-96 overflow-y-auto">
+                                ${history.map(event => renderCompactHistoryEntry(event)).join('')}
+                            </div>
+                        `}
+                    </div>
+                    
+                    <div class="border-t pt-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-semibold text-gray-700 uppercase">Relationships</h3>
+                        </div>
+                        <button onclick="openRelationshipEditor('${recordId}')" class="btn btn-secondary w-full text-sm">
+                            + Add Relationship
+                        </button>
+                    </div>
                 </div>
             `;
             
-            document.getElementById('expandedRecordModal').classList.remove('hidden');
+            openModal('expandedRecordModal');
             initIcons();
         }
 
-        function getRecordRelationships(recordId) {
-            return state.eventStream.filter(e => 
-                e.type === 'Add' && 
-                e.object && 
-                e.object.target &&
-                (e.object.id === recordId || e.object.target.id === recordId)
-            );
+        function renderCompactHistoryEntry(event) {
+            const timeAgo = getTimeAgo(event.published);
+            let icon = '📝';
+            
+            if (event.type === 'Update' && event.object.type === 'CellEdit') {
+                icon = '✏️';
+                return `
+                    <div class="history-entry text-xs" onclick="restoreFromHistory('${event.id}')">
+                        <div class="flex items-start gap-2 mb-1">
+                            <span>${icon}</span>
+                            <div class="flex-1">
+                                <div class="font-medium text-gray-900">${event.object.fieldName}</div>
+                                <div class="text-gray-500">${timeAgo}</div>
+                            </div>
+                        </div>
+                        <div class="value-change ml-6">
+                            <span class="value-old text-xs">${event.object.oldValue}</span>
+                            <span class="text-gray-400">→</span>
+                            <span class="value-new text-xs">${event.object.newValue}</span>
+                        </div>
+                        <button class="text-blue-600 hover:text-blue-800 text-xs font-medium ml-6 mt-1">
+                            Restore
+                        </button>
+                    </div>
+                `;
+            } else if (event.type === 'Create') {
+                icon = '➕';
+                return `
+                    <div class="history-entry text-xs">
+                        <div class="flex items-start gap-2">
+                            <span>${icon}</span>
+                            <div class="flex-1">
+                                <div class="font-medium text-gray-900">Record created</div>
+                                <div class="text-gray-500">${timeAgo}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            return '';
         }
 
         // ============================================================================
-        // RELATIONSHIP MANAGEMENT
+        // RELATIONSHIP MANAGEMENT - FIXED PROPERTY INPUT BUG
         // ============================================================================
         
         function openRelationshipEditor(fromRecordId = null) {
@@ -1737,7 +2238,7 @@
             };
             
             renderRelationshipEditor();
-            document.getElementById('relationshipEditorModal').classList.remove('hidden');
+            openModal('relationshipEditorModal');
         }
 
         function renderRelationshipEditor() {
@@ -1746,19 +2247,16 @@
             
             content.innerHTML = `
                 <div class="space-y-6">
-                    <!-- Visual Flow: From → Relationship → To -->
                     <div class="bg-gray-50 border border-gray-200 rounded-lg p-6">
                         <div class="space-y-4">
-                            <!-- From Record -->
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 uppercase mb-2">From</label>
+                                <label class="form-label">From</label>
                                 <select id="relationshipFrom" class="w-full">
                                     <option value="">Select record...</option>
                                     ${getAllRecordsOptions(rel.from)}
                                 </select>
                             </div>
                             
-                            <!-- Relationship Type (in the middle) -->
                             <div class="flex items-center justify-center py-2">
                                 <div class="flex-1 border-t border-gray-300"></div>
                                 <div class="px-4">
@@ -1770,7 +2268,7 @@
                             </div>
                             
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 uppercase mb-2 text-center">Relationship</label>
+                                <label class="form-label text-center block">Relationship</label>
                                 <input 
                                     type="text" 
                                     id="relationshipType"
@@ -1780,7 +2278,6 @@
                                 >
                             </div>
                             
-                            <!-- Arrow pointing down -->
                             <div class="flex items-center justify-center py-2">
                                 <div class="flex-1 border-t border-gray-300"></div>
                                 <div class="px-4">
@@ -1791,9 +2288,8 @@
                                 <div class="flex-1 border-t border-gray-300"></div>
                             </div>
                             
-                            <!-- To Record -->
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 uppercase mb-2">To</label>
+                                <label class="form-label">To</label>
                                 <select id="relationshipTo" class="w-full">
                                     <option value="">Select record...</option>
                                     ${getAllRecordsOptions(rel.to)}
@@ -1802,10 +2298,9 @@
                         </div>
                     </div>
                     
-                    <!-- Properties Section -->
                     <div>
                         <div class="flex items-center justify-between mb-3">
-                            <label class="block text-sm font-medium text-gray-700">Properties (optional)</label>
+                            <label class="form-label mb-0">Properties (optional)</label>
                             <button onclick="addPropertyToTempRel()" class="text-sm text-blue-600 hover:text-blue-800 font-medium">
                                 + Add property
                             </button>
@@ -1824,36 +2319,49 @@
             initIcons();
         }
 
+        // FIXED: Property editor now maintains its own state properly
         function renderPropertyEditor(key, value) {
             const type = inferType(value);
+            const propId = `prop_${key.replace(/[^a-z0-9]/gi, '_')}`;
+            
             return `
-                <div class="flex gap-2 items-center">
+                <div class="property-row">
                     <input 
                         type="text" 
-                        value="${key}"
+                        value="${escapeHtml(key)}"
                         placeholder="Property name"
                         class="flex-1"
-                        onchange="renameTempRelProperty('${key}', this.value)"
+                        id="${propId}_key"
+                        data-old-key="${escapeHtml(key)}"
                     >
-                    ${getInputForType(type, value, `updateTempRelProperty('${key}', this.value)`)}
-                    <button onclick="deleteTempRelProperty('${key}')" class="text-red-500 hover:text-red-700">
+                    ${getInputForType(type, value, propId, key)}
+                    <button onclick="deleteTempRelProperty('${escapeHtml(key)}')" class="text-red-500 hover:text-red-700">
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
             `;
         }
 
-        function getInputForType(type, value, onchange) {
+        function getInputForType(type, value, propId, key) {
+            const safeValue = escapeHtml(String(value));
+            const safeKey = escapeHtml(key);
+            
             switch(type) {
                 case 'boolean':
-                    return `<input type="checkbox" ${value ? 'checked' : ''} onchange="${onchange}">`;
+                    return `<input type="checkbox" ${value ? 'checked' : ''} id="${propId}_value" data-key="${safeKey}">`;
                 case 'number':
-                    return `<input type="number" value="${value || ''}" onchange="${onchange}" class="flex-1">`;
+                    return `<input type="number" value="${safeValue}" id="${propId}_value" data-key="${safeKey}" class="flex-1">`;
                 case 'date':
-                    return `<input type="date" value="${value || ''}" onchange="${onchange}" class="flex-1">`;
+                    return `<input type="date" value="${safeValue}" id="${propId}_value" data-key="${safeKey}" class="flex-1">`;
                 default:
-                    return `<input type="text" value="${value || ''}" onchange="${onchange}" class="flex-1">`;
+                    return `<input type="text" value="${safeValue}" id="${propId}_value" data-key="${safeKey}" class="flex-1">`;
             }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function inferType(value) {
@@ -1885,23 +2393,38 @@
             renderRelationshipEditor();
         }
 
-        function updateTempRelProperty(key, value) {
-            state.tempRelationship.properties[key] = value;
-        }
-
-        function renameTempRelProperty(oldKey, newKey) {
-            if (oldKey === newKey) return;
-            state.tempRelationship.properties[newKey] = state.tempRelationship.properties[oldKey];
-            delete state.tempRelationship.properties[oldKey];
-            renderRelationshipEditor();
-        }
-
         function deleteTempRelProperty(key) {
             delete state.tempRelationship.properties[key];
             renderRelationshipEditor();
         }
 
         function saveRelationship() {
+            // Collect current property values from the form
+            const propertyList = document.getElementById('propertyList');
+            const propertyRows = propertyList.querySelectorAll('.property-row');
+            
+            state.tempRelationship.properties = {};
+            
+            propertyRows.forEach(row => {
+                const keyInput = row.querySelector('input[id$="_key"]');
+                const valueInput = row.querySelector('input[id$="_value"]');
+                
+                if (keyInput && valueInput) {
+                    const key = keyInput.value.trim();
+                    let value = valueInput.value;
+                    
+                    if (valueInput.type === 'checkbox') {
+                        value = valueInput.checked;
+                    } else if (valueInput.type === 'number') {
+                        value = parseFloat(value) || 0;
+                    }
+                    
+                    if (key) {
+                        state.tempRelationship.properties[key] = value;
+                    }
+                }
+            });
+            
             const rel = state.tempRelationship;
             
             const fromSelect = document.getElementById('relationshipFrom');
@@ -1921,7 +2444,6 @@
             const toTable = state.tables.get(toTableId);
             const toRecord = toTable.records.get(toRecordId);
             
-            // Create Add event with relationship stored in object
             createEvent('Add', {
                 id: fromRecordId,
                 type: fromTable.name,
@@ -1935,7 +2457,7 @@
                 }
             }, `Created ${typeInput.value} relationship from ${fromRecord.name || fromRecordId} to ${toRecord.name || toRecordId}`);
             
-            document.getElementById('relationshipEditorModal').classList.add('hidden');
+            closeModal('relationshipEditorModal');
             showToast(`✓ Created relationship: ${typeInput.value}`);
         }
 
@@ -1958,23 +2480,28 @@
             
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50';
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
             modal.innerHTML = `
                 <div class="modal-container bg-white w-full max-w-md">
-                    <div class="border-b border-gray-200 p-6 flex items-center justify-between">
-                        <h2 class="text-xl font-bold text-gray-900">Link to ${targetTable.name}</h2>
-                        <button class="close-btn text-gray-400 hover:text-gray-600 transition p-2">
+                    <div class="modal-header flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900">Link to ${targetTable.name}</h2>
+                            <p class="text-sm text-gray-500 mt-1">Select records to link</p>
+                        </div>
+                        <button class="close-btn text-gray-400 hover:text-gray-600 transition p-2" aria-label="Close modal">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
                         </button>
                     </div>
-                    <div class="p-6">
+                    <div class="modal-body">
                         <div class="space-y-2 max-h-96 overflow-y-auto">
                             ${Array.from(targetTable.records.values()).map(targetRecord => {
                                 const isLinked = currentLinks.includes(targetRecord.id);
                                 const displayValue = targetRecord[field.config.displayField] || targetRecord.name || targetRecord.id;
                                 return `
-                                    <label class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded cursor-pointer">
+                                    <label class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded cursor-pointer transition">
                                         <input 
                                             type="checkbox" 
                                             value="${targetRecord.id}"
@@ -1987,7 +2514,7 @@
                             }).join('')}
                         </div>
                     </div>
-                    <div class="border-t border-gray-200 p-4 flex justify-end gap-2">
+                    <div class="modal-footer flex justify-end gap-2">
                         <button class="cancel-btn btn btn-secondary">Cancel</button>
                         <button class="save-btn btn btn-primary">Save</button>
                     </div>
@@ -2016,10 +2543,16 @@
         }
 
         // ============================================================================
-        // ADD FIELD
+        // ADD/EDIT FIELD - IMPROVED
         // ============================================================================
         
         function openAddFieldModal() {
+            state.editingFieldId = null;
+            document.getElementById('fieldModalTitle').textContent = 'Add Field';
+            document.getElementById('saveAddFieldBtn').textContent = 'Add Field';
+            document.getElementById('newFieldName').value = '';
+            document.getElementById('newFieldType').value = 'TEXT';
+            
             const select = document.getElementById('linkToTable');
             select.innerHTML = '';
             state.tables.forEach((table, tableId) => {
@@ -2028,7 +2561,45 @@
                 }
             });
             
-            document.getElementById('addFieldModal').classList.remove('hidden');
+            updateFieldTypeConfig();
+            openModal('addFieldModal');
+            setTimeout(() => document.getElementById('newFieldName').focus(), 100);
+        }
+
+        function editField(fieldId) {
+            const table = getCurrentTable();
+            const field = table.schema.find(f => f.id === fieldId);
+            if (!field) return;
+            
+            state.editingFieldId = fieldId;
+            document.getElementById('fieldModalTitle').textContent = 'Edit Field';
+            document.getElementById('saveAddFieldBtn').textContent = 'Save Changes';
+            document.getElementById('newFieldName').value = field.name;
+            document.getElementById('newFieldType').value = field.type;
+            
+            const select = document.getElementById('linkToTable');
+            select.innerHTML = '';
+            state.tables.forEach((table, tableId) => {
+                if (tableId !== state.currentTableId) {
+                    const selected = field.config?.targetTable === tableId ? 'selected' : '';
+                    select.innerHTML += `<option value="${tableId}" ${selected}>${table.name}</option>`;
+                }
+            });
+            
+            updateFieldTypeConfig();
+            openModal('addFieldModal');
+            setTimeout(() => document.getElementById('newFieldName').focus(), 100);
+        }
+
+        function updateFieldTypeConfig() {
+            const fieldType = document.getElementById('newFieldType').value;
+            const configSection = document.getElementById('linkToRecordConfig');
+            
+            if (fieldType === 'LINK_TO_RECORD') {
+                configSection.classList.add('visible');
+            } else {
+                configSection.classList.remove('visible');
+            }
         }
 
         function saveNewField() {
@@ -2040,58 +2611,101 @@
                 return;
             }
             
-            const fieldId = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
             const table = getCurrentTable();
             
-            if (table.schema.find(f => f.id === fieldId)) {
-                alert('A field with this name already exists');
-                return;
-            }
-            
-            const fieldType = FIELD_TYPES[type];
-            const newField = {
-                id: fieldId,
-                name: name,
-                type: type,
-                width: '150px',
-                config: {}
-            };
-            
-            if (type === 'LINK_TO_RECORD') {
-                const targetTable = document.getElementById('linkToTable').value;
-                newField.config = {
-                    targetTable: targetTable,
-                    displayField: 'name',
-                    allowMultiple: true
+            if (state.editingFieldId) {
+                // Edit existing field
+                const field = table.schema.find(f => f.id === state.editingFieldId);
+                if (!field) return;
+                
+                field.name = name;
+                field.type = type;
+                
+                if (type === 'LINK_TO_RECORD') {
+                    const targetTable = document.getElementById('linkToTable').value;
+                    if (!targetTable) {
+                        alert('Please select a table to link to');
+                        return;
+                    }
+                    field.config = {
+                        targetTable: targetTable,
+                        displayField: 'name',
+                        allowMultiple: true
+                    };
+                } else {
+                    const fieldType = FIELD_TYPES[type];
+                    if (fieldType.needsConfig) {
+                        field.config = fieldType.defaultConfig;
+                    } else {
+                        field.config = {};
+                    }
+                }
+                
+                createEvent('Update', {
+                    type: 'Field',
+                    fieldId: field.id,
+                    fieldName: name,
+                    fieldType: type
+                }, `Updated field "${name}"`);
+                
+                showToast(`✓ Updated field: ${name}`);
+            } else {
+                // Add new field
+                const fieldId = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                
+                if (table.schema.find(f => f.id === fieldId)) {
+                    alert('A field with this name already exists');
+                    return;
+                }
+                
+                const fieldType = FIELD_TYPES[type];
+                const newField = {
+                    id: fieldId,
+                    name: name,
+                    type: type,
+                    width: '150px',
+                    config: {}
                 };
-            } else if (fieldType.needsConfig) {
-                newField.config = fieldType.defaultConfig;
+                
+                if (type === 'LINK_TO_RECORD') {
+                    const targetTable = document.getElementById('linkToTable').value;
+                    if (!targetTable) {
+                        alert('Please select a table to link to');
+                        return;
+                    }
+                    newField.config = {
+                        targetTable: targetTable,
+                        displayField: 'name',
+                        allowMultiple: true
+                    };
+                } else if (fieldType.needsConfig) {
+                    newField.config = fieldType.defaultConfig;
+                }
+                
+                table.schema.push(newField);
+                
+                const oldSuppressState = state.suppressEvents;
+                state.suppressEvents = true;
+                table.records.forEach(record => {
+                    record[fieldId] = fieldType.defaultValue;
+                });
+                state.suppressEvents = oldSuppressState;
+                
+                createEvent('Create', {
+                    type: 'Field',
+                    tableId: table.id,
+                    fieldId: fieldId,
+                    fieldName: name,
+                    fieldType: type,
+                    affectedRecords: table.records.size
+                }, `Added field "${name}" (${fieldType.name}) to ${table.name}`);
+                
+                showToast(`✓ Added field: ${name}`);
             }
             
-            table.schema.push(newField);
-            
-            // Add default values to existing records (without creating events)
-            const oldSuppressState = state.suppressEvents;
-            state.suppressEvents = true;
-            table.records.forEach(record => {
-                record[fieldId] = fieldType.defaultValue;
-            });
-            state.suppressEvents = oldSuppressState;
-            
-            // Create ONE event for the field creation
-            createEvent('Create', {
-                type: 'Field',
-                tableId: table.id,
-                fieldId: fieldId,
-                fieldName: name,
-                fieldType: type,
-                affectedRecords: table.records.size
-            }, `Added field "${name}" (${fieldType.name}) to ${table.name}`);
-            
-            document.getElementById('addFieldModal').classList.add('hidden');
+            closeModal('addFieldModal');
             document.getElementById('newFieldName').value = '';
             renderCurrentView();
-            showToast(`✓ Added field: ${name}`);
         }
 
         // ============================================================================
@@ -2100,7 +2714,7 @@
         
         function openFilterModal() {
             renderFilterBuilder();
-            document.getElementById('filterModal').classList.remove('hidden');
+            openModal('filterModal');
         }
 
         function renderFilterBuilder() {
@@ -2137,7 +2751,7 @@
                         onchange="updateFilterValue(${index}, this.value)"
                         ${filter.operator === 'is_empty' || filter.operator === 'is_not_empty' ? 'disabled' : ''}
                     >
-                    <button onclick="removeFilter(${index})" class="text-red-500 hover:text-red-700">
+                    <button onclick="removeFilter(${index})" class="text-red-500 hover:text-red-700" aria-label="Remove filter">
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
@@ -2193,7 +2807,7 @@
                 filters: view.filters
             }, `Updated filters for view "${view.name}"`);
             
-            document.getElementById('filterModal').classList.add('hidden');
+            closeModal('filterModal');
             renderCurrentView();
             showToast('✓ Filters applied');
         }
@@ -2205,28 +2819,82 @@
         }
 
         // ============================================================================
+        // MODAL MANAGEMENT
+        // ============================================================================
+        
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.remove('hidden');
+            state.modalStack.push(modalId);
+            
+            setTimeout(() => {
+                const firstInput = modal.querySelector('input[type="text"], select');
+                if (firstInput) firstInput.focus();
+            }, 100);
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.add('hidden');
+            state.modalStack = state.modalStack.filter(id => id !== modalId);
+        }
+
+        function closeTopModal() {
+            if (state.modalStack.length > 0) {
+                const topModal = state.modalStack[state.modalStack.length - 1];
+                closeModal(topModal);
+            }
+        }
+
+        // ============================================================================
+        // KEYBOARD SHORTCUTS
+        // ============================================================================
+        
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (state.modalStack.length > 0) {
+                        closeTopModal();
+                    } else if (document.getElementById('historyPanel').classList.contains('open')) {
+                        document.getElementById('historyPanel').classList.remove('open');
+                    }
+                }
+                
+                if ((e.metaKey || e.ctrlKey) && e.key === 'h') {
+                    e.preventDefault();
+                    document.getElementById('historyPanel').classList.toggle('open');
+                    if (document.getElementById('historyPanel').classList.contains('open')) {
+                        renderHistory();
+                    }
+                }
+                
+                if ((e.metaKey || e.ctrlKey) && e.key === 'n' && !e.shiftKey) {
+                    e.preventDefault();
+                    document.getElementById('addRecordBtn').click();
+                }
+                
+                if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'N') {
+                    e.preventDefault();
+                    document.getElementById('addTableBtn').click();
+                }
+                
+                if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+                    e.preventDefault();
+                    document.getElementById('filterBtn').click();
+                }
+            });
+        }
+
+        // ============================================================================
         // UTILITIES
         // ============================================================================
         
-        function formatPropertyName(key) {
-            return key
-                .replace(/([A-Z])/g, ' $1')
-                .replace(/_/g, ' ')
-                .replace(/^./, str => str.toUpperCase());
-        }
-
-        function formatPropertyValue(value) {
-            if (typeof value === 'boolean') return value ? '✓ Yes' : '✗ No';
-            if (typeof value === 'number' && value > 1000) return `$${value.toLocaleString()}`;
-            if (value && typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
-                return new Date(value).toLocaleDateString();
-            }
-            return value;
-        }
-
         function showToast(message) {
             const toast = document.createElement('div');
             toast.className = 'toast';
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
             toast.innerHTML = `
                 <div class="flex items-center gap-3">
                     <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2239,6 +2907,7 @@
             
             setTimeout(() => {
                 toast.style.opacity = '0';
+                toast.style.transform = 'translateX(400px)';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
@@ -2277,7 +2946,6 @@
         // ============================================================================
         
         function setupEventListeners() {
-            // Buttons
             document.getElementById('addRecordBtn').addEventListener('click', () => {
                 const table = getCurrentTable();
                 const newRecord = { id: `rec_${Date.now()}` };
@@ -2297,61 +2965,30 @@
             });
             
             document.getElementById('addFieldBtn').addEventListener('click', openAddFieldModal);
-            document.getElementById('addTableBtn').addEventListener('click', () => {
-                document.getElementById('addTableModal').classList.remove('hidden');
-            });
+            document.getElementById('addTableBtn').addEventListener('click', () => openModal('addTableModal'));
             document.getElementById('exportBtn').addEventListener('click', exportJSON);
             document.getElementById('historyBtn').addEventListener('click', () => {
                 document.getElementById('historyPanel').classList.add('open');
                 renderHistory();
             });
             document.getElementById('filterBtn').addEventListener('click', openFilterModal);
-            document.getElementById('addViewBtn').addEventListener('click', () => {
-                document.getElementById('addViewModal').classList.remove('hidden');
-            });
-            document.getElementById('addRelationshipFromViewBtn').addEventListener('click', () => {
-                openRelationshipEditor();
-            });
+            document.getElementById('addViewBtn').addEventListener('click', () => openModal('addViewModal'));
             
-            // Modals
             document.getElementById('closeHistoryBtn').addEventListener('click', () => {
                 document.getElementById('historyPanel').classList.remove('open');
             });
             
-            document.getElementById('closeExpandedRecordBtn').addEventListener('click', () => {
-                document.getElementById('expandedRecordModal').classList.add('hidden');
-            });
-            
-            document.getElementById('closeRelationshipEditorBtn').addEventListener('click', () => {
-                document.getElementById('relationshipEditorModal').classList.add('hidden');
-            });
-            
-            document.getElementById('cancelRelationshipBtn').addEventListener('click', () => {
-                document.getElementById('relationshipEditorModal').classList.add('hidden');
-            });
-            
+            document.getElementById('closeExpandedRecordBtn').addEventListener('click', () => closeModal('expandedRecordModal'));
+            document.getElementById('closeRelationshipEditorBtn').addEventListener('click', () => closeModal('relationshipEditorModal'));
+            document.getElementById('cancelRelationshipBtn').addEventListener('click', () => closeModal('relationshipEditorModal'));
             document.getElementById('saveRelationshipBtn').addEventListener('click', saveRelationship);
             
-            document.getElementById('closeAddFieldBtn').addEventListener('click', () => {
-                document.getElementById('addFieldModal').classList.add('hidden');
-            });
-            
-            document.getElementById('cancelAddFieldBtn').addEventListener('click', () => {
-                document.getElementById('addFieldModal').classList.add('hidden');
-            });
-            
+            document.getElementById('closeAddFieldBtn').addEventListener('click', () => closeModal('addFieldModal'));
+            document.getElementById('cancelAddFieldBtn').addEventListener('click', () => closeModal('addFieldModal'));
             document.getElementById('saveAddFieldBtn').addEventListener('click', saveNewField);
             
-            document.getElementById('newFieldType').addEventListener('change', (e) => {
-                const config = document.getElementById('linkToRecordConfig');
-                if (e.target.value === 'LINK_TO_RECORD') {
-                    config.classList.remove('hidden');
-                } else {
-                    config.classList.add('hidden');
-                }
-            });
+            document.getElementById('newFieldType').addEventListener('change', updateFieldTypeConfig);
             
-            // History filters
             document.getElementById('historySearch').addEventListener('input', (e) => {
                 state.historySearch = e.target.value;
                 renderHistory();
@@ -2362,24 +2999,13 @@
                 renderHistory();
             });
             
-            // Filter modal
-            document.getElementById('closeFilterBtn').addEventListener('click', () => {
-                document.getElementById('filterModal').classList.add('hidden');
-            });
-            
+            document.getElementById('closeFilterBtn').addEventListener('click', () => closeModal('filterModal'));
             document.getElementById('addFilterRuleBtn').addEventListener('click', addFilterRule);
             document.getElementById('applyFiltersBtn').addEventListener('click', applyFilters);
             document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
             
-            // Add view modal
-            document.getElementById('closeAddViewBtn').addEventListener('click', () => {
-                document.getElementById('addViewModal').classList.add('hidden');
-            });
-            
-            document.getElementById('cancelAddViewBtn').addEventListener('click', () => {
-                document.getElementById('addViewModal').classList.add('hidden');
-            });
-            
+            document.getElementById('closeAddViewBtn').addEventListener('click', () => closeModal('addViewModal'));
+            document.getElementById('cancelAddViewBtn').addEventListener('click', () => closeModal('addViewModal'));
             document.getElementById('saveAddViewBtn').addEventListener('click', () => {
                 const name = document.getElementById('newViewName').value.trim();
                 if (!name) {
@@ -2388,21 +3014,14 @@
                 }
                 
                 createView(state.currentTableId, name, {});
-                document.getElementById('addViewModal').classList.add('hidden');
+                closeModal('addViewModal');
                 document.getElementById('newViewName').value = '';
                 renderViewTabs();
                 showToast(`✓ Created view: ${name}`);
             });
             
-            // Add table modal
-            document.getElementById('closeAddTableBtn').addEventListener('click', () => {
-                document.getElementById('addTableModal').classList.add('hidden');
-            });
-            
-            document.getElementById('cancelAddTableBtn').addEventListener('click', () => {
-                document.getElementById('addTableModal').classList.add('hidden');
-            });
-            
+            document.getElementById('closeAddTableBtn').addEventListener('click', () => closeModal('addTableModal'));
+            document.getElementById('cancelAddTableBtn').addEventListener('click', () => closeModal('addTableModal'));
             document.getElementById('saveAddTableBtn').addEventListener('click', () => {
                 const name = document.getElementById('newTableName').value.trim();
                 const icon = document.getElementById('newTableIcon').value.trim() || '📊';
@@ -2413,23 +3032,13 @@
                 }
                 
                 const tableId = createTable(name, icon);
-                document.getElementById('addTableModal').classList.add('hidden');
+                closeModal('addTableModal');
                 document.getElementById('newTableName').value = '';
                 document.getElementById('newTableIcon').value = '';
                 
                 renderTableTabs();
                 switchTable(tableId);
                 showToast(`✓ Created table: ${name}`);
-            });
-            
-            // Keyboard shortcuts
-            document.addEventListener('keydown', (e) => {
-                // Cmd/Ctrl + H for history
-                if ((e.metaKey || e.ctrlKey) && e.key === 'h') {
-                    e.preventDefault();
-                    document.getElementById('historyPanel').classList.toggle('open');
-                    renderHistory();
-                }
             });
         }
 
