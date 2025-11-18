@@ -1,0 +1,1996 @@
+{
+  "metadata": {
+    "title": "Formula Language Specification with JavaScript Implementation",
+    "version": "1.0",
+    "last_updated": "2024-11-17",
+    "description": "Complete machine-readable formula language with executable JavaScript implementations"
+  },
+  "field_reference_syntax": {
+    "single_word_field": "FieldName",
+    "multi_word_field": "{Field Name}",
+    "recommended": "Always use curly braces: {Field Name}",
+    "notes": "Field names with spaces must use curly braces. Single-word fields can omit them but braces are recommended."
+  },
+  "operators": {
+    "text": [
+      {
+        "operator": "&",
+        "name": "Concatenation",
+        "description": "Concatenate text strings",
+        "syntax": "string1 & string2",
+        "return_type": "string",
+        "examples": [
+          "{First Name} & \" - \" & {Age}",
+          "\"Great\" & \"Product\""
+        ],
+        "implementation": {
+          "js": "const concatenate = (a, b) => String(a ?? '') + String(b ?? '');"
+        }
+      }
+    ],
+    "logical": [
+      {
+        "operator": ">",
+        "name": "Greater than",
+        "description": "Compares if left value is greater than right value",
+        "syntax": "value1 > value2",
+        "return_type": "boolean",
+        "examples": ["10 > 5"],
+        "implementation": {
+          "js": "const greaterThan = (a, b) => Number(a) > Number(b);"
+        }
+      },
+      {
+        "operator": "<",
+        "name": "Less than",
+        "description": "Compares if left value is less than right value",
+        "syntax": "value1 < value2",
+        "return_type": "boolean",
+        "examples": ["5 < 10"],
+        "implementation": {
+          "js": "const lessThan = (a, b) => Number(a) < Number(b);"
+        }
+      },
+      {
+        "operator": ">=",
+        "name": "Greater than or equal to",
+        "description": "Compares if left value is greater than or equal to right value",
+        "syntax": "value1 >= value2",
+        "return_type": "boolean",
+        "examples": ["10 >= 10"],
+        "implementation": {
+          "js": "const greaterThanOrEqual = (a, b) => Number(a) >= Number(b);"
+        }
+      },
+      {
+        "operator": "<=",
+        "name": "Less than or equal to",
+        "description": "Compares if left value is less than or equal to right value",
+        "syntax": "value1 <= value2",
+        "return_type": "boolean",
+        "examples": ["5 <= 10"],
+        "implementation": {
+          "js": "const lessThanOrEqual = (a, b) => Number(a) <= Number(b);"
+        }
+      },
+      {
+        "operator": "=",
+        "name": "Equal to",
+        "description": "Checks if two values are equal",
+        "syntax": "value1 = value2",
+        "return_type": "boolean",
+        "examples": ["{Name} = \"Alice\""],
+        "implementation": {
+          "js": "const equal = (a, b) => a == b;"
+        }
+      },
+      {
+        "operator": "!=",
+        "name": "Not equal to",
+        "description": "Checks if two values are not equal",
+        "syntax": "value1 != value2",
+        "return_type": "boolean",
+        "examples": ["{Status} != \"Complete\""],
+        "implementation": {
+          "js": "const notEqual = (a, b) => a != b;"
+        }
+      }
+    ],
+    "numeric": [
+      {
+        "operator": "+",
+        "name": "Addition",
+        "description": "Add together two numeric values",
+        "syntax": "number1 + number2",
+        "return_type": "number",
+        "examples": ["{Price} + {Tax}"],
+        "implementation": {
+          "js": "const add = (a, b) => Number(a) + Number(b);"
+        }
+      },
+      {
+        "operator": "-",
+        "name": "Subtraction",
+        "description": "Subtract two numeric values",
+        "syntax": "number1 - number2",
+        "return_type": "number",
+        "examples": ["{Revenue} - {Cost}"],
+        "implementation": {
+          "js": "const subtract = (a, b) => Number(a) - Number(b);"
+        }
+      },
+      {
+        "operator": "*",
+        "name": "Multiplication",
+        "description": "Multiply two numeric values",
+        "syntax": "number1 * number2",
+        "return_type": "number",
+        "examples": ["{Price} * {Quantity}"],
+        "implementation": {
+          "js": "const multiply = (a, b) => Number(a) * Number(b);"
+        }
+      },
+      {
+        "operator": "/",
+        "name": "Division",
+        "description": "Divide two numeric values",
+        "syntax": "number1 / number2",
+        "return_type": "number",
+        "examples": ["{Total} / {Count}"],
+        "implementation": {
+          "js": "const divide = (a, b) => Number(a) / Number(b);"
+        }
+      }
+    ]
+  },
+  "functions": {
+    "text": [
+      {
+        "name": "ARRAYJOIN",
+        "category": "text",
+        "description": "Join the array of items into a string with a separator",
+        "syntax": "ARRAYJOIN(array, separator)",
+        "parameters": [
+          {
+            "name": "array",
+            "type": "array",
+            "required": true,
+            "description": "Array of items to join"
+          },
+          {
+            "name": "separator",
+            "type": "string",
+            "required": true,
+            "description": "Separator to use between items"
+          }
+        ],
+        "return_type": "string",
+        "examples": [
+          {
+            "formula": "ARRAYJOIN(values, '; ')",
+            "input": "values = [1, 2, 3]",
+            "result": "1; 2; 3"
+          }
+        ],
+        "implementation": {
+          "js": "function ARRAYJOIN(array, separator) {\n  if (!Array.isArray(array)) return '';\n  return array.map(item => String(item ?? '')).join(separator);\n}"
+        }
+      },
+      {
+        "name": "CONCATENATE",
+        "category": "text",
+        "description": "Joins together the text arguments into a single text value",
+        "syntax": "CONCATENATE(text1, [text2, ...])",
+        "parameters": [
+          {
+            "name": "text",
+            "type": "string",
+            "required": true,
+            "description": "Text values to concatenate",
+            "variadic": true
+          }
+        ],
+        "return_type": "string",
+        "examples": [
+          {
+            "formula": "CONCATENATE({Name}, \" - \", {Age})",
+            "result": "Bob - 43"
+          }
+        ],
+        "implementation": {
+          "js": "function CONCATENATE(...args) {\n  return args.map(arg => String(arg ?? '')).join('');\n}"
+        }
+      },
+      {
+        "name": "ENCODE_URL_COMPONENT",
+        "category": "text",
+        "description": "Replaces certain characters with encoded equivalents for use in constructing URLs or URIs",
+        "syntax": "ENCODE_URL_COMPONENT(component_string)",
+        "parameters": [
+          {
+            "name": "component_string",
+            "type": "string",
+            "required": true,
+            "description": "String to encode for URL"
+          }
+        ],
+        "return_type": "string",
+        "examples": [
+          {
+            "formula": "ENCODE_URL_COMPONENT(\"chicken & waffles\")",
+            "result": "chicken%20%26%20waffles"
+          }
+        ],
+        "implementation": {
+          "js": "function ENCODE_URL_COMPONENT(str) {\n  return encodeURIComponent(str);\n}"
+        }
+      },
+      {
+        "name": "FIND",
+        "category": "text",
+        "description": "Finds an occurrence of stringToFind in whereToSearch string starting from an optional startFromPosition. Returns 0 if not found",
+        "syntax": "FIND(stringToFind, whereToSearch, [startFromPosition])",
+        "parameters": [
+          {
+            "name": "stringToFind",
+            "type": "string",
+            "required": true,
+            "description": "String to search for"
+          },
+          {
+            "name": "whereToSearch",
+            "type": "string",
+            "required": true,
+            "description": "String to search within"
+          },
+          {
+            "name": "startFromPosition",
+            "type": "number",
+            "required": false,
+            "default": 0,
+            "description": "Position to start searching from (0-indexed)"
+          }
+        ],
+        "return_type": "number",
+        "examples": [
+          {
+            "formula": "FIND(\"blue\", \"red blue green\")",
+            "result": 4
+          }
+        ],
+        "implementation": {
+          "js": "function FIND(stringToFind, whereToSearch, startFromPosition = 0) {\n  const str = String(whereToSearch);\n  const search = String(stringToFind);\n  const index = str.indexOf(search, startFromPosition);\n  return index === -1 ? 0 : index;\n}"
+        }
+      },
+      {
+        "name": "LEFT",
+        "category": "text",
+        "description": "Extract howMany characters from the beginning of the string",
+        "syntax": "LEFT(string, howMany)",
+        "parameters": [
+          {
+            "name": "string",
+            "type": "string",
+            "required": true,
+            "description": "Source string"
+          },
+          {
+            "name": "howMany",
+            "type": "number",
+            "required": true,
+            "description": "Number of characters to extract"
+          }
+        ],
+        "return_type": "string",
+        "examples": [
+          {
+            "formula": "LEFT(\"quick brown fox\", 5)",
+            "result": "quick"
+          }
+        ],
+        "implementation": {
+          "js": "function LEFT(str, howMany) {\n  return String(str).substring(0, howMany);\n}"
+        }
+      },
+      {
+        "name": "LEN",
+        "category": "text",
+        "description": "Returns the length of a string",
+        "syntax": "LEN(string)",
+        "parameters": [
+          {
+            "name": "string",
+            "type": "string",
+            "required": true,
+            "description": "String to measure"
+          }
+        ],
+        "return_type": "number",
+        "examples": [
+          {
+            "formula": "LEN(\"Great Product!\")",
+            "result": 14
+          }
+        ],
+        "implementation": {
+          "js": "function LEN(str) {\n  return String(str).length;\n}"
+        }
+      },
+      {
+        "name": "LOWER",
+        "category": "text",
+        "description": "Makes a string lowercase",
+        "syntax": "LOWER(string)",
+        "parameters": [
+          {
+            "name": "string",
+            "type": "string",
+            "required": true,
+            "description": "String to convert to lowercase"
+          }
+        ],
+        "return_type": "string",
+        "examples": [
+          {
+            "formula": "LOWER(\"HELLO!\")",
+            "result": "hello!"
+          }
+        ],
+        "implementation": {
+          "js": "function LOWER(str) {\n  return String(str).toLowerCase();\n}"
+        }
+      },
+      {
+        "name": "MID",
+        "category": "text",
+        "description": "Extract a substring of count characters starting at whereToStart",
+        "syntax": "MID(string, whereToStart, count)",
+        "parameters": [
+          {
+            "name": "string",
+            "type": "string",
+            "required": true,
+            "description": "Source string"
+          },
+          {
+            "name": "whereToStart",
+            "type": "number",
+            "required": true,
+            "description": "Starting position (1-indexed)"
+          },
+          {
+            "name": "count",
+            "type": "number",
+            "required": true,
+            "description": "Number of characters to extract"
+          }
+        ],
+        "return_type": "string",
+        "examples": [
+          {
+            "formula": "MID(\"quick brown fox\", 7, 5)",
+            "result": "brown"
+          }
+        ],
+        "implementation": {
+          "js": "function MID(str, whereToStart, count) {\n  // whereToStart is 1-indexed\n  return String(str).substring(whereToStart - 1, whereToStart - 1 + count);\n}"
+        }
+      },
+      {
+        "name": "REPLACE",
+        "category": "text",
+        "description": "Replaces the number of characters beginning with the start character with the replacement text",
+        "syntax": "REPLACE(string, whereToStart, count, replacement)",
+        "parameters": [
+          {
+            "name": "string",
+            "type": "string",
+            "required": true,
+            "description": "Source string"
+          },
+          {
+            "name": "whereToStart",
+            "type": "number",
+            "required": true,
+            "description": "Starting position (1-indexed)"
+          },
+          {
+            "name": "count",
+            "type": "number",
+            "required": true,
+            "description": "Number of characters to replace"
+          },
+          {
+            "name": "replacement",
+            "type": "string",
+            "required": true,
+            "description": "Replacement text"
+          }
+        ],
+        "return_type": "string",
+        "examples": [
+          {
+            "formula": "REPLACE(\"rose\", 1, 2, \"do\")",
+            "result": "dose"
+          }
+        ],
+        "implementation": {
+          "js": "function REPLACE(str, whereToStart, count, replacement) {\n  const s = String(str);\n  const start = whereToStart - 1; // Convert to 0-indexed\n  return s.substring(0, start) + replacement + s.substring(start + count);\n}"
+        }
+      },
+      {
+        "name": "REPT",
+        "category": "text",
+        "description": "Repeats string by the specified number of times",
+        "syntax": "REPT(string, number)",
+        "parameters": [
+          {
+            "name": "string",
+            "type": "string",
+            "required": true,
+            "description": "String to repeat"
+          },
+          {
+            "name": "number",
+            "type": "number",
+            "required": true,
+            "description": "Number of times to repeat"
+          }
+        ],
+        "return_type": "string",
+        "examples": [
+          {
+            "formula": "REPT(\"Hi! \", 3)",
+            "result": "Hi! Hi! Hi! "
+          }
+        ],
+        "implementation": {
+          "js": "function REPT(str, number) {\n  return String(str).repeat(number);\n}"
+        }
+      },
+      {
+        "name": "RIGHT",
+        "category": "text",
+        "description": "Extract howMany characters from the end of the string",
+        "syntax": "RIGHT(string, howMany)",
+        "parameters": [
+          {
+            "name": "string",
+            "type": "string",
+            "required": true,
+            "description": "Source string"
+          },
+          {
+            "name": "howMany",
+            "type": "number",
+            "required": true,
+            "description": "Number of characters to extract"
+          }
+        ],
+        "return_type": "string",
+        "examples": [
+          {
+            "formula": "RIGHT(\"quick brown fox\", 5)",
+            "result": "n fox"
+          }
+        ],
+        "implementation": {
+          "js": "function RIGHT(str, howMany) {\n  const s = String(str);\n  return s.substring(s.length - howMany);\n}"
+        }
+      },
+      {
+        "name": "SEARCH",
+        "category": "text",
+        "description": "Searches for an occurrence of stringToFind in whereToSearch string. Returns empty if not found",
+        "syntax": "SEARCH(stringToFind, whereToSearch, [startFromPosition])",
+        "parameters": [
+          {
+            "name": "stringToFind",
+            "type": "string",
+            "required": true,
+            "description": "String to search for"
+          },
+          {
+            "name": "whereToSearch",
+            "type": "string",
+            "required": true,
+            "description": "String to search within"
+          },
+          {
+            "name": "startFromPosition",
+            "type": "number",
+            "required": false,
+            "default": 0,
+            "description": "Position to start searching from (0-indexed)"
+          }
+        ],
+        "return_type": "number",
+        "examples": [
+          {
+            "formula": "SEARCH(\"brown\", \"quick brown fox\")",
+            "result": 7
+          }
+        ],
+        "implementation": {
+          "js": "function SEARCH(stringToFind, whereToSearch, startFromPosition = 0) {\n  const str = String(whereToSearch);\n  const search = String(stringToFind);\n  const index = str.indexOf(search, startFromPosition);\n  return index === -1 ? '' : index;\n}"
+        }
+      },
+      {
+        "name": "SUBSTITUTE",
+        "category": "text",
+        "description": "Replaces occurrences of old_text with new_text",
+        "syntax": "SUBSTITUTE(string, old_text, new_text, [index])",
+        "parameters": [
+          {
+            "name": "string",
+            "type": "string",
+            "required": true,
+            "description": "Source string"
+          },
+          {
+            "name": "old_text",
+            "type": "string",
+            "required": true,
+            "description": "Text to find"
+          },
+          {
+            "name": "new_text",
+            "type": "string",
+            "required": true,
+            "description": "Replacement text"
+          },
+          {
+            "name": "index",
+            "type": "number",
+            "required": false,
+            "description": "Specific occurrence to replace (1-indexed)"
+          }
+        ],
+        "return_type": "string",
+        "examples": [
+          {
+            "formula": "SUBSTITUTE(\"get cold\", \"cold\", \"met\")",
+            "result": "get met"
+          }
+        ],
+        "implementation": {
+          "js": "function SUBSTITUTE(str, oldText, newText, index) {\n  const s = String(str);\n  const old = String(oldText);\n  const replacement = String(newText);\n  \n  if (index === undefined) {\n    return s.split(old).join(replacement);\n  }\n  \n  // Replace only the nth occurrence (1-indexed)\n  let count = 0;\n  let pos = 0;\n  while ((pos = s.indexOf(old, pos)) !== -1) {\n    count++;\n    if (count === index) {\n      return s.substring(0, pos) + replacement + s.substring(pos + old.length);\n    }\n    pos += old.length;\n  }\n  return s;\n}"
+        }
+      },
+      {
+        "name": "T",
+        "category": "text",
+        "description": "Returns the argument if it is text and blank otherwise",
+        "syntax": "T(value)",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "any",
+            "required": true,
+            "description": "Value to check"
+          }
+        ],
+        "return_type": "string",
+        "examples": [
+          {
+            "formula": "T(\"text only\")",
+            "result": "text only"
+          }
+        ],
+        "implementation": {
+          "js": "function T(value) {\n  return typeof value === 'string' ? value : '';\n}"
+        }
+      },
+      {
+        "name": "TRIM",
+        "category": "text",
+        "description": "Removes whitespace at the beginning and end of string",
+        "syntax": "TRIM(string)",
+        "parameters": [
+          {
+            "name": "string",
+            "type": "string",
+            "required": true,
+            "description": "String to trim"
+          }
+        ],
+        "return_type": "string",
+        "examples": [
+          {
+            "formula": "TRIM(\"  Hello!  \")",
+            "result": "Hello!"
+          }
+        ],
+        "implementation": {
+          "js": "function TRIM(str) {\n  return String(str).trim();\n}"
+        }
+      },
+      {
+        "name": "UPPER",
+        "category": "text",
+        "description": "Makes string uppercase",
+        "syntax": "UPPER(string)",
+        "parameters": [
+          {
+            "name": "string",
+            "type": "string",
+            "required": true,
+            "description": "String to convert to uppercase"
+          }
+        ],
+        "return_type": "string",
+        "examples": [
+          {
+            "formula": "UPPER(\"hello!\")",
+            "result": "HELLO!"
+          }
+        ],
+        "implementation": {
+          "js": "function UPPER(str) {\n  return String(str).toUpperCase();\n}"
+        }
+      }
+    ],
+    "logical": [
+      {
+        "name": "AND",
+        "category": "logical",
+        "description": "Returns true if all the arguments are true, returns false otherwise",
+        "syntax": "AND(logical1, [logical2, ...])",
+        "parameters": [
+          {
+            "name": "logical",
+            "type": "boolean",
+            "required": true,
+            "description": "Logical expression to evaluate",
+            "variadic": true
+          }
+        ],
+        "return_type": "boolean",
+        "examples": [],
+        "implementation": {
+          "js": "function AND(...args) {\n  return args.every(arg => Boolean(arg));\n}"
+        }
+      },
+      {
+        "name": "BLANK",
+        "category": "logical",
+        "description": "Returns a blank value",
+        "syntax": "BLANK()",
+        "parameters": [],
+        "return_type": "null",
+        "examples": [],
+        "implementation": {
+          "js": "function BLANK() {\n  return null;\n}"
+        }
+      },
+      {
+        "name": "ERROR",
+        "category": "logical",
+        "description": "Returns the error value",
+        "syntax": "ERROR()",
+        "parameters": [],
+        "return_type": "error",
+        "examples": [],
+        "implementation": {
+          "js": "function ERROR() {\n  throw new Error('ERROR()');\n}"
+        }
+      },
+      {
+        "name": "FALSE",
+        "category": "logical",
+        "description": "Logical value false",
+        "syntax": "FALSE()",
+        "parameters": [],
+        "return_type": "boolean",
+        "examples": [],
+        "implementation": {
+          "js": "function FALSE() {\n  return false;\n}"
+        }
+      },
+      {
+        "name": "IF",
+        "category": "logical",
+        "description": "Returns value1 if the logical expression is true, otherwise returns value2",
+        "syntax": "IF(expression, value1, value2)",
+        "parameters": [
+          {
+            "name": "expression",
+            "type": "boolean",
+            "required": true,
+            "description": "Logical expression to evaluate"
+          },
+          {
+            "name": "value1",
+            "type": "any",
+            "required": true,
+            "description": "Value to return if expression is true"
+          },
+          {
+            "name": "value2",
+            "type": "any",
+            "required": true,
+            "description": "Value to return if expression is false"
+          }
+        ],
+        "return_type": "any",
+        "examples": [],
+        "implementation": {
+          "js": "function IF(expression, value1, value2) {\n  return expression ? value1 : value2;\n}"
+        }
+      },
+      {
+        "name": "ISERROR",
+        "category": "logical",
+        "description": "Returns true if the expression causes an error",
+        "syntax": "ISERROR(expression)",
+        "parameters": [
+          {
+            "name": "expression",
+            "type": "any",
+            "required": true,
+            "description": "Expression to evaluate"
+          }
+        ],
+        "return_type": "boolean",
+        "examples": [],
+        "implementation": {
+          "js": "function ISERROR(expression) {\n  try {\n    if (typeof expression === 'function') {\n      expression();\n    }\n    return false;\n  } catch (e) {\n    return true;\n  }\n}"
+        }
+      },
+      {
+        "name": "NOT",
+        "category": "logical",
+        "description": "Reverses the logical value of its argument",
+        "syntax": "NOT(logical)",
+        "parameters": [
+          {
+            "name": "logical",
+            "type": "boolean",
+            "required": true,
+            "description": "Logical value to reverse"
+          }
+        ],
+        "return_type": "boolean",
+        "examples": [],
+        "implementation": {
+          "js": "function NOT(logical) {\n  return !Boolean(logical);\n}"
+        }
+      },
+      {
+        "name": "OR",
+        "category": "logical",
+        "description": "Returns true if any one of the arguments is true",
+        "syntax": "OR(logical1, [logical2, ...])",
+        "parameters": [
+          {
+            "name": "logical",
+            "type": "boolean",
+            "required": true,
+            "description": "Logical expression to evaluate",
+            "variadic": true
+          }
+        ],
+        "return_type": "boolean",
+        "examples": [],
+        "implementation": {
+          "js": "function OR(...args) {\n  return args.some(arg => Boolean(arg));\n}"
+        }
+      },
+      {
+        "name": "SWITCH",
+        "category": "logical",
+        "description": "Takes an expression and returns the result corresponding to the first matching value",
+        "syntax": "SWITCH(expression, [pattern, result]..., [default])",
+        "parameters": [
+          {
+            "name": "expression",
+            "type": "any",
+            "required": true,
+            "description": "Expression to evaluate"
+          },
+          {
+            "name": "pattern",
+            "type": "any",
+            "required": false,
+            "description": "Value to match against expression",
+            "variadic": true
+          },
+          {
+            "name": "result",
+            "type": "any",
+            "required": false,
+            "description": "Result to return if pattern matches",
+            "variadic": true
+          }
+        ],
+        "return_type": "any",
+        "examples": [],
+        "implementation": {
+          "js": "function SWITCH(expression, ...args) {\n  // Process pattern-result pairs\n  for (let i = 0; i < args.length - 1; i += 2) {\n    if (expression === args[i]) {\n      return args[i + 1];\n    }\n  }\n  // Return default if odd number of args (last one is default)\n  if (args.length % 2 === 1) {\n    return args[args.length - 1];\n  }\n  return null;\n}"
+        }
+      },
+      {
+        "name": "TRUE",
+        "category": "logical",
+        "description": "Logical value true",
+        "syntax": "TRUE()",
+        "parameters": [],
+        "return_type": "boolean",
+        "examples": [],
+        "implementation": {
+          "js": "function TRUE() {\n  return true;\n}"
+        }
+      },
+      {
+        "name": "XOR",
+        "category": "logical",
+        "description": "Returns true if an odd number of arguments are true",
+        "syntax": "XOR(logical1, [logical2, ...])",
+        "parameters": [
+          {
+            "name": "logical",
+            "type": "boolean",
+            "required": true,
+            "description": "Logical expression to evaluate",
+            "variadic": true
+          }
+        ],
+        "return_type": "boolean",
+        "examples": [],
+        "implementation": {
+          "js": "function XOR(...args) {\n  const trueCount = args.filter(arg => Boolean(arg)).length;\n  return trueCount % 2 === 1;\n}"
+        }
+      }
+    ],
+    "numeric": [
+      {
+        "name": "ABS",
+        "category": "numeric",
+        "description": "Returns the absolute value",
+        "syntax": "ABS(value)",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function ABS(value) {\n  return Math.abs(Number(value));\n}"
+        }
+      },
+      {
+        "name": "AVERAGE",
+        "category": "numeric",
+        "description": "Returns the average of the numbers",
+        "syntax": "AVERAGE(number1, [number2, ...])",
+        "parameters": [
+          {
+            "name": "number",
+            "type": "number",
+            "required": true,
+            "variadic": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function AVERAGE(...args) {\n  const numbers = args.filter(arg => typeof arg === 'number' || !isNaN(Number(arg)));\n  const sum = numbers.reduce((acc, val) => acc + Number(val), 0);\n  return numbers.length > 0 ? sum / numbers.length : 0;\n}"
+        }
+      },
+      {
+        "name": "CEILING",
+        "category": "numeric",
+        "description": "Returns the nearest integer multiple of significance that is greater than or equal to the value",
+        "syntax": "CEILING(value, [significance])",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "significance",
+            "type": "number",
+            "required": false,
+            "default": 1
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function CEILING(value, significance = 1) {\n  const val = Number(value);\n  const sig = Number(significance);\n  return Math.ceil(val / sig) * sig;\n}"
+        }
+      },
+      {
+        "name": "COUNT",
+        "category": "numeric",
+        "description": "Count the number of numeric items",
+        "syntax": "COUNT(value1, [value2, ...])",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "any",
+            "required": true,
+            "variadic": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function COUNT(...args) {\n  return args.filter(arg => typeof arg === 'number' || !isNaN(Number(arg))).length;\n}"
+        }
+      },
+      {
+        "name": "COUNTA",
+        "category": "numeric",
+        "description": "Count the number of non-empty values",
+        "syntax": "COUNTA(value1, [value2, ...])",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "any",
+            "required": true,
+            "variadic": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function COUNTA(...args) {\n  return args.filter(arg => arg !== null && arg !== undefined && arg !== '').length;\n}"
+        }
+      },
+      {
+        "name": "COUNTALL",
+        "category": "numeric",
+        "description": "Count the number of all elements including text and blanks",
+        "syntax": "COUNTALL(value1, [value2, ...])",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "any",
+            "required": true,
+            "variadic": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function COUNTALL(...args) {\n  return args.length;\n}"
+        }
+      },
+      {
+        "name": "EVEN",
+        "category": "numeric",
+        "description": "Returns the smallest even integer that is greater than or equal to the specified value",
+        "syntax": "EVEN(value)",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function EVEN(value) {\n  const val = Number(value);\n  if (val >= 0) {\n    return Math.ceil(val / 2) * 2;\n  } else {\n    return Math.floor(val / 2) * 2;\n  }\n}"
+        }
+      },
+      {
+        "name": "EXP",
+        "category": "numeric",
+        "description": "Computes Euler's number (e) raised to the specified power",
+        "syntax": "EXP(power)",
+        "parameters": [
+          {
+            "name": "power",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function EXP(power) {\n  return Math.exp(Number(power));\n}"
+        }
+      },
+      {
+        "name": "FLOOR",
+        "category": "numeric",
+        "description": "Returns the nearest integer multiple of significance that is less than or equal to the value",
+        "syntax": "FLOOR(value, [significance])",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "significance",
+            "type": "number",
+            "required": false,
+            "default": 1
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function FLOOR(value, significance = 1) {\n  const val = Number(value);\n  const sig = Number(significance);\n  return Math.floor(val / sig) * sig;\n}"
+        }
+      },
+      {
+        "name": "INT",
+        "category": "numeric",
+        "description": "Returns the greatest integer that is less than or equal to the specified value",
+        "syntax": "INT(value)",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function INT(value) {\n  return Math.floor(Number(value));\n}"
+        }
+      },
+      {
+        "name": "LOG",
+        "category": "numeric",
+        "description": "Computes the logarithm of the value in provided base",
+        "syntax": "LOG(number, [base])",
+        "parameters": [
+          {
+            "name": "number",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "base",
+            "type": "number",
+            "required": false,
+            "default": 10
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function LOG(number, base = 10) {\n  return Math.log(Number(number)) / Math.log(Number(base));\n}"
+        }
+      },
+      {
+        "name": "MAX",
+        "category": "numeric",
+        "description": "Returns the largest of the given numbers",
+        "syntax": "MAX(number1, [number2, ...])",
+        "parameters": [
+          {
+            "name": "number",
+            "type": "number",
+            "required": true,
+            "variadic": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function MAX(...args) {\n  const numbers = args.map(arg => Number(arg)).filter(n => !isNaN(n));\n  return numbers.length > 0 ? Math.max(...numbers) : 0;\n}"
+        }
+      },
+      {
+        "name": "MIN",
+        "category": "numeric",
+        "description": "Returns the smallest of the given numbers",
+        "syntax": "MIN(number1, [number2, ...])",
+        "parameters": [
+          {
+            "name": "number",
+            "type": "number",
+            "required": true,
+            "variadic": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function MIN(...args) {\n  const numbers = args.map(arg => Number(arg)).filter(n => !isNaN(n));\n  return numbers.length > 0 ? Math.min(...numbers) : 0;\n}"
+        }
+      },
+      {
+        "name": "MOD",
+        "category": "numeric",
+        "description": "Returns the remainder after dividing the first argument by the second",
+        "syntax": "MOD(value, divisor)",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "divisor",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function MOD(value, divisor) {\n  return Number(value) % Number(divisor);\n}"
+        }
+      },
+      {
+        "name": "ODD",
+        "category": "numeric",
+        "description": "Rounds positive value up to the nearest odd number and negative value down to the nearest odd number",
+        "syntax": "ODD(value)",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function ODD(value) {\n  const val = Number(value);\n  if (val >= 0) {\n    const rounded = Math.ceil(val);\n    return rounded % 2 === 0 ? rounded + 1 : rounded;\n  } else {\n    const rounded = Math.floor(val);\n    return rounded % 2 === 0 ? rounded - 1 : rounded;\n  }\n}"
+        }
+      },
+      {
+        "name": "POWER",
+        "category": "numeric",
+        "description": "Computes the specified base to the specified power",
+        "syntax": "POWER(base, power)",
+        "parameters": [
+          {
+            "name": "base",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "power",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function POWER(base, power) {\n  return Math.pow(Number(base), Number(power));\n}"
+        }
+      },
+      {
+        "name": "ROUND",
+        "category": "numeric",
+        "description": "Rounds the value to the number of decimal places given by precision",
+        "syntax": "ROUND(value, precision)",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "precision",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function ROUND(value, precision) {\n  const multiplier = Math.pow(10, Number(precision));\n  return Math.round(Number(value) * multiplier) / multiplier;\n}"
+        }
+      },
+      {
+        "name": "ROUNDDOWN",
+        "category": "numeric",
+        "description": "Rounds the value to the number of decimal places given by precision, always rounding down",
+        "syntax": "ROUNDDOWN(value, precision)",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "precision",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function ROUNDDOWN(value, precision) {\n  const multiplier = Math.pow(10, Number(precision));\n  return Math.floor(Number(value) * multiplier) / multiplier;\n}"
+        }
+      },
+      {
+        "name": "ROUNDUP",
+        "category": "numeric",
+        "description": "Rounds the value to the number of decimal places given by precision, always rounding up",
+        "syntax": "ROUNDUP(value, precision)",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "precision",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function ROUNDUP(value, precision) {\n  const multiplier = Math.pow(10, Number(precision));\n  return Math.ceil(Number(value) * multiplier) / multiplier;\n}"
+        }
+      },
+      {
+        "name": "SQRT",
+        "category": "numeric",
+        "description": "Returns the square root of a nonnegative number",
+        "syntax": "SQRT(value)",
+        "parameters": [
+          {
+            "name": "value",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function SQRT(value) {\n  return Math.sqrt(Number(value));\n}"
+        }
+      },
+      {
+        "name": "SUM",
+        "category": "numeric",
+        "description": "Sum together the numbers",
+        "syntax": "SUM(number1, [number2, ...])",
+        "parameters": [
+          {
+            "name": "number",
+            "type": "number",
+            "required": true,
+            "variadic": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function SUM(...args) {\n  return args.reduce((acc, val) => acc + Number(val), 0);\n}"
+        }
+      },
+      {
+        "name": "VALUE",
+        "category": "numeric",
+        "description": "Converts the text string to a number",
+        "syntax": "VALUE(text)",
+        "parameters": [
+          {
+            "name": "text",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function VALUE(text) {\n  // Remove common formatting like $, commas\n  const cleaned = String(text).replace(/[$,]/g, '');\n  return parseFloat(cleaned) || 0;\n}"
+        }
+      }
+    ],
+    "date": [
+      {
+        "name": "CREATED_TIME",
+        "category": "date",
+        "description": "Returns the date and time a record was created",
+        "syntax": "CREATED_TIME()",
+        "parameters": [],
+        "return_type": "datetime",
+        "examples": [],
+        "implementation": {
+          "js": "// Note: This would need to be provided by the execution context\nfunction CREATED_TIME() {\n  return new Date();\n}"
+        }
+      },
+      {
+        "name": "DATEADD",
+        "category": "date",
+        "description": "Adds specified count units to a datetime",
+        "syntax": "DATEADD(date, count, unit)",
+        "parameters": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "count",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "unit",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "return_type": "datetime",
+        "examples": [],
+        "implementation": {
+          "js": "function DATEADD(date, count, unit) {\n  const d = new Date(date);\n  const c = Number(count);\n  \n  switch(unit.toLowerCase()) {\n    case 'years': d.setFullYear(d.getFullYear() + c); break;\n    case 'months': d.setMonth(d.getMonth() + c); break;\n    case 'weeks': d.setDate(d.getDate() + (c * 7)); break;\n    case 'days': d.setDate(d.getDate() + c); break;\n    case 'hours': d.setHours(d.getHours() + c); break;\n    case 'minutes': d.setMinutes(d.getMinutes() + c); break;\n    case 'seconds': d.setSeconds(d.getSeconds() + c); break;\n    case 'milliseconds': d.setMilliseconds(d.getMilliseconds() + c); break;\n  }\n  \n  return d;\n}"
+        }
+      },
+      {
+        "name": "DATESTR",
+        "category": "date",
+        "description": "Formats a datetime into a string (YYYY-MM-DD)",
+        "syntax": "DATESTR(date)",
+        "parameters": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "required": true
+          }
+        ],
+        "return_type": "string",
+        "examples": [],
+        "implementation": {
+          "js": "function DATESTR(date) {\n  const d = new Date(date);\n  const year = d.getFullYear();\n  const month = String(d.getMonth() + 1).padStart(2, '0');\n  const day = String(d.getDate()).padStart(2, '0');\n  return `${year}-${month}-${day}`;\n}"
+        }
+      },
+      {
+        "name": "DATETIME_DIFF",
+        "category": "date",
+        "description": "Returns the difference between datetimes in specified units",
+        "syntax": "DATETIME_DIFF(date1, date2, [unit])",
+        "parameters": [
+          {
+            "name": "date1",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "date2",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "unit",
+            "type": "string",
+            "required": false,
+            "default": "seconds"
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function DATETIME_DIFF(date1, date2, unit = 'seconds') {\n  const d1 = new Date(date1);\n  const d2 = new Date(date2);\n  const diff = d1 - d2; // milliseconds\n  \n  switch(unit.toLowerCase()) {\n    case 'milliseconds': return diff;\n    case 'seconds': return Math.floor(diff / 1000);\n    case 'minutes': return Math.floor(diff / (1000 * 60));\n    case 'hours': return Math.floor(diff / (1000 * 60 * 60));\n    case 'days': return Math.floor(diff / (1000 * 60 * 60 * 24));\n    case 'weeks': return Math.floor(diff / (1000 * 60 * 60 * 24 * 7));\n    case 'months': {\n      const years = d1.getFullYear() - d2.getFullYear();\n      const months = d1.getMonth() - d2.getMonth();\n      return years * 12 + months;\n    }\n    case 'years': return d1.getFullYear() - d2.getFullYear();\n    default: return Math.floor(diff / 1000);\n  }\n}"
+        }
+      },
+      {
+        "name": "DATETIME_FORMAT",
+        "category": "date",
+        "description": "Formats a datetime into a specified string",
+        "syntax": "DATETIME_FORMAT(date, [format])",
+        "parameters": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "format",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "return_type": "string",
+        "examples": [],
+        "implementation": {
+          "js": "function DATETIME_FORMAT(date, format = 'YYYY-MM-DD') {\n  const d = new Date(date);\n  \n  const tokens = {\n    'YYYY': d.getFullYear(),\n    'YY': String(d.getFullYear()).slice(-2),\n    'MMMM': ['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()],\n    'MMM': ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()],\n    'MM': String(d.getMonth() + 1).padStart(2, '0'),\n    'M': d.getMonth() + 1,\n    'DD': String(d.getDate()).padStart(2, '0'),\n    'D': d.getDate(),\n    'HH': String(d.getHours()).padStart(2, '0'),\n    'H': d.getHours(),\n    'hh': String((d.getHours() % 12) || 12).padStart(2, '0'),\n    'h': (d.getHours() % 12) || 12,\n    'mm': String(d.getMinutes()).padStart(2, '0'),\n    'm': d.getMinutes(),\n    'ss': String(d.getSeconds()).padStart(2, '0'),\n    's': d.getSeconds(),\n    'A': d.getHours() >= 12 ? 'PM' : 'AM',\n    'a': d.getHours() >= 12 ? 'pm' : 'am'\n  };\n  \n  let result = format;\n  for (const [token, value] of Object.entries(tokens)) {\n    result = result.replace(new RegExp(token, 'g'), value);\n  }\n  \n  return result;\n}"
+        }
+      },
+      {
+        "name": "DATETIME_PARSE",
+        "category": "date",
+        "description": "Interprets a text string as a structured date",
+        "syntax": "DATETIME_PARSE(date_string, [input_format], [locale])",
+        "parameters": [
+          {
+            "name": "date_string",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "return_type": "datetime",
+        "examples": [],
+        "implementation": {
+          "js": "function DATETIME_PARSE(dateString) {\n  return new Date(dateString);\n}"
+        }
+      },
+      {
+        "name": "DAY",
+        "category": "date",
+        "description": "Returns the day of the month as a number between 1-31",
+        "syntax": "DAY(date)",
+        "parameters": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function DAY(date) {\n  return new Date(date).getDate();\n}"
+        }
+      },
+      {
+        "name": "HOUR",
+        "category": "date",
+        "description": "Returns the hour as a number between 0-23",
+        "syntax": "HOUR(datetime)",
+        "parameters": [
+          {
+            "name": "datetime",
+            "type": "datetime",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function HOUR(datetime) {\n  return new Date(datetime).getHours();\n}"
+        }
+      },
+      {
+        "name": "IS_AFTER",
+        "category": "date",
+        "description": "Determines if date1 is later than date2",
+        "syntax": "IS_AFTER(date1, date2)",
+        "parameters": [
+          {
+            "name": "date1",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "date2",
+            "type": "datetime",
+            "required": true
+          }
+        ],
+        "return_type": "boolean",
+        "examples": [],
+        "implementation": {
+          "js": "function IS_AFTER(date1, date2) {\n  return new Date(date1) > new Date(date2);\n}"
+        }
+      },
+      {
+        "name": "IS_BEFORE",
+        "category": "date",
+        "description": "Determines if date1 is earlier than date2",
+        "syntax": "IS_BEFORE(date1, date2)",
+        "parameters": [
+          {
+            "name": "date1",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "date2",
+            "type": "datetime",
+            "required": true
+          }
+        ],
+        "return_type": "boolean",
+        "examples": [],
+        "implementation": {
+          "js": "function IS_BEFORE(date1, date2) {\n  return new Date(date1) < new Date(date2);\n}"
+        }
+      },
+      {
+        "name": "IS_SAME",
+        "category": "date",
+        "description": "Compares two dates up to a unit and determines if they are identical",
+        "syntax": "IS_SAME(date1, date2, [unit])",
+        "parameters": [
+          {
+            "name": "date1",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "date2",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "unit",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "return_type": "boolean",
+        "examples": [],
+        "implementation": {
+          "js": "function IS_SAME(date1, date2, unit = 'day') {\n  const d1 = new Date(date1);\n  const d2 = new Date(date2);\n  \n  switch(unit.toLowerCase()) {\n    case 'year': return d1.getFullYear() === d2.getFullYear();\n    case 'month': return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth();\n    case 'day': return d1.toDateString() === d2.toDateString();\n    case 'hour': return d1.toDateString() === d2.toDateString() && d1.getHours() === d2.getHours();\n    case 'minute': return Math.floor(d1.getTime() / 60000) === Math.floor(d2.getTime() / 60000);\n    case 'second': return Math.floor(d1.getTime() / 1000) === Math.floor(d2.getTime() / 1000);\n    default: return d1.toDateString() === d2.toDateString();\n  }\n}"
+        }
+      },
+      {
+        "name": "LAST_MODIFIED_TIME",
+        "category": "date",
+        "description": "Returns the date and time of the most recent modification",
+        "syntax": "LAST_MODIFIED_TIME([field])",
+        "parameters": [],
+        "return_type": "datetime",
+        "examples": [],
+        "implementation": {
+          "js": "// Note: This would need to be provided by the execution context\nfunction LAST_MODIFIED_TIME(field) {\n  return new Date();\n}"
+        }
+      },
+      {
+        "name": "MINUTE",
+        "category": "date",
+        "description": "Returns the minute as an integer between 0-59",
+        "syntax": "MINUTE(datetime)",
+        "parameters": [
+          {
+            "name": "datetime",
+            "type": "datetime",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function MINUTE(datetime) {\n  return new Date(datetime).getMinutes();\n}"
+        }
+      },
+      {
+        "name": "MONTH",
+        "category": "date",
+        "description": "Returns the month as a number between 1-12",
+        "syntax": "MONTH(date)",
+        "parameters": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function MONTH(date) {\n  return new Date(date).getMonth() + 1;\n}"
+        }
+      },
+      {
+        "name": "NOW",
+        "category": "date",
+        "description": "Returns the current date and time",
+        "syntax": "NOW()",
+        "parameters": [],
+        "return_type": "datetime",
+        "examples": [],
+        "implementation": {
+          "js": "function NOW() {\n  return new Date();\n}"
+        }
+      },
+      {
+        "name": "SECOND",
+        "category": "date",
+        "description": "Returns the second as an integer between 0-59",
+        "syntax": "SECOND(datetime)",
+        "parameters": [
+          {
+            "name": "datetime",
+            "type": "datetime",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function SECOND(datetime) {\n  return new Date(datetime).getSeconds();\n}"
+        }
+      },
+      {
+        "name": "SET_LOCALE",
+        "category": "date",
+        "description": "Sets a specific locale for a datetime",
+        "syntax": "SET_LOCALE(date, locale)",
+        "parameters": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "locale",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "return_type": "datetime",
+        "examples": [],
+        "implementation": {
+          "js": "function SET_LOCALE(date, locale) {\n  // Return date with locale metadata attached\n  const d = new Date(date);\n  d._locale = locale;\n  return d;\n}"
+        }
+      },
+      {
+        "name": "SET_TIMEZONE",
+        "category": "date",
+        "description": "Sets a specific timezone for a datetime",
+        "syntax": "SET_TIMEZONE(date, timezone)",
+        "parameters": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "timezone",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "return_type": "datetime",
+        "examples": [],
+        "implementation": {
+          "js": "function SET_TIMEZONE(date, timezone) {\n  // Return date with timezone metadata attached\n  const d = new Date(date);\n  d._timezone = timezone;\n  return d;\n}"
+        }
+      },
+      {
+        "name": "TIMESTR",
+        "category": "date",
+        "description": "Formats a datetime into a time-only string",
+        "syntax": "TIMESTR(datetime)",
+        "parameters": [
+          {
+            "name": "datetime",
+            "type": "datetime",
+            "required": true
+          }
+        ],
+        "return_type": "string",
+        "examples": [],
+        "implementation": {
+          "js": "function TIMESTR(datetime) {\n  const d = new Date(datetime);\n  const hours = String(d.getHours()).padStart(2, '0');\n  const minutes = String(d.getMinutes()).padStart(2, '0');\n  const seconds = String(d.getSeconds()).padStart(2, '0');\n  return `${hours}:${minutes}:${seconds}`;\n}"
+        }
+      },
+      {
+        "name": "TONOW",
+        "category": "date",
+        "description": "Calculates the number of days between the current date and another date",
+        "syntax": "TONOW(date)",
+        "parameters": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "required": true
+          }
+        ],
+        "return_type": "duration",
+        "examples": [],
+        "implementation": {
+          "js": "function TONOW(date) {\n  return DATETIME_DIFF(new Date(), date, 'days');\n}"
+        }
+      },
+      {
+        "name": "TODAY",
+        "category": "date",
+        "description": "Returns the current date",
+        "syntax": "TODAY()",
+        "parameters": [],
+        "return_type": "datetime",
+        "examples": [],
+        "implementation": {
+          "js": "function TODAY() {\n  const d = new Date();\n  d.setHours(0, 0, 0, 0);\n  return d;\n}"
+        }
+      },
+      {
+        "name": "WEEKDAY",
+        "category": "date",
+        "description": "Returns the day of the week as an integer between 0-6",
+        "syntax": "WEEKDAY(date, [startDay])",
+        "parameters": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "startDay",
+            "type": "string",
+            "required": false,
+            "default": "Sunday"
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function WEEKDAY(date, startDay = 'Sunday') {\n  const day = new Date(date).getDay(); // 0 = Sunday\n  if (startDay.toLowerCase() === 'monday') {\n    return day === 0 ? 6 : day - 1;\n  }\n  return day;\n}"
+        }
+      },
+      {
+        "name": "WEEKNUM",
+        "category": "date",
+        "description": "Returns the week number in a year",
+        "syntax": "WEEKNUM(date, [startDay])",
+        "parameters": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function WEEKNUM(date, startDay = 'Sunday') {\n  const d = new Date(date);\n  const yearStart = new Date(d.getFullYear(), 0, 1);\n  const dayOffset = startDay.toLowerCase() === 'monday' ? 1 : 0;\n  \n  // Adjust for week start day\n  const dayOfYear = Math.floor((d - yearStart) / (24 * 60 * 60 * 1000));\n  return Math.ceil((dayOfYear + yearStart.getDay() - dayOffset + 1) / 7);\n}"
+        }
+      },
+      {
+        "name": "WORKDAY",
+        "category": "date",
+        "description": "Returns a date that is numDays working days after startDate",
+        "syntax": "WORKDAY(startDate, numDays, [holidays])",
+        "parameters": [
+          {
+            "name": "startDate",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "numDays",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "holidays",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "return_type": "datetime",
+        "examples": [],
+        "implementation": {
+          "js": "function WORKDAY(startDate, numDays, holidays = '') {\n  const holidayDates = holidays ? holidays.split(',').map(h => new Date(h.trim()).toDateString()) : [];\n  const d = new Date(startDate);\n  let daysAdded = 0;\n  \n  while (daysAdded < numDays) {\n    d.setDate(d.getDate() + 1);\n    const dayOfWeek = d.getDay();\n    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;\n    const isHoliday = holidayDates.includes(d.toDateString());\n    \n    if (!isWeekend && !isHoliday) {\n      daysAdded++;\n    }\n  }\n  \n  return d;\n}"
+        }
+      },
+      {
+        "name": "WORKDAY_DIFF",
+        "category": "date",
+        "description": "Counts the number of working days between startDate and endDate",
+        "syntax": "WORKDAY_DIFF(startDate, endDate, [holidays])",
+        "parameters": [
+          {
+            "name": "startDate",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "endDate",
+            "type": "datetime",
+            "required": true
+          },
+          {
+            "name": "holidays",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function WORKDAY_DIFF(startDate, endDate, holidays = '') {\n  const holidayDates = holidays ? holidays.split(',').map(h => new Date(h.trim()).toDateString()) : [];\n  const start = new Date(startDate);\n  const end = new Date(endDate);\n  let workdays = 0;\n  \n  const current = new Date(start);\n  while (current <= end) {\n    const dayOfWeek = current.getDay();\n    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;\n    const isHoliday = holidayDates.includes(current.toDateString());\n    \n    if (!isWeekend && !isHoliday) {\n      workdays++;\n    }\n    \n    current.setDate(current.getDate() + 1);\n  }\n  \n  return workdays;\n}"
+        }
+      },
+      {
+        "name": "YEAR",
+        "category": "date",
+        "description": "Returns the four-digit year of a datetime",
+        "syntax": "YEAR(date)",
+        "parameters": [
+          {
+            "name": "date",
+            "type": "datetime",
+            "required": true
+          }
+        ],
+        "return_type": "number",
+        "examples": [],
+        "implementation": {
+          "js": "function YEAR(date) {\n  return new Date(date).getFullYear();\n}"
+        }
+      }
+    ],
+    "array": [
+      {
+        "name": "ARRAYCOMPACT",
+        "category": "array",
+        "description": "Removes empty strings and null values from the array",
+        "syntax": "ARRAYCOMPACT(array)",
+        "parameters": [
+          {
+            "name": "array",
+            "type": "array",
+            "required": true
+          }
+        ],
+        "return_type": "array",
+        "examples": [],
+        "implementation": {
+          "js": "function ARRAYCOMPACT(array) {\n  if (!Array.isArray(array)) return [];\n  return array.filter(item => item !== null && item !== undefined && item !== '');\n}"
+        }
+      },
+      {
+        "name": "ARRAYFLATTEN",
+        "category": "array",
+        "description": "Flattens the array by removing any array nesting",
+        "syntax": "ARRAYFLATTEN(array)",
+        "parameters": [
+          {
+            "name": "array",
+            "type": "array",
+            "required": true
+          }
+        ],
+        "return_type": "array",
+        "examples": [],
+        "implementation": {
+          "js": "function ARRAYFLATTEN(array) {\n  if (!Array.isArray(array)) return [];\n  return array.flat(Infinity);\n}"
+        }
+      },
+      {
+        "name": "ARRAYUNIQUE",
+        "category": "array",
+        "description": "Returns only unique items in the array",
+        "syntax": "ARRAYUNIQUE(array)",
+        "parameters": [
+          {
+            "name": "array",
+            "type": "array",
+            "required": true
+          }
+        ],
+        "return_type": "array",
+        "examples": [],
+        "implementation": {
+          "js": "function ARRAYUNIQUE(array) {\n  if (!Array.isArray(array)) return [];\n  return [...new Set(array)];\n}"
+        }
+      },
+      {
+        "name": "ARRAYSLICE",
+        "category": "array",
+        "description": "Returns a subset of the array from the first index number",
+        "syntax": "ARRAYSLICE(array, startIndex, [endIndex])",
+        "parameters": [
+          {
+            "name": "array",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "startIndex",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "endIndex",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "return_type": "array",
+        "examples": [],
+        "implementation": {
+          "js": "function ARRAYSLICE(array, startIndex, endIndex) {\n  if (!Array.isArray(array)) return [];\n  // Convert from 1-indexed to 0-indexed\n  const start = startIndex - 1;\n  const end = endIndex ? endIndex : undefined;\n  return array.slice(start, end);\n}"
+        }
+      }
+    ],
+    "record": [
+      {
+        "name": "RECORD_ID",
+        "category": "record",
+        "description": "Returns the ID of the current record",
+        "syntax": "RECORD_ID()",
+        "parameters": [],
+        "return_type": "string",
+        "examples": [],
+        "implementation": {
+          "js": "// Note: This would need to be provided by the execution context\nfunction RECORD_ID() {\n  return 'rec' + Math.random().toString(36).substr(2, 9);\n}"
+        }
+      }
+    ],
+    "regex": [
+      {
+        "name": "REGEX_MATCH",
+        "category": "regex",
+        "description": "Returns whether the input text matches a regular expression",
+        "syntax": "REGEX_MATCH(text, regex)",
+        "parameters": [
+          {
+            "name": "text",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "regex",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "return_type": "boolean",
+        "examples": [],
+        "implementation": {
+          "js": "function REGEX_MATCH(text, regex) {\n  const re = new RegExp(regex);\n  return re.test(String(text));\n}"
+        }
+      },
+      {
+        "name": "REGEX_EXTRACT",
+        "category": "regex",
+        "description": "Returns the first substring that matches a regular expression",
+        "syntax": "REGEX_EXTRACT(text, regex)",
+        "parameters": [
+          {
+            "name": "text",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "regex",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "return_type": "string",
+        "examples": [],
+        "implementation": {
+          "js": "function REGEX_EXTRACT(text, regex) {\n  const re = new RegExp(regex);\n  const match = String(text).match(re);\n  return match ? match[0] : '';\n}"
+        }
+      },
+      {
+        "name": "REGEX_REPLACE",
+        "category": "regex",
+        "description": "Substitutes all matching substrings with a replacement string value",
+        "syntax": "REGEX_REPLACE(text, regex, replacement)",
+        "parameters": [
+          {
+            "name": "text",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "regex",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "replacement",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "return_type": "string",
+        "examples": [],
+        "implementation": {
+          "js": "function REGEX_REPLACE(text, regex, replacement) {\n  const re = new RegExp(regex, 'g');\n  return String(text).replace(re, replacement);\n}"
+        }
+      }
+    ]
+  }
+}
