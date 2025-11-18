@@ -108,6 +108,7 @@
         .column-header[data-type="SINGLE_SELECT"] { border-top: 3px solid #f59e0b; }
         .column-header[data-type="CHECKBOX"] { border-top: 3px solid #8b5cf6; }
         .column-header[data-type="LINK_TO_RECORD"] { border-top: 3px solid #06b6d4; }
+        .column-header[data-type="LOOKUP"] { border-top: 3px solid #a855f7; }
         
         tr:hover {
             background-color: #fafafa;
@@ -406,6 +407,152 @@
             background-repeat: no-repeat;
             background-position: right 12px center;
             padding-right: 36px;
+        }
+        
+        /* Field type picker */
+        .field-type-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .field-type-option {
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: white;
+        }
+        
+        .field-type-option:hover {
+            border-color: #3b82f6;
+            background: #f0f9ff;
+        }
+        
+        .field-type-option.selected {
+            border-color: #3b82f6;
+            background: #dbeafe;
+        }
+        
+        .field-type-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f3f4f6;
+            border-radius: 6px;
+            flex-shrink: 0;
+        }
+        
+        .field-type-option.selected .field-type-icon {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        /* Tabs in expanded record */
+        .record-tabs {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb;
+            gap: 0;
+        }
+        
+        .record-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-weight: 500;
+            font-size: 14px;
+            color: #6b7280;
+            transition: all 0.15s ease;
+        }
+        
+        .record-tab:hover {
+            color: #374151;
+            background: #f9fafb;
+        }
+        
+        .record-tab.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+        
+        /* Field type selector - styled like Airtable */
+        .field-type-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .field-type-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background: white;
+        }
+        
+        .field-type-option:hover {
+            border-color: #3b82f6;
+            background: #f0f9ff;
+        }
+        
+        .field-type-option.selected {
+            border-color: #3b82f6;
+            background: #dbeafe;
+        }
+        
+        .field-type-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+        }
+        
+        .field-type-option.selected .field-type-icon {
+            color: #2563eb;
+        }
+        
+        /* Tabs for expanded record */
+        .record-tabs {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0 24px;
+            background: #fafafa;
+        }
+        
+        .record-tab {
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: all 0.15s ease;
+        }
+        
+        .record-tab:hover {
+            color: #374151;
+        }
+        
+        .record-tab.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
         }
         
         /* ============================================================================
@@ -728,7 +875,25 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 h-full">
                     <div class="md:col-span-2 p-6 overflow-y-auto border-r border-gray-200" id="expandedRecordMain">
                     </div>
-                    <div class="overflow-y-auto bg-gray-50" id="expandedRecordSidebar">
+                    <div class="overflow-hidden bg-gray-50 flex flex-col">
+                        <!-- Tabs -->
+                        <div class="record-tabs px-6 pt-4 flex-shrink-0">
+                            <div class="record-tab active" data-tab="history" onclick="switchRecordTab('history')">
+                                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                History
+                            </div>
+                            <div class="record-tab" data-tab="relationships" onclick="switchRecordTab('relationships')">
+                                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                                Relationships
+                            </div>
+                        </div>
+                        <!-- Tab content -->
+                        <div class="flex-1 overflow-y-auto p-6" id="expandedRecordSidebar">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -760,7 +925,7 @@
 
     <!-- Add/Edit Field Modal - Airtable Style -->
     <div id="addFieldModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50" role="dialog" aria-modal="true">
-        <div class="modal-container bg-white w-full max-w-lg">
+        <div class="modal-container bg-white w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <div class="modal-header flex items-center justify-between">
                 <div>
                     <h2 class="text-xl font-bold text-gray-900" id="fieldModalTitle">Add Field</h2>
@@ -772,34 +937,47 @@
                     </svg>
                 </button>
             </div>
-            <div class="modal-body space-y-5">
+            <div class="flex-1 overflow-y-auto modal-body space-y-5">
                 <div>
                     <label class="form-label" for="newFieldName">Field Name</label>
                     <input type="text" id="newFieldName" placeholder="e.g., Status, Amount, Contact Person" autofocus>
                     <p class="form-hint">A descriptive name for your field</p>
                 </div>
                 <div>
-                    <label class="form-label" for="newFieldType">Field Type</label>
-                    <select id="newFieldType">
-                        <option value="TEXT">Single line text</option>
-                        <option value="LONG_TEXT">Long text</option>
-                        <option value="NUMBER">Number</option>
-                        <option value="CURRENCY">Currency</option>
-                        <option value="DATE">Date</option>
-                        <option value="EMAIL">Email</option>
-                        <option value="URL">URL</option>
-                        <option value="PHONE">Phone number</option>
-                        <option value="SINGLE_SELECT">Single select</option>
-                        <option value="CHECKBOX">Checkbox</option>
-                        <option value="LINK_TO_RECORD">Link to another record</option>
-                    </select>
+                    <label class="form-label">Field Type</label>
+                    <div class="field-type-grid" id="fieldTypeGrid">
+                        <!-- Field types will be rendered here -->
+                    </div>
+                    <input type="hidden" id="newFieldType" value="TEXT">
                 </div>
+                
+                <!-- Link to Record Config -->
                 <div id="linkToRecordConfig" class="config-section">
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <label class="form-label" for="linkToTable">Link to Table</label>
                         <select id="linkToTable">
                         </select>
                         <p class="form-hint">Select which table to link to</p>
+                    </div>
+                </div>
+                
+                <!-- Lookup Config -->
+                <div id="lookupConfig" class="config-section">
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-4">
+                        <div>
+                            <label class="form-label" for="lookupLinkField">From Link Field</label>
+                            <select id="lookupLinkField">
+                                <option value="">Select a link field...</option>
+                            </select>
+                            <p class="form-hint">Choose a link field from this table</p>
+                        </div>
+                        <div>
+                            <label class="form-label" for="lookupTargetField">Lookup Field</label>
+                            <select id="lookupTargetField">
+                                <option value="">Select a field to lookup...</option>
+                            </select>
+                            <p class="form-hint">Choose which field to display from linked records</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1042,6 +1220,48 @@
                     targetTable: null,
                     displayField: 'name',
                     allowMultiple: true
+                }
+            },
+            LOOKUP: {
+                id: 'LOOKUP',
+                name: 'Lookup',
+                icon: 'search',
+                defaultValue: null,
+                render: (value, config = {}, currentRecord) => {
+                    // Lookup doesn't store data - it computes on the fly
+                    if (!config.linkField || !config.lookupField) return '';
+                    
+                    const table = state.tables.get(state.currentTableId);
+                    const linkFieldDef = table.schema.find(f => f.id === config.linkField);
+                    if (!linkFieldDef || linkFieldDef.type !== 'LINK_TO_RECORD') return '';
+                    
+                    const linkedIds = currentRecord[config.linkField];
+                    if (!linkedIds || linkedIds.length === 0) return '';
+                    
+                    const targetTableId = linkFieldDef.config.targetTable;
+                    const targetTable = state.tables.get(targetTableId);
+                    if (!targetTable) return '';
+                    
+                    // Get values from linked records
+                    const values = linkedIds.map(linkedId => {
+                        const linkedRecord = targetTable.records.get(linkedId);
+                        if (!linkedRecord) return null;
+                        return linkedRecord[config.lookupField];
+                    }).filter(v => v !== null && v !== undefined && v !== '');
+                    
+                    if (values.length === 0) return '';
+                    
+                    // Render based on the target field type
+                    const targetField = targetTable.schema.find(f => f.id === config.lookupField);
+                    if (!targetField) return values.join(', ');
+                    
+                    const targetFieldType = FIELD_TYPES[targetField.type];
+                    return values.map(v => targetFieldType.render(v, targetField.config)).join(', ');
+                },
+                needsConfig: true,
+                defaultConfig: {
+                    linkField: null,
+                    lookupField: null
                 }
             }
         };
@@ -2120,10 +2340,123 @@
         // EXPANDED RECORD VIEW
         // ============================================================================
         
+        let currentRecordTab = 'history';
+        
+        function switchRecordTab(tabName) {
+            currentRecordTab = tabName;
+            
+            // Update tab visual state
+            document.querySelectorAll('.record-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`.record-tab[data-tab="${tabName}"]`).classList.add('active');
+            
+            // Render appropriate content
+            const recordId = document.getElementById('expandedRecordSidebar').dataset.recordId;
+            renderRecordSidebarContent(recordId);
+        }
+        
+        function renderRecordSidebarContent(recordId) {
+            const sidebarContent = document.getElementById('expandedRecordSidebar');
+            sidebarContent.dataset.recordId = recordId;
+            
+            if (currentRecordTab === 'history') {
+                const history = getRecordHistory(recordId);
+                sidebarContent.innerHTML = `
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-semibold text-gray-700 uppercase">Change History</h3>
+                        <span class="badge badge-blue">${history.length}</span>
+                    </div>
+                    ${history.length === 0 ? `
+                        <div class="text-center py-8">
+                            <div class="text-4xl mb-2 opacity-50">📝</div>
+                            <p class="text-sm text-gray-500">No changes yet</p>
+                        </div>
+                    ` : `
+                        <div class="space-y-2">
+                            ${history.map(event => renderCompactHistoryEntry(event)).join('')}
+                        </div>
+                    `}
+                `;
+            } else if (currentRecordTab === 'relationships') {
+                const relationships = getRecordRelationships(recordId);
+                sidebarContent.innerHTML = `
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-semibold text-gray-700 uppercase">Relationships</h3>
+                        <span class="badge badge-cyan">${relationships.length}</span>
+                    </div>
+                    ${relationships.length === 0 ? `
+                        <div class="text-center py-8">
+                            <div class="text-4xl mb-2 opacity-50">🔗</div>
+                            <p class="text-sm text-gray-500 mb-4">No relationships yet</p>
+                            <button onclick="openRelationshipEditor('${recordId}')" class="btn btn-secondary btn-sm">
+                                + Add Relationship
+                            </button>
+                        </div>
+                    ` : `
+                        <div class="space-y-2 mb-4">
+                            ${relationships.map(rel => renderRelationshipCard(rel)).join('')}
+                        </div>
+                        <button onclick="openRelationshipEditor('${recordId}')" class="btn btn-secondary w-full text-sm">
+                            + Add Relationship
+                        </button>
+                    `}
+                `;
+            }
+            
+            initIcons();
+        }
+        
+        function getRecordRelationships(recordId) {
+            return state.eventStream.filter(e => 
+                e.type === 'Add' && 
+                e.object && 
+                e.object.target &&
+                (e.object.id === recordId || e.object.target.id === recordId)
+            );
+        }
+        
+        function renderRelationshipCard(event) {
+            const rel = event.object;
+            const props = rel.relationshipProperties || {};
+            const hasProps = Object.keys(props).length > 0;
+            
+            return `
+                <div class="relationship-card">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="font-medium text-sm">${rel.name || rel.id}</span>
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                                </svg>
+                                <span class="font-medium text-sm">${rel.target.name || rel.target.id}</span>
+                            </div>
+                            <span class="badge badge-blue text-xs">${rel.relationship}</span>
+                            ${hasProps ? `
+                                <div class="text-xs text-gray-600 space-y-1 mt-2 pl-4 border-l-2 border-gray-200">
+                                    ${Object.entries(props).map(([key, value]) => `
+                                        <div class="flex gap-2">
+                                            <span class="font-medium">${formatPropertyName(key)}:</span>
+                                            <span>${formatPropertyValue(value)}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                        <button onclick="restoreFromHistory('${event.id}')" class="text-red-600 hover:text-red-800 transition ml-4 text-xs">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
         function openExpandedRecord(recordId, focusFieldId = null) {
             const table = getCurrentTable();
             const record = table.records.get(recordId);
-            const history = getRecordHistory(recordId);
+            
+            currentRecordTab = 'history'; // Reset to history tab
             
             document.getElementById('expandedRecordTitle').textContent = record.name || recordId;
             
@@ -2151,33 +2484,7 @@
                 </div>
             `;
             
-            const sidebarContent = document.getElementById('expandedRecordSidebar');
-            sidebarContent.innerHTML = `
-                <div class="p-6">
-                    <div class="mb-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-sm font-semibold text-gray-700 uppercase">History</h3>
-                            <span class="badge badge-blue">${history.length}</span>
-                        </div>
-                        ${history.length === 0 ? `
-                            <p class="text-sm text-gray-500">No changes yet</p>
-                        ` : `
-                            <div class="space-y-2 max-h-96 overflow-y-auto">
-                                ${history.map(event => renderCompactHistoryEntry(event)).join('')}
-                            </div>
-                        `}
-                    </div>
-                    
-                    <div class="border-t pt-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-sm font-semibold text-gray-700 uppercase">Relationships</h3>
-                        </div>
-                        <button onclick="openRelationshipEditor('${recordId}')" class="btn btn-secondary w-full text-sm">
-                            + Add Relationship
-                        </button>
-                    </div>
-                </div>
-            `;
+            renderRecordSidebarContent(recordId);
             
             openModal('expandedRecordModal');
             initIcons();
@@ -2546,24 +2853,108 @@
         // ADD/EDIT FIELD - IMPROVED
         // ============================================================================
         
+        function renderFieldTypeGrid(selectedType = 'TEXT') {
+            const grid = document.getElementById('fieldTypeGrid');
+            grid.innerHTML = '';
+            
+            Object.values(FIELD_TYPES).forEach(fieldType => {
+                const option = document.createElement('div');
+                option.className = `field-type-option ${fieldType.id === selectedType ? 'selected' : ''}`;
+                option.onclick = () => selectFieldType(fieldType.id);
+                
+                option.innerHTML = `
+                    <div class="field-type-icon">
+                        <i data-lucide="${fieldType.icon}" class="w-4 h-4"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">${fieldType.name}</div>
+                    </div>
+                `;
+                
+                grid.appendChild(option);
+            });
+            
+            initIcons();
+        }
+        
+        function selectFieldType(typeId) {
+            document.getElementById('newFieldType').value = typeId;
+            
+            // Update visual selection
+            document.querySelectorAll('.field-type-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            
+            updateFieldTypeConfig();
+        }
+        
         function openAddFieldModal() {
             state.editingFieldId = null;
             document.getElementById('fieldModalTitle').textContent = 'Add Field';
             document.getElementById('saveAddFieldBtn').textContent = 'Add Field';
             document.getElementById('newFieldName').value = '';
-            document.getElementById('newFieldType').value = 'TEXT';
             
-            const select = document.getElementById('linkToTable');
-            select.innerHTML = '';
+            renderFieldTypeGrid('TEXT');
+            
+            // Populate link to table dropdown
+            const linkSelect = document.getElementById('linkToTable');
+            linkSelect.innerHTML = '';
             state.tables.forEach((table, tableId) => {
                 if (tableId !== state.currentTableId) {
-                    select.innerHTML += `<option value="${tableId}">${table.name}</option>`;
+                    linkSelect.innerHTML += `<option value="${tableId}">${table.name}</option>`;
                 }
             });
+            
+            // Populate lookup field dropdowns
+            populateLookupDropdowns();
             
             updateFieldTypeConfig();
             openModal('addFieldModal');
             setTimeout(() => document.getElementById('newFieldName').focus(), 100);
+        }
+        
+        function populateLookupDropdowns() {
+            const table = getCurrentTable();
+            if (!table) return;
+            
+            // Populate link field dropdown (only show LINK_TO_RECORD fields)
+            const linkFieldSelect = document.getElementById('lookupLinkField');
+            linkFieldSelect.innerHTML = '<option value="">Select a link field...</option>';
+            
+            table.schema.forEach(field => {
+                if (field.type === 'LINK_TO_RECORD') {
+                    linkFieldSelect.innerHTML += `<option value="${field.id}">${field.name}</option>`;
+                }
+            });
+            
+            // When link field changes, update target field options
+            linkFieldSelect.onchange = updateLookupTargetFields;
+        }
+        
+        function updateLookupTargetFields() {
+            const linkFieldId = document.getElementById('lookupLinkField').value;
+            const targetFieldSelect = document.getElementById('lookupTargetField');
+            
+            if (!linkFieldId) {
+                targetFieldSelect.innerHTML = '<option value="">Select a field to lookup...</option>';
+                return;
+            }
+            
+            const table = getCurrentTable();
+            const linkField = table.schema.find(f => f.id === linkFieldId);
+            if (!linkField || !linkField.config.targetTable) return;
+            
+            const targetTable = state.tables.get(linkField.config.targetTable);
+            if (!targetTable) return;
+            
+            targetFieldSelect.innerHTML = '<option value="">Select a field to lookup...</option>';
+            targetTable.schema.forEach(field => {
+                // Don't allow lookup of lookup fields (could cause circular references)
+                if (field.type !== 'LOOKUP' && field.type !== 'LINK_TO_RECORD') {
+                    targetFieldSelect.innerHTML += `<option value="${field.id}">${field.name}</option>`;
+                }
+            });
         }
 
         function editField(fieldId) {
@@ -2575,16 +2966,32 @@
             document.getElementById('fieldModalTitle').textContent = 'Edit Field';
             document.getElementById('saveAddFieldBtn').textContent = 'Save Changes';
             document.getElementById('newFieldName').value = field.name;
-            document.getElementById('newFieldType').value = field.type;
             
-            const select = document.getElementById('linkToTable');
-            select.innerHTML = '';
+            renderFieldTypeGrid(field.type);
+            
+            const linkSelect = document.getElementById('linkToTable');
+            linkSelect.innerHTML = '';
             state.tables.forEach((table, tableId) => {
                 if (tableId !== state.currentTableId) {
                     const selected = field.config?.targetTable === tableId ? 'selected' : '';
-                    select.innerHTML += `<option value="${tableId}" ${selected}>${table.name}</option>`;
+                    linkSelect.innerHTML += `<option value="${tableId}" ${selected}>${table.name}</option>`;
                 }
             });
+            
+            populateLookupDropdowns();
+            
+            // If editing a lookup field, set the values
+            if (field.type === 'LOOKUP' && field.config) {
+                if (field.config.linkField) {
+                    document.getElementById('lookupLinkField').value = field.config.linkField;
+                    updateLookupTargetFields();
+                    if (field.config.lookupField) {
+                        setTimeout(() => {
+                            document.getElementById('lookupTargetField').value = field.config.lookupField;
+                        }, 50);
+                    }
+                }
+            }
             
             updateFieldTypeConfig();
             openModal('addFieldModal');
@@ -2593,12 +3000,18 @@
 
         function updateFieldTypeConfig() {
             const fieldType = document.getElementById('newFieldType').value;
-            const configSection = document.getElementById('linkToRecordConfig');
+            const linkConfigSection = document.getElementById('linkToRecordConfig');
+            const lookupConfigSection = document.getElementById('lookupConfig');
             
+            // Hide all config sections first
+            linkConfigSection.classList.remove('visible');
+            lookupConfigSection.classList.remove('visible');
+            
+            // Show appropriate config section
             if (fieldType === 'LINK_TO_RECORD') {
-                configSection.classList.add('visible');
-            } else {
-                configSection.classList.remove('visible');
+                linkConfigSection.classList.add('visible');
+            } else if (fieldType === 'LOOKUP') {
+                lookupConfigSection.classList.add('visible');
             }
         }
 
@@ -2631,6 +3044,17 @@
                         targetTable: targetTable,
                         displayField: 'name',
                         allowMultiple: true
+                    };
+                } else if (type === 'LOOKUP') {
+                    const linkField = document.getElementById('lookupLinkField').value;
+                    const lookupField = document.getElementById('lookupTargetField').value;
+                    if (!linkField || !lookupField) {
+                        alert('Please select both a link field and a field to lookup');
+                        return;
+                    }
+                    field.config = {
+                        linkField: linkField,
+                        lookupField: lookupField
                     };
                 } else {
                     const fieldType = FIELD_TYPES[type];
@@ -2678,16 +3102,30 @@
                         displayField: 'name',
                         allowMultiple: true
                     };
+                } else if (type === 'LOOKUP') {
+                    const linkField = document.getElementById('lookupLinkField').value;
+                    const lookupField = document.getElementById('lookupTargetField').value;
+                    if (!linkField || !lookupField) {
+                        alert('Please select both a link field and a field to lookup');
+                        return;
+                    }
+                    newField.config = {
+                        linkField: linkField,
+                        lookupField: lookupField
+                    };
                 } else if (fieldType.needsConfig) {
                     newField.config = fieldType.defaultConfig;
                 }
                 
                 table.schema.push(newField);
                 
+                // Add default values to existing records (LOOKUP fields don't store data)
                 const oldSuppressState = state.suppressEvents;
                 state.suppressEvents = true;
                 table.records.forEach(record => {
-                    record[fieldId] = fieldType.defaultValue;
+                    if (type !== 'LOOKUP') {
+                        record[fieldId] = fieldType.defaultValue;
+                    }
                 });
                 state.suppressEvents = oldSuppressState;
                 
@@ -2890,6 +3328,22 @@
         // UTILITIES
         // ============================================================================
         
+        function formatPropertyName(key) {
+            return key
+                .replace(/([A-Z])/g, ' $1')
+                .replace(/_/g, ' ')
+                .replace(/^./, str => str.toUpperCase());
+        }
+
+        function formatPropertyValue(value) {
+            if (typeof value === 'boolean') return value ? '✓ Yes' : '✗ No';
+            if (typeof value === 'number' && value > 1000) return `$${value.toLocaleString()}`;
+            if (value && typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+                return new Date(value).toLocaleDateString();
+            }
+            return value;
+        }
+        
         function showToast(message) {
             const toast = document.createElement('div');
             toast.className = 'toast';
@@ -2986,8 +3440,6 @@
             document.getElementById('closeAddFieldBtn').addEventListener('click', () => closeModal('addFieldModal'));
             document.getElementById('cancelAddFieldBtn').addEventListener('click', () => closeModal('addFieldModal'));
             document.getElementById('saveAddFieldBtn').addEventListener('click', saveNewField);
-            
-            document.getElementById('newFieldType').addEventListener('change', updateFieldTypeConfig);
             
             document.getElementById('historySearch').addEventListener('input', (e) => {
                 state.historySearch = e.target.value;
