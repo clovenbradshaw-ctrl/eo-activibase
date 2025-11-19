@@ -882,6 +882,8 @@
             eventStream: [],
             eventIdCounter: 1,
             currentUser: { type: 'Person', id: 'user_1', name: 'User' },
+            operatorSet: {},
+            interpretationRules: [],
             sidebarCollapsed: false,
             modalStack: [],
             currentRecordTab: 'history',
@@ -904,13 +906,51 @@
             CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: '☑️' }
         };
 
+        const EO_OPERATOR_SET = {
+            INS: { id: 'INS', name: 'Instantiate', description: 'Create a new object that did not exist before.' },
+            DES: { id: 'DES', name: 'Designate', description: 'Assign a name, ID, label, alias, or classification.' },
+            SEG: { id: 'SEG', name: 'Segment', description: 'Change boundaries, structure, or partition membership.' },
+            CON: { id: 'CON', name: 'Connect', description: 'Create or remove a connection between objects.' },
+            ALT: { id: 'ALT', name: 'Alternate', description: 'Toggle or switch between mutually exclusive states.' },
+            SYN: { id: 'SYN', name: 'Synthesize', description: 'Combine two or more objects into a new unified whole.' },
+            SUP: { id: 'SUP', name: 'Superposition', description: 'Hold contradictory states as simultaneously true without resolving them.' },
+            REC: { id: 'REC', name: 'Recurse', description: 'Introduce a new layer of logic, rules, or self-reference.' },
+            NUL: { id: 'NUL', name: 'Nullify', description: 'Declare absence, deletion, or erasure.' }
+        };
+
         // INITIALIZATION
         function initializeApp() {
+            state.operatorSet = EO_OPERATOR_SET;
+            initializeOperatorRules();
             createSampleData();
             renderSidebar();
             if (state.currentSetId) switchSet(state.currentSetId, state.currentViewId);
             setupEventListeners();
             setupKeyboardShortcuts();
+        }
+
+        function initializeOperatorRules() {
+            const defaultRules = [
+                {
+                    rule_id: 'rule_ins_requires_object',
+                    applies_to_op: 'INS',
+                    description: 'Instantiation must target an identifiable object.',
+                    effect: 'require_object_id'
+                },
+                {
+                    rule_id: 'rule_events_require_actor',
+                    description: 'All events must be attributable to an actor.',
+                    effect: 'require_actor'
+                },
+                {
+                    rule_id: 'rule_nullify_marks_deleted',
+                    applies_to_op: 'NUL',
+                    description: 'Nullify operations explicitly mark the object as deleted in the payload.',
+                    effect: 'mark_deleted'
+                }
+            ];
+
+            defaultRules.forEach(rule => registerInterpretationRule(rule, { skipEvent: true }));
         }
 
         function createSampleData() {
@@ -984,7 +1024,13 @@
                 views: new Map(),
                 profiles: new Map([['default', { id: 'default', name: 'All Fields', visibleFields: [] }]])
             });
-            createEvent('Create', { type: 'Set', id: setId, name: name }, `Created set "${name}"`);
+            createEvent(
+                'Create Set',
+                'INS',
+                { type: 'Set', id: setId },
+                { name },
+                { summary: `Created set "${name}"`, scale: 'collection' }
+            );
             return setId;
         }
 
@@ -1008,7 +1054,12 @@
             const recordId = 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             const record = { id: recordId, ...data };
             set.records.set(recordId, record);
-            createEvent('Create', { type: 'Record', setId, recordId, data }, `Created record`);
+            createEvent(
+                'Create Record',
+                'INS',
+                { type: 'Record', id: recordId, setId },
+                { setId, recordId, data, summary: 'Created record' }
+            );
             return recordId;
         }
 
@@ -1529,15 +1580,20 @@
             const record = set.records.get(recordId);
             const field = set.schema.find(f => f.id === fieldId);
             record[fieldId] = newValue;
-            createEvent('Update', {
-                type: 'CellEdit',
-                setId: set.id,
-                recordId: recordId,
-                fieldId: fieldId,
-                fieldName: field.name,
-                oldValue: oldValue,
-                newValue: newValue
-            }, `Updated ${field.name}`);
+            createEvent(
+                'Update Cell',
+                'SEG',
+                { type: 'Record', id: recordId, setId: set.id },
+                {
+                    fieldId: fieldId,
+                    fieldName: field.name,
+                    oldValue: oldValue,
+                    newValue: newValue,
+                    setId: set.id,
+                    recordId: recordId,
+                    summary: `Updated ${field.name}`
+                }
+            );
             renderCurrentView();
             showToast(`✓ Updated ${field.name}`);
         }
@@ -1836,17 +1892,17 @@
 
         function renderRecordSidebar(recordId) {
             const container = document.getElementById('expandedRecordSidebar');
-            const history = state.eventStream.filter(e => e.object?.recordId === recordId && e.type === 'Update');
+            const history = state.eventStream.filter(e => e.object?.id === recordId && e.op === 'SEG');
             container.innerHTML = `
                 <h3 class="font-semibold mb-4">Change History</h3>
                 ${history.length === 0 ? '<p class="text-gray-500">No changes yet</p>' : ''}
                 ${history.map(e => `
                     <div class="history-entry">
-                        <div class="font-medium">${e.object.fieldName}</div>
+                        <div class="font-medium">${e.data?.fieldName || 'Field change'}</div>
                         <div class="text-sm text-gray-500">${getTimeAgo(e.published)}</div>
                         <div class="text-sm mt-1">
-                            <span class="text-red-600">${e.object.oldValue}</span> → 
-                            <span class="text-green-600">${e.object.newValue}</span>
+                            <span class="text-red-600">${e.data?.oldValue}</span> →
+                            <span class="text-green-600">${e.data?.newValue}</span>
                         </div>
                     </div>
                 `).join('')}
@@ -1899,6 +1955,31 @@
             openModal('confirmModal');
         }
 
+        function registerInterpretationRule(rule, options = {}) {
+            const normalizedRule = {
+                rule_id: rule.rule_id || `rule_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                applies_to_op: rule.applies_to_op || null,
+                description: rule.description || '',
+                effect: rule.effect || 'none',
+                frame: rule.frame || 'system',
+                scale: rule.scale || 'system'
+            };
+
+            state.interpretationRules.push(normalizedRule);
+
+            if (!options.skipEvent) {
+                createEvent(
+                    'Define Rule',
+                    'REC',
+                    { type: 'InterpretationRule', id: normalizedRule.rule_id },
+                    { rule: normalizedRule, summary: normalizedRule.description },
+                    { frame: normalizedRule.frame, scale: normalizedRule.scale }
+                );
+            }
+
+            return normalizedRule;
+        }
+
         function hideField(fieldId) {
             const view = getCurrentView();
             if (!view.hiddenFields.includes(fieldId)) view.hiddenFields.push(fieldId);
@@ -1910,8 +1991,15 @@
             const set = getCurrentSet();
             const fieldIndex = set.schema.findIndex(f => f.id === fieldId);
             if (fieldIndex === -1) return;
-            set.schema.splice(fieldIndex, 1);
+            const [field] = set.schema.splice(fieldIndex, 1);
             set.records.forEach(record => delete record[fieldId]);
+            createEvent(
+                'Delete Field',
+                'NUL',
+                { type: 'Field', id: fieldId, setId: set.id },
+                { setId: set.id, fieldId, fieldName: field?.name, summary: `Deleted field ${field?.name || fieldId}` },
+                { frame: 'schema', scale: 'collection' }
+            );
             renderCurrentView();
             showToast('✓ Field deleted');
         }
@@ -1919,23 +2007,70 @@
         function deleteRecord(recordId) {
             const set = getCurrentSet();
             set.records.delete(recordId);
+            createEvent(
+                'Delete Record',
+                'NUL',
+                { type: 'Record', id: recordId, setId: set.id },
+                { setId: set.id, recordId, summary: 'Record deleted' }
+            );
             renderCurrentView();
             showToast('✓ Record deleted');
         }
 
         // UTILITIES
-        function createEvent(type, object, summary) {
+        function applyInterpretationRules(event) {
+            const appliedRules = [];
+
+            state.interpretationRules.forEach(rule => {
+                if (rule.applies_to_op && rule.applies_to_op !== event.op) return;
+
+                switch (rule.effect) {
+                    case 'require_actor':
+                        if (!event.actor || !event.actor.id) throw new Error('Events require an actor');
+                        appliedRules.push(rule.rule_id);
+                        break;
+                    case 'require_object_id':
+                        if (!event.object || !event.object.id) throw new Error('Instantiation requires an object reference with an id');
+                        appliedRules.push(rule.rule_id);
+                        break;
+                    case 'mark_deleted':
+                        event.data = { ...event.data, deleted: true };
+                        appliedRules.push(rule.rule_id);
+                        break;
+                    default:
+                        break;
+                }
+            });
+
+            return { ...event, appliedRules };
+        }
+
+        function createEvent(verb, op, object, data = {}, options = {}) {
+            if (!state.operatorSet[op]) {
+                throw new Error(`Invalid operator ${op}. Expected one of ${Object.keys(state.operatorSet).join(', ')}`);
+            }
+
+            const eventData = { ...data };
+
+            if (options.summary && !eventData.summary) {
+                eventData.summary = options.summary;
+            }
+
             const event = {
-                '@context': 'https://www.w3.org/ns/activitystreams',
-                'type': type,
-                'id': `event-${state.eventIdCounter++}`,
-                'published': new Date().toISOString(),
-                'actor': state.currentUser,
-                'object': object,
-                'summary': summary
+                id: `event-${state.eventIdCounter++}`,
+                verb: verb,
+                op: op,
+                frame: options.frame || 'ui',
+                scale: options.scale || 'object',
+                published: new Date().toISOString(),
+                actor: { type: state.currentUser.type, id: state.currentUser.id },
+                object: object,
+                data: eventData
             };
-            state.eventStream.unshift(event);
-            return event;
+
+            const interpretedEvent = applyInterpretationRules(event);
+            state.eventStream.unshift(interpretedEvent);
+            return interpretedEvent;
         }
 
         function getTimeAgo(timestamp) {
@@ -1995,9 +2130,10 @@
             const container = document.getElementById('historyContent');
             container.innerHTML = state.eventStream.map(e => `
                 <div class="history-entry">
-                    <div class="font-medium">${e.type}</div>
-                    <div class="text-sm text-gray-500">${getTimeAgo(e.published)}</div>
-                    <div class="text-sm">${e.summary}</div>
+                    <div class="font-medium">${e.verb} <span class="text-xs text-gray-500">(${e.op})</span></div>
+                    <div class="text-sm text-gray-500">${getTimeAgo(e.published)} • Frame: ${e.frame} • Scale: ${e.scale}</div>
+                    <div class="text-sm">${e.data?.summary || e.verb}</div>
+                    ${e.appliedRules?.length ? `<div class="text-xs text-gray-400">Rules: ${e.appliedRules.join(', ')}</div>` : ''}
                 </div>
             `).join('');
         }
@@ -2099,6 +2235,8 @@
                             profiles: Array.from(s.profiles.values())
                         })),
                         eventStream: state.eventStream,
+                        operatorSet: state.operatorSet,
+                        interpretationRules: state.interpretationRules,
                         currentSetId: state.currentSetId,
                         currentViewId: state.currentViewId
                     };
