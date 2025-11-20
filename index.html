@@ -1099,6 +1099,7 @@
             EMAIL: { id: 'EMAIL', name: 'Email', defaultValue: '', icon: '📧' },
             URL: { id: 'URL', name: 'URL', defaultValue: '', icon: '🔗' },
             PHONE: { id: 'PHONE', name: 'Phone', defaultValue: '', icon: '📞' },
+            LINK_RECORD: { id: 'LINK_RECORD', name: 'Link to Record', defaultValue: '', icon: '🪢', needsConfig: true },
             SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', defaultValue: '', icon: '🎯', needsConfig: true },
             CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: '☑️' }
         };
@@ -1184,9 +1185,32 @@
         function createSampleData() {
             const projectsId = createSet('Projects', '📊');
             const projectsSet = state.sets.get(projectsId);
-            
+
+            const contactsId = createSet('Clients', '👥');
+            const contactsSet = state.sets.get(contactsId);
+
+            contactsSet.schema = [
+                { id: 'name', name: 'Client Name', type: 'TEXT', width: '200px' },
+                { id: 'industry', name: 'Industry', type: 'SINGLE_SELECT', width: '140px', config: {
+                    options: ['Technology', 'Retail', 'Finance', 'Healthcare'],
+                    colors: { 'Technology': 'blue', 'Retail': 'purple', 'Finance': 'green', 'Healthcare': 'yellow' }
+                }},
+                { id: 'website', name: 'Website', type: 'URL', width: '200px' }
+            ];
+
+            contactsSet.profiles = new Map([
+                ['default', { id: 'default', name: 'All Fields', visibleFields: [] }]
+            ]);
+
+            const acmeId = addRecord(contactsId, { name: 'Acme Corp', industry: 'Technology', website: 'https://acme.example.com' });
+            const harborId = addRecord(contactsId, { name: 'Harbor Retail', industry: 'Retail', website: 'https://harborretail.example.com' });
+            const northbankId = addRecord(contactsId, { name: 'Northbank Finance', industry: 'Finance', website: 'https://northbank.example.com' });
+
+            createView(contactsId, 'All Clients', { type: 'grid' });
+
             projectsSet.schema = [
                 { id: 'name', name: 'Project Name', type: 'TEXT', width: '200px' },
+                { id: 'client', name: 'Client', type: 'LINK_RECORD', width: '180px', config: { linkedSetId: contactsId } },
                 { id: 'status', name: 'Status', type: 'SINGLE_SELECT', width: '130px', config: {
                     options: ['Planning', 'In Progress', 'On Hold', 'Completed'],
                     colors: { 'Planning': 'gray', 'In Progress': 'blue', 'On Hold': 'yellow', 'Completed': 'green' }
@@ -1199,42 +1223,45 @@
                 }},
                 { id: 'notes', name: 'Notes', type: 'LONG_TEXT', width: '300px' }
             ];
-            
+
             projectsSet.profiles = new Map([
                 ['default', { id: 'default', name: 'All Fields', visibleFields: [] }]
             ]);
-            
+
             addRecord(projectsId, {
                 name: 'Website Redesign',
+                client: acmeId,
                 status: 'In Progress',
                 budget: 50000,
                 start_date: '2024-01-15',
                 priority: 'High',
                 notes: 'Complete overhaul of company website'
             });
-            
+
             addRecord(projectsId, {
                 name: 'Mobile App',
+                client: harborId,
                 status: 'Planning',
                 budget: 120000,
                 start_date: '2024-06-01',
                 priority: 'Critical',
                 notes: 'iOS and Android native apps'
             });
-            
+
             addRecord(projectsId, {
                 name: 'Database Migration',
+                client: northbankId,
                 status: 'Completed',
                 budget: 30000,
                 start_date: '2023-11-01',
                 priority: 'High',
                 notes: 'Migrate to new cloud infrastructure'
             });
-            
+
             createView(projectsId, 'All Projects', { type: 'grid' });
             createView(projectsId, 'By Status', { type: 'kanban' });
             createView(projectsId, 'Card View', { type: 'card' });
-            
+
             state.currentSetId = projectsId;
             state.currentViewId = Array.from(projectsSet.views.keys())[0];
             state.expandedSets.add(projectsId);
@@ -1302,6 +1329,17 @@
                 }
             }
             return null;
+        }
+
+        function getLinkedSet(field) {
+            const linkedSetId = field?.config?.linkedSetId;
+            if (!linkedSetId) return null;
+            return state.sets.get(linkedSetId) || null;
+        }
+
+        function getLinkedRecordOptions(field) {
+            const linkedSet = getLinkedSet(field);
+            return linkedSet ? Array.from(linkedSet.records.values()) : [];
         }
 
         function validateConnectionPayload(sourceId, targetId, metadata = {}) {
@@ -1798,6 +1836,10 @@
                     return value ? new Date(value).toLocaleDateString() : '';
                 case 'CHECKBOX':
                     return value ? '✅' : '⬜';
+                case 'LINK_RECORD':
+                    if (!value) return '';
+                    const linkedName = getRecordDisplayName(value);
+                    return `<button class="text-blue-600 hover:underline" onclick="event.stopPropagation(); openLinkedRecord('${value}')">${linkedName}</button>`;
                 case 'SINGLE_SELECT':
                     if (!value) return '';
                     const color = field.config?.colors?.[value] || 'gray';
@@ -2018,7 +2060,8 @@
         function makeEditable(cell, recordId, field) {
             if (field.type === 'DATE') { showDatePicker(cell, recordId, field); return; }
             if (field.type === 'SINGLE_SELECT') { showSelectDropdown(cell, recordId, field); return; }
-            
+            if (field.type === 'LINK_RECORD') { showLinkedRecordDropdown(cell, recordId, field); return; }
+
             const set = getCurrentSet();
             const record = set.records.get(recordId);
             const currentValue = record[field.id];
@@ -2100,6 +2143,46 @@
             }, 0);
         }
 
+        function showLinkedRecordDropdown(cell, recordId, field) {
+            const set = getCurrentSet();
+            const record = set.records.get(recordId);
+            const currentValue = record[field.id];
+            const linkedSet = getLinkedSet(field);
+            const options = getLinkedRecordOptions(field);
+
+            cell.innerHTML = '';
+
+            const select = document.createElement('select');
+            select.className = 'w-full px-2 py-1 border rounded';
+            select.innerHTML = '<option value="">Select a record</option>' +
+                options.map(opt => `<option value="${opt.id}">${opt.name || opt.id}</option>`).join('');
+            select.value = currentValue || '';
+            select.disabled = !linkedSet || options.length === 0;
+
+            select.onchange = () => {
+                const newValue = select.value;
+                if (newValue !== currentValue) updateRecord(recordId, field.id, newValue, currentValue);
+                renderCurrentView();
+            };
+
+            select.onblur = () => {
+                renderCurrentView();
+            };
+
+            cell.appendChild(select);
+
+            if (!linkedSet || options.length === 0) {
+                const note = document.createElement('div');
+                note.className = 'text-xs text-gray-500 mt-1';
+                note.textContent = linkedSet
+                    ? 'Add records to the linked set to choose one.'
+                    : 'Select a set to link to in the field configuration.';
+                cell.appendChild(note);
+            }
+
+            select.focus();
+        }
+
         function updateRecord(recordId, fieldId, newValue, oldValue) {
             const set = getCurrentSet();
             const record = set.records.get(recordId);
@@ -2138,7 +2221,14 @@
                     linkSelect.innerHTML += `<option value="${setId}">${set.name}</option>`;
                 }
             });
-            
+            if (linkSelect.options.length === 0) {
+                linkSelect.innerHTML = '<option value="">No other sets available</option>';
+                linkSelect.disabled = true;
+            } else {
+                linkSelect.disabled = false;
+                linkSelect.value = linkSelect.options[0].value;
+            }
+
             openModal('addFieldModal');
         }
 
@@ -2170,6 +2260,8 @@
             if (typeId === 'SINGLE_SELECT') {
                 document.getElementById('singleSelectConfig').classList.add('visible');
                 renderSelectOptions();
+            } else if (typeId === 'LINK_RECORD') {
+                document.getElementById('linkToRecordConfig').classList.add('visible');
             }
         }
 
@@ -2218,12 +2310,16 @@
             }
             
             const newField = { id: fieldId, name: name, type: type, width: '150px', config: {} };
-            
+
             if (type === 'SINGLE_SELECT') {
                 newField.config = {
                     options: state.selectOptions.map(o => o.value),
                     colors: Object.fromEntries(state.selectOptions.map(o => [o.value, o.color]))
                 };
+            } else if (type === 'LINK_RECORD') {
+                const linkedSetId = document.getElementById('linkToSet').value;
+                if (!linkedSetId) { showConfirm('Select a set to link to', () => {}); return; }
+                newField.config = { linkedSetId };
             }
             
             set.schema.push(newField);
@@ -2591,6 +2687,26 @@
                     return `<input type="date" value="${value || ''}" onchange="updateRecordField('${recordId}', '${field.id}', this.value)">`;
                 case 'CHECKBOX':
                     return `<input type="checkbox" ${value ? 'checked' : ''} onchange="updateRecordField('${recordId}', '${field.id}', this.checked)">`;
+                case 'LINK_RECORD': {
+                    const linkedSet = getLinkedSet(field);
+                    const options = getLinkedRecordOptions(field);
+                    const disabled = !linkedSet || options.length === 0;
+                    const hint = !linkedSet
+                        ? '<p class="text-xs text-gray-500 mt-1">Configure a linked set to enable selection.</p>'
+                        : options.length === 0
+                            ? '<p class="text-xs text-gray-500 mt-1">Add records to the linked set to select one.</p>'
+                            : '';
+
+                    return `
+                        <div class="space-y-1">
+                            <select class="border rounded px-3 py-2 text-sm w-full" ${disabled ? 'disabled' : ''} onchange="updateRecordField('${recordId}', '${field.id}', this.value)">
+                                <option value="">Select a record</option>
+                                ${options.map(opt => `<option value="${opt.id}" ${opt.id === value ? 'selected' : ''}>${opt.name || opt.id}</option>`).join('')}
+                            </select>
+                            ${hint}
+                        </div>
+                    `;
+                }
                 case 'SINGLE_SELECT':
                     return `<select onchange="updateRecordField('${recordId}', '${field.id}', this.value)">
                         <option value="">Select...</option>
@@ -2720,6 +2836,21 @@
         function getRecordDisplayName(recordId) {
             const ref = getRecordById(recordId);
             return ref?.record?.name || recordId;
+        }
+
+        function openLinkedRecord(recordId) {
+            if (!recordId) return;
+            const ref = getRecordById(recordId);
+            if (!ref) {
+                showToast('Linked record not found');
+                return;
+            }
+
+            const firstViewId = ref.set.views.size ? Array.from(ref.set.views.keys())[0] : null;
+            if (ref.setId !== state.currentSetId) {
+                switchSet(ref.setId, firstViewId);
+            }
+            openExpandedRecord(recordId);
         }
 
         function createConnectionFromSidebar(recordId) {
