@@ -5,10 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Workbase - Enhanced Database</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         :root {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
+            --primary: #111827;
+            --primary-dark: #0f172a;
+            --surface: #ffffff;
+            --muted-surface: #f4f5f7;
+            --border: #e5e7eb;
+            --border-strong: #0f172a;
+            --text: #0b1324;
+            --text-secondary: #4b5563;
             --sidebar-width: 260px;
             --sidebar-collapsed-width: 64px;
         }
@@ -17,8 +24,15 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             margin: 0;
-            background: #f7f8fa;
-            color: #1f2937;
+            background: var(--muted-surface);
+            color: var(--text);
+        }
+
+        i.ph {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
         }
         
         /* LAYOUT */
@@ -29,26 +43,25 @@
             grid-template-rows: auto 1fr;
             height: 100vh;
             transition: grid-template-columns 0.3s ease;
-            background: #f7f8fa;
+            background: var(--muted-surface);
         }
         .app-container.sidebar-collapsed { grid-template-columns: var(--sidebar-collapsed-width) 1fr; }
         .app-sidebar {
             grid-area: sidebar;
-            background: #1a1d24;
+            background: #0f172a;
             color: white;
-            border-right: 1px solid #2a2e38;
+            border-right: 1px solid #111827;
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
         .app-header {
             grid-area: header;
-            background: #ffffff;
-            border-bottom: 1px solid #e5e7eb;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
             z-index: 10;
         }
-        .app-main { grid-area: main; overflow: auto; background: #f7f8fa; }
+        .app-main { grid-area: main; overflow: auto; background: var(--muted-surface); }
         
         /* SIDEBAR */
         .sidebar-header {
@@ -63,15 +76,15 @@
         .sidebar-brand { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; transition: opacity 0.2s; }
         .sidebar-collapsed .sidebar-brand { opacity: 0; width: 0; overflow: hidden; }
         .sidebar-toggle {
-            background: #252931;
+            background: transparent;
             border: 1px solid #2f343d;
-            color: #9ca3af;
+            color: #e5e7eb;
             padding: 8px;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.2s;
         }
-        .sidebar-toggle:hover { background: #2f343d; color: #e5e7eb; }
+        .sidebar-toggle:hover { background: rgba(255,255,255,0.05); color: #fff; border-color: #fff; }
         .sidebar-section { padding: 16px 12px 12px 12px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         .sidebar-section-title {
             font-size: 11px;
@@ -94,14 +107,16 @@
             align-items: center;
             gap: 12px;
             padding: 10px 12px;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.15s;
-            color: #9ca3af;
+            color: #cbd5e1;
+            border: 1px solid transparent;
         }
-        .set-header:hover { background: #252931; color: #e5e7eb; }
-        .set-header.active { background: #2563eb; color: #ffffff; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35); }
-        .set-icon { font-size: 18px; flex-shrink: 0; }
+        .set-header:hover { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); color: #fff; }
+        .set-header.active { background: #111827; color: #ffffff; border-color: #111827; box-shadow: none; }
+        .set-icon { font-size: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+        .set-icon i, .view-item-icon i { font-size: 18px; }
         .set-name { flex: 1; transition: opacity 0.2s; font-weight: 600; letter-spacing: -0.01em; }
         .set-expand-icon { 
             font-size: 12px; 
@@ -142,7 +157,7 @@
         }
         .view-item:hover { background: #252931; color: #e5e7eb; }
         .view-item.active { background: #2f343d; color: #ffffff; font-weight: 600; }
-        .view-item-icon { font-size: 12px; opacity: 0.8; }
+        .view-item-icon { font-size: 16px; opacity: 0.9; }
         
         .add-view-btn {
             padding: 6px 12px;
@@ -176,8 +191,8 @@
             align-items: center;
             justify-content: space-between;
             padding: 16px 28px;
-            background: #ffffff;
-            border-bottom: 1px solid #e5e7eb;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
         }
         
         .view-type-switcher {
@@ -192,17 +207,17 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.15s;
-            border: 1px solid #e5e7eb;
-            background: #ffffff;
-            color: #6b7280;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text-secondary);
             display: flex;
             align-items: center;
             gap: 8px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+            box-shadow: none;
         }
 
-        .view-type-btn:hover { background: #f9fafb; border-color: #d1d5db; color: #111827; }
-        .view-type-btn.active { background: #f3f4f6; color: #1f2937; border-color: #d1d5db; }
+        .view-type-btn:hover { background: var(--muted-surface); border-color: var(--text); color: var(--text); }
+        .view-type-btn.active { background: var(--primary); color: #ffffff; border-color: var(--primary); }
         
         /* CELLS */
         .cell-editable {
@@ -228,14 +243,14 @@
         
         /* TABLE HEADERS */
         .column-header {
-            background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
+            background: var(--surface);
             padding: 12px 16px;
             font-weight: 600;
             font-size: 11px;
             letter-spacing: 0.5px;
             text-transform: uppercase;
             color: #666;
-            border-bottom: 1px solid #e8e8e8;
+            border-bottom: 1px solid var(--border);
             cursor: pointer;
             transition: background 0.15s;
             user-select: none;
@@ -253,7 +268,7 @@
         body.resizing {
             cursor: col-resize;
         }
-        .column-header:hover { background: linear-gradient(180deg, #f5f5f5 0%, #eeeeee 100%); }
+        .column-header:hover { background: var(--muted-surface); }
         .column-header[data-type="TEXT"] { border-top: 3px solid #3b82f6; }
         .column-header[data-type="NUMBER"] { border-top: 3px solid #10b981; }
         .column-header[data-type="CURRENCY"] { border-top: 3px solid #059669; }
@@ -327,19 +342,18 @@
         }
         
         .card {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
             padding: 16px;
             cursor: pointer;
             transition: all 0.15s ease;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            box-shadow: none;
         }
-        
+
         .card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             transform: translateY(-2px);
-            border-color: #3b82f6;
+            border-color: var(--border-strong);
         }
         
         .card-title {
@@ -375,11 +389,12 @@
         
         .kanban-column {
             min-width: 300px;
-            background: #f9fafb;
-            border-radius: 8px;
+            background: var(--muted-surface);
+            border-radius: 10px;
             padding: 12px;
             display: flex;
             flex-direction: column;
+            border: 1px solid var(--border);
         }
         
         .kanban-column-header {
@@ -388,9 +403,9 @@
             justify-content: space-between;
             padding: 8px 12px;
             margin-bottom: 12px;
-            border-radius: 6px;
-            background: white;
-            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
         }
         
         .kanban-column-title {
@@ -416,17 +431,16 @@
         }
         
         .kanban-card {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
             padding: 12px;
             cursor: move;
             transition: all 0.15s ease;
         }
-        
+
         .kanban-card:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-color: #3b82f6;
+            border-color: var(--border-strong);
         }
         
         .kanban-card.dragging {
@@ -488,20 +502,21 @@
             font-size: 14px;
             font-weight: 500;
             transition: all 0.15s ease;
-            border: none;
+            border: 1px solid var(--border);
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             gap: 6px;
         }
         .btn-primary {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            background: var(--primary);
             color: white;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            border-color: var(--primary);
+            box-shadow: none;
         }
-        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); }
-        .btn-secondary { background: white; border: 1px solid #e5e7eb; color: #374151; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02); }
-        .btn-secondary:hover { background: #f9fafb; border-color: #d1d5db; }
+        .btn-primary:hover { background: transparent; color: var(--text); border-color: var(--text); box-shadow: none; }
+        .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); box-shadow: none; }
+        .btn-secondary:hover { background: var(--muted-surface); border-color: var(--text); color: var(--text); }
         .btn-danger { background: #ef4444; color: white; }
         .btn-danger:hover { background: #dc2626; }
         .btn-sm { padding: 6px 12px; font-size: 13px; }
@@ -746,16 +761,14 @@
             <div class="sidebar-header">
                 <div class="sidebar-brand">Workbase</div>
                 <button class="sidebar-toggle" onclick="toggleSidebar()">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
+                    <i class="ph ph-list text-lg"></i>
                 </button>
             </div>
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Sets</div>
                 <div id="setsList"></div>
                 <button onclick="openAddSetModal()" class="new-set-btn">
-                    <span class="set-icon">➕</span>
+                    <span class="set-icon"><i class="ph ph-plus"></i></span>
                     <span class="set-name">New Set</span>
                 </button>
             </div>
@@ -769,31 +782,28 @@
                 <div class="flex items-center gap-3">
                     <div class="view-type-switcher">
                         <button class="view-type-btn active" data-type="grid" onclick="switchViewType('grid')">
-                            🔲 Grid
+                            <i class="ph ph-table"></i>
+                            <span>Grid</span>
                         </button>
                         <button class="view-type-btn" data-type="card" onclick="switchViewType('card')">
-                            🃏 Card
+                            <i class="ph ph-cards-three"></i>
+                            <span>Card</span>
                         </button>
                         <button class="view-type-btn" data-type="kanban" onclick="switchViewType('kanban')">
-                            📊 Kanban
+                            <i class="ph ph-kanban"></i>
+                            <span>Kanban</span>
                         </button>
                     </div>
                     <button id="filterBtn" class="btn btn-secondary btn-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-                        </svg>
+                        <i class="ph ph-funnel-simple"></i>
                         Filter
                     </button>
                     <button id="popupSettingsBtn" class="btn btn-secondary btn-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        <i class="ph ph-popcorn"></i>
                         Popup Fields
                     </button>
                     <button id="historyBtn" class="btn btn-secondary btn-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
+                        <i class="ph ph-clock-counter-clockwise"></i>
                         History
                     </button>
                 </div>
@@ -966,8 +976,8 @@
                     <input type="text" id="newSetName" placeholder="e.g., Projects, Contacts">
                 </div>
                 <div>
-                    <label class="form-label">Icon (emoji)</label>
-                    <input type="text" id="newSetIcon" placeholder="📊" maxlength="2">
+                    <label class="form-label">Icon (Phosphor token or emoji)</label>
+                    <input type="text" id="newSetIcon" placeholder="ph-squares-four">
                 </div>
             </div>
             <div class="modal-footer flex justify-end gap-2">
@@ -988,8 +998,8 @@
                     <input type="text" id="newViewName" placeholder="e.g., Active Items">
                 </div>
                 <div>
-                    <label class="form-label">View Icon (emoji)</label>
-                    <input type="text" id="newViewIcon" placeholder="📋" maxlength="2">
+                    <label class="form-label">View Icon (Phosphor token or emoji)</label>
+                    <input type="text" id="newViewIcon" placeholder="ph-table">
                 </div>
                 <div>
                     <label class="form-label">Nest Under</label>
@@ -1082,7 +1092,8 @@
             <div class="flex-1 overflow-hidden relative">
                 <pre id="jsonContent" class="p-6 overflow-auto h-full text-sm bg-gray-50 font-mono"></pre>
                 <button id="copyJsonBtn" class="absolute top-4 right-4 btn btn-secondary btn-sm">
-                    📋 Copy
+                    <i class="ph ph-clipboard-text"></i>
+                    Copy
                 </button>
             </div>
         </div>
@@ -1130,20 +1141,37 @@
         }
 
         const FIELD_TYPES = {
-            TEXT: { id: 'TEXT', name: 'Single Line Text', defaultValue: '', icon: '📝' },
-            LONG_TEXT: { id: 'LONG_TEXT', name: 'Long Text', defaultValue: '', icon: '📄' },
-            NUMBER: { id: 'NUMBER', name: 'Number', defaultValue: 0, icon: '#️⃣' },
-            CURRENCY: { id: 'CURRENCY', name: 'Currency', defaultValue: 0, icon: '💵' },
-            DATE: { id: 'DATE', name: 'Date', defaultValue: '', icon: '📅' },
-            EMAIL: { id: 'EMAIL', name: 'Email', defaultValue: '', icon: '📧' },
-            URL: { id: 'URL', name: 'URL', defaultValue: '', icon: '🔗' },
-            PHONE: { id: 'PHONE', name: 'Phone', defaultValue: '', icon: '📞' },
-            LINK_RECORD: { id: 'LINK_RECORD', name: 'Link to Record', defaultValue: '', icon: '🪢', needsConfig: true },
-            SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', defaultValue: '', icon: '🎯', needsConfig: true },
-            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: '☑️' }
+            TEXT: { id: 'TEXT', name: 'Single Line Text', defaultValue: '', icon: 'ph-text-t' },
+            LONG_TEXT: { id: 'LONG_TEXT', name: 'Long Text', defaultValue: '', icon: 'ph-article' },
+            NUMBER: { id: 'NUMBER', name: 'Number', defaultValue: 0, icon: 'ph-hash' },
+            CURRENCY: { id: 'CURRENCY', name: 'Currency', defaultValue: 0, icon: 'ph-currency-dollar' },
+            DATE: { id: 'DATE', name: 'Date', defaultValue: '', icon: 'ph-calendar-blank' },
+            EMAIL: { id: 'EMAIL', name: 'Email', defaultValue: '', icon: 'ph-envelope-simple' },
+            URL: { id: 'URL', name: 'URL', defaultValue: '', icon: 'ph-link-simple' },
+            PHONE: { id: 'PHONE', name: 'Phone', defaultValue: '', icon: 'ph-phone' },
+            LINK_RECORD: { id: 'LINK_RECORD', name: 'Link to Record', defaultValue: '', icon: 'ph-link-simple-horizontal', needsConfig: true },
+            SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', defaultValue: '', icon: 'ph-list-bullets', needsConfig: true },
+            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: 'ph-check-square' }
         };
 
-        const VIEW_TYPE_ICONS = { grid: '🔲', card: '🃏', kanban: '📊' };
+        const VIEW_TYPE_ICONS = { grid: 'ph-table', card: 'ph-cards-three', kanban: 'ph-kanban' };
+
+        function renderIcon(icon) {
+            if (!icon) return '';
+            const trimmed = icon.toString().trim();
+            if (trimmed.startsWith('<')) return trimmed;
+            if (trimmed.startsWith('ph ')) return `<i class="${trimmed}"></i>`;
+            if (trimmed.startsWith('ph-')) return `<i class="ph ${trimmed}"></i>`;
+            return trimmed;
+        }
+
+        function extractIconToken(icon) {
+            if (!icon) return '';
+            const trimmed = icon.toString().trim();
+            const match = trimmed.match(/ph-[\w-]+/);
+            if (match) return match[0];
+            return trimmed;
+        }
 
         const EO_OPERATOR_SET = {
             INS: { id: 'INS', name: 'Instantiate', description: 'Create a new object that did not exist before.' },
@@ -1222,10 +1250,10 @@
         }
 
         function createSampleData() {
-            const projectsId = createSet('Projects', '📊');
+            const projectsId = createSet('Projects', 'ph-kanban');
             const projectsSet = state.sets.get(projectsId);
 
-            const contactsId = createSet('Clients', '👥');
+            const contactsId = createSet('Clients', 'ph-users-three');
             const contactsSet = state.sets.get(contactsId);
 
             contactsSet.schema = [
@@ -1307,7 +1335,7 @@
         }
 
         // SET MANAGEMENT
-        function createSet(name, icon = '📊') {
+        function createSet(name, icon = 'ph-squares-four') {
             const setId = 'set_' + Date.now();
             state.sets.set(setId, {
                 id: setId,
@@ -1535,7 +1563,7 @@
                 const setHeader = document.createElement('div');
                 setHeader.className = `set-header ${isActive && !state.currentViewId ? 'active' : ''}`;
                 setHeader.innerHTML = `
-                    <span class="set-icon">${set.icon}</span>
+                    <span class="set-icon">${renderIcon(set.icon)}</span>
                     <span class="set-name">${set.name}</span>
                     <span class="set-expand-icon">▶</span>
                 `;
@@ -1577,7 +1605,7 @@
                 viewItem.className = `view-item ${viewId === state.currentViewId ? 'active' : ''}`;
                 viewItem.style.paddingLeft = `${12 + depth * 16}px`;
                 viewItem.innerHTML = `
-                    <span class="view-item-icon">${view.icon || VIEW_TYPE_ICONS[view.type] || '📋'}</span>
+                    <span class="view-item-icon">${renderIcon(view.icon || VIEW_TYPE_ICONS[view.type])}</span>
                     <span>${view.name}</span>
                 `;
                 viewItem.onclick = (e) => {
@@ -1621,7 +1649,7 @@
                     if (excludeViewId && id === excludeViewId) return;
                     const option = document.createElement('option');
                     option.value = id;
-                    option.textContent = `${'• '.repeat(depth)}${view.icon || VIEW_TYPE_ICONS[view.type] || '📋'} ${view.name}`;
+                    option.innerHTML = `${'• '.repeat(depth)}${renderIcon(view.icon || VIEW_TYPE_ICONS[view.type])} ${view.name}`;
                     select.appendChild(option);
                     renderOptions(id, depth + 1);
                 });
@@ -1647,7 +1675,7 @@
                 if (titleEl) titleEl.textContent = 'Edit View';
                 if (saveBtn) saveBtn.textContent = 'Save';
                 if (nameInput) nameInput.value = view?.name || '';
-                if (iconInput) iconInput.value = view?.icon || VIEW_TYPE_ICONS[view?.type] || '📋';
+                if (iconInput) iconInput.value = extractIconToken(view?.icon || VIEW_TYPE_ICONS[view?.type]);
                 populateViewParentOptions(setId, viewId, view?.parentId || null);
             } else {
                 state.viewEditorContext = { setId, viewId: null };
@@ -1718,7 +1746,7 @@
         }
 
         function ensureViewDefaults(view) {
-            if (!view.icon) view.icon = VIEW_TYPE_ICONS[view.type] || '📋';
+            if (!view.icon) view.icon = VIEW_TYPE_ICONS[view.type] || 'ph-note';
         }
 
         function applyColumnWidth(fieldId, width) {
@@ -3456,7 +3484,7 @@
             document.getElementById('closeAddFieldBtn').onclick = () => closeModal('addFieldModal');
             document.getElementById('saveAddSetBtn').onclick = () => {
                 const name = document.getElementById('newSetName').value.trim();
-                const icon = document.getElementById('newSetIcon').value.trim() || '📊';
+                const icon = extractIconToken(document.getElementById('newSetIcon').value.trim() || 'ph-squares-four');
                 if (!name) { showConfirm('Please enter a set name', () => {}); return; }
                 if (state.setEditorContext?.setId) {
                     const set = state.sets.get(state.setEditorContext.setId);
@@ -3482,7 +3510,7 @@
             document.getElementById('cancelAddSetBtn').onclick = () => { state.setEditorContext = null; closeModal('addSetModal'); };
             document.getElementById('saveAddViewBtn').onclick = () => {
                 const name = document.getElementById('newViewName').value.trim();
-                const icon = document.getElementById('newViewIcon').value.trim() || '📋';
+                const icon = extractIconToken(document.getElementById('newViewIcon').value.trim() || 'ph-table');
                 const parentId = document.getElementById('newViewParent').value || null;
                 if (!name) { showConfirm('Please enter a view name', () => {}); return; }
                 const set = state.sets.get(state.viewEditorContext?.setId || state.currentSetId);
@@ -3652,7 +3680,7 @@
                 if (titleEl) titleEl.textContent = 'Edit Set';
                 if (saveBtn) saveBtn.textContent = 'Save';
                 if (nameInput) nameInput.value = set?.name || '';
-                if (iconInput) iconInput.value = set?.icon || '📊';
+                if (iconInput) iconInput.value = extractIconToken(set?.icon || 'ph-squares-four');
             } else {
                 state.setEditorContext = null;
                 if (titleEl) titleEl.textContent = 'Create Set';
