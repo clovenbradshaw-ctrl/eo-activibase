@@ -798,16 +798,21 @@
                     <h2 class="text-2xl font-bold text-gray-900" id="expandedRecordTitle">Record Details</h2>
                     <div class="profile-selector" id="recordProfileSelector"></div>
                 </div>
-                <button id="closeExpandedRecordBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button id="toggleHistorySidebarBtn" class="btn btn-secondary btn-sm">Hide History</button>
+                    <button id="closeExpandedRecordBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div class="flex-1 overflow-hidden">
                 <div class="grid grid-cols-1 md:grid-cols-3 h-full">
-                    <div class="md:col-span-2 p-6 overflow-y-auto border-r border-gray-200" id="expandedRecordMain"></div>
-                    <div class="overflow-hidden bg-gray-50 flex flex-col">
+                    <div id="expandedRecordMainWrapper" class="md:col-span-2 p-6 overflow-y-auto border-r border-gray-200">
+                        <div id="expandedRecordMain"></div>
+                    </div>
+                    <div id="expandedRecordHistoryColumn" class="overflow-hidden bg-gray-50 flex flex-col">
                         <div class="record-tabs">
                             <div class="record-tab active" data-tab="history" onclick="switchRecordTab('history')">History</div>
                         </div>
@@ -1010,6 +1015,7 @@
             sidebarOpenMobile: false,
             modalStack: [],
             currentRecordTab: 'history',
+            recordHistoryVisible: true,
             confirmCallback: null,
             selectOptions: [{ value: 'Option 1', color: 'blue' }],
             expandedSets: new Set(),
@@ -1985,9 +1991,11 @@
             const set = getCurrentSet();
             const record = set.records.get(recordId);
             state.currentRecordTab = 'history';
+            state.recordHistoryVisible = true;
             document.getElementById('expandedRecordTitle').textContent = record.name || record.id;
             renderExpandedRecordMain(recordId);
             renderRecordSidebar(recordId);
+            updateRecordHistoryVisibility();
             openModal('expandedRecordModal');
         }
 
@@ -2063,6 +2071,26 @@
                     </div>
                 `).join('')}
             `;
+        }
+
+        function updateRecordHistoryVisibility() {
+            const historyColumn = document.getElementById('expandedRecordHistoryColumn');
+            const mainWrapper = document.getElementById('expandedRecordMainWrapper');
+            const toggleBtn = document.getElementById('toggleHistorySidebarBtn');
+            const isVisible = state.recordHistoryVisible;
+
+            if (historyColumn) historyColumn.classList.toggle('hidden', !isVisible);
+            if (mainWrapper) {
+                mainWrapper.classList.toggle('md:col-span-3', !isVisible);
+                mainWrapper.classList.toggle('md:col-span-2', isVisible);
+                mainWrapper.classList.toggle('border-r', isVisible);
+            }
+            if (toggleBtn) toggleBtn.textContent = isVisible ? 'Hide History' : 'Show History';
+        }
+
+        function toggleRecordHistoryVisibility() {
+            state.recordHistoryVisible = !state.recordHistoryVisible;
+            updateRecordHistoryVisibility();
         }
 
         // CONTEXT MENUS
@@ -2313,6 +2341,7 @@
             document.getElementById('viewJsonBtn').onclick = openJsonViewer;
             document.getElementById('exportBtn').onclick = exportJSON;
             document.getElementById('closeHistoryBtn').onclick = () => document.getElementById('historyPanel').classList.remove('open');
+            document.getElementById('toggleHistorySidebarBtn').onclick = toggleRecordHistoryVisibility;
             document.getElementById('closeExpandedRecordBtn').onclick = () => closeModal('expandedRecordModal');
             document.getElementById('closeFilterBtn').onclick = () => closeModal('filterModal');
             document.getElementById('applyFiltersBtn').onclick = applyFilters;
