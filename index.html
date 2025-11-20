@@ -575,6 +575,67 @@
         .icon-option.active { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; }
         .config-section { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease; margin-top: 0; }
         .config-section.visible { max-height: 500px; opacity: 1; margin-top: 16px; }
+
+        /* POPUP CONFIGURATOR */
+        .popup-config-shell { max-width: 1200px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+        .popup-config-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 24px; border-bottom: 1px solid #e5e7eb; background: #fafafa; }
+        .popup-config-tabs { display: flex; gap: 4px; padding: 0 24px; border-bottom: 1px solid #e5e7eb; background: #fff; }
+        .popup-config-tab { padding: 12px 16px; border: none; background: transparent; cursor: pointer; font-weight: 600; color: #6b7280; border-bottom: 2px solid transparent; display: inline-flex; gap: 8px; align-items: center; border-radius: 8px 8px 0 0; transition: all 0.2s ease; }
+        .popup-config-tab:hover { color: #111827; background: #f5f6f8; }
+        .popup-config-tab.active { color: #1d4ed8; border-bottom-color: #1d4ed8; background: #eef2ff; }
+        .popup-config-body { display: grid; grid-template-columns: 1fr 320px; gap: 20px; padding: 20px 24px; background: #fff; flex: 1; overflow: hidden; }
+        .popup-tab-panel { display: none; height: 100%; overflow: hidden; }
+        .popup-tab-panel.active { display: block; }
+        .popup-panel-scroll { height: 100%; overflow: auto; padding-right: 6px; }
+        .popup-quick-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+        .popup-filter { padding: 8px 12px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; color: #475569; font-weight: 600; transition: all 0.15s ease; }
+        .popup-filter:hover { border-color: #cbd5e1; background: #f8fafc; }
+        .popup-filter.active { background: #eef2ff; border-color: #1d4ed8; color: #1d4ed8; }
+        .popup-info { display: flex; gap: 10px; padding: 12px; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; color: #1e3a8a; margin-bottom: 14px; font-size: 14px; }
+        .popup-field-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; display: flex; align-items: center; gap: 12px; margin-bottom: 10px; background: #fff; transition: all 0.15s ease; }
+        .popup-field-card:hover { border-color: #cbd5e1; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04); }
+        .popup-field-card.dragging { opacity: 0.6; }
+        .popup-field-card.drag-over { border-color: #1d4ed8; background: #eef2ff; }
+        .popup-field-card .drag-handle { cursor: grab; color: #94a3b8; font-size: 18px; }
+        .popup-field-meta { flex: 1; min-width: 0; }
+        .popup-field-name { font-weight: 700; color: #0f172a; display: flex; gap: 6px; align-items: center; }
+        .popup-field-type { font-size: 13px; color: #6b7280; }
+        .popup-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 12px; color: #475569; font-weight: 600; }
+        .popup-badge.warn { background: #fef3c7; border-color: #fde68a; color: #b45309; }
+        .popup-toggle { width: 46px; height: 26px; border-radius: 999px; background: #e5e7eb; position: relative; cursor: pointer; transition: all 0.2s ease; }
+        .popup-toggle::after { content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%; background: #fff; top: 3px; left: 3px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); transition: all 0.2s ease; }
+        .popup-toggle.active { background: #1d4ed8; }
+        .popup-toggle.active::after { transform: translateX(20px); }
+        .popup-side { display: flex; flex-direction: column; gap: 16px; height: 100%; }
+        .popup-card { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+        .popup-card h4 { margin: 0 0 8px 0; font-size: 14px; color: #0f172a; font-weight: 700; }
+        .popup-stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .popup-stat { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
+        .popup-stat .value { font-size: 24px; font-weight: 800; color: #0f172a; }
+        .popup-stat .label { font-size: 12px; color: #6b7280; }
+        .popup-preview { border: 1px solid #e5e7eb; border-radius: 10px; background: #fafafa; padding: 14px; }
+        .popup-preview-header { font-weight: 700; margin-bottom: 10px; color: #0f172a; display: flex; justify-content: space-between; align-items: center; }
+        .popup-preview-fields { display: grid; gap: 10px; }
+        .popup-preview-fields.cols-1 { grid-template-columns: 1fr; }
+        .popup-preview-fields.cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .popup-preview-fields.cols-3 { grid-template-columns: repeat(3, 1fr); }
+        .popup-preview-field { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; }
+        .popup-preview-field .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .popup-preview-field .value { font-size: 13px; color: #0f172a; }
+        .popup-layout-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .popup-layout-option { border: 2px solid #e5e7eb; border-radius: 10px; padding: 12px; cursor: pointer; text-align: center; transition: all 0.15s ease; background: #fff; }
+        .popup-layout-option.active { border-color: #1d4ed8; background: #eef2ff; color: #1d4ed8; }
+        .popup-event-stream { display: flex; flex-direction: column; gap: 10px; }
+        .popup-event { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; background: #fff; }
+        .popup-event-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; color: #0f172a; font-weight: 700; font-size: 14px; }
+        .popup-event-time { color: #94a3b8; font-size: 12px; font-weight: 600; }
+        .popup-conditions { display: grid; gap: 10px; }
+        .popup-condition-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; background: #fff; }
+        .popup-condition-title { font-weight: 700; color: #0f172a; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        .popup-condition-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px; }
+        .popup-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: #f3f4f6; color: #475569; font-weight: 600; font-size: 12px; }
+        .popup-template-buttons { display: flex; flex-direction: column; gap: 8px; }
+        @media (max-width: 1100px) { .popup-config-body { grid-template-columns: 1fr; } .popup-side { order: -1; flex-direction: row; overflow-x: auto; } .popup-side .popup-card { min-width: 240px; } }
         
         /* BUTTONS */
         .btn {
@@ -1024,24 +1085,91 @@
     </div>
 
     <div id="popupSettingsModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div class="modal-header flex items-center justify-between">
+        <div class="modal-container bg-white popup-config-shell">
+            <div class="popup-config-header">
                 <div>
-                    <h2 class="text-xl font-bold text-gray-900">Popup Field Visibility</h2>
-                    <p class="text-sm text-gray-500 mt-1">Control which fields appear in record popups for this view.</p>
+                    <h2 class="text-2xl font-bold text-gray-900">Popup Configuration</h2>
+                    <p class="text-sm text-gray-600 mt-1">Curate which fields show in record popups, define conditional visibility, and preview layouts.</p>
                 </div>
-                <button id="closePopupSettingsBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button class="btn btn-secondary btn-sm" onclick="resetPopupLayout()">Reset</button>
+                    <button id="closePopupSettingsBtn" class="btn btn-secondary btn-sm">Close</button>
+                </div>
             </div>
-            <div class="flex-1 overflow-y-auto modal-body space-y-4">
-                <p class="text-sm text-gray-600">Choose whether each field should show or hide in the popup and optionally apply criteria to make the rule conditional.</p>
-                <div id="popupSettingsFields" class="space-y-3"></div>
+
+            <div class="popup-config-tabs">
+                <button class="popup-config-tab active" data-tab="popupFields" onclick="setPopupTab('popupFields')">🎯 Fields <span class="popup-badge" id="popupFieldCountBadge">0</span></button>
+                <button class="popup-config-tab" data-tab="popupLayout" onclick="setPopupTab('popupLayout')">📐 Layout</button>
+                <button class="popup-config-tab" data-tab="popupConditions" onclick="setPopupTab('popupConditions')">⚡ Conditions</button>
+                <button class="popup-config-tab" data-tab="popupEvents" onclick="setPopupTab('popupEvents')">📊 Event Stream</button>
             </div>
-            <div class="modal-footer flex justify-end gap-2">
-                <button id="closePopupSettingsFooterBtn" class="btn btn-secondary">Done</button>
+
+            <div class="popup-config-body">
+                <div class="popup-tab-panel active" id="popupFields">
+                    <div class="popup-panel-scroll">
+                        <div class="popup-quick-filters" id="popupFilters"></div>
+                        <div class="popup-info"><span>💡</span><span><strong>Drag to reorder</strong> and toggle visibility. Click the gear to set conditional rules per field.</span></div>
+                        <div id="popupFieldList"></div>
+                    </div>
+                </div>
+
+                <div class="popup-tab-panel" id="popupLayout">
+                    <div class="popup-panel-scroll space-y-4">
+                        <div class="popup-card">
+                            <h4>Popup Size</h4>
+                            <div class="popup-layout-options" id="popupSizeOptions"></div>
+                        </div>
+                        <div class="popup-card">
+                            <h4>Column Layout</h4>
+                            <div class="popup-layout-options" id="popupColumnOptions"></div>
+                        </div>
+                        <div class="popup-card">
+                            <h4>Preview</h4>
+                            <div id="popupPreview" class="popup-preview"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="popup-tab-panel" id="popupConditions">
+                    <div class="popup-panel-scroll">
+                        <div class="popup-info"><span>⚡</span><span><strong>Conditional visibility</strong> lets you keep popups focused and contextual.</span></div>
+                        <div id="popupConditionsList" class="popup-conditions"></div>
+                    </div>
+                </div>
+
+                <div class="popup-tab-panel" id="popupEvents">
+                    <div class="popup-panel-scroll">
+                        <div class="popup-event-stream" id="popupEventStream"></div>
+                    </div>
+                </div>
+
+                <div class="popup-side">
+                    <div class="popup-card">
+                        <h4>Quick Stats</h4>
+                        <div class="popup-stat-grid">
+                            <div class="popup-stat">
+                                <div class="value" id="popupVisibleCount">0</div>
+                                <div class="label">Visible Fields</div>
+                            </div>
+                            <div class="popup-stat">
+                                <div class="value" id="popupConditionalCount">0</div>
+                                <div class="label">Conditional Rules</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="popup-card">
+                        <h4>Templates</h4>
+                        <div class="popup-template-buttons">
+                            <button class="btn btn-secondary btn-sm" onclick="applyPopupTemplate('minimal')">📋 Minimal View</button>
+                            <button class="btn btn-secondary btn-sm" onclick="applyPopupTemplate('detailed')">📝 Detailed View</button>
+                            <button class="btn btn-secondary btn-sm" onclick="applyPopupTemplate('compact')">⚡ Compact View</button>
+                        </div>
+                    </div>
+                    <div class="popup-card">
+                        <h4>Recent Changes</h4>
+                        <div id="popupRecentChanges" class="text-sm text-gray-600 space-y-1"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1275,7 +1403,10 @@
             setEditorContext: null,
             viewEditorContext: null,
             iconPickerTarget: null,
-            iconPickerQuery: ''
+            iconPickerQuery: '',
+            popupUi: { filter: 'all', activeTab: 'popupFields' },
+            popupEventStream: [],
+            popupDraggedField: null
         };
 
         const columnDragState = {
@@ -3361,6 +3492,7 @@
 
         function renderExpandedRecordMain(recordId) {
             const set = getCurrentSet();
+            const view = getCurrentView();
             const record = set.records.get(recordId);
             const container = document.getElementById('expandedRecordMain');
             container.dataset.recordId = recordId;
@@ -3379,7 +3511,8 @@
                 return;
             }
 
-            const visibleFields = set.schema.filter(field => shouldDisplayFieldInPopup(field, record));
+            const orderedFields = view ? getPopupOrderedFields(set, view) : set.schema;
+            const visibleFields = orderedFields.filter(field => shouldDisplayFieldInPopup(field, record));
 
             container.innerHTML = visibleFields.length === 0
                 ? '<p class="text-gray-500">No fields are visible in this popup based on the current view settings.</p>'
@@ -3506,7 +3639,7 @@
                     <div id="popupSettingsSidebar" class="space-y-3"></div>
                 </div>
             `;
-            renderPopupSettings('popupSettingsSidebar');
+            renderInlinePopupSettings('popupSettingsSidebar');
         }
 
         function getConnectionBuilder() {
@@ -3738,13 +3871,41 @@
             updateRecordHistoryVisibility();
         }
 
+        function getPopupLayout(view) {
+            view.popupLayout = view.popupLayout || { size: 'medium', columns: 2 };
+            return view.popupLayout;
+        }
+
+        function getPopupOrderedFields(set, view) {
+            const defaultOrder = set.schema.map(f => f.id);
+            view.popupFieldOrder = Array.isArray(view.popupFieldOrder) && view.popupFieldOrder.length
+                ? view.popupFieldOrder
+                : defaultOrder;
+            const orderMap = new Map(view.popupFieldOrder.map((id, idx) => [id, idx]));
+            return [...set.schema].sort((a, b) => {
+                const aIndex = orderMap.has(a.id) ? orderMap.get(a.id) : Number.MAX_SAFE_INTEGER;
+                const bIndex = orderMap.has(b.id) ? orderMap.get(b.id) : Number.MAX_SAFE_INTEGER;
+                return aIndex - bIndex;
+            });
+        }
+
         function renderPopupSettings(targetIds = ['popupSettingsFields', 'popupSettingsSidebar']) {
+            const popupModal = document.getElementById('popupSettingsModal');
+            const modalOpen = popupModal && !popupModal.classList.contains('hidden');
+            if (modalOpen) {
+                renderPopupConfigurator();
+            }
+            renderInlinePopupSettings(targetIds);
+        }
+
+        function renderInlinePopupSettings(targetIds = ['popupSettingsFields']) {
             const set = getCurrentSet();
             const view = getCurrentView();
             if (!set || !view) return;
 
             view.popupVisibilityRules = view.popupVisibilityRules || [];
-            const popupSettingsHtml = set.schema.map(field => {
+            const fields = getPopupOrderedFields(set, view);
+            const popupSettingsHtml = fields.map(field => {
                 const rule = view.popupVisibilityRules.find(r => r.fieldId === field.id) || { visibility: 'show', criteria: { type: 'always', value: '' } };
                 const criteriaType = rule.criteria?.type || 'always';
                 const criteriaValue = rule.criteria?.value || '';
@@ -3797,7 +3958,10 @@
         }
 
         function openPopupSettingsModal() {
-            renderPopupSettings();
+            state.popupUi = state.popupUi || { filter: 'all', activeTab: 'popupFields' };
+            state.popupUi.filter = state.popupUi.filter || 'all';
+            state.popupUi.activeTab = 'popupFields';
+            renderPopupConfigurator();
             openModal('popupSettingsModal');
         }
 
@@ -3805,6 +3969,8 @@
             const rule = ensurePopupRule(fieldId);
             if (!rule) return;
             rule.visibility = visibility;
+            logPopupEvent('visibility', { fieldId, visibility });
+            renderPopupSettings();
             refreshOpenRecordModal();
         }
 
@@ -3817,6 +3983,7 @@
                 rule.criteria.value = '';
             }
             renderPopupSettings();
+            logPopupEvent('criteriaType', { fieldId, type });
             refreshOpenRecordModal();
         }
 
@@ -3825,7 +3992,404 @@
             if (!rule) return;
             rule.criteria = rule.criteria || { type: 'always', value: '' };
             rule.criteria.value = value;
+            logPopupEvent('criteriaValue', { fieldId, value });
+            renderPopupSettings();
             refreshOpenRecordModal();
+        }
+
+        function setPopupTab(tab) {
+            state.popupUi.activeTab = tab;
+            document.querySelectorAll('.popup-config-tab').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tab);
+            });
+            document.querySelectorAll('.popup-tab-panel').forEach(panel => {
+                panel.classList.toggle('active', panel.id === tab);
+            });
+            renderPopupConfigurator();
+        }
+
+        function setPopupFilter(filter) {
+            state.popupUi.filter = filter;
+            renderPopupConfigurator();
+        }
+
+        function renderPopupFilters() {
+            const filters = [
+                { id: 'all', label: 'All Fields' },
+                { id: 'visible', label: '✓ Visible' },
+                { id: 'hidden', label: '⦻ Hidden' },
+                { id: 'conditional', label: '⚡ Conditional' }
+            ];
+            const container = document.getElementById('popupFilters');
+            if (!container) return;
+            container.innerHTML = filters.map(f => `
+                <button class="popup-filter ${state.popupUi.filter === f.id ? 'active' : ''}" onclick="setPopupFilter('${f.id}')">${f.label}</button>
+            `).join('');
+        }
+
+        function togglePopupFieldVisibility(fieldId) {
+            const rule = ensurePopupRule(fieldId);
+            if (!rule) return;
+            const newVisibility = rule.visibility === 'hide' ? 'show' : 'hide';
+            updatePopupVisibilityRule(fieldId, newVisibility);
+        }
+
+        function renderPopupFieldList() {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+            view.popupVisibilityRules = view.popupVisibilityRules || [];
+
+            const fields = getPopupOrderedFields(set, view).filter(field => {
+                const rule = view.popupVisibilityRules.find(r => r.fieldId === field.id);
+                const isVisible = !rule || rule.visibility !== 'hide';
+                const hasCondition = rule?.criteria?.type && rule.criteria.type !== 'always';
+                if (state.popupUi.filter === 'visible') return isVisible;
+                if (state.popupUi.filter === 'hidden') return !isVisible;
+                if (state.popupUi.filter === 'conditional') return hasCondition;
+                return true;
+            });
+
+            const container = document.getElementById('popupFieldList');
+            if (!container) return;
+
+            container.innerHTML = fields.map(field => {
+                const rule = view.popupVisibilityRules.find(r => r.fieldId === field.id);
+                const isVisible = !rule || rule.visibility !== 'hide';
+                const hasCondition = rule?.criteria?.type && rule.criteria.type !== 'always';
+                return `
+                    <div class="popup-field-card" draggable="true" data-field-id="${field.id}">
+                        <div class="drag-handle">⋮⋮</div>
+                        <div class="popup-field-meta">
+                            <div class="popup-field-name">
+                                ${field.name}
+                                ${hasCondition ? '<span class="popup-badge warn">Conditional</span>' : ''}
+                                ${!isVisible ? '<span class="popup-badge warn">Hidden</span>' : ''}
+                            </div>
+                            <div class="popup-field-type">${field.type}</div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="popup-toggle ${isVisible ? 'active' : ''}" onclick="togglePopupFieldVisibility('${field.id}')"></div>
+                            <button class="btn btn-secondary btn-sm" onclick="focusPopupCondition('${field.id}')">⚙️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('popupFieldCountBadge')?.textContent = fields.length;
+            attachPopupFieldDragHandlers();
+        }
+
+        function attachPopupFieldDragHandlers() {
+            document.querySelectorAll('.popup-field-card').forEach(card => {
+                card.addEventListener('dragstart', handlePopupFieldDragStart);
+                card.addEventListener('dragover', handlePopupFieldDragOver);
+                card.addEventListener('drop', handlePopupFieldDrop);
+                card.addEventListener('dragend', handlePopupFieldDragEnd);
+            });
+        }
+
+        function handlePopupFieldDragStart(e) {
+            state.popupDraggedField = e.currentTarget.dataset.fieldId;
+            e.currentTarget.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handlePopupFieldDragOver(e) {
+            e.preventDefault();
+            const target = e.currentTarget;
+            if (state.popupDraggedField && target.dataset.fieldId !== state.popupDraggedField) {
+                target.classList.add('drag-over');
+            }
+        }
+
+        function handlePopupFieldDrop(e) {
+            e.preventDefault();
+            const targetId = e.currentTarget.dataset.fieldId;
+            if (state.popupDraggedField && targetId && targetId !== state.popupDraggedField) {
+                updatePopupFieldOrder(state.popupDraggedField, targetId);
+                logPopupEvent('reorder', { from: state.popupDraggedField, to: targetId });
+            }
+            document.querySelectorAll('.popup-field-card').forEach(el => el.classList.remove('drag-over'));
+            state.popupDraggedField = null;
+        }
+
+        function handlePopupFieldDragEnd(e) {
+            e.currentTarget.classList.remove('dragging');
+            document.querySelectorAll('.popup-field-card').forEach(el => el.classList.remove('drag-over'));
+            state.popupDraggedField = null;
+        }
+
+        function updatePopupFieldOrder(draggedId, targetId) {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+
+            const order = getPopupOrderedFields(set, view).map(f => f.id);
+            const fromIndex = order.indexOf(draggedId);
+            const toIndex = order.indexOf(targetId);
+            if (fromIndex === -1 || toIndex === -1) return;
+
+            order.splice(fromIndex, 1);
+            order.splice(toIndex, 0, draggedId);
+            view.popupFieldOrder = order;
+            renderPopupConfigurator();
+        }
+
+        function renderPopupStats() {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+            view.popupVisibilityRules = view.popupVisibilityRules || [];
+            const fields = getPopupOrderedFields(set, view);
+            const visibleCount = fields.reduce((count, field) => {
+                const rule = view.popupVisibilityRules.find(r => r.fieldId === field.id);
+                return count + ((rule && rule.visibility === 'hide') ? 0 : 1);
+            }, 0);
+            const conditionalCount = view.popupVisibilityRules.filter(r => r.criteria?.type && r.criteria.type !== 'always').length;
+            document.getElementById('popupVisibleCount')?.textContent = visibleCount;
+            document.getElementById('popupConditionalCount')?.textContent = conditionalCount;
+        }
+
+        function renderPopupPreview() {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+            const layout = getPopupLayout(view);
+            const preview = document.getElementById('popupPreview');
+            if (!preview) return;
+
+            const record = Array.from(set.records.values())[0] || {};
+            const fields = getPopupOrderedFields(set, view).filter(field => shouldDisplayFieldInPopup(field, record)).slice(0, 9);
+
+            preview.innerHTML = `
+                <div class="popup-preview-header">
+                    <span>Record Preview</span>
+                    <span class="popup-pill">${layout.size} · ${layout.columns} columns</span>
+                </div>
+                <div class="popup-preview-fields cols-${layout.columns}">
+                    ${fields.map(field => `
+                        <div class="popup-preview-field">
+                            <div class="label">${field.name}</div>
+                            <div class="value">${record[field.id] ?? '—'}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderPopupLayoutOptions() {
+            const view = getCurrentView();
+            if (!view) return;
+            const layout = getPopupLayout(view);
+
+            const sizeOptions = [
+                { id: 'small', label: 'Small', desc: 'Compact width' },
+                { id: 'medium', label: 'Medium', desc: 'Balanced width' },
+                { id: 'large', label: 'Large', desc: 'Full dialog' }
+            ];
+            const sizeContainer = document.getElementById('popupSizeOptions');
+            if (sizeContainer) {
+                sizeContainer.innerHTML = sizeOptions.map(opt => `
+                    <div class="popup-layout-option ${layout.size === opt.id ? 'active' : ''}" onclick="updatePopupSize('${opt.id}')">
+                        <div class="font-semibold">${opt.label}</div>
+                        <div class="text-sm text-gray-600">${opt.desc}</div>
+                    </div>
+                `).join('');
+            }
+
+            const columnContainer = document.getElementById('popupColumnOptions');
+            if (columnContainer) {
+                columnContainer.innerHTML = [1, 2, 3].map(cols => `
+                    <div class="popup-layout-option ${layout.columns === cols ? 'active' : ''}" onclick="updatePopupColumns(${cols})">
+                        <div class="font-semibold">${cols} Column${cols > 1 ? 's' : ''}</div>
+                        <div class="text-sm text-gray-600">${cols === 1 ? 'Single stack' : cols === 2 ? 'Split view' : 'Dense grid'}</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function updatePopupSize(size) {
+            const view = getCurrentView();
+            if (!view) return;
+            const layout = getPopupLayout(view);
+            layout.size = size;
+            logPopupEvent('size', { size });
+            renderPopupConfigurator();
+        }
+
+        function updatePopupColumns(columns) {
+            const view = getCurrentView();
+            if (!view) return;
+            const layout = getPopupLayout(view);
+            layout.columns = columns;
+            logPopupEvent('columns', { columns });
+            renderPopupConfigurator();
+        }
+
+        function renderPopupConditions() {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+            view.popupVisibilityRules = view.popupVisibilityRules || [];
+            const container = document.getElementById('popupConditionsList');
+            if (!container) return;
+
+            const fields = getPopupOrderedFields(set, view);
+            container.innerHTML = fields.map(field => {
+                const rule = view.popupVisibilityRules.find(r => r.fieldId === field.id) || { visibility: 'show', criteria: { type: 'always', value: '' } };
+                const criteriaType = rule.criteria?.type || 'always';
+                const needsValue = ['equals', 'notEquals', 'contains'].includes(criteriaType);
+                return `
+                    <div class="popup-condition-card" data-condition-field="${field.id}">
+                        <div class="popup-condition-title">${field.name} <span class="popup-pill">${rule.visibility === 'hide' ? 'Hidden' : 'Shown'}</span></div>
+                        <div class="popup-condition-row">
+                            <label class="text-sm text-gray-600 flex items-center gap-2">Visibility
+                                <select class="border rounded px-2 py-2 text-sm" onchange="updatePopupVisibilityRule('${field.id}', this.value)">
+                                    <option value="show" ${rule.visibility !== 'hide' ? 'selected' : ''}>Show</option>
+                                    <option value="hide" ${rule.visibility === 'hide' ? 'selected' : ''}>Hide</option>
+                                </select>
+                            </label>
+                            <label class="text-sm text-gray-600 flex items-center gap-2">Criteria
+                                <select class="border rounded px-2 py-2 text-sm" onchange="updatePopupCriteriaType('${field.id}', this.value)">
+                                    <option value="always" ${criteriaType === 'always' ? 'selected' : ''}>Always</option>
+                                    <option value="equals" ${criteriaType === 'equals' ? 'selected' : ''}>Value equals</option>
+                                    <option value="notEquals" ${criteriaType === 'notEquals' ? 'selected' : ''}>Value not equal</option>
+                                    <option value="contains" ${criteriaType === 'contains' ? 'selected' : ''}>Value contains</option>
+                                    <option value="empty" ${criteriaType === 'empty' ? 'selected' : ''}>When empty</option>
+                                    <option value="notEmpty" ${criteriaType === 'notEmpty' ? 'selected' : ''}>When not empty</option>
+                                </select>
+                            </label>
+                            <input class="border rounded px-3 py-2 text-sm ${needsValue ? '' : 'opacity-50'}" placeholder="Criteria value" value="${rule.criteria?.value || ''}" ${needsValue ? '' : 'disabled'} oninput="updatePopupCriteriaValue('${field.id}', this.value)">
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderPopupEvents() {
+            const container = document.getElementById('popupEventStream');
+            if (!container) return;
+            if (state.popupEventStream.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-600">No recent configuration changes yet.</p>';
+                return;
+            }
+            container.innerHTML = state.popupEventStream.map(evt => `
+                <div class="popup-event">
+                    <div class="popup-event-header">
+                        <span>${evt.type}</span>
+                        <span class="popup-event-time">${new Date(evt.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <div class="text-sm text-gray-600">${describePopupEvent(evt)}</div>
+                </div>
+            `).join('');
+        }
+
+        function describePopupEvent(event) {
+            const name = event.data?.fieldId ? getFieldNameById(event.data.fieldId) : '';
+            switch (event.action) {
+                case 'visibility':
+                    return `${name || 'Field'} set to ${event.data.visibility}`;
+                case 'criteriaType':
+                    return `${name || 'Field'} criteria: ${event.data.type}`;
+                case 'criteriaValue':
+                    return `${name || 'Field'} criteria value updated`;
+                case 'reorder':
+                    return `Reordered fields (${event.data.from} → ${event.data.to})`;
+                case 'size':
+                    return `Popup size changed to ${event.data.size}`;
+                case 'columns':
+                    return `Layout updated to ${event.data.columns} columns`;
+                case 'template':
+                    return `Applied ${event.data.template} template`;
+                default:
+                    return event.type;
+            }
+        }
+
+        function renderPopupRecentChanges() {
+            const container = document.getElementById('popupRecentChanges');
+            if (!container) return;
+            const items = state.popupEventStream.slice(0, 4);
+            container.innerHTML = items.length === 0
+                ? '<p class="text-sm text-gray-500">No changes yet.</p>'
+                : items.map(evt => `<div>• ${describePopupEvent(evt)}</div>`).join('');
+        }
+
+        function logPopupEvent(action, data = {}) {
+            const entry = { id: Date.now(), action, data, type: action, timestamp: new Date().toISOString() };
+            state.popupEventStream.unshift(entry);
+            state.popupEventStream = state.popupEventStream.slice(0, 25);
+            renderPopupEvents();
+            renderPopupRecentChanges();
+        }
+
+        function resetPopupLayout() {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+            view.popupLayout = { size: 'medium', columns: 2 };
+            view.popupFieldOrder = set.schema.map(f => f.id);
+            view.popupVisibilityRules = [];
+            logPopupEvent('reset', {});
+            renderPopupConfigurator();
+            refreshOpenRecordModal();
+        }
+
+        function applyPopupTemplate(template) {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+            const ordered = getPopupOrderedFields(set, view);
+            const layout = getPopupLayout(view);
+
+            if (template === 'minimal') {
+                layout.size = 'small';
+                layout.columns = 1;
+                view.popupVisibilityRules = ordered.map((field, idx) => ({ fieldId: field.id, visibility: idx < 4 ? 'show' : 'hide', criteria: { type: 'always', value: '' } }));
+            } else if (template === 'detailed') {
+                layout.size = 'large';
+                layout.columns = 3;
+                view.popupVisibilityRules = ordered.map(field => ({ fieldId: field.id, visibility: 'show', criteria: { type: 'always', value: '' } }));
+            } else if (template === 'compact') {
+                layout.size = 'medium';
+                layout.columns = 2;
+                view.popupVisibilityRules = ordered.map((field, idx) => ({ fieldId: field.id, visibility: idx < 6 ? 'show' : 'hide', criteria: { type: 'always', value: '' } }));
+            }
+            logPopupEvent('template', { template });
+            renderPopupConfigurator();
+            refreshOpenRecordModal();
+        }
+
+        function focusPopupCondition(fieldId) {
+            setPopupTab('popupConditions');
+            requestAnimationFrame(() => {
+                const el = document.querySelector(`[data-condition-field="${fieldId}"]`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        }
+
+        function getFieldNameById(fieldId) {
+            const set = getCurrentSet();
+            return set?.schema.find(f => f.id === fieldId)?.name || fieldId;
+        }
+
+        function renderPopupConfigurator() {
+            const activeTab = state.popupUi?.activeTab || 'popupFields';
+            document.querySelectorAll('.popup-config-tab').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === activeTab);
+            });
+            document.querySelectorAll('.popup-tab-panel').forEach(panel => {
+                panel.classList.toggle('active', panel.id === activeTab);
+            });
+            renderPopupFilters();
+            renderPopupFieldList();
+            renderPopupStats();
+            renderPopupLayoutOptions();
+            renderPopupPreview();
+            renderPopupConditions();
+            renderPopupEvents();
+            renderPopupRecentChanges();
         }
 
         // CONTEXT MENUS
@@ -4122,7 +4686,6 @@
             };
             document.getElementById('closeFilterBtn').onclick = () => closeModal('filterModal');
             document.getElementById('closePopupSettingsBtn').onclick = () => closeModal('popupSettingsModal');
-            document.getElementById('closePopupSettingsFooterBtn').onclick = () => closeModal('popupSettingsModal');
             document.getElementById('applyFiltersBtn').onclick = applyFilters;
             document.getElementById('clearFiltersBtn').onclick = clearFilters;
             document.getElementById('addFilterGroupBtn').onclick = addFilterGroup;
