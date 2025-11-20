@@ -494,6 +494,47 @@
         .modal-footer { padding: 16px 24px; border-top: 1px solid #f0f0f0; background: #fafafa; }
         .config-section { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease; margin-top: 0; }
         .config-section.visible { max-height: 500px; opacity: 1; margin-top: 16px; }
+
+        .icon-picker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+        }
+
+        .icon-option {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: left;
+        }
+
+        .icon-option:hover {
+            border-color: var(--primary);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .icon-preview {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: var(--muted-surface);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+
+        .icon-token {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
         
         /* BUTTONS */
         .btn {
@@ -977,7 +1018,10 @@
                 </div>
                 <div>
                     <label class="form-label">Icon (Phosphor token or emoji)</label>
-                    <input type="text" id="newSetIcon" placeholder="ph-squares-four">
+                    <div class="flex gap-3 items-start">
+                        <input type="text" id="newSetIcon" class="flex-1" placeholder="ph-squares-four">
+                        <button id="openSetIconPickerBtn" class="btn btn-secondary mt-1">Choose</button>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer flex justify-end gap-2">
@@ -999,7 +1043,10 @@
                 </div>
                 <div>
                     <label class="form-label">View Icon (Phosphor token or emoji)</label>
-                    <input type="text" id="newViewIcon" placeholder="ph-table">
+                    <div class="flex gap-3 items-start">
+                        <input type="text" id="newViewIcon" class="flex-1" placeholder="ph-table">
+                        <button id="openViewIconPickerBtn" class="btn btn-secondary mt-1">Choose</button>
+                    </div>
                 </div>
                 <div>
                     <label class="form-label">Nest Under</label>
@@ -1010,6 +1057,25 @@
             <div class="modal-footer flex justify-end gap-2">
                 <button id="cancelAddViewBtn" class="btn btn-secondary">Cancel</button>
                 <button id="saveAddViewBtn" class="btn btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="iconPickerModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-2xl">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Choose an Icon</h2>
+                    <p class="text-sm text-gray-500 mt-1">Select a Phosphor icon for your set or view.</p>
+                </div>
+                <button id="closeIconPickerBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="iconPickerGrid" class="icon-picker-grid"></div>
             </div>
         </div>
     </div>
@@ -1124,7 +1190,8 @@
             draggedRecord: null,
             cellHistoryContext: null,
             setEditorContext: null,
-            viewEditorContext: null
+            viewEditorContext: null,
+            iconPickerTarget: null
         };
 
         const COLUMN_WIDTH_MIN = 60;
@@ -1155,6 +1222,29 @@
         };
 
         const VIEW_TYPE_ICONS = { grid: 'ph-table', card: 'ph-cards-three', kanban: 'ph-kanban' };
+
+        const ICON_OPTIONS = [
+            'ph-squares-four',
+            'ph-table',
+            'ph-kanban',
+            'ph-folder-notch',
+            'ph-briefcase',
+            'ph-users',
+            'ph-user-focus',
+            'ph-flag',
+            'ph-calendar-blank',
+            'ph-lightning',
+            'ph-chart-bar',
+            'ph-target',
+            'ph-map-pin',
+            'ph-star',
+            'ph-heart',
+            'ph-globe',
+            'ph-gear-six',
+            'ph-notebook',
+            'ph-rocket-launch',
+            'ph-stack'
+        ];
 
         function renderIcon(icon) {
             if (!icon) return '';
@@ -3413,6 +3503,37 @@
             closeAllContextMenus();
             document.getElementById(modalId).classList.add('hidden');
             state.modalStack = state.modalStack.filter(id => id !== modalId);
+            if (modalId === 'iconPickerModal') state.iconPickerTarget = null;
+        }
+
+        function renderIconPickerGrid() {
+            const grid = document.getElementById('iconPickerGrid');
+            if (!grid) return;
+            grid.innerHTML = ICON_OPTIONS.map(icon => `
+                <button type="button" class="icon-option" onclick="selectIcon('${icon}')">
+                    <span class="icon-preview">${renderIcon(icon)}</span>
+                    <span class="icon-token">${icon}</span>
+                </button>
+            `).join('');
+        }
+
+        function openIconPicker(targetInputId) {
+            state.iconPickerTarget = targetInputId;
+            renderIconPickerGrid();
+            openModal('iconPickerModal');
+        }
+
+        function closeIconPicker() {
+            state.iconPickerTarget = null;
+            closeModal('iconPickerModal');
+        }
+
+        function selectIcon(icon) {
+            if (state.iconPickerTarget) {
+                const input = document.getElementById(state.iconPickerTarget);
+                if (input) input.value = extractIconToken(icon);
+            }
+            closeIconPicker();
         }
 
         function exportJSON() {
@@ -3485,6 +3606,9 @@
                 state.confirmCallback = null;
                 closeModal('confirmModal');
             };
+            document.getElementById('openSetIconPickerBtn').onclick = () => openIconPicker('newSetIcon');
+            document.getElementById('openViewIconPickerBtn').onclick = () => openIconPicker('newViewIcon');
+            document.getElementById('closeIconPickerBtn').onclick = closeIconPicker;
             document.getElementById('saveAddFieldBtn').onclick = saveField;
             document.getElementById('cancelAddFieldBtn').onclick = () => closeModal('addFieldModal');
             document.getElementById('closeAddFieldBtn').onclick = () => closeModal('addFieldModal');
