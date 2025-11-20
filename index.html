@@ -1220,6 +1220,34 @@
         </div>
     </div>
 
+    <div id="connectionParametersModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 id="connectionParametersTitle" class="text-xl font-bold text-gray-900">Edit Parameters</h2>
+                    <p id="connectionParametersSubtitle" class="text-sm text-gray-500 mt-1"></p>
+                </div>
+                <button id="closeConnectionParametersBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-body space-y-4">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700" id="connectionParametersInfo"></div>
+                <div>
+                    <label class="form-label">Parameters</label>
+                    <div id="connectionParametersList" class="space-y-2"></div>
+                    <button id="addConnectionParameterRowBtn" class="btn btn-secondary btn-sm mt-2" type="button">+ Add parameter</button>
+                </div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button id="connectionParametersCancelBtn" class="btn btn-secondary">Cancel</button>
+                <button id="connectionParametersSaveBtn" class="btn btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
     <div id="addSetModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
         <div class="modal-container bg-white w-full max-w-md">
             <div class="modal-header">
@@ -1389,7 +1417,8 @@
             operatorSet: {},
             interpretationRules: [],
             connections: new Map(),
-            connectionBuilder: { targetSetId: null, targetRecordId: '', metadataJson: '' },
+            connectionBuilder: { targetSetId: null, targetRecordId: '', metadataEntries: [{ key: '', value: '' }] },
+            connectionParameterEditor: null,
             sidebarCollapsed: false,
             sidebarOpenMobile: false,
             modalStack: [],
@@ -3642,11 +3671,57 @@
             renderInlinePopupSettings('popupSettingsSidebar');
         }
 
+        function normalizeParameterEntries(entries = []) {
+            const normalized = Array.isArray(entries) && entries.length ? entries : [{ key: '', value: '' }];
+            return normalized.map(entry => ({ key: entry.key ?? '', value: entry.value ?? '' }));
+        }
+
         function getConnectionBuilder() {
             if (!state.connectionBuilder) {
-                state.connectionBuilder = { targetSetId: null, targetRecordId: '', metadataJson: '' };
+                state.connectionBuilder = { targetSetId: null, targetRecordId: '', metadataEntries: [{ key: '', value: '' }] };
             }
+            state.connectionBuilder.metadataEntries = normalizeParameterEntries(state.connectionBuilder.metadataEntries);
             return state.connectionBuilder;
+        }
+
+        function buildMetadataFromEntries(entries = []) {
+            const metadata = {};
+            const normalized = normalizeParameterEntries(entries);
+
+            for (const entry of normalized) {
+                const key = String(entry.key || '').trim();
+                const value = entry.value ?? '';
+                const hasValue = key.length || (value !== '' && value !== null && value !== undefined);
+
+                if (!hasValue) continue;
+                if (!key) throw new Error('Parameter names cannot be empty');
+                if (Object.prototype.hasOwnProperty.call(metadata, key)) {
+                    throw new Error(`Duplicate parameter name: ${key}`);
+                }
+
+                metadata[key] = String(value);
+            }
+
+            return metadata;
+        }
+
+        function updateConnectionBuilderParam(recordId, index, field, value) {
+            const builder = getConnectionBuilder();
+            if (!builder.metadataEntries[index]) builder.metadataEntries[index] = { key: '', value: '' };
+            builder.metadataEntries[index][field] = value;
+        }
+
+        function addConnectionBuilderParam(recordId) {
+            const builder = getConnectionBuilder();
+            builder.metadataEntries.push({ key: '', value: '' });
+            renderRecordSidebar(recordId);
+        }
+
+        function removeConnectionBuilderParam(recordId, index) {
+            const builder = getConnectionBuilder();
+            builder.metadataEntries.splice(index, 1);
+            builder.metadataEntries = normalizeParameterEntries(builder.metadataEntries);
+            renderRecordSidebar(recordId);
         }
 
         function renderConnectionsSidebar(container, recordId) {
@@ -3662,7 +3737,7 @@
             const selectedRecordId = availableRecords.some(rec => rec.id === builder.targetRecordId) ? builder.targetRecordId : '';
             if (builder.targetRecordId !== selectedRecordId) builder.targetRecordId = selectedRecordId;
 
-            const metadataText = builder.metadataJson || '';
+            builder.metadataEntries = normalizeParameterEntries(builder.metadataEntries);
             const connections = Array.from(state.connections.values()).filter(edge => edge.sourceId === recordId || edge.targetId === recordId);
 
             container.innerHTML = `
@@ -3682,8 +3757,17 @@
                             <option value="">${selectedSetId ? 'Select a record' : 'Select a set first'}</option>
                             ${availableRecords.map(rec => `<option value="${rec.id}" ${rec.id === selectedRecordId ? 'selected' : ''}>${rec.name || rec.id}</option>`).join('')}
                         </select>
-                        <label class="form-label">Parameters (JSON object)</label>
-                        <textarea id="newConnectionMetadata" class="border rounded px-3 py-2 text-sm w-full h-24" placeholder="{\"role\": \"depends-on\"}" oninput="updateConnectionBuilderMetadata('${recordId}', this.value)">${metadataText}</textarea>
+                        <label class="form-label">Parameters</label>
+                        <div class="space-y-2">
+                            ${builder.metadataEntries.map((entry, idx) => `
+                                <div class="flex items-center gap-2">
+                                    <input class="border rounded px-3 py-2 text-sm w-2/5" type="text" placeholder="Name" value="${entry.key}" oninput="updateConnectionBuilderParam('${recordId}', ${idx}, 'key', this.value)">
+                                    <input class="border rounded px-3 py-2 text-sm flex-1" type="text" placeholder="Value" value="${entry.value}" oninput="updateConnectionBuilderParam('${recordId}', ${idx}, 'value', this.value)">
+                                    <button class="text-gray-400 hover:text-red-500" title="Remove" onclick="removeConnectionBuilderParam('${recordId}', ${idx})" ${builder.metadataEntries.length === 1 ? 'disabled' : ''}>×</button>
+                                </div>
+                            `).join('')}
+                            <button class="btn btn-secondary btn-sm" type="button" onclick="addConnectionBuilderParam('${recordId}')">+ Add parameter</button>
+                        </div>
                         <button class="btn btn-primary btn-sm" onclick="createConnectionFromSidebar('${recordId}')" ${(availableRecords.length === 0 || !selectedRecordId) ? 'disabled' : ''}>Add Connection</button>
                         ${availableRecords.length === 0 ? '<p class="text-xs text-gray-500">Add records to the selected set to create connections.</p>' : ''}
                     </div>
@@ -3705,11 +3789,6 @@
             const builder = getConnectionBuilder();
             builder.targetRecordId = targetId || '';
             renderRecordSidebar(recordId);
-        }
-
-        function updateConnectionBuilderMetadata(recordId, value) {
-            const builder = getConnectionBuilder();
-            builder.metadataJson = value;
         }
 
         function renderConnectionCard(edge, recordId) {
@@ -3754,21 +3833,64 @@
             </dl>`;
         }
 
-        function parseConnectionMetadata(raw) {
-            if (!raw || !raw.trim()) return {};
+        function metadataToEntries(metadata = {}) {
+            const entries = Object.entries(metadata || {}).map(([key, value]) => ({ key, value: value ?? '' }));
+            return normalizeParameterEntries(entries);
+        }
 
-            let parsed;
-            try {
-                parsed = JSON.parse(raw);
-            } catch (err) {
-                throw new Error('Connection parameters must be valid JSON');
+        function renderConnectionParametersModal() {
+            const editor = state.connectionParameterEditor;
+            if (!editor) return;
+
+            const connection = state.connections.get(editor.connectionId);
+            const sourceName = connection ? getRecordDisplayName(connection.sourceId) : '';
+            const targetName = connection ? getRecordDisplayName(connection.targetId) : '';
+
+            document.getElementById('connectionParametersTitle').textContent = 'Edit Parameters';
+            document.getElementById('connectionParametersSubtitle').textContent = connection
+                ? `${sourceName} → ${targetName}`
+                : '';
+
+            const info = document.getElementById('connectionParametersInfo');
+            if (info) {
+                info.textContent = connection
+                    ? 'Update the parameters on this connection. Changes are saved immediately when you click Save.'
+                    : 'Connection not found.';
             }
 
-            if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-                throw new Error('Connection parameters must be a JSON object');
-            }
+            const list = document.getElementById('connectionParametersList');
+            if (!list) return;
 
-            return parsed;
+            editor.entries = normalizeParameterEntries(editor.entries);
+            list.innerHTML = editor.entries.map((entry, idx) => `
+                <div class="flex items-center gap-2">
+                    <input class="border rounded px-3 py-2 text-sm w-2/5" type="text" placeholder="Name" value="${entry.key}" oninput="updateConnectionParameterEntry(${idx}, 'key', this.value)">
+                    <input class="border rounded px-3 py-2 text-sm flex-1" type="text" placeholder="Value" value="${entry.value}" oninput="updateConnectionParameterEntry(${idx}, 'value', this.value)">
+                    <button class="text-gray-400 hover:text-red-500" title="Remove" onclick="removeConnectionParameterEntry(${idx})" ${editor.entries.length === 1 ? 'disabled' : ''}>×</button>
+                </div>
+            `).join('');
+        }
+
+        function updateConnectionParameterEntry(index, field, value) {
+            const editor = state.connectionParameterEditor;
+            if (!editor) return;
+            if (!editor.entries[index]) editor.entries[index] = { key: '', value: '' };
+            editor.entries[index][field] = value;
+        }
+
+        function addConnectionParameterEntry() {
+            const editor = state.connectionParameterEditor;
+            if (!editor) return;
+            editor.entries.push({ key: '', value: '' });
+            renderConnectionParametersModal();
+        }
+
+        function removeConnectionParameterEntry(index) {
+            const editor = state.connectionParameterEditor;
+            if (!editor) return;
+            editor.entries.splice(index, 1);
+            editor.entries = normalizeParameterEntries(editor.entries);
+            renderConnectionParametersModal();
         }
 
         function editConnectionParameters(connectionId, recordId) {
@@ -3778,21 +3900,37 @@
                 return;
             }
 
-            const currentJson = JSON.stringify(existing.metadata || {}, null, 2);
-            const input = prompt('Edit connection parameters (JSON object)', currentJson);
-            if (input === null) return;
+            state.connectionParameterEditor = {
+                connectionId,
+                recordId,
+                entries: metadataToEntries(existing.metadata)
+            };
 
-            let parsed;
+            renderConnectionParametersModal();
+            openModal('connectionParametersModal');
+        }
+
+        function saveConnectionParameters() {
+            const editor = state.connectionParameterEditor;
+            if (!editor) return;
+
+            let metadata = {};
             try {
-                parsed = parseConnectionMetadata(input);
+                metadata = buildMetadataFromEntries(editor.entries);
             } catch (err) {
                 showToast(err.message);
                 return;
             }
 
-            updateConnection(connectionId, { metadata: parsed });
-            renderRecordSidebar(recordId);
+            updateConnection(editor.connectionId, { metadata });
+            renderRecordSidebar(editor.recordId);
+            closeConnectionParametersModal();
             showToast('✓ Parameters updated');
+        }
+
+        function closeConnectionParametersModal() {
+            state.connectionParameterEditor = null;
+            closeModal('connectionParametersModal');
         }
 
         function getRecordDisplayName(recordId) {
@@ -3823,16 +3961,16 @@
                 return;
             }
 
-            const rawMetadata = document.getElementById('newConnectionMetadata')?.value || builder.metadataJson || '';
             let metadata = {};
             try {
-                metadata = parseConnectionMetadata(rawMetadata);
+                metadata = buildMetadataFromEntries(builder.metadataEntries);
             } catch (err) {
                 showToast(err.message);
                 return;
             }
 
             builder.targetRecordId = '';
+            builder.metadataEntries = [{ key: '', value: '' }];
             createConnection(recordId, target, metadata);
             renderRecordSidebar(recordId);
             showToast('✓ Connection created');
@@ -4680,6 +4818,10 @@
             document.getElementById('closeHistoryBtn').onclick = () => document.getElementById('historyPanel').classList.remove('open');
             document.getElementById('toggleHistorySidebarBtn').onclick = toggleRecordHistoryVisibility;
             document.getElementById('closeExpandedRecordBtn').onclick = () => closeModal('expandedRecordModal');
+            document.getElementById('connectionParametersSaveBtn').onclick = saveConnectionParameters;
+            document.getElementById('connectionParametersCancelBtn').onclick = closeConnectionParametersModal;
+            document.getElementById('closeConnectionParametersBtn').onclick = closeConnectionParametersModal;
+            document.getElementById('addConnectionParameterRowBtn').onclick = addConnectionParameterEntry;
             document.getElementById('openSetIconPickerBtn').onclick = () => openIconPicker('newSetIcon');
             document.getElementById('openViewIconPickerBtn').onclick = () => openIconPicker('newViewIcon');
             document.getElementById('closeIconPickerBtn').onclick = () => closeModal('iconPickerModal');
