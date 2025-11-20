@@ -3399,12 +3399,18 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
+        function closeAllContextMenus() {
+            document.querySelectorAll('.context-menu').forEach(menu => menu.remove());
+        }
+
         function openModal(modalId) {
+            closeAllContextMenus();
             document.getElementById(modalId).classList.remove('hidden');
             state.modalStack.push(modalId);
         }
 
         function closeModal(modalId) {
+            closeAllContextMenus();
             document.getElementById(modalId).classList.add('hidden');
             state.modalStack = state.modalStack.filter(id => id !== modalId);
         }
@@ -3662,8 +3668,16 @@
 
         function setupKeyboardShortcuts() {
             document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && state.modalStack.length > 0) {
-                    closeModal(state.modalStack[state.modalStack.length - 1]);
+                if (e.key === 'Escape') {
+                    const openMenus = document.querySelectorAll('.context-menu');
+                    if (openMenus.length) {
+                        openMenus.forEach(menu => menu.remove());
+                        return;
+                    }
+
+                    if (state.modalStack.length > 0) {
+                        closeModal(state.modalStack[state.modalStack.length - 1]);
+                    }
                 }
             });
         }
