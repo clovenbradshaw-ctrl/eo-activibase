@@ -616,37 +616,43 @@
         /* FIELD TYPE GRID */
         .field-type-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            grid-auto-rows: 1fr;
+            gap: 14px;
             max-height: 400px;
             overflow-y: auto;
+            align-items: stretch;
         }
         .field-type-option {
-            padding: 12px;
+            padding: 14px 16px;
             border: 2px solid #e5e7eb;
-            border-radius: 8px;
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.15s ease;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
             background: white;
-            min-height: 64px;
+            min-height: 80px;
+            height: 100%;
         }
         .field-type-option:hover { border-color: #3b82f6; background: #f0f9ff; }
         .field-type-option.selected { border-color: #3b82f6; background: #dbeafe; }
         .field-type-icon {
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
             background: #f3f4f6;
-            border-radius: 6px;
+            border-radius: 8px;
             flex-shrink: 0;
             font-size: 18px;
         }
         .field-type-option.selected .field-type-icon { background: #3b82f6; color: white; }
+        .field-type-content { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .field-type-name { font-weight: 600; font-size: 14px; color: #111827; }
+        .field-type-id { font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; color: #6b7280; }
         
         /* FILTER BUILDER */
         .filter-group { background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
@@ -2622,9 +2628,9 @@
                 option.onclick = (e) => selectFieldType(fieldType.id, e.currentTarget);
                 option.innerHTML = `
                     <div class="field-type-icon">${renderIcon(fieldType.icon)}</div>
-                    <div class="flex-1">
-                        <div class="font-medium text-sm">${fieldType.name}</div>
-                        <div class="text-xs text-gray-500">${fieldType.id.replace(/_/g, ' ')}</div>
+                    <div class="field-type-content">
+                        <div class="field-type-name">${fieldType.name}</div>
+                        <div class="field-type-id">${fieldType.id.replace(/_/g, ' ')}</div>
                     </div>
                 `;
                 grid.appendChild(option);
