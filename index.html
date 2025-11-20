@@ -281,12 +281,21 @@
             min-width: 60px;
         }
         tr:hover { background-color: #fafafa; }
-        tr:hover .row-number { background: #3b82f6; color: white; cursor: pointer; }
-        .row-number { transition: all 0.2s ease; }
-        .row-number-header { cursor: pointer; user-select: none; }
-        .row-number-header.row-number-hidden { background: #f3f4f6; color: #6b7280; font-weight: 700; }
-        .row-number-header:hover { background: #ebf2ff; }
-        .row-number-placeholder { cursor: pointer; color: #d1d5db; }
+        .table-footer {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            color: #4b5563;
+            font-size: 13px;
+        }
+        .record-counter {
+            font-weight: 700;
+            color: #111827;
+        }
 
         .table-scroll {
             overflow-x: auto;
@@ -1299,7 +1308,6 @@
                 icon: config.icon || VIEW_TYPE_ICONS[config.type || 'grid'] || '📋',
                 filters: config.filters || [],
                 hiddenFields: config.hiddenFields || [],
-                showRowNumbers: config.showRowNumbers !== undefined ? config.showRowNumbers : true,
                 popupVisibilityRules: config.popupVisibilityRules || [],
                 kanbanGroupField: config.kanbanGroupField || null,
                 cardFields: config.cardFields || [],
@@ -1679,23 +1687,7 @@
         }
 
         function ensureViewDefaults(view) {
-            if (view.showRowNumbers === undefined) view.showRowNumbers = true;
             if (!view.icon) view.icon = VIEW_TYPE_ICONS[view.type] || '📋';
-        }
-
-        function setRowNumbersVisibility(visible) {
-            const view = getCurrentView();
-            if (!view || view.type !== 'grid') return;
-
-            view.showRowNumbers = visible;
-            renderCurrentView();
-        }
-
-        function toggleRowNumbers() {
-            const view = getCurrentView();
-            if (!view || view.type !== 'grid') return;
-
-            setRowNumbersVisibility(view.showRowNumbers === false);
         }
 
         // GRID VIEW
@@ -1705,16 +1697,15 @@
             
             const view = getCurrentView();
             const profile = getCurrentProfile();
-            const schema = set.schema.filter(f => 
+            const schema = set.schema.filter(f =>
                 !profile || profile.visibleFields.length === 0 || profile.visibleFields.includes(f.id)
             );
-            
+
             let records = Array.from(set.records.values());
             if (view && view.filters.length > 0) records = applyFilterGroups(records, view.filters, schema);
 
-            const rowNumberHeader = view.showRowNumbers === false
-                ? '<th class="column-header row-number-header row-number-hidden" style="width: 80px;">Row # Hidden</th>'
-                : '<th class="column-header row-number-header" style="width: 50px;">#</th>';
+            const recordCount = records.length;
+            const recordLabel = recordCount === 1 ? 'record' : 'records';
 
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
@@ -1722,14 +1713,17 @@
                     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                         <div class="table-scroll">
                             <table id="dataTable" class="w-full border-collapse">
-                                <thead><tr id="tableHeader">${rowNumberHeader}</tr></thead>
+                                <thead><tr id="tableHeader"></tr></thead>
                                 <tbody id="tableBody"></tbody>
                             </table>
+                        </div>
+                        <div class="table-footer">
+                            <span class="record-counter" id="recordCounter">${recordCount} ${recordLabel}</span>
                         </div>
                     </div>
                 </div>
             `;
-            
+
             const headerRow = document.getElementById('tableHeader');
             schema.forEach(field => {
                 const th = document.createElement('th');
@@ -1742,18 +1736,8 @@
                 headerRow.appendChild(th);
             });
 
-            const rowNumberHeaderEl = document.querySelector('.row-number-header');
-            if (rowNumberHeaderEl) {
-                rowNumberHeaderEl.oncontextmenu = (e) => { e.preventDefault(); showRowNumberMenu(e); };
-                rowNumberHeaderEl.onclick = (e) => {
-                    e.stopPropagation();
-                    toggleRowNumbers();
-                };
-                rowNumberHeaderEl.title = view.showRowNumbers === false ? 'Click to show row numbers' : 'Click to hide row numbers';
-            }
-
             const table = document.getElementById('dataTable');
-            const minimumTableWidth = Math.max(schema.length * 170 + 80, 600);
+            const minimumTableWidth = Math.max(schema.length * 170, 600);
             table.style.minWidth = `${minimumTableWidth}px`;
 
             const tbody = document.getElementById('tableBody');
@@ -1762,23 +1746,6 @@
                 tr.dataset.recordId = record.id;
                 tr.ondblclick = () => openExpandedRecord(record.id);
 
-                if (view.showRowNumbers !== false) {
-                    const tdNum = document.createElement('td');
-                    tdNum.className = 'row-number cell-editable text-center bg-gray-50 font-medium text-gray-500';
-                    tdNum.textContent = index + 1;
-                    tdNum.oncontextmenu = (e) => { e.preventDefault(); showRowMenu(e, record.id); };
-                    tr.appendChild(tdNum);
-                } else {
-                    const tdPlaceholder = document.createElement('td');
-                    tdPlaceholder.className = 'row-number row-number-placeholder text-center bg-gray-50';
-                    tdPlaceholder.textContent = '—';
-                    tdPlaceholder.onclick = (e) => {
-                        e.stopPropagation();
-                        setRowNumbersVisibility(true);
-                    };
-                    tr.appendChild(tdPlaceholder);
-                }
-                
                 schema.forEach(field => {
                     const td = document.createElement('td');
                     td.className = 'cell-editable';
@@ -2986,23 +2953,6 @@
             showContextMenu(e, [
                 { label: 'Hide Field', action: () => hideField(field.id) },
                 { label: 'Delete Field', action: () => confirmDelete('field', field.id), danger: true }
-            ]);
-        }
-
-        function showRowMenu(e, recordId) {
-            showContextMenu(e, [
-                { label: 'Hide Row Numbers', action: () => setRowNumbersVisibility(false) },
-                { label: 'Delete Record', action: () => confirmDelete('record', recordId), danger: true }
-            ]);
-        }
-
-        function showRowNumberMenu(e) {
-            const view = getCurrentView();
-            if (!view || view.type !== 'grid') return;
-
-            const isHidden = view.showRowNumbers === false;
-            showContextMenu(e, [
-                { label: isHidden ? 'Show Row Numbers' : 'Hide Row Numbers', action: () => setRowNumbersVisibility(isHidden) }
             ]);
         }
 
