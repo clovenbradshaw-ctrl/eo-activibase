@@ -1032,7 +1032,8 @@
             URL: { id: 'URL', name: 'URL', defaultValue: '', icon: '🔗' },
             PHONE: { id: 'PHONE', name: 'Phone', defaultValue: '', icon: '📞' },
             SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', defaultValue: '', icon: '🎯', needsConfig: true },
-            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: '☑️' }
+            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: '☑️' },
+            CONNECTION: { id: 'CONNECTION', name: 'Connection', defaultValue: [], icon: '🪢', needsConfig: true }
         };
 
         const EO_OPERATOR_SET = {
@@ -1168,7 +1169,8 @@
                 schema: [],
                 records: new Map(),
                 views: new Map(),
-                profiles: new Map([['default', { id: 'default', name: 'All Fields', visibleFields: [] }]])
+                profiles: new Map([['default', { id: 'default', name: 'All Fields', visibleFields: [] }]]),
+                connections: new Map()
             });
             createEvent(
                 'Create Set',
@@ -1199,6 +1201,14 @@
             const set = state.sets.get(setId);
             const recordId = 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             const record = { id: recordId, ...data };
+            set.schema.forEach(field => {
+                if (field.type === 'CONNECTION') {
+                    record[field.id] = Array.isArray(record[field.id]) ? record[field.id] : [];
+                    if (!set.connections.has(field.id)) {
+                        set.connections.set(field.id, { fieldId: field.id, config: field.config || {}, edges: [] });
+                    }
+                }
+            });
             set.records.set(recordId, record);
             createEvent(
                 'Create Record',
@@ -1207,6 +1217,114 @@
                 { setId, recordId, data, summary: 'Created record' }
             );
             return recordId;
+        }
+
+        function getConnectionDefinition(set, fieldId) {
+            if (!set.connections) set.connections = new Map();
+            if (!set.connections.has(fieldId)) {
+                const field = set.schema.find(f => f.id === fieldId) || {};
+                set.connections.set(fieldId, { fieldId, config: field.config || {}, edges: [] });
+            }
+            return set.connections.get(fieldId);
+        }
+
+        function recomputeConnectionValues(set, fieldId) {
+            const connection = getConnectionDefinition(set, fieldId);
+            set.records.forEach(record => {
+                record[fieldId] = connection.edges.filter(e => e.sourceId === record.id);
+            });
+        }
+
+        function recomputeLookupsForConnection(set, connection) {
+            if (!connection.config?.lookups || connection.config.lookups.length === 0) return;
+            const targetSet = state.sets.get(connection.config.targetSetId);
+            if (!targetSet) return;
+
+            set.records.forEach(record => {
+                const edges = connection.edges.filter(e => e.sourceId === record.id);
+                const targets = edges.map(e => targetSet.records.get(e.targetId)).filter(Boolean);
+                connection.config.lookups.forEach(lookup => {
+                    const values = targets.map(t => t?.[lookup.fromField]);
+                    let derivedValue = null;
+                    switch(lookup.aggregate) {
+                        case 'sum':
+                            derivedValue = values.reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+                            break;
+                        case 'avg':
+                            derivedValue = values.length ? values.reduce((sum, v) => sum + (parseFloat(v) || 0), 0) / values.length : 0;
+                            break;
+                        case 'count':
+                            derivedValue = values.filter(v => v !== undefined && v !== null).length;
+                            break;
+                        case 'first':
+                            derivedValue = values[0] || null;
+                            break;
+                        default:
+                            derivedValue = values.filter(v => v !== undefined && v !== null).join(', ');
+                    }
+                    record[lookup.intoField] = derivedValue;
+                });
+            });
+        }
+
+        function recomputeAllLookupsForSet(set) {
+            if (!set.connections) return;
+            set.connections.forEach(connection => {
+                recomputeConnectionValues(set, connection.fieldId);
+                recomputeLookupsForConnection(set, connection);
+            });
+        }
+
+        function recomputeLookupsForTarget(targetSetId, targetRecordId) {
+            state.sets.forEach(set => {
+                set.connections?.forEach(connection => {
+                    const touchesTarget = connection.config?.targetSetId === targetSetId && connection.edges.some(e => e.targetId === targetRecordId);
+                    if (touchesTarget) {
+                        recomputeAllLookupsForSet(set);
+                    }
+                });
+            });
+            renderCurrentView();
+        }
+
+        function addConnectionEdge(setId, fieldId, sourceId, targetId, edgeData = {}) {
+            const set = state.sets.get(setId);
+            if (!set) return;
+            const connection = getConnectionDefinition(set, fieldId);
+            if (!connection.config?.targetSetId) { showToast('⚠️ Connection missing target set'); return; }
+
+            if (connection.config.cardinality === 'single') {
+                connection.edges = connection.edges.filter(e => e.sourceId !== sourceId);
+            }
+
+            const existing = connection.edges.find(e => e.sourceId === sourceId && e.targetId === targetId);
+            const edgeId = existing?.edgeId || `edge_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+            if (existing) {
+                existing.edgeData = edgeData;
+            } else {
+                connection.edges.push({ edgeId, sourceId, targetId, edgeData });
+            }
+
+            recomputeConnectionValues(set, fieldId);
+            recomputeLookupsForConnection(set, connection);
+            createEvent('Connect Records', 'CON', { type: 'Record', id: sourceId, setId }, { sourceId, targetId, fieldId, edgeId, edgeData, summary: 'Created connection' });
+            renderCurrentView();
+            showToast('✓ Connection saved');
+        }
+
+        function removeConnectionEdge(setId, fieldId, edgeId, event) {
+            if (event) event.stopPropagation();
+            const set = state.sets.get(setId);
+            if (!set) return;
+            const connection = getConnectionDefinition(set, fieldId);
+            const removed = connection.edges.find(e => e.edgeId === edgeId);
+            connection.edges = connection.edges.filter(e => e.edgeId !== edgeId);
+            recomputeConnectionValues(set, fieldId);
+            recomputeLookupsForConnection(set, connection);
+            if (removed) {
+                createEvent('Remove Connection', 'NUL', { type: 'Record', id: removed.sourceId, setId }, { fieldId, edgeId, targetId: removed.targetId, summary: 'Removed connection' });
+            }
+            renderCurrentView();
         }
 
         // SIDEBAR
@@ -1439,6 +1557,19 @@
                     if (!value) return '';
                     const color = field.config?.colors?.[value] || 'gray';
                     return `<span class="badge badge-${color}">${value}</span>`;
+                case 'CONNECTION':
+                    if (!value || value.length === 0) return '';
+                    const currentSet = getCurrentSet();
+                    const connectionDef = currentSet?.connections?.get(field.id);
+                    return value.map(edge => {
+                        const targetSet = connectionDef ? state.sets.get(connectionDef.config?.targetSetId) : null;
+                        const targetRecord = targetSet?.records.get(edge.targetId);
+                        const label = targetRecord?.name || targetRecord?.id || 'Untitled';
+                        const edgeMeta = edge.edgeData && Object.keys(edge.edgeData).length > 0
+                            ? ` <span class="text-[10px] text-gray-600">${Object.entries(edge.edgeData).map(([k,v]) => `${k}: ${v}`).join(', ')}</span>`
+                            : '';
+                        return `<span class="badge badge-blue inline-flex items-center gap-1">${label}${edgeMeta} <button class="text-[10px] ml-1" onclick="removeConnectionEdge('${currentSet?.id}', '${field.id}', '${edge.edgeId}', event)">✕</button></span>`;
+                    }).join(' ');
                 default:
                     return value || '';
             }
@@ -1478,7 +1609,13 @@
                         `;
                     }).join('')}
                 `;
-                
+
+                const connectBtn = document.createElement('button');
+                connectBtn.className = 'btn btn-secondary btn-sm mt-3';
+                connectBtn.textContent = 'Connect';
+                connectBtn.onclick = (e) => { e.stopPropagation(); openConnectionPicker(record.id); };
+                card.appendChild(connectBtn);
+
                 grid.appendChild(card);
             });
         }
@@ -1737,6 +1874,127 @@
             }, 0);
         }
 
+        function openConnectionPicker(recordId) {
+            const set = getCurrentSet();
+            const connectionFields = set.schema.filter(f => f.type === 'CONNECTION');
+            if (connectionFields.length === 0) { showToast('⚠️ Add a connection field first'); return; }
+
+            const overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50';
+            overlay.innerHTML = `
+                <div class="modal-container bg-white w-full max-w-lg">
+                    <div class="modal-header flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900">Connect Record</h2>
+                            <p class="text-sm text-gray-500">Create a connection to another record</p>
+                        </div>
+                        <button class="text-gray-400 hover:text-gray-600 transition p-2" id="closeConnectionPicker">✕</button>
+                    </div>
+                    <div class="modal-body space-y-4">
+                        <div>
+                            <label class="form-label">Connection Field</label>
+                            <select id="connectionFieldSelect" class="w-full"></select>
+                        </div>
+                        <div>
+                            <label class="form-label">Target Record</label>
+                            <select id="connectionTargetSelect" class="w-full"></select>
+                        </div>
+                        <div id="edgeAttributes"></div>
+                        <div>
+                            <label class="form-label">Existing Connections</label>
+                            <div id="existingConnections" class="space-y-2"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer flex justify-end gap-2">
+                        <button class="btn btn-secondary" id="cancelConnectionPicker">Cancel</button>
+                        <button class="btn btn-primary" id="saveConnectionPicker">Save</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+
+            const fieldSelect = overlay.querySelector('#connectionFieldSelect');
+            const targetSelect = overlay.querySelector('#connectionTargetSelect');
+            const edgeAttributes = overlay.querySelector('#edgeAttributes');
+            const existingContainer = overlay.querySelector('#existingConnections');
+
+            connectionFields.forEach(f => {
+                const option = document.createElement('option');
+                option.value = f.id;
+                option.textContent = f.name;
+                fieldSelect.appendChild(option);
+            });
+
+            function renderTargets(fieldId) {
+                const connection = getConnectionDefinition(set, fieldId);
+                const targetSet = state.sets.get(connection.config.targetSetId);
+                targetSelect.innerHTML = '';
+                if (!targetSet) { targetSelect.innerHTML = '<option value="">No target set</option>'; return; }
+                targetSet.records.forEach(r => {
+                    const option = document.createElement('option');
+                    option.value = r.id;
+                    option.textContent = r.name || r.id;
+                    targetSelect.appendChild(option);
+                });
+            }
+
+            function renderEdgeSchema(fieldId) {
+                const connection = getConnectionDefinition(set, fieldId);
+                edgeAttributes.innerHTML = '';
+                if (!connection.config?.edgeSchema || connection.config.edgeSchema.length === 0) return;
+                connection.config.edgeSchema.forEach(field => {
+                    const wrapper = document.createElement('div');
+                    wrapper.innerHTML = `
+                        <label class="form-label">${field.name || field.id}</label>
+                        <input type="text" data-edge-field="${field.id}" class="w-full" placeholder="Enter ${field.name || field.id}">
+                    `;
+                    edgeAttributes.appendChild(wrapper);
+                });
+            }
+
+            function renderExisting(fieldId) {
+                const connection = getConnectionDefinition(set, fieldId);
+                const edges = connection.edges.filter(e => e.sourceId === recordId);
+                if (edges.length === 0) { existingContainer.innerHTML = '<p class="text-sm text-gray-500">No connections yet</p>'; return; }
+                const targetSet = state.sets.get(connection.config.targetSetId);
+                existingContainer.innerHTML = edges.map(edge => {
+                    const targetRecord = targetSet?.records.get(edge.targetId);
+                    const label = targetRecord?.name || edge.targetId;
+                    return `<div class="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2 text-sm">
+                        <span>${label}</span>
+                        <button class="text-red-600" onclick="removeConnectionEdge('${set.id}', '${fieldId}', '${edge.edgeId}')">Remove</button>
+                    </div>`;
+                }).join('');
+            }
+
+            function syncUI() {
+                const fieldId = fieldSelect.value;
+                renderTargets(fieldId);
+                renderEdgeSchema(fieldId);
+                renderExisting(fieldId);
+            }
+
+            fieldSelect.onchange = syncUI;
+            syncUI();
+
+            overlay.querySelector('#saveConnectionPicker').onclick = () => {
+                const fieldId = fieldSelect.value;
+                const targetId = targetSelect.value;
+                const edgeData = {};
+                edgeAttributes.querySelectorAll('[data-edge-field]').forEach(input => {
+                    edgeData[input.dataset.edgeField] = input.value;
+                });
+                if (fieldId && targetId) {
+                    addConnectionEdge(set.id, fieldId, recordId, targetId, edgeData);
+                }
+                document.body.removeChild(overlay);
+            };
+            const close = () => document.body.contains(overlay) && document.body.removeChild(overlay);
+            overlay.querySelector('#cancelConnectionPicker').onclick = close;
+            overlay.querySelector('#closeConnectionPicker').onclick = close;
+        }
+
         function updateRecord(recordId, fieldId, newValue, oldValue) {
             const set = getCurrentSet();
             const record = set.records.get(recordId);
@@ -1756,6 +2014,8 @@
                     summary: `Updated ${field.name}`
                 }
             );
+            recomputeAllLookupsForSet(set);
+            recomputeLookupsForTarget(set.id, recordId);
             renderCurrentView();
             showToast(`✓ Updated ${field.name}`);
         }
@@ -1807,6 +2067,8 @@
             if (typeId === 'SINGLE_SELECT') {
                 document.getElementById('singleSelectConfig').classList.add('visible');
                 renderSelectOptions();
+            } else if (typeId === 'CONNECTION') {
+                document.getElementById('linkToRecordConfig').classList.add('visible');
             }
         }
 
@@ -1855,16 +2117,22 @@
             }
             
             const newField = { id: fieldId, name: name, type: type, width: '150px', config: {} };
-            
+
             if (type === 'SINGLE_SELECT') {
                 newField.config = {
                     options: state.selectOptions.map(o => o.value),
                     colors: Object.fromEntries(state.selectOptions.map(o => [o.value, o.color]))
                 };
+            } else if (type === 'CONNECTION') {
+                const targetSetId = document.getElementById('linkToSet').value || state.currentSetId;
+                newField.config = { targetSetId, cardinality: 'many', edgeSchema: [], lookups: [] };
             }
-            
+
             set.schema.push(newField);
-            set.records.forEach(r => r[fieldId] = FIELD_TYPES[type].defaultValue);
+            set.records.forEach(r => r[fieldId] = Array.isArray(FIELD_TYPES[type].defaultValue) ? [] : FIELD_TYPES[type].defaultValue);
+            if (type === 'CONNECTION') {
+                set.connections.set(fieldId, { fieldId, config: newField.config, edges: [] });
+            }
             
             closeModal('addFieldModal');
             renderCurrentView();
@@ -1922,12 +2190,18 @@
         }
 
         function applyFilterGroups(records, filterGroups, schema) {
+            const toComparable = (value) => {
+                if (Array.isArray(value)) {
+                    return value.map(v => typeof v === 'object' ? (v.targetId || JSON.stringify(v)) : v).join(', ');
+                }
+                return value;
+            };
             return records.filter(record => {
                 return filterGroups.some(group => {
                     const operator = group.operator || 'AND';
                     const rules = group.filter(r => r.field);
-                    if (operator === 'AND') return rules.every(rule => record[rule.field] === rule.value);
-                    else return rules.some(rule => record[rule.field] === rule.value);
+                    if (operator === 'AND') return rules.every(rule => toComparable(record[rule.field]) === rule.value);
+                    else return rules.some(rule => toComparable(record[rule.field]) === rule.value);
                 });
             });
         }
@@ -2103,6 +2377,7 @@
 
         function showRowMenu(e, recordId) {
             showContextMenu(e, [
+                { label: 'Connect...', action: () => openConnectionPicker(recordId) },
                 { label: 'Delete Record', action: () => confirmDelete('record', recordId), danger: true }
             ]);
         }
@@ -2296,7 +2571,8 @@
                     ...s,
                     records: Array.from(s.records.values()),
                     views: Array.from(s.views.values()),
-                    profiles: Array.from(s.profiles.values())
+                    profiles: Array.from(s.profiles.values()),
+                    connections: Array.from(s.connections?.values() || [])
                 })),
                 eventStream: state.eventStream
             };
@@ -2327,7 +2603,13 @@
             document.getElementById('addRecordBtn').onclick = () => {
                 const set = getCurrentSet();
                 const record = { id: `rec_${Date.now()}` };
-                set.schema.forEach(f => record[f.id] = FIELD_TYPES[f.type].defaultValue);
+                set.schema.forEach(f => {
+                    const defaultValue = FIELD_TYPES[f.type].defaultValue;
+                    record[f.id] = Array.isArray(defaultValue) ? [...defaultValue] : defaultValue;
+                    if (f.type === 'CONNECTION' && !set.connections.has(f.id)) {
+                        set.connections.set(f.id, { fieldId: f.id, config: f.config || {}, edges: [] });
+                    }
+                });
                 set.records.set(record.id, record);
                 renderCurrentView();
                 showToast('✓ Record added');
@@ -2417,7 +2699,8 @@
                             ...s,
                             records: Array.from(s.records.values()),
                             views: Array.from(s.views.values()),
-                            profiles: Array.from(s.profiles.values())
+                            profiles: Array.from(s.profiles.values()),
+                            connections: Array.from(s.connections?.values() || [])
                         })),
                         eventStream: state.eventStream,
                         operatorSet: state.operatorSet,
@@ -2435,7 +2718,8 @@
                         recordCount: s.records.size,
                         viewCount: s.views.size,
                         records: Array.from(s.records.values()),
-                        views: Array.from(s.views.values())
+                        views: Array.from(s.views.values()),
+                        connections: Array.from(s.connections?.values() || [])
                     }));
                     break;
                 case 'current':
@@ -2447,7 +2731,8 @@
                         schema: set.schema,
                         records: Array.from(set.records.values()),
                         views: Array.from(set.views.values()),
-                        profiles: Array.from(set.profiles.values())
+                        profiles: Array.from(set.profiles.values()),
+                        connections: Array.from(set.connections?.values() || [])
                     } : null;
                     break;
                 case 'events':
