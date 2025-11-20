@@ -560,11 +560,15 @@
         .modal-overlay { backdrop-filter: blur(2px); animation: fadeIn 0.2s ease; }
         .modal-container { border-radius: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
         #expandedRecordModal .modal-container { height: 90vh; }
+        #addFieldModal .modal-container { max-width: 540px; width: 100%; border-radius: 10px; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .modal-header { padding: 24px 24px 16px 24px; border-bottom: 1px solid #f0f0f0; }
         .modal-body { padding: 24px; }
         .modal-footer { padding: 16px 24px; border-top: 1px solid #f0f0f0; background: #fafafa; }
+        #addFieldModal .modal-header { padding: 16px 18px 10px 18px; }
+        #addFieldModal .modal-body { padding: 16px 18px 18px 18px; }
+        #addFieldModal .modal-footer { padding: 14px 18px; background: #f8fafc; }
         .icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
         .icon-option { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; border-radius: 10px; border: 1px solid #e5e7eb; background: #ffffff; cursor: pointer; transition: all 0.15s ease; }
         .icon-option:hover { border-color: #d1d5db; box-shadow: 0 10px 30px rgba(0,0,0,0.04); }
@@ -620,28 +624,28 @@
         /* FIELD TYPE GRID */
         .field-type-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            grid-template-columns: 1fr;
             grid-auto-rows: 1fr;
-            gap: 14px;
-            max-height: 400px;
+            gap: 10px;
+            max-height: 360px;
             overflow-y: auto;
             align-items: stretch;
         }
         .field-type-option {
-            padding: 14px 16px;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
+            padding: 12px 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.15s ease;
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 12px;
             background: white;
-            min-height: 80px;
+            min-height: 64px;
             height: 100%;
         }
-        .field-type-option:hover { border-color: #3b82f6; background: #f0f9ff; }
-        .field-type-option.selected { border-color: #3b82f6; background: #dbeafe; }
+        .field-type-option:hover { border-color: #d1d5db; box-shadow: 0 6px 16px rgba(0,0,0,0.05); }
+        .field-type-option.selected { border-color: var(--border-strong); background: #f8fafc; box-shadow: 0 10px 24px rgba(0,0,0,0.06); }
         .field-type-icon {
             width: 36px;
             height: 36px;
@@ -967,7 +971,7 @@
     </div>
 
     <div id="filterModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="modal-container bg-white w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
             <div class="modal-header flex items-center justify-between">
                 <div>
                     <h2 class="text-xl font-bold text-gray-900">Filter View</h2>
@@ -1043,7 +1047,7 @@
     </div>
 
     <div id="addFieldModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="modal-container bg-white w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
             <div class="modal-header flex items-center justify-between">
                 <div>
                     <h2 class="text-xl font-bold text-gray-900">Add Field</h2>
@@ -2704,16 +2708,16 @@
             const linkSelect = document.getElementById('linkToSet');
             linkSelect.innerHTML = '';
             state.sets.forEach((set, setId) => {
-                if (setId !== state.currentSetId) {
-                    linkSelect.innerHTML += `<option value="${setId}">${set.name}</option>`;
-                }
+                const label = setId === state.currentSetId ? `${set.name} (this set)` : set.name;
+                linkSelect.innerHTML += `<option value="${setId}">${label}</option>`;
             });
             if (linkSelect.options.length === 0) {
-                linkSelect.innerHTML = '<option value="">No other sets available</option>';
+                linkSelect.innerHTML = '<option value="">No sets available</option>';
                 linkSelect.disabled = true;
             } else {
                 linkSelect.disabled = false;
-                linkSelect.value = linkSelect.options[0].value;
+                const defaultValue = state.sets.has(state.currentSetId) ? state.currentSetId : linkSelect.options[0].value;
+                linkSelect.value = defaultValue;
             }
 
             openModal('addFieldModal');
