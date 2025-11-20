@@ -138,6 +138,7 @@
             align-items: center;
             gap: 8px;
             color: #9ca3af;
+            position: relative;
         }
         .view-item:hover { background: #252931; color: #e5e7eb; }
         .view-item.active { background: #2f343d; color: #ffffff; font-weight: 600; }
@@ -929,7 +930,7 @@
     <div id="addSetModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
         <div class="modal-container bg-white w-full max-w-md">
             <div class="modal-header">
-                <h2 class="text-xl font-bold text-gray-900">Create Set</h2>
+                <h2 id="addSetModalTitle" class="text-xl font-bold text-gray-900">Create Set</h2>
             </div>
             <div class="modal-body space-y-4">
                 <div>
@@ -951,12 +952,21 @@
     <div id="addViewModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
         <div class="modal-container bg-white w-full max-w-md">
             <div class="modal-header">
-                <h2 class="text-xl font-bold text-gray-900">Create View</h2>
+                <h2 id="addViewModalTitle" class="text-xl font-bold text-gray-900">Create View</h2>
             </div>
             <div class="modal-body space-y-4">
                 <div>
                     <label class="form-label">View Name</label>
                     <input type="text" id="newViewName" placeholder="e.g., Active Items">
+                </div>
+                <div>
+                    <label class="form-label">View Icon (emoji)</label>
+                    <input type="text" id="newViewIcon" placeholder="📋" maxlength="2">
+                </div>
+                <div>
+                    <label class="form-label">Nest Under</label>
+                    <select id="newViewParent"></select>
+                    <p class="form-hint">Optionally place this view under another view</p>
                 </div>
             </div>
             <div class="modal-footer flex justify-end gap-2">
@@ -1072,7 +1082,9 @@
             selectOptions: [{ value: 'Option 1', color: 'blue' }],
             expandedSets: new Set(),
             draggedRecord: null,
-            cellHistoryContext: null
+            cellHistoryContext: null,
+            setEditorContext: null,
+            viewEditorContext: null
         };
 
         const FIELD_TYPES = {
@@ -1087,6 +1099,8 @@
             SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', defaultValue: '', icon: '🎯', needsConfig: true },
             CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: '☑️' }
         };
+
+        const VIEW_TYPE_ICONS = { grid: '🔲', card: '🃏', kanban: '📊' };
 
         const EO_OPERATOR_SET = {
             INS: { id: 'INS', name: 'Instantiate', description: 'Create a new object that did not exist before.' },
@@ -1252,12 +1266,14 @@
                 id: viewId,
                 name: name,
                 type: config.type || 'grid',
+                icon: config.icon || VIEW_TYPE_ICONS[config.type || 'grid'] || '📋',
                 filters: config.filters || [],
                 hiddenFields: config.hiddenFields || [],
                 showRowNumbers: config.showRowNumbers !== undefined ? config.showRowNumbers : true,
                 popupVisibilityRules: config.popupVisibilityRules || [],
                 kanbanGroupField: config.kanbanGroupField || null,
-                cardFields: config.cardFields || []
+                cardFields: config.cardFields || [],
+                parentId: config.parentId || null
             });
             return viewId;
         }
@@ -1428,14 +1444,14 @@
         function renderSidebar() {
             const container = document.getElementById('setsList');
             container.innerHTML = '';
-            
+
             state.sets.forEach((set, setId) => {
                 const isExpanded = state.expandedSets.has(setId);
                 const isActive = setId === state.currentSetId;
-                
+
                 const setItem = document.createElement('div');
                 setItem.className = `set-item ${isExpanded ? 'expanded' : ''}`;
-                
+
                 const setHeader = document.createElement('div');
                 setHeader.className = `set-header ${isActive && !state.currentViewId ? 'active' : ''}`;
                 setHeader.innerHTML = `
@@ -1443,43 +1459,126 @@
                     <span class="set-name">${set.name}</span>
                     <span class="set-expand-icon">▶</span>
                 `;
-                setHeader.onclick = () => toggleSetExpansion(setId);
+                setHeader.onclick = (e) => { if (e.detail === 1) toggleSetExpansion(setId); };
+                setHeader.ondblclick = (e) => { e.stopPropagation(); openAddSetModal(setId); };
+                setHeader.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); openAddSetModal(setId); };
                 setItem.appendChild(setHeader);
-                
+
                 if (isExpanded) {
                     const viewsList = document.createElement('div');
                     viewsList.className = 'views-list';
-                    
-                    set.views.forEach((view, viewId) => {
-                        const viewItem = document.createElement('div');
-                        viewItem.className = `view-item ${viewId === state.currentViewId ? 'active' : ''}`;
-                        const icons = { grid: '🔲', card: '🃏', kanban: '📊' };
-                        viewItem.innerHTML = `
-                            <span class="view-item-icon">${icons[view.type] || '📋'}</span>
-                            <span>${view.name}</span>
-                        `;
-                        viewItem.onclick = (e) => {
-                            e.stopPropagation();
-                            switchSet(setId, viewId);
-                        };
-                        viewsList.appendChild(viewItem);
-                    });
-                    
+
+                    const orderedViews = Array.from(set.views.entries());
+                    renderViewTree(orderedViews, setId, viewsList);
+
                     const addViewBtn = document.createElement('div');
                     addViewBtn.className = 'add-view-btn';
                     addViewBtn.textContent = '+ Add View';
                     addViewBtn.onclick = (e) => {
                         e.stopPropagation();
                         state.currentSetId = setId;
-                        openModal('addViewModal');
+                        openAddViewModal(setId);
                     };
                     viewsList.appendChild(addViewBtn);
-                    
+
                     setItem.appendChild(viewsList);
                 }
-                
+
                 container.appendChild(setItem);
             });
+        }
+
+        function renderViewTree(orderedViews, setId, container, parentId = null, depth = 0) {
+            const normalizedParent = parentId || null;
+            const childViews = orderedViews.filter(([_, view]) => (view.parentId || null) === normalizedParent);
+
+            childViews.forEach(([viewId, view]) => {
+                const viewItem = document.createElement('div');
+                viewItem.className = `view-item ${viewId === state.currentViewId ? 'active' : ''}`;
+                viewItem.style.paddingLeft = `${12 + depth * 16}px`;
+                viewItem.innerHTML = `
+                    <span class="view-item-icon">${view.icon || VIEW_TYPE_ICONS[view.type] || '📋'}</span>
+                    <span>${view.name}</span>
+                `;
+                viewItem.onclick = (e) => {
+                    e.stopPropagation();
+                    switchSet(setId, viewId);
+                };
+                viewItem.ondblclick = (e) => { e.stopPropagation(); openAddViewModal(setId, viewId); };
+                viewItem.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); openAddViewModal(setId, viewId); };
+
+                container.appendChild(viewItem);
+                renderViewTree(orderedViews, setId, container, viewId, depth + 1);
+            });
+        }
+
+        function isViewDescendant(set, startId, potentialAncestorId) {
+            let currentParent = set.views.get(startId)?.parentId || null;
+            while (currentParent) {
+                if (currentParent === potentialAncestorId) return true;
+                currentParent = set.views.get(currentParent)?.parentId || null;
+            }
+            return false;
+        }
+
+        function populateViewParentOptions(setId, excludeViewId = null, selectedParentId = null) {
+            const select = document.getElementById('newViewParent');
+            if (!select) return;
+
+            select.innerHTML = '';
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'No parent';
+            select.appendChild(defaultOption);
+
+            const set = state.sets.get(setId);
+            if (!set) return;
+
+            const orderedViews = Array.from(set.views.entries());
+            const renderOptions = (parentId = null, depth = 0) => {
+                const children = orderedViews.filter(([id, view]) => (view.parentId || null) === (parentId || null));
+                children.forEach(([id, view]) => {
+                    if (excludeViewId && id === excludeViewId) return;
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = `${'• '.repeat(depth)}${view.icon || VIEW_TYPE_ICONS[view.type] || '📋'} ${view.name}`;
+                    select.appendChild(option);
+                    renderOptions(id, depth + 1);
+                });
+            };
+
+            renderOptions();
+            select.value = selectedParentId || '';
+        }
+
+        function openAddViewModal(setId, viewId = null) {
+            const set = state.sets.get(setId);
+            if (!set) return;
+
+            const titleEl = document.getElementById('addViewModalTitle');
+            const saveBtn = document.getElementById('saveAddViewBtn');
+            const nameInput = document.getElementById('newViewName');
+            const iconInput = document.getElementById('newViewIcon');
+
+            state.currentSetId = setId;
+            if (viewId) {
+                const view = set.views.get(viewId);
+                state.viewEditorContext = { setId, viewId };
+                if (titleEl) titleEl.textContent = 'Edit View';
+                if (saveBtn) saveBtn.textContent = 'Save';
+                if (nameInput) nameInput.value = view?.name || '';
+                if (iconInput) iconInput.value = view?.icon || VIEW_TYPE_ICONS[view?.type] || '📋';
+                populateViewParentOptions(setId, viewId, view?.parentId || null);
+            } else {
+                state.viewEditorContext = { setId, viewId: null };
+                if (titleEl) titleEl.textContent = 'Create View';
+                if (saveBtn) saveBtn.textContent = 'Create';
+                if (nameInput) nameInput.value = '';
+                if (iconInput) iconInput.value = '';
+                populateViewParentOptions(setId);
+            }
+
+            openModal('addViewModal');
         }
 
         function switchSet(setId, viewId) {
@@ -1542,6 +1641,7 @@
 
         function ensureViewDefaults(view) {
             if (view.showRowNumbers === undefined) view.showRowNumbers = true;
+            if (!view.icon) view.icon = VIEW_TYPE_ICONS[view.type] || '📋';
         }
 
         function updateRowNumberToggleButton() {
@@ -3022,28 +3122,65 @@
                 const name = document.getElementById('newSetName').value.trim();
                 const icon = document.getElementById('newSetIcon').value.trim() || '📊';
                 if (!name) { showConfirm('Please enter a set name', () => {}); return; }
-                const setId = createSet(name, icon);
-                closeModal('addSetModal');
-                document.getElementById('newSetName').value = '';
-                document.getElementById('newSetIcon').value = '';
-                createView(setId, 'All ' + name, { type: 'grid' });
-                state.expandedSets.add(setId);
-                renderSidebar();
-                switchSet(setId, null);
-                showToast('✓ Set created');
+                if (state.setEditorContext?.setId) {
+                    const set = state.sets.get(state.setEditorContext.setId);
+                    set.name = name;
+                    set.icon = icon;
+                    closeModal('addSetModal');
+                    state.setEditorContext = null;
+                    renderSidebar();
+                    renderCurrentView();
+                    showToast('✓ Set updated');
+                } else {
+                    const setId = createSet(name, icon);
+                    closeModal('addSetModal');
+                    document.getElementById('newSetName').value = '';
+                    document.getElementById('newSetIcon').value = '';
+                    createView(setId, 'All ' + name, { type: 'grid' });
+                    state.expandedSets.add(setId);
+                    renderSidebar();
+                    switchSet(setId, null);
+                    showToast('✓ Set created');
+                }
             };
-            document.getElementById('cancelAddSetBtn').onclick = () => closeModal('addSetModal');
+            document.getElementById('cancelAddSetBtn').onclick = () => { state.setEditorContext = null; closeModal('addSetModal'); };
             document.getElementById('saveAddViewBtn').onclick = () => {
                 const name = document.getElementById('newViewName').value.trim();
+                const icon = document.getElementById('newViewIcon').value.trim() || '📋';
+                const parentId = document.getElementById('newViewParent').value || null;
                 if (!name) { showConfirm('Please enter a view name', () => {}); return; }
-                const viewId = createView(state.currentSetId, name, { type: 'grid' });
-                closeModal('addViewModal');
-                document.getElementById('newViewName').value = '';
-                renderSidebar();
-                switchSet(state.currentSetId, viewId);
-                showToast('✓ View created');
+                const set = state.sets.get(state.viewEditorContext?.setId || state.currentSetId);
+                const setId = set?.id;
+                if (!setId) return;
+                if (state.viewEditorContext?.viewId && parentId && isViewDescendant(set, parentId, state.viewEditorContext.viewId)) {
+                    showConfirm('You cannot nest a view under its own descendant.', () => {});
+                    return;
+                }
+
+                if (state.viewEditorContext?.viewId) {
+                    const view = set.views.get(state.viewEditorContext.viewId);
+                    if (view) {
+                        view.name = name;
+                        view.icon = icon;
+                        view.parentId = parentId;
+                    }
+                    closeModal('addViewModal');
+                    state.viewEditorContext = null;
+                    renderSidebar();
+                    switchSet(setId, view?.id || state.currentViewId);
+                    showToast('✓ View updated');
+                } else {
+                    const viewId = createView(setId, name, { type: 'grid', icon, parentId });
+                    closeModal('addViewModal');
+                    document.getElementById('newViewName').value = '';
+                    document.getElementById('newViewIcon').value = '';
+                    state.viewEditorContext = null;
+                    renderSidebar();
+                    switchSet(setId, viewId);
+                    showToast('✓ View created');
+                }
             };
-            document.getElementById('cancelAddViewBtn').onclick = () => closeModal('addViewModal');
+            document.getElementById('cancelAddViewBtn').onclick = () => { state.viewEditorContext = null; closeModal('addViewModal'); };
             document.getElementById('saveKanbanConfigBtn').onclick = saveKanbanConfig;
             document.getElementById('cancelKanbanConfigBtn').onclick = () => closeModal('kanbanConfigModal');
             document.getElementById('closeJsonViewerBtn').onclick = () => closeModal('jsonViewerModal');
@@ -3167,7 +3304,27 @@
             });
         }
 
-        function openAddSetModal() {
+        function openAddSetModal(setId = null) {
+            const titleEl = document.getElementById('addSetModalTitle');
+            const saveBtn = document.getElementById('saveAddSetBtn');
+            const nameInput = document.getElementById('newSetName');
+            const iconInput = document.getElementById('newSetIcon');
+
+            if (setId) {
+                const set = state.sets.get(setId);
+                state.setEditorContext = { setId };
+                if (titleEl) titleEl.textContent = 'Edit Set';
+                if (saveBtn) saveBtn.textContent = 'Save';
+                if (nameInput) nameInput.value = set?.name || '';
+                if (iconInput) iconInput.value = set?.icon || '📊';
+            } else {
+                state.setEditorContext = null;
+                if (titleEl) titleEl.textContent = 'Create Set';
+                if (saveBtn) saveBtn.textContent = 'Create';
+                if (nameInput) nameInput.value = '';
+                if (iconInput) iconInput.value = '';
+            }
+
             openModal('addSetModal');
         }
 
