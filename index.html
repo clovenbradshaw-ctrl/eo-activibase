@@ -1612,10 +1612,24 @@
             records.forEach((record, index) => {
                 const tr = document.createElement('tr');
                 tr.dataset.recordId = record.id;
-                tr.onclick = (e) => {
-                    if (e.target === tr || e.target.closest('.row-number')) openExpandedRecord(record.id);
+
+                const scheduleRowOpen = () => {
+                    if (tr._clickTimeout) clearTimeout(tr._clickTimeout);
+                    tr._clickTimeout = setTimeout(() => {
+                        openExpandedRecord(record.id);
+                        tr._clickTimeout = null;
+                    }, 180);
                 };
-                
+
+                const cancelRowOpen = () => {
+                    if (tr._clickTimeout) {
+                        clearTimeout(tr._clickTimeout);
+                        tr._clickTimeout = null;
+                    }
+                };
+
+                tr.onclick = scheduleRowOpen;
+
                 if (view.showRowNumbers !== false) {
                     const tdNum = document.createElement('td');
                     tdNum.className = 'row-number cell-editable text-center bg-gray-50 font-medium text-gray-500';
@@ -1632,9 +1646,17 @@
                     const value = record[field.id];
                     td.innerHTML = renderCellValue(value, field);
                     if (field.type === 'CHECKBOX') {
-                        td.onclick = (e) => { e.stopPropagation(); toggleCheckbox(record.id, field.id); };
+                        td.ondblclick = (e) => {
+                            e.stopPropagation();
+                            cancelRowOpen();
+                            toggleCheckbox(record.id, field.id);
+                        };
                     } else {
-                        td.onclick = (e) => { e.stopPropagation(); makeEditable(td, record.id, field); };
+                        td.ondblclick = (e) => {
+                            e.stopPropagation();
+                            cancelRowOpen();
+                            makeEditable(td, record.id, field);
+                        };
                     }
                     td.oncontextmenu = (e) => { e.preventDefault(); showCellMenu(e, record.id, field); };
                     tr.appendChild(td);
