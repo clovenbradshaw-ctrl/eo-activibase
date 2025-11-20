@@ -194,6 +194,17 @@
             background: var(--surface);
             border-bottom: 1px solid var(--border);
         }
+
+        .toolbar .sort-sequence-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 8px;
+            background: #f3f4f6;
+            color: #4b5563;
+            font-size: 13px;
+        }
         
         .view-type-switcher {
             display: flex;
@@ -291,7 +302,36 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            cursor: pointer;
         }
+
+        th .sort-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 12px;
+        }
+
+        th .sort-indicator .order-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: #e5e7eb;
+            color: #111827;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        th .sort-indicator .direction-icon { font-size: 10px; }
+
+        th .sort-indicator.muted { opacity: 0.5; }
         tbody tr { border-bottom: 1px solid #f3f4f6; transition: background-color 0.1s ease; }
         tbody tr:hover { background: #f9fafb; }
         tbody tr:last-child { border-bottom: none; }
@@ -798,6 +838,10 @@
                         <i class="ph ph-funnel-simple"></i>
                         Filter
                     </button>
+                    <button id="sortBtn" class="btn btn-secondary btn-sm">
+                        <i class="ph ph-arrows-down-up"></i>
+                        Sort
+                    </button>
                     <button id="popupSettingsBtn" class="btn btn-secondary btn-sm">
                         <i class="ph ph-popcorn"></i>
                         Popup Fields
@@ -892,6 +936,35 @@
             <div class="modal-footer flex justify-end gap-2">
                 <button id="clearFiltersBtn" class="btn btn-secondary">Clear All</button>
                 <button id="applyFiltersBtn" class="btn btn-primary">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sortModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Sort View</h2>
+                    <p class="text-sm text-gray-500 mt-1">Create a sorting sequence for this view</p>
+                </div>
+                <button id="closeSortBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-body space-y-3">
+                <div id="sortRulesContainer" class="space-y-3"></div>
+                <button id="addSortRuleBtn" class="btn btn-secondary btn-sm">+ Add Sort</button>
+            </div>
+            <div class="modal-footer flex justify-between gap-2">
+                <div class="flex items-center gap-2 text-sm text-gray-500">
+                    <span class="sort-sequence-badge"><i class="ph ph-arrow-line-up"></i>Earlier sorts run first</span>
+                </div>
+                <div class="flex gap-2">
+                    <button id="clearSortsBtn" class="btn btn-secondary">Clear All</button>
+                    <button id="applySortsBtn" class="btn btn-primary">Apply Sorts</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1365,6 +1438,7 @@
                 type: config.type || 'grid',
                 icon: config.icon || VIEW_TYPE_ICONS[config.type || 'grid'] || '📋',
                 filters: config.filters || [],
+                sorts: config.sorts || [],
                 hiddenFields: config.hiddenFields || [],
                 popupVisibilityRules: config.popupVisibilityRules || [],
                 kanbanGroupField: config.kanbanGroupField || null,
@@ -1747,6 +1821,7 @@
 
         function ensureViewDefaults(view) {
             if (!view.icon) view.icon = VIEW_TYPE_ICONS[view.type] || 'ph-note';
+            if (!view.sorts) view.sorts = [];
         }
 
         function applyColumnWidth(fieldId, width) {
@@ -1813,6 +1888,7 @@
 
             let records = Array.from(set.records.values());
             if (view && view.filters.length > 0) records = applyFilterGroups(records, view.filters, schema);
+            if (view?.sorts?.length) records = applySorts(records, view.sorts, schema);
 
             const recordCount = records.length;
             const recordLabel = recordCount === 1 ? 'record' : 'records';
@@ -1842,7 +1918,13 @@
                 th.dataset.fieldId = field.id;
                 const width = `${getFieldWidth(field)}px`;
                 th.style.width = width;
-                th.innerHTML = `<span>${field.name}</span>`;
+                const sortIndex = view?.sorts?.findIndex(s => s.fieldId === field.id) ?? -1;
+                const sortConfig = sortIndex >= 0 ? view.sorts[sortIndex] : null;
+                const directionIcon = sortConfig ? (sortConfig.direction === 'desc' ? '▼' : '▲') : '⇅';
+                const indicatorClass = sortConfig ? 'sort-indicator' : 'sort-indicator muted';
+                const orderBadge = sortConfig ? `<span class="order-badge">${sortIndex + 1}</span>` : '';
+                th.innerHTML = `<span>${field.name}</span><span class="${indicatorClass}"><span class="direction-icon">${directionIcon}</span>${orderBadge}</span>`;
+                th.onclick = () => toggleColumnSort(field.id);
                 addColumnResizer(th, field);
                 th.oncontextmenu = (e) => { e.preventDefault(); showColumnMenu(e, field); };
                 headerRow.appendChild(th);
@@ -1939,7 +2021,8 @@
             const view = getCurrentView();
             let records = Array.from(set.records.values());
             if (view && view.filters.length > 0) records = applyFilterGroups(records, view.filters, set.schema);
-            
+            if (view?.sorts?.length) records = applySorts(records, view.sorts, set.schema);
+
             const container = document.getElementById('viewContainer');
             container.innerHTML = '<div class="cards-grid" id="cardsGrid"></div>';
             
@@ -1997,6 +2080,7 @@
             
             let records = Array.from(set.records.values());
             if (view.filters.length > 0) records = applyFilterGroups(records, view.filters, set.schema);
+            if (view?.sorts?.length) records = applySorts(records, view.sorts, set.schema);
             
             const container = document.getElementById('viewContainer');
             container.innerHTML = '<div class="kanban-board" id="kanbanBoard"></div>';
@@ -2492,6 +2576,153 @@
                     else return rules.some(rule => record[rule.field] === rule.value);
                 });
             });
+        }
+
+        function getSortableValue(value, field) {
+            if (value === undefined || value === null) return '';
+            switch(field?.type) {
+                case 'NUMBER':
+                case 'CURRENCY':
+                    return Number(value) || 0;
+                case 'DATE':
+                    return new Date(value).getTime() || 0;
+                case 'CHECKBOX':
+                    return value ? 1 : 0;
+                default:
+                    return String(value).toLowerCase();
+            }
+        }
+
+        function applySorts(records, sorts, schema) {
+            if (!sorts || sorts.length === 0) return records;
+            const schemaMap = new Map(schema.map(f => [f.id, f]));
+            const activeSorts = sorts.filter(sort => schemaMap.has(sort.fieldId));
+            if (activeSorts.length === 0) return records;
+
+            return [...records].sort((a, b) => {
+                for (const sort of activeSorts) {
+                    const field = schemaMap.get(sort.fieldId);
+                    const aVal = getSortableValue(a[sort.fieldId], field);
+                    const bVal = getSortableValue(b[sort.fieldId], field);
+
+                    if (aVal < bVal) return sort.direction === 'desc' ? 1 : -1;
+                    if (aVal > bVal) return sort.direction === 'desc' ? -1 : 1;
+                }
+                return 0;
+            });
+        }
+
+        function toggleColumnSort(fieldId) {
+            const view = getCurrentView();
+            if (!view) return;
+
+            ensureViewDefaults(view);
+            const existingIndex = view.sorts.findIndex(s => s.fieldId === fieldId);
+            if (existingIndex === -1) {
+                view.sorts.unshift({ fieldId, direction: 'asc' });
+            } else if (view.sorts[existingIndex].direction === 'asc') {
+                view.sorts[existingIndex].direction = 'desc';
+            } else {
+                view.sorts.splice(existingIndex, 1);
+            }
+
+            renderCurrentView();
+        }
+
+        function openSortModal() {
+            const view = getCurrentView();
+            if (!view) return;
+
+            ensureViewDefaults(view);
+            renderSortBuilder();
+            openModal('sortModal');
+        }
+
+        function renderSortBuilder() {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+
+            const container = document.getElementById('sortRulesContainer');
+            const schema = set.schema;
+
+            if (!view.sorts || view.sorts.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-500">No sorts configured. Add a field to start sorting.</p>';
+                return;
+            }
+
+            container.innerHTML = view.sorts.map((sort, index) => `
+                <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
+                    <div class="text-xs font-semibold text-gray-500">#${index + 1}</div>
+                    <select class="flex-1" onchange="updateSortField(${index}, this.value)">
+                        <option value="">Select field...</option>
+                        ${schema.map(f => `<option value="${f.id}" ${f.id === sort.fieldId ? 'selected' : ''}>${f.name}</option>`).join('')}
+                    </select>
+                    <select onchange="updateSortDirection(${index}, this.value)">
+                        <option value="asc" ${sort.direction === 'asc' ? 'selected' : ''}>Ascending</option>
+                        <option value="desc" ${sort.direction === 'desc' ? 'selected' : ''}>Descending</option>
+                    </select>
+                    <div class="flex items-center gap-1">
+                        <button class="btn btn-secondary btn-sm" onclick="moveSort(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="btn btn-secondary btn-sm" onclick="moveSort(${index}, 1)" ${index === view.sorts.length - 1 ? 'disabled' : ''}>▼</button>
+                        <button class="btn btn-danger btn-sm" onclick="removeSortRule(${index})">✕</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addSortRule() {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+
+            const defaultField = set.schema[0]?.id || '';
+            view.sorts.push({ fieldId: defaultField, direction: 'asc' });
+            renderSortBuilder();
+        }
+
+        function updateSortField(index, fieldId) {
+            const view = getCurrentView();
+            if (!view) return;
+            view.sorts[index].fieldId = fieldId;
+            renderSortBuilder();
+        }
+
+        function updateSortDirection(index, direction) {
+            const view = getCurrentView();
+            if (!view) return;
+            view.sorts[index].direction = direction;
+            renderSortBuilder();
+        }
+
+        function moveSort(index, delta) {
+            const view = getCurrentView();
+            if (!view) return;
+            const newIndex = index + delta;
+            if (newIndex < 0 || newIndex >= view.sorts.length) return;
+            const [item] = view.sorts.splice(index, 1);
+            view.sorts.splice(newIndex, 0, item);
+            renderSortBuilder();
+        }
+
+        function removeSortRule(index) {
+            const view = getCurrentView();
+            if (!view) return;
+            view.sorts.splice(index, 1);
+            renderSortBuilder();
+        }
+
+        function clearSorts() {
+            const view = getCurrentView();
+            if (!view) return;
+            view.sorts = [];
+            renderSortBuilder();
+            renderCurrentView();
+        }
+
+        function applySortsFromModal() {
+            closeModal('sortModal');
+            renderCurrentView();
         }
 
         function setGroupOperator(groupIndex, operator) {
@@ -3460,6 +3691,7 @@
             };
             document.getElementById('addFieldBtn').onclick = openAddFieldModal;
             document.getElementById('filterBtn').onclick = openFilterModal;
+            document.getElementById('sortBtn').onclick = openSortModal;
             document.getElementById('popupSettingsBtn').onclick = openPopupSettingsModal;
             document.getElementById('historyBtn').onclick = () => {
                 document.getElementById('historyPanel').classList.add('open');
@@ -3485,6 +3717,10 @@
                 state.confirmCallback = null;
                 closeModal('confirmModal');
             };
+            document.getElementById('addSortRuleBtn').onclick = addSortRule;
+            document.getElementById('clearSortsBtn').onclick = clearSorts;
+            document.getElementById('applySortsBtn').onclick = applySortsFromModal;
+            document.getElementById('closeSortBtn').onclick = () => closeModal('sortModal');
             document.getElementById('saveAddFieldBtn').onclick = saveField;
             document.getElementById('cancelAddFieldBtn').onclick = () => closeModal('addFieldModal');
             document.getElementById('closeAddFieldBtn').onclick = () => closeModal('addFieldModal');
