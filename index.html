@@ -4076,7 +4076,8 @@
                 `;
             }).join('');
 
-            document.getElementById('popupFieldCountBadge')?.textContent = fields.length;
+            const popupFieldCountBadge = document.getElementById('popupFieldCountBadge');
+            if (popupFieldCountBadge) popupFieldCountBadge.textContent = fields.length;
             attachPopupFieldDragHandlers();
         }
 
@@ -4147,8 +4148,10 @@
                 return count + ((rule && rule.visibility === 'hide') ? 0 : 1);
             }, 0);
             const conditionalCount = view.popupVisibilityRules.filter(r => r.criteria?.type && r.criteria.type !== 'always').length;
-            document.getElementById('popupVisibleCount')?.textContent = visibleCount;
-            document.getElementById('popupConditionalCount')?.textContent = conditionalCount;
+            const popupVisibleCount = document.getElementById('popupVisibleCount');
+            const popupConditionalCount = document.getElementById('popupConditionalCount');
+            if (popupVisibleCount) popupVisibleCount.textContent = visibleCount;
+            if (popupConditionalCount) popupConditionalCount.textContent = conditionalCount;
         }
 
         function renderPopupPreview() {
