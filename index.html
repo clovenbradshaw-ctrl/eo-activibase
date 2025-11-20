@@ -433,6 +433,8 @@
         .modal-header { padding: 24px 24px 16px 24px; border-bottom: 1px solid #f0f0f0; }
         .modal-body { padding: 24px; }
         .modal-footer { padding: 16px 24px; border-top: 1px solid #f0f0f0; background: #fafafa; }
+        .modal-scroll-area { flex: 1; min-height: 0; }
+        .modal-column { min-height: 0; }
         .config-section { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease; margin-top: 0; }
         .config-section.visible { max-height: 500px; opacity: 1; margin-top: 16px; }
         
@@ -700,6 +702,12 @@
                         </svg>
                         Filter
                     </button>
+                    <button id="popupSettingsBtn" class="btn btn-secondary btn-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 16v-2m8-6h-2M6 12H4m12.364 5.364l-1.414-1.414M7.05 7.05L5.636 5.636m0 12.728l1.414-1.414m10.314-10.314l-1.414 1.414" />
+                        </svg>
+                        Popup Fields
+                    </button>
                     <button id="historyBtn" class="btn btn-secondary btn-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -751,16 +759,51 @@
                     </svg>
                 </button>
             </div>
-            <div class="flex-1 overflow-hidden">
+            <div class="flex-1 overflow-hidden modal-scroll-area">
                 <div class="grid grid-cols-1 md:grid-cols-3 h-full">
-                    <div class="md:col-span-2 p-6 overflow-y-auto border-r border-gray-200" id="expandedRecordMain"></div>
-                    <div class="overflow-hidden bg-gray-50 flex flex-col">
+                    <div class="md:col-span-2 p-6 overflow-y-auto border-r border-gray-200 modal-column" id="expandedRecordMain"></div>
+                    <div class="overflow-hidden bg-gray-50 flex flex-col modal-column">
                         <div class="record-tabs">
                             <div class="record-tab active" data-tab="history" onclick="switchRecordTab('history')">History</div>
                         </div>
                         <div class="flex-1 overflow-y-auto p-6" id="expandedRecordSidebar"></div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="popupSettingsModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Record Popup Fields</h2>
+                    <p class="text-sm text-gray-500 mt-1">Control which fields appear in the record popup for this view.</p>
+                </div>
+                <button id="closePopupSettingsBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-hidden modal-scroll-area">
+                <div class="grid grid-cols-1 md:grid-cols-2 h-full">
+                    <div class="p-6 overflow-y-auto modal-column" id="popupHiddenFields"></div>
+                    <div class="p-6 overflow-y-auto modal-column border-t md:border-t-0 md:border-l border-gray-200" id="popupCriteriaContainer">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="text-lg font-semibold">Conditional visibility</h3>
+                                <p class="text-sm text-gray-500">Hide or show fields based on values.</p>
+                            </div>
+                            <button id="addPopupCriteriaBtn" class="btn btn-secondary btn-sm">+ Add Rule</button>
+                        </div>
+                        <div id="popupCriteriaList" class="space-y-3"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button id="cancelPopupSettingsBtn" class="btn btn-secondary">Cancel</button>
+                <button id="savePopupSettingsBtn" class="btn btn-primary">Save Settings</button>
             </div>
         </div>
     </div>
@@ -959,7 +1002,8 @@
             confirmCallback: null,
             selectOptions: [{ value: 'Option 1', color: 'blue' }],
             expandedSets: new Set(),
-            draggedRecord: null
+            draggedRecord: null,
+            popupSettingsDraft: null
         };
 
         const FIELD_TYPES = {
@@ -1112,6 +1156,7 @@
                 type: config.type || 'grid',
                 filters: config.filters || [],
                 hiddenFields: config.hiddenFields || [],
+                popupVisibility: config.popupVisibility || { hiddenFields: [], criteria: [] },
                 kanbanGroupField: config.kanbanGroupField || null,
                 cardFields: config.cardFields || []
             });
@@ -1893,6 +1938,174 @@
             renderFilterBuilder();
         }
 
+        // POPUP FIELD VISIBILITY
+        function getPopupVisibilityConfig(view) {
+            if (!view.popupVisibility) {
+                view.popupVisibility = { hiddenFields: [], criteria: [] };
+            }
+            return view.popupVisibility;
+        }
+
+        function openPopupSettings() {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+            const baseConfig = getPopupVisibilityConfig(view);
+            state.popupSettingsDraft = {
+                hiddenFields: [...baseConfig.hiddenFields],
+                criteria: baseConfig.criteria.map(c => ({ ...c }))
+            };
+            renderPopupHiddenFields(set, view);
+            renderPopupCriteria(set, view);
+            openModal('popupSettingsModal');
+        }
+
+        function renderPopupHiddenFields(set, view) {
+            const config = state.popupSettingsDraft || getPopupVisibilityConfig(view);
+            const container = document.getElementById('popupHiddenFields');
+            container.innerHTML = `
+                <div class="mb-4">
+                    <h3 class="text-lg font-semibold">Base visibility</h3>
+                    <p class="text-sm text-gray-500">Toggle fields to hide them in the record popup for this view.</p>
+                </div>
+            `;
+
+            const list = document.createElement('div');
+            list.className = 'space-y-3';
+
+            set.schema.forEach(field => {
+                const row = document.createElement('label');
+                row.className = 'flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-white shadow-sm';
+                row.innerHTML = `
+                    <div>
+                        <div class="font-medium">${field.name}</div>
+                        <div class="text-sm text-gray-500">Hide this field from the popup</div>
+                    </div>
+                    <input type="checkbox" class="popup-hide-toggle" data-field-id="${field.id}" ${config.hiddenFields.includes(field.id) ? 'checked' : ''}>
+                `;
+                list.appendChild(row);
+            });
+
+            container.appendChild(list);
+        }
+
+        function renderPopupCriteria(set, view) {
+            const config = state.popupSettingsDraft || getPopupVisibilityConfig(view);
+            const list = document.getElementById('popupCriteriaList');
+            list.innerHTML = '';
+
+            if (config.criteria.length === 0) {
+                list.innerHTML = '<p class="text-sm text-gray-500">No conditional rules yet. Add one to tailor the popup.</p>';
+                return;
+            }
+
+            config.criteria.forEach((rule, index) => {
+                const card = document.createElement('div');
+                card.className = 'p-4 border border-gray-200 rounded-lg bg-gray-50 space-y-3';
+
+                const header = document.createElement('div');
+                header.className = 'flex items-center justify-between';
+                header.innerHTML = `
+                    <div class="font-semibold">Rule ${index + 1}</div>
+                    <button class="text-sm text-red-600 hover:text-red-700" onclick="removePopupCriteria(${index})">Remove</button>
+                `;
+                card.appendChild(header);
+
+                const targetField = document.createElement('div');
+                targetField.innerHTML = `
+                    <label class="form-label">Target field</label>
+                    <select class="w-full" data-index="${index}" data-key="fieldId">
+                        ${set.schema.map(f => `<option value="${f.id}" ${rule.fieldId === f.id ? 'selected' : ''}>${f.name}</option>`).join('')}
+                    </select>
+                `;
+                card.appendChild(targetField);
+
+                const conditionRow = document.createElement('div');
+                conditionRow.className = 'grid grid-cols-1 md:grid-cols-4 gap-3 items-end';
+                conditionRow.innerHTML = `
+                    <div class="md:col-span-2">
+                        <label class="form-label">When this field</label>
+                        <select class="w-full" data-index="${index}" data-key="conditionField">
+                            ${set.schema.map(f => `<option value="${f.id}" ${rule.conditionField === f.id ? 'selected' : ''}>${f.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Operator</label>
+                        <select class="w-full" data-index="${index}" data-key="operator">
+                            ${['equals', 'not_equals', 'contains', 'empty', 'not_empty'].map(op => `<option value="${op}" ${rule.operator === op ? 'selected' : ''}>${op.replace('_', ' ')}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Value</label>
+                        <input type="text" class="w-full" data-index="${index}" data-key="value" value="${rule.value || ''}" placeholder="Match value">
+                    </div>
+                `;
+                card.appendChild(conditionRow);
+
+                const behaviorRow = document.createElement('div');
+                behaviorRow.innerHTML = `
+                    <label class="form-label">Visibility behavior</label>
+                    <select class="w-full" data-index="${index}" data-key="behavior">
+                        <option value="hide" ${rule.behavior !== 'show' ? 'selected' : ''}>Hide when condition matches</option>
+                        <option value="show" ${rule.behavior === 'show' ? 'selected' : ''}>Show only when condition matches</option>
+                    </select>
+                `;
+                card.appendChild(behaviorRow);
+
+                list.appendChild(card);
+            });
+
+            list.querySelectorAll('select, input').forEach(el => {
+                el.onchange = (e) => updatePopupCriteriaValue(parseInt(e.target.dataset.index, 10), e.target.dataset.key, e.target.value);
+            });
+        }
+
+        function addPopupCriteria() {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view || set.schema.length === 0) return;
+            const firstField = set.schema[0].id;
+            const config = state.popupSettingsDraft || getPopupVisibilityConfig(view);
+            config.criteria.push({ fieldId: firstField, conditionField: firstField, operator: 'equals', value: '', behavior: 'hide' });
+            renderPopupCriteria(set, view);
+        }
+
+        function removePopupCriteria(index) {
+            const view = getCurrentView();
+            const config = state.popupSettingsDraft || getPopupVisibilityConfig(view);
+            if (!config.criteria) return;
+            config.criteria.splice(index, 1);
+            renderPopupCriteria(getCurrentSet(), view);
+        }
+
+        function updatePopupCriteriaValue(index, key, value) {
+            const view = getCurrentView();
+            const config = state.popupSettingsDraft || getPopupVisibilityConfig(view);
+            if (!config.criteria[index]) return;
+            config.criteria[index][key] = value;
+        }
+
+        function savePopupSettings() {
+            const view = getCurrentView();
+            const set = getCurrentSet();
+            if (!view || !set) return;
+            const draft = state.popupSettingsDraft || getPopupVisibilityConfig(view);
+            const config = getPopupVisibilityConfig(view);
+            const toggles = Array.from(document.querySelectorAll('.popup-hide-toggle'));
+            config.hiddenFields = toggles.filter(t => t.checked).map(t => t.dataset.fieldId);
+            config.criteria = draft.criteria.map(c => ({ ...c }));
+            state.popupSettingsDraft = null;
+            closeModal('popupSettingsModal');
+            showToast('✓ Popup settings saved');
+            const recordId = document.getElementById('expandedRecordMain').dataset.recordId;
+            if (recordId) renderExpandedRecordMain(recordId);
+        }
+
+        function closePopupSettings() {
+            state.popupSettingsDraft = null;
+            closeModal('popupSettingsModal');
+        }
+
         // EXPANDED RECORD
         function openExpandedRecord(recordId) {
             const set = getCurrentSet();
@@ -1904,14 +2117,63 @@
             openModal('expandedRecordModal');
         }
 
+        function evaluatePopupRule(rule, record) {
+            const value = record[rule.conditionField];
+            let matches = false;
+
+            switch(rule.operator) {
+                case 'equals':
+                    matches = value == rule.value;
+                    break;
+                case 'not_equals':
+                    matches = value != rule.value;
+                    break;
+                case 'contains':
+                    matches = (value || '').toString().toLowerCase().includes((rule.value || '').toString().toLowerCase());
+                    break;
+                case 'empty':
+                    matches = value === undefined || value === null || value === '';
+                    break;
+                case 'not_empty':
+                    matches = !(value === undefined || value === null || value === '');
+                    break;
+            }
+
+            if (rule.behavior === 'show') return matches;
+            return !matches;
+        }
+
+        function getPopupFieldsForRecord(set, view, record) {
+            const profile = getCurrentProfile();
+            const popupConfig = view ? getPopupVisibilityConfig(view) : { hiddenFields: [], criteria: [] };
+            let fields = set.schema.filter(f =>
+                !profile || profile.visibleFields.length === 0 || profile.visibleFields.includes(f.id)
+            );
+
+            fields = fields.filter(f => !popupConfig.hiddenFields.includes(f.id));
+
+            if (popupConfig.criteria?.length) {
+                fields = fields.filter(field => {
+                    const rules = popupConfig.criteria.filter(r => r.fieldId === field.id && r.conditionField);
+                    if (rules.length === 0) return true;
+                    return rules.every(rule => evaluatePopupRule(rule, record));
+                });
+            }
+
+            return fields;
+        }
+
         function renderExpandedRecordMain(recordId) {
             const set = getCurrentSet();
             const record = set.records.get(recordId);
+            const view = getCurrentView();
             const container = document.getElementById('expandedRecordMain');
+            const fields = getPopupFieldsForRecord(set, view, record);
             container.dataset.recordId = recordId;
             container.innerHTML = `
                 <div class="space-y-4">
-                    ${set.schema.map(field => `
+                    ${fields.length === 0 ? '<p class="text-gray-500">No fields are visible for this record in the current view.</p>' : ''}
+                    ${fields.map(field => `
                         <div class="field-editor">
                             <label class="form-label">${field.name}</label>
                             ${renderFieldEditor(recordId, field, record[field.id])}
@@ -2173,6 +2435,7 @@
         function closeModal(modalId) {
             document.getElementById(modalId).classList.add('hidden');
             state.modalStack = state.modalStack.filter(id => id !== modalId);
+            if (modalId === 'popupSettingsModal') state.popupSettingsDraft = null;
         }
 
         function exportJSON() {
@@ -2219,6 +2482,7 @@
             };
             document.getElementById('addFieldBtn').onclick = openAddFieldModal;
             document.getElementById('filterBtn').onclick = openFilterModal;
+            document.getElementById('popupSettingsBtn').onclick = openPopupSettings;
             document.getElementById('historyBtn').onclick = () => {
                 document.getElementById('historyPanel').classList.add('open');
                 renderHistory();
@@ -2243,6 +2507,10 @@
             document.getElementById('saveAddFieldBtn').onclick = saveField;
             document.getElementById('cancelAddFieldBtn').onclick = () => closeModal('addFieldModal');
             document.getElementById('closeAddFieldBtn').onclick = () => closeModal('addFieldModal');
+            document.getElementById('savePopupSettingsBtn').onclick = savePopupSettings;
+            document.getElementById('cancelPopupSettingsBtn').onclick = closePopupSettings;
+            document.getElementById('closePopupSettingsBtn').onclick = closePopupSettings;
+            document.getElementById('addPopupCriteriaBtn').onclick = addPopupCriteria;
             document.getElementById('saveAddSetBtn').onclick = () => {
                 const name = document.getElementById('newSetName').value.trim();
                 const icon = document.getElementById('newSetIcon').value.trim() || '📊';
