@@ -1021,7 +1021,6 @@
                     <div id="expandedRecordHistoryColumn" class="overflow-hidden bg-gray-50 flex flex-col">
                         <div class="record-tabs">
                             <div class="record-tab active" data-tab="history" onclick="switchRecordTab('history')">History</div>
-                            <div class="record-tab" data-tab="popup" onclick="switchRecordTab('popup')">Popup Fields</div>
                             <div class="record-tab" data-tab="connections" onclick="switchRecordTab('connections')">Connections</div>
                         </div>
                         <div class="flex-1 overflow-y-auto p-6" id="expandedRecordSidebar"></div>
@@ -3497,20 +3496,6 @@
             const container = document.getElementById('expandedRecordMain');
             container.dataset.recordId = recordId;
 
-            if (state.currentRecordTab === 'popup') {
-                container.innerHTML = `
-                    <div class="space-y-4">
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-900">Popup Field Visibility</h3>
-                            <p class="text-sm text-gray-600">Choose which fields show in this popup without leaving the record.</p>
-                        </div>
-                        <div id="expandedPopupSettings" class="space-y-3"></div>
-                    </div>
-                `;
-                renderPopupSettings('expandedPopupSettings');
-                return;
-            }
-
             const orderedFields = view ? getPopupOrderedFields(set, view) : set.schema;
             const visibleFields = orderedFields.filter(field => shouldDisplayFieldInPopup(field, record));
 
@@ -3598,9 +3583,6 @@
             if (!container) return;
 
             switch (state.currentRecordTab) {
-                case 'popup':
-                    renderPopupSettingsSidebar(container);
-                    break;
                 case 'connections':
                     renderConnectionsSidebar(container, recordId);
                     break;
@@ -3627,19 +3609,6 @@
                     </div>
                 `).join('')}
             `;
-        }
-
-        function renderPopupSettingsSidebar(container) {
-            container.innerHTML = `
-                <div class="space-y-4">
-                    <div>
-                        <h3 class="font-semibold">Popup Field Visibility</h3>
-                        <p class="text-sm text-gray-600">Adjust which fields show when this record is opened.</p>
-                    </div>
-                    <div id="popupSettingsSidebar" class="space-y-3"></div>
-                </div>
-            `;
-            renderInlinePopupSettings('popupSettingsSidebar');
         }
 
         function getConnectionBuilder() {
@@ -3848,8 +3817,7 @@
             const historyColumn = document.getElementById('expandedRecordHistoryColumn');
             const mainWrapper = document.getElementById('expandedRecordMainWrapper');
             const toggleBtn = document.getElementById('toggleHistorySidebarBtn');
-            const sidebarAllowed = state.currentRecordTab !== 'popup';
-            const isVisible = state.recordHistoryVisible && sidebarAllowed;
+            const isVisible = state.recordHistoryVisible;
 
             if (historyColumn) historyColumn.classList.toggle('hidden', !isVisible);
             if (mainWrapper) {
@@ -3858,15 +3826,12 @@
                 mainWrapper.classList.toggle('border-r', isVisible);
             }
             if (toggleBtn) {
-                toggleBtn.disabled = !sidebarAllowed;
-                toggleBtn.textContent = sidebarAllowed
-                    ? (state.recordHistoryVisible ? 'Hide History' : 'Show History')
-                    : 'Sidebar hidden on Popup tab';
+                toggleBtn.disabled = false;
+                toggleBtn.textContent = state.recordHistoryVisible ? 'Hide History' : 'Show History';
             }
         }
 
         function toggleRecordHistoryVisibility() {
-            if (state.currentRecordTab === 'popup') return;
             state.recordHistoryVisible = !state.recordHistoryVisible;
             updateRecordHistoryVisibility();
         }
