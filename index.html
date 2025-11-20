@@ -1101,6 +1101,7 @@
             operatorSet: {},
             interpretationRules: [],
             connections: new Map(),
+            connectionBuilder: { targetSetId: null, targetRecordId: '', metadataJson: '' },
             sidebarCollapsed: false,
             sidebarOpenMobile: false,
             modalStack: [],
@@ -1432,8 +1433,9 @@
 
             const nextSourceId = updates.sourceId || existing.sourceId;
             const nextTargetId = updates.targetId || existing.targetId;
-            const mergedMetadata = updates.metadata ? { ...existing.metadata, ...updates.metadata } : existing.metadata;
-            const { sourceRef, targetRef, metadata: normalizedMetadata } = validateConnectionPayload(nextSourceId, nextTargetId, mergedMetadata);
+            const hasMetadataUpdate = Object.prototype.hasOwnProperty.call(updates, 'metadata');
+            const nextMetadata = hasMetadataUpdate ? updates.metadata : existing.metadata;
+            const { sourceRef, targetRef, metadata: normalizedMetadata } = validateConnectionPayload(nextSourceId, nextTargetId, nextMetadata);
 
             const updated = {
                 ...existing,
@@ -2836,9 +2838,27 @@
             renderPopupSettings('popupSettingsSidebar');
         }
 
+        function getConnectionBuilder() {
+            if (!state.connectionBuilder) {
+                state.connectionBuilder = { targetSetId: null, targetRecordId: '', metadataJson: '' };
+            }
+            return state.connectionBuilder;
+        }
+
         function renderConnectionsSidebar(container, recordId) {
-            const set = getCurrentSet();
-            const availableRecords = set ? Array.from(set.records.values()).filter(r => r.id !== recordId) : [];
+            const builder = getConnectionBuilder();
+            const setEntries = Array.from(state.sets.entries());
+            const selectedSetId = builder.targetSetId && state.sets.has(builder.targetSetId)
+                ? builder.targetSetId
+                : (setEntries[0]?.[0] || null);
+            if (builder.targetSetId !== selectedSetId) builder.targetSetId = selectedSetId;
+
+            const selectedSet = selectedSetId ? state.sets.get(selectedSetId) : null;
+            const availableRecords = selectedSet ? Array.from(selectedSet.records.values()).filter(r => r.id !== recordId) : [];
+            const selectedRecordId = availableRecords.some(rec => rec.id === builder.targetRecordId) ? builder.targetRecordId : '';
+            if (builder.targetRecordId !== selectedRecordId) builder.targetRecordId = selectedRecordId;
+
+            const metadataText = builder.metadataJson || '';
             const connections = Array.from(state.connections.values()).filter(edge => edge.sourceId === recordId || edge.targetId === recordId);
 
             container.innerHTML = `
@@ -2848,19 +2868,44 @@
                         <p class="text-sm text-gray-600">Link this record to other records.</p>
                     </div>
                     <div class="border border-gray-200 bg-white rounded-lg p-4 space-y-3">
-                        <label class="form-label">Connect to</label>
-                        <select id="newConnectionTarget" class="border rounded px-3 py-2 text-sm w-full">
-                            <option value="">Select a record</option>
-                            ${availableRecords.map(rec => `<option value="${rec.id}">${rec.name || rec.id}</option>`).join('')}
+                        <label class="form-label">Select set</label>
+                        <select id="newConnectionSet" class="border rounded px-3 py-2 text-sm w-full" onchange="handleConnectionSetChange('${recordId}', this.value)">
+                            ${setEntries.length === 0 ? '<option value="">No sets available</option>' : ''}
+                            ${setEntries.map(([id, set]) => `<option value="${id}" ${id === selectedSetId ? 'selected' : ''}>${set.name || id}</option>`).join('')}
                         </select>
-                        <button class="btn btn-primary btn-sm" onclick="createConnectionFromSidebar('${recordId}')" ${availableRecords.length === 0 ? 'disabled' : ''}>Add Connection</button>
-                        ${availableRecords.length === 0 ? '<p class="text-xs text-gray-500">Add more records to create connections.</p>' : ''}
+                        <label class="form-label">Connect to</label>
+                        <select id="newConnectionTarget" class="border rounded px-3 py-2 text-sm w-full" onchange="handleConnectionRecordChange('${recordId}', this.value)" ${!selectedSetId ? 'disabled' : ''}>
+                            <option value="">${selectedSetId ? 'Select a record' : 'Select a set first'}</option>
+                            ${availableRecords.map(rec => `<option value="${rec.id}" ${rec.id === selectedRecordId ? 'selected' : ''}>${rec.name || rec.id}</option>`).join('')}
+                        </select>
+                        <label class="form-label">Parameters (JSON object)</label>
+                        <textarea id="newConnectionMetadata" class="border rounded px-3 py-2 text-sm w-full h-24" placeholder="{\"role\": \"depends-on\"}" oninput="updateConnectionBuilderMetadata('${recordId}', this.value)">${metadataText}</textarea>
+                        <button class="btn btn-primary btn-sm" onclick="createConnectionFromSidebar('${recordId}')" ${(availableRecords.length === 0 || !selectedRecordId) ? 'disabled' : ''}>Add Connection</button>
+                        ${availableRecords.length === 0 ? '<p class="text-xs text-gray-500">Add records to the selected set to create connections.</p>' : ''}
                     </div>
                     <div class="space-y-3">
                         ${connections.length === 0 ? '<p class="text-gray-500">No connections yet.</p>' : connections.map(edge => renderConnectionCard(edge, recordId)).join('')}
                     </div>
                 </div>
             `;
+        }
+
+        function handleConnectionSetChange(recordId, setId) {
+            const builder = getConnectionBuilder();
+            builder.targetSetId = setId || null;
+            builder.targetRecordId = '';
+            renderRecordSidebar(recordId);
+        }
+
+        function handleConnectionRecordChange(recordId, targetId) {
+            const builder = getConnectionBuilder();
+            builder.targetRecordId = targetId || '';
+            renderRecordSidebar(recordId);
+        }
+
+        function updateConnectionBuilderMetadata(recordId, value) {
+            const builder = getConnectionBuilder();
+            builder.metadataJson = value;
         }
 
         function renderConnectionCard(edge, recordId) {
@@ -2872,16 +2917,78 @@
 
             return `
                 <div class="border border-gray-200 rounded-lg p-3 bg-white">
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between gap-3">
                         <div>
                             <div class="font-semibold">${direction} ${otherName}</div>
                             <div class="text-xs text-gray-500">${isSource ? 'Source' : 'Target'} · ${timestamp ? getTimeAgo(timestamp) : ''}</div>
                         </div>
-                        <button class="text-sm text-red-500" onclick="deleteConnectionFromSidebar('${edge.id}', '${recordId}')">Remove</button>
+                        <div class="flex items-center gap-3">
+                            <button class="text-sm text-blue-600" onclick="editConnectionParameters('${edge.id}', '${recordId}')">Edit parameters</button>
+                            <button class="text-sm text-red-500" onclick="deleteConnectionFromSidebar('${edge.id}', '${recordId}')">Remove</button>
+                        </div>
                     </div>
-                    ${edge.metadata && Object.keys(edge.metadata).length ? `<div class="text-xs text-gray-600 mt-2">Metadata: ${JSON.stringify(edge.metadata)}</div>` : ''}
+                    <div class="mt-2">
+                        <div class="text-xs font-semibold text-gray-600 mb-1">Parameters</div>
+                        ${renderConnectionMetadata(edge.metadata)}
+                    </div>
                 </div>
             `;
+        }
+
+        function renderConnectionMetadata(metadata) {
+            if (!metadata || !Object.keys(metadata).length) {
+                return '<p class="text-xs text-gray-500">No parameters</p>';
+            }
+
+            return `<dl class="text-xs text-gray-700 space-y-1">
+                ${Object.entries(metadata).map(([key, value]) => `
+                    <div class="flex justify-between gap-2">
+                        <dt class="font-medium text-gray-600">${key}</dt>
+                        <dd class="text-right break-all text-gray-800">${typeof value === 'object' ? JSON.stringify(value) : value}</dd>
+                    </div>
+                `).join('')}
+            </dl>`;
+        }
+
+        function parseConnectionMetadata(raw) {
+            if (!raw || !raw.trim()) return {};
+
+            let parsed;
+            try {
+                parsed = JSON.parse(raw);
+            } catch (err) {
+                throw new Error('Connection parameters must be valid JSON');
+            }
+
+            if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                throw new Error('Connection parameters must be a JSON object');
+            }
+
+            return parsed;
+        }
+
+        function editConnectionParameters(connectionId, recordId) {
+            const existing = state.connections.get(connectionId);
+            if (!existing) {
+                showToast('Connection not found');
+                return;
+            }
+
+            const currentJson = JSON.stringify(existing.metadata || {}, null, 2);
+            const input = prompt('Edit connection parameters (JSON object)', currentJson);
+            if (input === null) return;
+
+            let parsed;
+            try {
+                parsed = parseConnectionMetadata(input);
+            } catch (err) {
+                showToast(err.message);
+                return;
+            }
+
+            updateConnection(connectionId, { metadata: parsed });
+            renderRecordSidebar(recordId);
+            showToast('✓ Parameters updated');
         }
 
         function getRecordDisplayName(recordId) {
@@ -2905,13 +3012,24 @@
         }
 
         function createConnectionFromSidebar(recordId) {
-            const target = document.getElementById('newConnectionTarget')?.value;
+            const builder = getConnectionBuilder();
+            const target = builder.targetRecordId || document.getElementById('newConnectionTarget')?.value;
             if (!target) {
                 showToast('Select a record to connect');
                 return;
             }
 
-            createConnection(recordId, target, {});
+            const rawMetadata = document.getElementById('newConnectionMetadata')?.value || builder.metadataJson || '';
+            let metadata = {};
+            try {
+                metadata = parseConnectionMetadata(rawMetadata);
+            } catch (err) {
+                showToast(err.message);
+                return;
+            }
+
+            builder.targetRecordId = '';
+            createConnection(recordId, target, metadata);
             renderRecordSidebar(recordId);
             showToast('✓ Connection created');
         }
