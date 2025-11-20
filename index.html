@@ -4023,15 +4023,37 @@
             document.querySelectorAll('.context-menu').forEach(menu => menu.remove());
         }
 
+        function closeAllModals(exceptId = null) {
+            const remaining = [];
+            state.modalStack.forEach(id => {
+                if (id === exceptId) {
+                    remaining.push(id);
+                    return;
+                }
+
+                const modalEl = document.getElementById(id);
+                if (modalEl) modalEl.classList.add('hidden');
+            });
+            state.modalStack = remaining;
+        }
+
         function openModal(modalId) {
             closeAllContextMenus();
-            document.getElementById(modalId).classList.remove('hidden');
-            state.modalStack.push(modalId);
+            closeAllModals(modalId);
+
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+
+            modal.classList.remove('hidden');
+            if (!state.modalStack.includes(modalId)) {
+                state.modalStack.push(modalId);
+            }
         }
 
         function closeModal(modalId) {
             closeAllContextMenus();
-            document.getElementById(modalId).classList.add('hidden');
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.add('hidden');
             state.modalStack = state.modalStack.filter(id => id !== modalId);
         }
 
