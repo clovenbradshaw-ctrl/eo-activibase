@@ -754,6 +754,7 @@
                         </svg>
                         Filter
                     </button>
+                    <button id="toggleRowNumbersBtn" class="btn btn-secondary btn-sm">Hide Row Numbers</button>
                     <button id="popupSettingsBtn" class="btn btn-secondary btn-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1232,6 +1233,7 @@
                 type: config.type || 'grid',
                 filters: config.filters || [],
                 hiddenFields: config.hiddenFields || [],
+                showRowNumbers: config.showRowNumbers !== undefined ? config.showRowNumbers : true,
                 popupVisibilityRules: config.popupVisibilityRules || [],
                 kanbanGroupField: config.kanbanGroupField || null,
                 cardFields: config.cardFields || []
@@ -1493,13 +1495,17 @@
         function renderCurrentView() {
             const view = getCurrentView();
             if (!view) return;
-            
+
+            ensureViewDefaults(view);
+
             // Update view type buttons
             document.querySelectorAll('.view-type-btn').forEach(btn => {
                 btn.classList.remove('active');
                 if (btn.dataset.type === view.type) btn.classList.add('active');
             });
-            
+
+            updateRowNumberToggleButton();
+
             switch(view.type) {
                 case 'grid':
                     renderGridView();
@@ -1511,6 +1517,30 @@
                     renderKanbanView();
                     break;
             }
+        }
+
+        function ensureViewDefaults(view) {
+            if (view.showRowNumbers === undefined) view.showRowNumbers = true;
+        }
+
+        function updateRowNumberToggleButton() {
+            const btn = document.getElementById('toggleRowNumbersBtn');
+            const view = getCurrentView();
+            const isGridView = view?.type === 'grid';
+            if (!btn) return;
+
+            btn.disabled = !isGridView;
+            btn.classList.toggle('opacity-50', !isGridView);
+            btn.textContent = view?.showRowNumbers === false ? 'Show Row Numbers' : 'Hide Row Numbers';
+            btn.title = isGridView ? 'Toggle row numbers column' : 'Row numbers are only available in grid view';
+        }
+
+        function toggleRowNumbers() {
+            const view = getCurrentView();
+            if (!view || view.type !== 'grid') return;
+
+            view.showRowNumbers = view.showRowNumbers === false ? true : false;
+            renderCurrentView();
         }
 
         // GRID VIEW
@@ -1526,14 +1556,16 @@
             
             let records = Array.from(set.records.values());
             if (view && view.filters.length > 0) records = applyFilterGroups(records, view.filters, schema);
-            
+
+            const rowNumberHeader = view.showRowNumbers === false ? '' : '<th class="column-header" style="width: 50px;">#</th>';
+
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
                 <div class="max-w-full px-6 py-6">
                     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                         <div class="table-scroll">
                             <table id="dataTable" class="w-full border-collapse">
-                                <thead><tr id="tableHeader"><th class="column-header" style="width: 50px;">#</th></tr></thead>
+                                <thead><tr id="tableHeader">${rowNumberHeader}</tr></thead>
                                 <tbody id="tableBody"></tbody>
                             </table>
                         </div>
@@ -1554,7 +1586,7 @@
             });
 
             const table = document.getElementById('dataTable');
-            const minimumTableWidth = Math.max(schema.length * 170 + 80, 600);
+            const minimumTableWidth = Math.max(schema.length * 170 + (view.showRowNumbers === false ? 0 : 80), 600);
             table.style.minWidth = `${minimumTableWidth}px`;
 
             const tbody = document.getElementById('tableBody');
@@ -1565,11 +1597,13 @@
                     if (e.target === tr || e.target.closest('.row-number')) openExpandedRecord(record.id);
                 };
                 
-                const tdNum = document.createElement('td');
-                tdNum.className = 'row-number cell-editable text-center bg-gray-50 font-medium text-gray-500';
-                tdNum.textContent = index + 1;
-                tdNum.oncontextmenu = (e) => { e.preventDefault(); showRowMenu(e, record.id); };
-                tr.appendChild(tdNum);
+                if (view.showRowNumbers !== false) {
+                    const tdNum = document.createElement('td');
+                    tdNum.className = 'row-number cell-editable text-center bg-gray-50 font-medium text-gray-500';
+                    tdNum.textContent = index + 1;
+                    tdNum.oncontextmenu = (e) => { e.preventDefault(); showRowMenu(e, record.id); };
+                    tr.appendChild(tdNum);
+                }
                 
                 schema.forEach(field => {
                     const td = document.createElement('td');
@@ -2649,6 +2683,7 @@
             };
             document.getElementById('addFieldBtn').onclick = openAddFieldModal;
             document.getElementById('filterBtn').onclick = openFilterModal;
+            document.getElementById('toggleRowNumbersBtn').onclick = toggleRowNumbers;
             document.getElementById('popupSettingsBtn').onclick = openPopupSettingsModal;
             document.getElementById('historyBtn').onclick = () => {
                 document.getElementById('historyPanel').classList.add('open');
