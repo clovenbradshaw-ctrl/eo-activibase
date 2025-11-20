@@ -541,7 +541,13 @@
         .badge-pink { background-color: #fce7f3; color: #9f1239; }
         
         /* FIELD TYPE GRID */
-        .field-type-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-height: 400px; overflow-y: auto; }
+        .field-type-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
         .field-type-option {
             padding: 12px;
             border: 2px solid #e5e7eb;
@@ -552,6 +558,7 @@
             align-items: center;
             gap: 12px;
             background: white;
+            min-height: 64px;
         }
         .field-type-option:hover { border-color: #3b82f6; background: #f0f9ff; }
         .field-type-option.selected { border-color: #3b82f6; background: #dbeafe; }
@@ -2341,19 +2348,22 @@
             Object.values(FIELD_TYPES).forEach(fieldType => {
                 const option = document.createElement('div');
                 option.className = `field-type-option ${fieldType.id === selectedType ? 'selected' : ''}`;
-                option.onclick = () => selectFieldType(fieldType.id);
+                option.onclick = (e) => selectFieldType(fieldType.id, e.currentTarget);
                 option.innerHTML = `
-                    <div class="field-type-icon">${fieldType.icon}</div>
-                    <div class="flex-1"><div class="font-medium text-sm">${fieldType.name}</div></div>
+                    <div class="field-type-icon">${renderIcon(fieldType.icon)}</div>
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">${fieldType.name}</div>
+                        <div class="text-xs text-gray-500">${fieldType.id.replace(/_/g, ' ')}</div>
+                    </div>
                 `;
                 grid.appendChild(option);
             });
         }
 
-        function selectFieldType(typeId) {
+        function selectFieldType(typeId, target) {
             document.getElementById('newFieldType').value = typeId;
             document.querySelectorAll('.field-type-option').forEach(opt => opt.classList.remove('selected'));
-            event.currentTarget.classList.add('selected');
+            target.classList.add('selected');
             updateFieldConfig(typeId);
         }
 
