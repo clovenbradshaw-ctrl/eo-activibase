@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Workbase - Enhanced Database</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         :root {
             --primary: #2563eb;
@@ -20,6 +21,15 @@
             background: #f7f8fa;
             color: #1f2937;
         }
+
+        .icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .icon-sm { font-size: 14px; }
+        .icon-md { font-size: 16px; }
+        .icon-lg { font-size: 18px; }
         
         /* LAYOUT */
         .app-container {
@@ -721,16 +731,14 @@
             <div class="sidebar-header">
                 <div class="sidebar-brand">Workbase</div>
                 <button class="sidebar-toggle" onclick="toggleSidebar()">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
+                    <i class="ph-bold ph-list icon icon-md"></i>
                 </button>
             </div>
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Sets</div>
                 <div id="setsList"></div>
                 <button onclick="openAddSetModal()" class="new-set-btn">
-                    <span class="set-icon">➕</span>
+                    <span class="set-icon"><i class="ph-bold ph-plus-square icon icon-lg"></i></span>
                     <span class="set-name">New Set</span>
                 </button>
             </div>
@@ -744,31 +752,28 @@
                 <div class="flex items-center gap-3">
                     <div class="view-type-switcher">
                         <button class="view-type-btn active" data-type="grid" onclick="switchViewType('grid')">
-                            🔲 Grid
+                            <i class="ph-bold ph-table icon icon-md"></i>
+                            Grid
                         </button>
                         <button class="view-type-btn" data-type="card" onclick="switchViewType('card')">
-                            🃏 Card
+                            <i class="ph-bold ph-identification-card icon icon-md"></i>
+                            Card
                         </button>
                         <button class="view-type-btn" data-type="kanban" onclick="switchViewType('kanban')">
-                            📊 Kanban
+                            <i class="ph-bold ph-kanban icon icon-md"></i>
+                            Kanban
                         </button>
                     </div>
                     <button id="filterBtn" class="btn btn-secondary btn-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-                        </svg>
+                        <i class="ph-bold ph-funnel-simple icon icon-md"></i>
                         Filter
                     </button>
                     <button id="popupSettingsBtn" class="btn btn-secondary btn-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        <i class="ph-bold ph-identification-card icon icon-md"></i>
                         Popup Fields
                     </button>
                     <button id="historyBtn" class="btn btn-secondary btn-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
+                        <i class="ph-bold ph-clock-counter-clockwise icon icon-md"></i>
                         History
                     </button>
                 </div>
@@ -813,9 +818,7 @@
                 <div class="flex items-center gap-2">
                     <button id="toggleHistorySidebarBtn" class="btn btn-secondary btn-sm">Hide History</button>
                     <button id="closeExpandedRecordBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
+                        <i class="ph-bold ph-x icon icon-lg"></i>
                     </button>
                 </div>
             </div>
@@ -845,9 +848,7 @@
                     <p class="text-sm text-gray-500 mt-1">Create advanced filter conditions</p>
                 </div>
                 <button id="closeFilterBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="ph-bold ph-x icon icon-lg"></i>
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto modal-body">
@@ -869,9 +870,7 @@
                     <p class="text-sm text-gray-500 mt-1">Control which fields appear in record popups for this view.</p>
                 </div>
                 <button id="closePopupSettingsBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="ph-bold ph-x icon icon-lg"></i>
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto modal-body space-y-4">
@@ -892,9 +891,7 @@
                     <p class="text-sm text-gray-500 mt-1">Create a new field for your set</p>
                 </div>
                 <button id="closeAddFieldBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="ph-bold ph-x icon icon-lg"></i>
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto modal-body space-y-5">
@@ -941,8 +938,8 @@
                     <input type="text" id="newSetName" placeholder="e.g., Projects, Contacts">
                 </div>
                 <div>
-                    <label class="form-label">Icon (emoji)</label>
-                    <input type="text" id="newSetIcon" placeholder="📊" maxlength="2">
+                    <label class="form-label">Icon (Phosphor name)</label>
+                    <input type="text" id="newSetIcon" placeholder="e.g., stack" maxlength="32">
                 </div>
             </div>
             <div class="modal-footer flex justify-end gap-2">
@@ -963,8 +960,8 @@
                     <input type="text" id="newViewName" placeholder="e.g., Active Items">
                 </div>
                 <div>
-                    <label class="form-label">View Icon (emoji)</label>
-                    <input type="text" id="newViewIcon" placeholder="📋" maxlength="2">
+                    <label class="form-label">View Icon (Phosphor name)</label>
+                    <input type="text" id="newViewIcon" placeholder="e.g., kanban" maxlength="32">
                 </div>
                 <div>
                     <label class="form-label">Nest Under</label>
@@ -1006,9 +1003,7 @@
                     <p class="text-sm opacity-90 mt-1">Full audit trail</p>
                 </div>
                 <button id="closeHistoryBtn" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="ph-bold ph-x icon icon-lg"></i>
                 </button>
             </div>
             <input type="text" id="historySearch" class="w-full text-gray-900 rounded-lg" placeholder="Search history...">
@@ -1025,9 +1020,7 @@
                     <p class="text-sm text-gray-500 mt-1" id="cellHistorySubtitle"></p>
                 </div>
                 <button class="text-gray-400 hover:text-gray-600 transition p-2" onclick="closeModal('cellHistoryModal')">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="ph-bold ph-x icon icon-lg"></i>
                 </button>
             </div>
             <div class="p-6 overflow-auto" id="cellHistoryContent"></div>
@@ -1043,9 +1036,7 @@
                     <p class="text-sm text-gray-500 mt-1">View the complete data structure</p>
                 </div>
                 <button id="closeJsonViewerBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="ph-bold ph-x icon icon-lg"></i>
                 </button>
             </div>
             <div class="flex border-b border-gray-200">
@@ -1057,13 +1048,26 @@
             <div class="flex-1 overflow-hidden relative">
                 <pre id="jsonContent" class="p-6 overflow-auto h-full text-sm bg-gray-50 font-mono"></pre>
                 <button id="copyJsonBtn" class="absolute top-4 right-4 btn btn-secondary btn-sm">
-                    📋 Copy
+                    <i class="ph-bold ph-clipboard-text icon icon-md"></i>
+                    Copy
                 </button>
             </div>
         </div>
     </div>
 
     <script>
+        function renderIcon(name, options = {}) {
+            const weight = options.weight || 'bold';
+            const className = ' icon' + (options.className ? ` ${options.className}` : '');
+            return `<i class="ph-${weight} ph-${name}${className}"></i>`;
+        }
+
+        function resolveIcon(name, fallback = 'stack') {
+            if (!name) return renderIcon(fallback);
+            if (name.includes('<i')) return name;
+            return renderIcon(name);
+        }
+
         // STATE
         const state = {
             sets: new Map(),
@@ -1090,20 +1094,23 @@
             viewEditorContext: null
         };
 
-        const FIELD_TYPES = {
-            TEXT: { id: 'TEXT', name: 'Single Line Text', defaultValue: '', icon: '📝' },
-            LONG_TEXT: { id: 'LONG_TEXT', name: 'Long Text', defaultValue: '', icon: '📄' },
-            NUMBER: { id: 'NUMBER', name: 'Number', defaultValue: 0, icon: '#️⃣' },
-            CURRENCY: { id: 'CURRENCY', name: 'Currency', defaultValue: 0, icon: '💵' },
-            DATE: { id: 'DATE', name: 'Date', defaultValue: '', icon: '📅' },
-            EMAIL: { id: 'EMAIL', name: 'Email', defaultValue: '', icon: '📧' },
-            URL: { id: 'URL', name: 'URL', defaultValue: '', icon: '🔗' },
-            PHONE: { id: 'PHONE', name: 'Phone', defaultValue: '', icon: '📞' },
-            SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', defaultValue: '', icon: '🎯', needsConfig: true },
-            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: '☑️' }
-        };
+        const VIEW_TYPE_ICON_NAMES = { grid: 'table', card: 'identification-card', kanban: 'kanban' };
+        const VIEW_TYPE_ICONS = Object.fromEntries(
+            Object.entries(VIEW_TYPE_ICON_NAMES).map(([key, iconName]) => [key, renderIcon(iconName, { className: 'icon-md' })])
+        );
 
-        const VIEW_TYPE_ICONS = { grid: '🔲', card: '🃏', kanban: '📊' };
+        const FIELD_TYPES = {
+            TEXT: { id: 'TEXT', name: 'Single Line Text', defaultValue: '', icon: renderIcon('text-t', { className: 'icon-lg' }) },
+            LONG_TEXT: { id: 'LONG_TEXT', name: 'Long Text', defaultValue: '', icon: renderIcon('text-align-left', { className: 'icon-lg' }) },
+            NUMBER: { id: 'NUMBER', name: 'Number', defaultValue: 0, icon: renderIcon('hash', { className: 'icon-lg' }) },
+            CURRENCY: { id: 'CURRENCY', name: 'Currency', defaultValue: 0, icon: renderIcon('currency-dollar', { className: 'icon-lg' }) },
+            DATE: { id: 'DATE', name: 'Date', defaultValue: '', icon: renderIcon('calendar-dots', { className: 'icon-lg' }) },
+            EMAIL: { id: 'EMAIL', name: 'Email', defaultValue: '', icon: renderIcon('envelope-simple', { className: 'icon-lg' }) },
+            URL: { id: 'URL', name: 'URL', defaultValue: '', icon: renderIcon('link-simple', { className: 'icon-lg' }) },
+            PHONE: { id: 'PHONE', name: 'Phone', defaultValue: '', icon: renderIcon('phone', { className: 'icon-lg' }) },
+            SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', defaultValue: '', icon: renderIcon('target', { className: 'icon-lg' }), needsConfig: true },
+            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: renderIcon('check-square-offset', { className: 'icon-lg' }) }
+        };
 
         const EO_OPERATOR_SET = {
             INS: { id: 'INS', name: 'Instantiate', description: 'Create a new object that did not exist before.' },
@@ -1182,7 +1189,7 @@
         }
 
         function createSampleData() {
-            const projectsId = createSet('Projects', '📊');
+            const projectsId = createSet('Projects', 'stack');
             const projectsSet = state.sets.get(projectsId);
             
             projectsSet.schema = [
@@ -1241,12 +1248,14 @@
         }
 
         // SET MANAGEMENT
-        function createSet(name, icon = '📊') {
+        function createSet(name, iconName = 'stack') {
             const setId = 'set_' + Date.now();
+            const icon = resolveIcon(iconName, 'stack');
             state.sets.set(setId, {
                 id: setId,
                 name: name,
                 icon: icon,
+                iconName: iconName || 'stack',
                 schema: [],
                 records: new Map(),
                 views: new Map(),
@@ -1265,11 +1274,13 @@
         function createView(setId, name, config = {}) {
             const viewId = 'view_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             const set = state.sets.get(setId);
+            const iconName = config.icon || VIEW_TYPE_ICON_NAMES[config.type || 'grid'] || 'note';
             set.views.set(viewId, {
                 id: viewId,
                 name: name,
                 type: config.type || 'grid',
-                icon: config.icon || VIEW_TYPE_ICONS[config.type || 'grid'] || '📋',
+                icon: resolveIcon(iconName, 'note'),
+                iconName,
                 filters: config.filters || [],
                 hiddenFields: config.hiddenFields || [],
                 showRowNumbers: config.showRowNumbers !== undefined ? config.showRowNumbers : true,
@@ -1460,7 +1471,7 @@
                 setHeader.innerHTML = `
                     <span class="set-icon">${set.icon}</span>
                     <span class="set-name">${set.name}</span>
-                    <span class="set-expand-icon">▶</span>
+                    <span class="set-expand-icon">${renderIcon('caret-right', { className: 'icon-sm' })}</span>
                 `;
                 setHeader.onclick = (e) => { if (e.detail === 1) toggleSetExpansion(setId); };
                 setHeader.ondblclick = (e) => { e.stopPropagation(); openAddSetModal(setId); };
@@ -1495,12 +1506,12 @@
             const normalizedParent = parentId || null;
             const childViews = orderedViews.filter(([_, view]) => (view.parentId || null) === normalizedParent);
 
-            childViews.forEach(([viewId, view]) => {
-                const viewItem = document.createElement('div');
-                viewItem.className = `view-item ${viewId === state.currentViewId ? 'active' : ''}`;
-                viewItem.style.paddingLeft = `${12 + depth * 16}px`;
-                viewItem.innerHTML = `
-                    <span class="view-item-icon">${view.icon || VIEW_TYPE_ICONS[view.type] || '📋'}</span>
+                childViews.forEach(([viewId, view]) => {
+                    const viewItem = document.createElement('div');
+                    viewItem.className = `view-item ${viewId === state.currentViewId ? 'active' : ''}`;
+                    viewItem.style.paddingLeft = `${12 + depth * 16}px`;
+                    viewItem.innerHTML = `
+                    <span class="view-item-icon">${view.icon || VIEW_TYPE_ICONS[view.type] || renderIcon('note')}</span>
                     <span>${view.name}</span>
                 `;
                 viewItem.onclick = (e) => {
@@ -1544,7 +1555,7 @@
                     if (excludeViewId && id === excludeViewId) return;
                     const option = document.createElement('option');
                     option.value = id;
-                    option.textContent = `${'• '.repeat(depth)}${view.icon || VIEW_TYPE_ICONS[view.type] || '📋'} ${view.name}`;
+                    option.innerHTML = `${'• '.repeat(depth)}${view.icon || VIEW_TYPE_ICONS[view.type] || renderIcon('note')} ${view.name}`;
                     select.appendChild(option);
                     renderOptions(id, depth + 1);
                 });
@@ -1570,7 +1581,7 @@
                 if (titleEl) titleEl.textContent = 'Edit View';
                 if (saveBtn) saveBtn.textContent = 'Save';
                 if (nameInput) nameInput.value = view?.name || '';
-                if (iconInput) iconInput.value = view?.icon || VIEW_TYPE_ICONS[view?.type] || '📋';
+                if (iconInput) iconInput.value = view?.iconName || VIEW_TYPE_ICON_NAMES[view?.type] || 'note';
                 populateViewParentOptions(setId, viewId, view?.parentId || null);
             } else {
                 state.viewEditorContext = { setId, viewId: null };
@@ -1642,7 +1653,8 @@
 
         function ensureViewDefaults(view) {
             if (view.showRowNumbers === undefined) view.showRowNumbers = true;
-            if (!view.icon) view.icon = VIEW_TYPE_ICONS[view.type] || '📋';
+            if (!view.iconName) view.iconName = VIEW_TYPE_ICON_NAMES[view.type] || 'note';
+            if (!view.icon) view.icon = resolveIcon(view.iconName, 'note');
         }
 
         function setRowNumbersVisibility(visible) {
@@ -1856,7 +1868,7 @@
                 const container = document.getElementById('viewContainer');
                 container.innerHTML = `
                     <div class="kanban-empty-state">
-                        <div class="text-4xl mb-4">📊</div>
+                        <div class="text-4xl mb-4">${renderIcon('kanban', { className: 'icon-lg' })}</div>
                         <p class="text-lg font-semibold mb-2">Configure Kanban Board</p>
                         <p class="mb-4">Select a single-select field to group your records</p>
                         <button onclick="openKanbanConfig()" class="btn btn-primary">Configure Kanban</button>
@@ -2413,8 +2425,8 @@
                 <div class="flex items-center justify-between mb-4">
                     <div class="text-sm text-gray-600">${ctx.entries.length} change${ctx.entries.length === 1 ? '' : 's'} found</div>
                     <div class="flex items-center gap-2">
-                        <button class="btn btn-secondary btn-sm" ${ctx.index === 0 ? 'disabled' : ''} onclick="stepCellHistory(-1)">◀ Prev</button>
-                        <button class="btn btn-secondary btn-sm" ${ctx.index >= ctx.entries.length - 1 ? 'disabled' : ''} onclick="stepCellHistory(1)">Next ▶</button>
+                        <button class="btn btn-secondary btn-sm" ${ctx.index === 0 ? 'disabled' : ''} onclick="stepCellHistory(-1)">${renderIcon('caret-left', { className: 'icon-md' })} Prev</button>
+                        <button class="btn btn-secondary btn-sm" ${ctx.index >= ctx.entries.length - 1 ? 'disabled' : ''} onclick="stepCellHistory(1)">Next ${renderIcon('caret-right', { className: 'icon-md' })}</button>
                     </div>
                 </div>
                 <div class="space-y-3 mb-4">
@@ -3048,9 +3060,7 @@
             toast.className = 'toast';
             toast.innerHTML = `
                 <div class="flex items-center gap-3">
-                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
+                    <i class="ph-bold ph-check-circle icon icon-md text-green-600"></i>
                     <span class="font-medium">${message}</span>
                 </div>
             `;
@@ -3143,19 +3153,20 @@
             document.getElementById('closeAddFieldBtn').onclick = () => closeModal('addFieldModal');
             document.getElementById('saveAddSetBtn').onclick = () => {
                 const name = document.getElementById('newSetName').value.trim();
-                const icon = document.getElementById('newSetIcon').value.trim() || '📊';
+                const iconName = document.getElementById('newSetIcon').value.trim() || 'stack';
                 if (!name) { showConfirm('Please enter a set name', () => {}); return; }
                 if (state.setEditorContext?.setId) {
                     const set = state.sets.get(state.setEditorContext.setId);
                     set.name = name;
-                    set.icon = icon;
+                    set.icon = resolveIcon(iconName, 'stack');
+                    set.iconName = iconName;
                     closeModal('addSetModal');
                     state.setEditorContext = null;
                     renderSidebar();
                     renderCurrentView();
                     showToast('✓ Set updated');
                 } else {
-                    const setId = createSet(name, icon);
+                    const setId = createSet(name, iconName);
                     closeModal('addSetModal');
                     document.getElementById('newSetName').value = '';
                     document.getElementById('newSetIcon').value = '';
@@ -3169,7 +3180,7 @@
             document.getElementById('cancelAddSetBtn').onclick = () => { state.setEditorContext = null; closeModal('addSetModal'); };
             document.getElementById('saveAddViewBtn').onclick = () => {
                 const name = document.getElementById('newViewName').value.trim();
-                const icon = document.getElementById('newViewIcon').value.trim() || '📋';
+                const iconName = document.getElementById('newViewIcon').value.trim() || VIEW_TYPE_ICON_NAMES.grid;
                 const parentId = document.getElementById('newViewParent').value || null;
                 if (!name) { showConfirm('Please enter a view name', () => {}); return; }
                 const set = state.sets.get(state.viewEditorContext?.setId || state.currentSetId);
@@ -3184,7 +3195,8 @@
                     const view = set.views.get(state.viewEditorContext.viewId);
                     if (view) {
                         view.name = name;
-                        view.icon = icon;
+                        view.icon = resolveIcon(iconName, 'note');
+                        view.iconName = iconName;
                         view.parentId = parentId;
                     }
                     closeModal('addViewModal');
@@ -3193,7 +3205,7 @@
                     switchSet(setId, view?.id || state.currentViewId);
                     showToast('✓ View updated');
                 } else {
-                    const viewId = createView(setId, name, { type: 'grid', icon, parentId });
+                    const viewId = createView(setId, name, { type: 'grid', icon: iconName, parentId });
                     closeModal('addViewModal');
                     document.getElementById('newViewName').value = '';
                     document.getElementById('newViewIcon').value = '';
@@ -3305,12 +3317,12 @@
             const content = document.getElementById('jsonContent').textContent;
             navigator.clipboard.writeText(content).then(() => {
                 const btn = document.getElementById('copyJsonBtn');
-                const originalText = btn.textContent;
-                btn.textContent = '✓ Copied!';
+                const originalContent = btn.innerHTML;
+                btn.innerHTML = `${renderIcon('check', { className: 'icon-md' })} Copied!`;
                 btn.classList.add('btn-primary');
                 btn.classList.remove('btn-secondary');
                 setTimeout(() => {
-                    btn.textContent = originalText;
+                    btn.innerHTML = originalContent;
                     btn.classList.remove('btn-primary');
                     btn.classList.add('btn-secondary');
                 }, 2000);
@@ -3339,7 +3351,7 @@
                 if (titleEl) titleEl.textContent = 'Edit Set';
                 if (saveBtn) saveBtn.textContent = 'Save';
                 if (nameInput) nameInput.value = set?.name || '';
-                if (iconInput) iconInput.value = set?.icon || '📊';
+                if (iconInput) iconInput.value = set?.iconName || 'stack';
             } else {
                 state.setEditorContext = null;
                 if (titleEl) titleEl.textContent = 'Create Set';
