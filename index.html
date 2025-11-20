@@ -269,14 +269,36 @@
             cursor: col-resize;
         }
         .column-header:hover { background: var(--muted-surface); }
-        .column-header[data-type="TEXT"] { border-top: 3px solid #3b82f6; }
-        .column-header[data-type="NUMBER"] { border-top: 3px solid #10b981; }
-        .column-header[data-type="CURRENCY"] { border-top: 3px solid #059669; }
-        .column-header[data-type="DATE"] { border-top: 3px solid #ec4899; }
-        .column-header[data-type="EMAIL"] { border-top: 3px solid #6366f1; }
-        .column-header[data-type="URL"] { border-top: 3px solid #8b5cf6; }
-        .column-header[data-type="SINGLE_SELECT"] { border-top: 3px solid #f59e0b; }
-        .column-header[data-type="CHECKBOX"] { border-top: 3px solid #8b5cf6; }
+
+        body.column-dragging { cursor: grabbing; }
+        .column-being-dragged { opacity: 0.5; }
+
+        .column-drag-ghost {
+            position: fixed;
+            pointer-events: none;
+            background: white;
+            border: 1px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 10px 14px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
+            opacity: 0.95;
+            z-index: 1200;
+            transform: translate3d(0, 0, 0);
+        }
+
+        .column-drop-before::before,
+        .column-drop-after::after {
+            content: '';
+            position: absolute;
+            top: 6px;
+            bottom: 6px;
+            width: 3px;
+            background: #cbd5e1;
+            border-radius: 999px;
+        }
+        .column-drop-before::before { left: -2px; }
+        .column-drop-after::after { right: -2px; }
+
         table { width: auto; border-collapse: collapse; table-layout: fixed; }
         thead { background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
         th {
@@ -312,6 +334,17 @@
             min-width: 60px;
         }
         tr:hover { background-color: #fafafa; }
+
+        #dataTable thead th,
+        #dataTable tbody td { background-clip: padding-box; transition: background-color 0.2s ease; }
+        #dataTable thead th:nth-child(odd),
+        #dataTable tbody td:nth-child(odd) { box-shadow: inset 0 0 0 9999px rgba(15, 23, 42, 0.012); }
+        #dataTable thead th:nth-child(even),
+        #dataTable tbody td:nth-child(even) { box-shadow: inset 0 0 0 9999px rgba(15, 23, 42, 0.024); }
+        #dataTable tbody tr:nth-child(odd) { background-color: rgba(15, 23, 42, 0.02); }
+        #dataTable tbody tr:nth-child(even) { background-color: rgba(15, 23, 42, 0.03); }
+        #dataTable tbody tr:hover td { background: #f4f6fb; }
+        #dataTable th:not(:last-child), #dataTable td:not(:last-child) { border-right: 1px solid #eef2f7; }
         .table-footer {
             display: flex;
             justify-content: flex-end;
@@ -1127,6 +1160,17 @@
             viewEditorContext: null
         };
 
+        const columnDragState = {
+            timer: null,
+            draggedFieldId: null,
+            dropFieldId: null,
+            dropPosition: null,
+            ghost: null,
+            offsetX: 0,
+            offsetY: 0,
+            sourceElement: null
+        };
+
         const COLUMN_WIDTH_MIN = 60;
         const COLUMN_WIDTH_MAX = 600;
 
@@ -1800,6 +1844,148 @@
             });
         }
 
+        function getPointerPosition(event) {
+            if (!event) return { clientX: 0, clientY: 0 };
+            if (event.touches && event.touches.length > 0) {
+                return { clientX: event.touches[0].clientX, clientY: event.touches[0].clientY };
+            }
+            if (event.changedTouches && event.changedTouches.length > 0) {
+                return { clientX: event.changedTouches[0].clientX, clientY: event.changedTouches[0].clientY };
+            }
+            return { clientX: event.clientX, clientY: event.clientY };
+        }
+
+        function createColumnGhost(element, position) {
+            const ghost = document.createElement('div');
+            ghost.className = 'column-drag-ghost';
+            ghost.style.width = `${element.offsetWidth}px`;
+            ghost.innerHTML = element.innerHTML;
+            ghost.style.left = `${position.clientX - columnDragState.offsetX}px`;
+            ghost.style.top = `${position.clientY - columnDragState.offsetY}px`;
+            document.body.appendChild(ghost);
+            return ghost;
+        }
+
+        function clearColumnDropIndicators() {
+            document.querySelectorAll('#tableHeader .column-header').forEach(header => {
+                header.classList.remove('column-drop-before', 'column-drop-after');
+            });
+        }
+
+        function updateColumnDropTarget(clientX) {
+            const headers = Array.from(document.querySelectorAll('#tableHeader .column-header'));
+            clearColumnDropIndicators();
+
+            const target = headers.find(h => {
+                const rect = h.getBoundingClientRect();
+                return clientX >= rect.left && clientX <= rect.right;
+            });
+
+            if (!target || target.dataset.fieldId === columnDragState.draggedFieldId) {
+                columnDragState.dropFieldId = null;
+                columnDragState.dropPosition = null;
+                return;
+            }
+
+            const rect = target.getBoundingClientRect();
+            const position = clientX < rect.left + rect.width / 2 ? 'before' : 'after';
+            target.classList.add(position === 'before' ? 'column-drop-before' : 'column-drop-after');
+            columnDragState.dropFieldId = target.dataset.fieldId;
+            columnDragState.dropPosition = position;
+        }
+
+        function reorderSchemaField(draggedFieldId, targetFieldId, position) {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            const fromIndex = set.schema.findIndex(f => f.id === draggedFieldId);
+            let targetIndex = set.schema.findIndex(f => f.id === targetFieldId);
+            if (fromIndex === -1 || targetIndex === -1) return;
+
+            const [field] = set.schema.splice(fromIndex, 1);
+            if (fromIndex < targetIndex) targetIndex -= 1;
+            const insertIndex = position === 'after' ? targetIndex + 1 : targetIndex;
+            set.schema.splice(insertIndex, 0, field);
+        }
+
+        function endColumnDrag() {
+            document.body.classList.remove('column-dragging');
+            document.removeEventListener('mousemove', handleColumnDragMove);
+            document.removeEventListener('touchmove', handleColumnDragMove);
+            document.removeEventListener('mouseup', endColumnDrag);
+            document.removeEventListener('touchend', endColumnDrag);
+            document.removeEventListener('touchcancel', endColumnDrag);
+
+            if (columnDragState.ghost) columnDragState.ghost.remove();
+            if (columnDragState.sourceElement) columnDragState.sourceElement.classList.remove('column-being-dragged');
+            clearColumnDropIndicators();
+
+            if (columnDragState.draggedFieldId && columnDragState.dropFieldId) {
+                reorderSchemaField(columnDragState.draggedFieldId, columnDragState.dropFieldId, columnDragState.dropPosition);
+                renderCurrentView();
+            }
+
+            columnDragState.draggedFieldId = null;
+            columnDragState.dropFieldId = null;
+            columnDragState.dropPosition = null;
+            columnDragState.ghost = null;
+            columnDragState.sourceElement = null;
+        }
+
+        function handleColumnDragMove(event) {
+            if (!columnDragState.draggedFieldId || !columnDragState.ghost) return;
+            if (event.cancelable) event.preventDefault();
+            const position = getPointerPosition(event);
+            columnDragState.ghost.style.left = `${position.clientX - columnDragState.offsetX}px`;
+            columnDragState.ghost.style.top = `${position.clientY - columnDragState.offsetY}px`;
+            updateColumnDropTarget(position.clientX);
+        }
+
+        function startColumnDrag(startPosition, element, field) {
+            columnDragState.timer = null;
+            columnDragState.draggedFieldId = field.id;
+            columnDragState.sourceElement = element;
+
+            const rect = element.getBoundingClientRect();
+            columnDragState.offsetX = startPosition.clientX - rect.left;
+            columnDragState.offsetY = startPosition.clientY - rect.top;
+
+            columnDragState.ghost = createColumnGhost(element, startPosition);
+            element.classList.add('column-being-dragged');
+            document.body.classList.add('column-dragging');
+
+            document.addEventListener('mousemove', handleColumnDragMove);
+            document.addEventListener('touchmove', handleColumnDragMove, { passive: false });
+            document.addEventListener('mouseup', endColumnDrag);
+            document.addEventListener('touchend', endColumnDrag);
+            document.addEventListener('touchcancel', endColumnDrag);
+        }
+
+        function setupColumnDragInteractions(element, field) {
+            const cancelTimer = () => {
+                if (columnDragState.timer) {
+                    clearTimeout(columnDragState.timer);
+                    columnDragState.timer = null;
+                }
+            };
+
+            const startTimer = (event) => {
+                if (event.button !== undefined && event.button !== 0) return;
+                if (event.target.closest('.column-resizer')) return;
+                const startPosition = getPointerPosition(event);
+                cancelTimer();
+                columnDragState.timer = setTimeout(() => startColumnDrag(startPosition, element, field), 400);
+            };
+
+            element.addEventListener('mousedown', startTimer);
+            element.addEventListener('touchstart', startTimer);
+            element.addEventListener('mouseup', cancelTimer);
+            element.addEventListener('mouseleave', cancelTimer);
+            element.addEventListener('mousemove', cancelTimer);
+            element.addEventListener('touchend', cancelTimer);
+            element.addEventListener('touchcancel', cancelTimer);
+        }
+
         // GRID VIEW
         function renderGridView() {
             const set = getCurrentSet();
@@ -1844,6 +2030,7 @@
                 th.style.width = width;
                 th.innerHTML = `<span>${field.name}</span>`;
                 addColumnResizer(th, field);
+                setupColumnDragInteractions(th, field);
                 th.oncontextmenu = (e) => { e.preventDefault(); showColumnMenu(e, field); };
                 headerRow.appendChild(th);
             });
