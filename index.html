@@ -1622,23 +1622,7 @@
             records.forEach((record, index) => {
                 const tr = document.createElement('tr');
                 tr.dataset.recordId = record.id;
-
-                const scheduleRowOpen = () => {
-                    if (tr._clickTimeout) clearTimeout(tr._clickTimeout);
-                    tr._clickTimeout = setTimeout(() => {
-                        openExpandedRecord(record.id);
-                        tr._clickTimeout = null;
-                    }, 180);
-                };
-
-                const cancelRowOpen = () => {
-                    if (tr._clickTimeout) {
-                        clearTimeout(tr._clickTimeout);
-                        tr._clickTimeout = null;
-                    }
-                };
-
-                tr.onclick = scheduleRowOpen;
+                tr.ondblclick = () => openExpandedRecord(record.id);
 
                 if (view.showRowNumbers !== false) {
                     const tdNum = document.createElement('td');
@@ -1665,16 +1649,33 @@
                     const value = record[field.id];
                     td.innerHTML = renderCellValue(value, field);
                     if (field.type === 'CHECKBOX') {
-                        td.ondblclick = (e) => {
+                        td.onclick = (e) => {
                             e.stopPropagation();
-                            cancelRowOpen();
+                            const now = Date.now();
+                            if (td._lastToggleTime && now - td._lastToggleTime < 250) return;
+                            td._lastToggleTime = now;
                             toggleCheckbox(record.id, field.id);
                         };
-                    } else {
                         td.ondblclick = (e) => {
                             e.stopPropagation();
-                            cancelRowOpen();
-                            makeEditable(td, record.id, field);
+                            openExpandedRecord(record.id);
+                        };
+                    } else {
+                        td.onclick = (e) => {
+                            e.stopPropagation();
+                            if (td._editTimer) clearTimeout(td._editTimer);
+                            td._editTimer = setTimeout(() => {
+                                makeEditable(td, record.id, field);
+                                td._editTimer = null;
+                            }, 180);
+                        };
+                        td.ondblclick = (e) => {
+                            e.stopPropagation();
+                            if (td._editTimer) {
+                                clearTimeout(td._editTimer);
+                                td._editTimer = null;
+                            }
+                            openExpandedRecord(record.id);
                         };
                     }
                     td.oncontextmenu = (e) => { e.preventDefault(); showCellMenu(e, record.id, field); };
