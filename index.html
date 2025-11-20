@@ -1060,7 +1060,6 @@
             currentUser: { type: 'Person', id: 'user_1', name: 'User' },
             operatorSet: {},
             interpretationRules: [],
-            connections: new Map(),
             sidebarCollapsed: false,
             sidebarOpenMobile: false,
             modalStack: [],
@@ -1083,7 +1082,9 @@
             URL: { id: 'URL', name: 'URL', defaultValue: '', icon: '🔗' },
             PHONE: { id: 'PHONE', name: 'Phone', defaultValue: '', icon: '📞' },
             SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', defaultValue: '', icon: '🎯', needsConfig: true },
-            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: '☑️' }
+            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: '☑️' },
+            CONNECTION: { id: 'CONNECTION', name: 'Connection', defaultValue: [], icon: '🕸️', needsConfig: true },
+            LOOKUP: { id: 'LOOKUP', name: 'Lookup', defaultValue: null, icon: '🔍' }
         };
 
         const EO_OPERATOR_SET = {
@@ -1163,9 +1164,31 @@
         }
 
         function createSampleData() {
+            const peopleId = createSet('People', '👤');
+            const peopleSet = state.sets.get(peopleId);
+
+            peopleSet.schema = [
+                { id: 'name', name: 'Name', type: 'TEXT', width: '200px' },
+                { id: 'email', name: 'Email', type: 'EMAIL', width: '220px' }
+            ];
+
+            peopleSet.profiles = new Map([
+                ['default', { id: 'default', name: 'All Fields', visibleFields: [] }]
+            ]);
+
+            const personA = addRecord(peopleId, {
+                name: 'Alice Rivers',
+                email: 'alice@example.com'
+            });
+
+            const personB = addRecord(peopleId, {
+                name: 'Ben Lake',
+                email: 'ben@example.com'
+            });
+
             const projectsId = createSet('Projects', '📊');
             const projectsSet = state.sets.get(projectsId);
-            
+
             projectsSet.schema = [
                 { id: 'name', name: 'Project Name', type: 'TEXT', width: '200px' },
                 { id: 'status', name: 'Status', type: 'SINGLE_SELECT', width: '130px', config: {
@@ -1178,6 +1201,8 @@
                     options: ['Low', 'Medium', 'High', 'Critical'],
                     colors: { 'Low': 'gray', 'Medium': 'blue', 'High': 'yellow', 'Critical': 'red' }
                 }},
+                { id: 'owner', name: 'Owner', type: 'CONNECTION', width: '220px', config: { targetSetId: peopleId, cardinality: 'one', edgeSchema: [{ id: 'role', name: 'Role' }], lookups: [{ outputFieldId: 'owner_name', targetField: 'name', aggregate: 'first' }] } },
+                { id: 'owner_name', name: 'Owner Name', type: 'LOOKUP', width: '200px' },
                 { id: 'notes', name: 'Notes', type: 'LONG_TEXT', width: '300px' }
             ];
             
@@ -1211,7 +1236,11 @@
                 priority: 'High',
                 notes: 'Migrate to new cloud infrastructure'
             });
-            
+
+            const firstProjectId = Array.from(projectsSet.records.keys())[0];
+            createConnection(projectsId, 'owner', firstProjectId, personA, { role: 'Lead' });
+            createConnection(projectsId, 'owner', Array.from(projectsSet.records.keys())[1], personB, { role: 'Advisor' });
+
             createView(projectsId, 'All Projects', { type: 'grid' });
             createView(projectsId, 'By Status', { type: 'kanban' });
             createView(projectsId, 'Card View', { type: 'card' });
@@ -1230,6 +1259,7 @@
                 icon: icon,
                 schema: [],
                 records: new Map(),
+                connections: new Map(),
                 views: new Map(),
                 profiles: new Map([['default', { id: 'default', name: 'All Fields', visibleFields: [] }]])
             });
@@ -1262,8 +1292,12 @@
 
         function addRecord(setId, data) {
             const set = state.sets.get(setId);
+            if (!set.connections) set.connections = new Map();
             const recordId = 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             const record = { id: recordId, ...data };
+            set.schema.forEach(field => {
+                if (record[field.id] === undefined) record[field.id] = FIELD_TYPES[field.type]?.defaultValue ?? null;
+            });
             set.records.set(recordId, record);
             createEvent(
                 'Create Record',
@@ -1283,35 +1317,66 @@
             return null;
         }
 
-        function validateConnectionPayload(sourceId, targetId, metadata = {}) {
-            if (!sourceId || !targetId) {
-                throw new Error('Connections require both sourceId and targetId');
-            }
+        function getAllConnections() {
+            const edges = [];
+            state.sets.forEach(set => {
+                ensureConnectionRegistry(set);
+                set.connections.forEach(fieldEdges => fieldEdges.forEach(edge => edges.push(edge)));
+            });
+            return edges;
+        }
+
+        function ensureConnectionRegistry(set) {
+            if (!set.connections) set.connections = new Map();
+            return set.connections;
+        }
+
+        function validateConnectionPayload(setId, fieldId, sourceId, targetId, metadata = {}) {
+            if (!setId || !fieldId) throw new Error('Connections require set and field references');
+            if (!sourceId || !targetId) throw new Error('Connections require both sourceId and targetId');
+
+            const set = state.sets.get(setId);
+            if (!set) throw new Error(`Set ${setId} not found`);
+            const connectionField = set.schema.find(f => f.id === fieldId && f.type === 'CONNECTION');
+            if (!connectionField) throw new Error(`Connection field ${fieldId} missing on set ${setId}`);
 
             const sourceRef = getRecordById(sourceId);
             const targetRef = getRecordById(targetId);
 
             if (!sourceRef) throw new Error(`Source record ${sourceId} not found`);
             if (!targetRef) throw new Error(`Target record ${targetId} not found`);
+            if (connectionField.config?.targetSetId && connectionField.config.targetSetId !== targetRef.setId) {
+                throw new Error('Connection target set mismatch');
+            }
+
             if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) {
                 throw new Error('Connection metadata must be an object');
             }
 
-            return { sourceRef, targetRef, metadata };
+            return { set, connectionField, sourceRef, targetRef, metadata };
         }
 
-        function createConnection(sourceId, targetId, metadata = {}) {
-            const { sourceRef, targetRef, metadata: normalizedMetadata } = validateConnectionPayload(sourceId, targetId, metadata);
+        function createConnection(setId, fieldId, sourceId, targetId, metadata = {}) {
+            const { set, connectionField, sourceRef, targetRef, metadata: normalizedMetadata } = validateConnectionPayload(setId, fieldId, sourceId, targetId, metadata);
+            ensureConnectionRegistry(set);
+
             const connectionId = `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            const connection = {
+            const edge = {
                 id: connectionId,
+                setId,
+                fieldId,
                 sourceId,
                 targetId,
-                metadata: normalizedMetadata,
+                data: normalizedMetadata,
                 createdAt: new Date().toISOString()
             };
 
-            state.connections.set(connectionId, connection);
+            const edges = set.connections.get(fieldId) || [];
+            edges.push(edge);
+            set.connections.set(fieldId, edges);
+
+            const record = set.records.get(sourceId);
+            record[fieldId] = Array.isArray(record[fieldId]) ? [...record[fieldId], connectionId] : [connectionId];
 
             const summary = `Connected ${sourceRef.record.name || sourceId} → ${targetRef.record.name || targetId}`;
             createEvent(
@@ -1319,65 +1384,36 @@
                 'CON',
                 { type: 'Connection', id: connectionId },
                 {
-                    edge: connection,
+                    edge,
                     sourceId,
                     targetId,
+                    fieldId,
+                    setId,
                     summary
                 },
                 { frame: 'graph', scale: 'relationship' }
             );
 
+            recomputeLookupsForRecord(setId, sourceId);
             return connectionId;
         }
 
-        function updateConnection(connectionId, updates = {}) {
-            const existing = state.connections.get(connectionId);
-            if (!existing) throw new Error(`Connection ${connectionId} not found`);
+        function deleteConnection(setId, fieldId, connectionId) {
+            const set = state.sets.get(setId);
+            if (!set) throw new Error(`Set ${setId} not found`);
+            const registry = ensureConnectionRegistry(set);
+            const edges = registry.get(fieldId) || [];
+            const index = edges.findIndex(e => e.id === connectionId);
+            if (index === -1) throw new Error(`Connection ${connectionId} not found`);
+            const existing = edges[index];
+            const { sourceRef, targetRef } = validateConnectionPayload(setId, fieldId, existing.sourceId, existing.targetId, existing.data);
+            edges.splice(index, 1);
+            registry.set(fieldId, edges);
 
-            const nextSourceId = updates.sourceId || existing.sourceId;
-            const nextTargetId = updates.targetId || existing.targetId;
-            const mergedMetadata = updates.metadata ? { ...existing.metadata, ...updates.metadata } : existing.metadata;
-            const { sourceRef, targetRef, metadata: normalizedMetadata } = validateConnectionPayload(nextSourceId, nextTargetId, mergedMetadata);
-
-            const updated = {
-                ...existing,
-                sourceId: nextSourceId,
-                targetId: nextTargetId,
-                metadata: normalizedMetadata,
-                updatedAt: new Date().toISOString()
-            };
-
-            const changes = {};
-            if (existing.sourceId !== nextSourceId) changes.sourceId = { from: existing.sourceId, to: nextSourceId };
-            if (existing.targetId !== nextTargetId) changes.targetId = { from: existing.targetId, to: nextTargetId };
-            if (JSON.stringify(existing.metadata) !== JSON.stringify(normalizedMetadata)) changes.metadata = { from: existing.metadata, to: normalizedMetadata };
-
-            state.connections.set(connectionId, updated);
-
-            const summary = `Updated connection ${connectionId} (${sourceRef.record.name || nextSourceId} → ${targetRef.record.name || nextTargetId})`;
-            createEvent(
-                'Update Connection',
-                'CON',
-                { type: 'Connection', id: connectionId },
-                {
-                    edge: updated,
-                    sourceId: nextSourceId,
-                    targetId: nextTargetId,
-                    changes: Object.keys(changes).length ? changes : undefined,
-                    summary
-                },
-                { frame: 'graph', scale: 'relationship' }
-            );
-
-            return updated;
-        }
-
-        function deleteConnection(connectionId) {
-            const existing = state.connections.get(connectionId);
-            if (!existing) throw new Error(`Connection ${connectionId} not found`);
-
-            const { sourceRef, targetRef } = validateConnectionPayload(existing.sourceId, existing.targetId, existing.metadata);
-            state.connections.delete(connectionId);
+            const record = set.records.get(existing.sourceId);
+            if (record && Array.isArray(record[fieldId])) {
+                record[fieldId] = record[fieldId].filter(id => id !== connectionId);
+            }
 
             const summary = `Removed connection ${sourceRef.record.name || existing.sourceId} → ${targetRef.record.name || existing.targetId}`;
             createEvent(
@@ -1388,13 +1424,69 @@
                     edge: existing,
                     sourceId: existing.sourceId,
                     targetId: existing.targetId,
+                    fieldId,
+                    setId,
                     summary,
                     deleted: true
                 },
                 { frame: 'graph', scale: 'relationship' }
             );
 
+            recomputeLookupsForRecord(setId, existing.sourceId);
             return existing;
+        }
+
+        function recomputeLookupsForRecord(setId, recordId) {
+            const set = state.sets.get(setId);
+            if (!set) return;
+            ensureConnectionRegistry(set);
+            const record = set.records.get(recordId);
+            if (!record) return;
+
+            const connectionFields = set.schema.filter(f => f.type === 'CONNECTION');
+            connectionFields.forEach(field => {
+                const edges = (set.connections.get(field.id) || []).filter(edge => edge.sourceId === recordId);
+                const targetSet = field.config?.targetSetId ? state.sets.get(field.config.targetSetId) : null;
+                if (field.config?.lookups && targetSet) {
+                    field.config.lookups.forEach(lookup => {
+                        const outputFieldId = lookup.outputFieldId || lookup.id;
+                        if (!outputFieldId) return;
+                        const values = edges.map(edge => {
+                            const targetRecord = targetSet.records.get(edge.targetId);
+                            return targetRecord ? targetRecord[lookup.targetField] : null;
+                        }).filter(v => v !== undefined);
+                        record[outputFieldId] = computeLookupAggregate(values, lookup.aggregate || 'first');
+                    });
+                }
+                record[field.id] = edges.map(edge => edge.id);
+            });
+            renderCurrentView();
+        }
+
+        function recomputeLookupsForTargets(targetSetId, targetRecordId) {
+            state.sets.forEach((set, setId) => {
+                ensureConnectionRegistry(set);
+                set.schema.filter(f => f.type === 'CONNECTION' && f.config?.targetSetId === targetSetId)
+                    .forEach(field => {
+                        const edges = (set.connections.get(field.id) || []).filter(edge => edge.targetId === targetRecordId);
+                        edges.forEach(edge => recomputeLookupsForRecord(setId, edge.sourceId));
+                    });
+            });
+        }
+
+        function computeLookupAggregate(values, aggregate) {
+            switch (aggregate) {
+                case 'count':
+                    return values.length;
+                case 'sum':
+                    return values.reduce((acc, val) => acc + (Number(val) || 0), 0);
+                case 'join':
+                    return values.filter(v => v !== null && v !== undefined).join(', ');
+                case 'first':
+                    return values.find(v => v !== null && v !== undefined) ?? null;
+                default:
+                    return values;
+            }
         }
 
         // SIDEBAR
@@ -1660,9 +1752,35 @@
                     if (!value) return '';
                     const color = field.config?.colors?.[value] || 'gray';
                     return `<span class="badge badge-${color}">${value}</span>`;
+                case 'CONNECTION':
+                    if (!Array.isArray(value) || value.length === 0) return '';
+                    return value.map(id => renderConnectionBadge(id)).join(' ');
+                case 'LOOKUP':
+                    if (Array.isArray(value)) return value.join(', ');
+                    return value ?? '';
                 default:
                     return value || '';
             }
+        }
+
+        function renderConnectionBadge(connectionId) {
+            const edge = findConnectionById(connectionId);
+            if (!edge) return '';
+            const target = getRecordById(edge.targetId)?.record || {};
+            const label = target.name || target.title || edge.targetId;
+            const meta = edge.data && Object.keys(edge.data).length ? ` (${Object.entries(edge.data).map(([k,v]) => `${k}: ${v}`).join(', ')})` : '';
+            return `<span class="badge badge-blue">${label}${meta}</span>`;
+        }
+
+        function findConnectionById(connectionId) {
+            let match = null;
+            state.sets.forEach(set => {
+                ensureConnectionRegistry(set);
+                set.connections.forEach(edges => {
+                    edges.forEach(edge => { if (edge.id === connectionId) match = edge; });
+                });
+            });
+            return match;
         }
 
         // CARD VIEW
@@ -1685,7 +1803,7 @@
                 
                 const primaryField = set.schema[0];
                 const displayFields = set.schema.slice(1, 6);
-                
+
                 card.innerHTML = `
                     <div class="card-title">${record[primaryField.id] || 'Untitled'}</div>
                     ${displayFields.map(field => {
@@ -1698,8 +1816,12 @@
                             </div>
                         `;
                     }).join('')}
+                    <div class="mt-3 flex gap-2">
+                        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openConnectPicker('${record.id}')">Connect</button>
+                        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openDisconnectPicker('${record.id}')">Remove</button>
+                    </div>
                 `;
-                
+
                 grid.appendChild(card);
             });
         }
@@ -1977,6 +2099,7 @@
                     summary: `Updated ${field.name}`
                 }
             );
+            recomputeLookupsForTargets(set.id, recordId);
             renderCurrentView();
             showToast(`✓ Updated ${field.name}`);
         }
@@ -2594,6 +2717,8 @@
 
         function showRowMenu(e, recordId) {
             showContextMenu(e, [
+                { label: 'Connect...', action: () => openConnectPicker(recordId) },
+                { label: 'Remove Connection', action: () => openDisconnectPicker(recordId) },
                 { label: 'Delete Record', action: () => confirmDelete('record', recordId), danger: true }
             ]);
         }
@@ -2617,6 +2742,55 @@
             setTimeout(() => {
                 document.addEventListener('click', function close() { menu.remove(); document.removeEventListener('click', close); });
             }, 0);
+        }
+
+        function openConnectPicker(recordId) {
+            const set = getCurrentSet();
+            if (!set) return;
+            ensureConnectionRegistry(set);
+            const connectionFields = set.schema.filter(f => f.type === 'CONNECTION');
+            if (!connectionFields.length) { showToast('⚠️ No connection fields configured'); return; }
+
+            let field = connectionFields[0];
+            if (connectionFields.length > 1) {
+                const choice = prompt(`Choose connection field:\n${connectionFields.map(f => `${f.id}: ${f.name}`).join('\n')}`, field.id);
+                field = connectionFields.find(f => f.id === choice?.trim()) || field;
+            }
+
+            const targetSet = state.sets.get(field.config?.targetSetId);
+            if (!targetSet) { showToast('⚠️ Target set not found'); return; }
+
+            const options = Array.from(targetSet.records.values()).map(r => `${r.id}: ${r.name || r.title || 'Untitled'}`);
+            const targetChoice = prompt(`Connect to which record?\n${options.join('\n')}`);
+            const targetId = targetChoice?.trim();
+            if (!targetId || !targetSet.records.has(targetId)) { showToast('⚠️ Invalid target'); return; }
+
+            let metadata = {};
+            const metaInput = prompt('Edge metadata (JSON)', '{}');
+            try { metadata = metaInput ? JSON.parse(metaInput) : {}; } catch (err) { showToast('⚠️ Invalid metadata'); return; }
+
+            createConnection(set.id, field.id, recordId, targetId, metadata);
+            renderCurrentView();
+            showToast('✓ Connected');
+        }
+
+        function openDisconnectPicker(recordId) {
+            const set = getCurrentSet();
+            if (!set) return;
+            ensureConnectionRegistry(set);
+            const availableEdges = [];
+            set.connections.forEach((edges, fieldId) => {
+                edges.filter(e => e.sourceId === recordId).forEach(edge => availableEdges.push({ edge, fieldId }));
+            });
+            if (!availableEdges.length) { showToast('⚠️ No connections to remove'); return; }
+
+            const message = availableEdges.map(item => `${item.edge.id}: ${item.edge.targetId}`).join('\n');
+            const selected = prompt(`Remove which connection?\n${message}`);
+            const match = availableEdges.find(item => item.edge.id === selected?.trim());
+            if (!match) { showToast('⚠️ Connection not found'); return; }
+            deleteConnection(set.id, match.fieldId, match.edge.id);
+            renderCurrentView();
+            showToast('✓ Connection removed');
         }
 
         function confirmDelete(type, id) {
@@ -2797,9 +2971,10 @@
                     ...s,
                     records: Array.from(s.records.values()),
                     views: Array.from(s.views.values()),
-                    profiles: Array.from(s.profiles.values())
+                    profiles: Array.from(s.profiles.values()),
+                    connections: Array.from(s.connections.entries()).map(([fieldId, edges]) => ({ fieldId, edges }))
                 })),
-                connections: Array.from(state.connections.values()),
+                connections: getAllConnections(),
                 eventStream: state.eventStream
             };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -2923,9 +3098,10 @@
                             ...s,
                             records: Array.from(s.records.values()),
                             views: Array.from(s.views.values()),
-                            profiles: Array.from(s.profiles.values())
+                            profiles: Array.from(s.profiles.values()),
+                            connections: Array.from(s.connections.entries()).map(([fieldId, edges]) => ({ fieldId, edges }))
                         })),
-                        connections: Array.from(state.connections.values()),
+                        connections: getAllConnections(),
                         eventStream: state.eventStream,
                         operatorSet: state.operatorSet,
                         interpretationRules: state.interpretationRules,
@@ -2956,7 +3132,7 @@
                         records: Array.from(set.records.values()),
                         views: Array.from(set.views.values()),
                         profiles: Array.from(set.profiles.values()),
-                        connections: Array.from(state.connections.values()).filter(edge => setRecordIds.has(edge.sourceId) || setRecordIds.has(edge.targetId))
+                        connections: Array.from(set.connections.entries()).map(([fieldId, edges]) => ({ fieldId, edges }))
                     } : null;
                     break;
                 case 'events':
