@@ -821,10 +821,52 @@
                     </div>
                 </div>
                 <div id="linkToRecordConfig" class="config-section">
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <label class="form-label">Link to Set</label>
-                        <select id="linkToSet"></select>
-                        <p class="form-hint">Select which set to link to</p>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                        <div>
+                            <label class="form-label">Target Set</label>
+                            <select id="linkToSet"></select>
+                            <p class="form-hint">Select which set to link to</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Cardinality</label>
+                            <select id="connectionCardinality">
+                                <option value="one">One</option>
+                                <option value="many" selected>Many</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Edge Attributes (comma separated)</label>
+                            <input type="text" id="edgeSchemaInput" placeholder="e.g., role, notes, weight">
+                            <p class="form-hint">Edge attributes will be captured for each connection</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="lookupConfig" class="config-section">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+                        <div>
+                            <label class="form-label">Connection Field</label>
+                            <select id="lookupConnectionField"></select>
+                        </div>
+                        <div>
+                            <label class="form-label">Target Field</label>
+                            <input type="text" id="lookupTargetField" placeholder="Field ID on target set">
+                        </div>
+                        <div>
+                            <label class="form-label">Aggregation</label>
+                            <select id="lookupAggregation">
+                                <option value="join">Join values</option>
+                                <option value="count">Count</option>
+                                <option value="sum">Sum</option>
+                                <option value="avg">Average</option>
+                                <option value="min">Minimum</option>
+                                <option value="max">Maximum</option>
+                                <option value="first">First</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Separator (for join)</label>
+                            <input type="text" id="lookupSeparator" placeholder=", " value=", ">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -894,6 +936,43 @@
         </div>
     </div>
 
+    <div id="connectionModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Connect Records</h2>
+                    <p class="text-sm text-gray-500 mt-1">Link this record to another set and capture edge details</p>
+                </div>
+                <button id="closeConnectionBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-body space-y-4">
+                <div>
+                    <label class="form-label">Connection Field</label>
+                    <select id="connectionFieldSelect"></select>
+                    <p class="form-hint">Choose which connection definition to use</p>
+                </div>
+                <div>
+                    <label class="form-label">Target Record</label>
+                    <select id="connectionTargetSelect"></select>
+                    <p class="form-hint">Records come from the configured target set</p>
+                </div>
+                <div id="edgeAttributesContainer" class="space-y-3"></div>
+                <div>
+                    <label class="form-label">Existing Connections</label>
+                    <div id="existingConnections" class="space-y-2"></div>
+                </div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button id="cancelConnectionBtn" class="btn btn-secondary">Cancel</button>
+                <button id="saveConnectionBtn" class="btn btn-primary">Connect</button>
+            </div>
+        </div>
+    </div>
+
     <div id="historyPanel" class="side-panel">
         <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 flex-shrink-0">
             <div class="flex items-center justify-between mb-4">
@@ -959,7 +1038,9 @@
             confirmCallback: null,
             selectOptions: [{ value: 'Option 1', color: 'blue' }],
             expandedSets: new Set(),
-            draggedRecord: null
+            draggedRecord: null,
+            activeConnectionRecordId: null,
+            activeConnectionFieldId: null
         };
 
         const FIELD_TYPES = {
@@ -972,7 +1053,9 @@
             URL: { id: 'URL', name: 'URL', defaultValue: '', icon: '🔗' },
             PHONE: { id: 'PHONE', name: 'Phone', defaultValue: '', icon: '📞' },
             SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', defaultValue: '', icon: '🎯', needsConfig: true },
-            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: '☑️' }
+            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: '☑️' },
+            CONNECTION: { id: 'CONNECTION', name: 'Connection', defaultValue: [], icon: '🕸️', needsConfig: true },
+            LOOKUP: { id: 'LOOKUP', name: 'Lookup / Rollup', defaultValue: '', icon: '🔍', needsConfig: true }
         };
 
         const EO_OPERATOR_SET = {
@@ -1024,8 +1107,10 @@
 
         function createSampleData() {
             const projectsId = createSet('Projects', '📊');
+            const tasksId = createSet('Tasks', '✅');
             const projectsSet = state.sets.get(projectsId);
-            
+            const tasksSet = state.sets.get(tasksId);
+
             projectsSet.schema = [
                 { id: 'name', name: 'Project Name', type: 'TEXT', width: '200px' },
                 { id: 'status', name: 'Status', type: 'SINGLE_SELECT', width: '130px', config: {
@@ -1038,14 +1123,44 @@
                     options: ['Low', 'Medium', 'High', 'Critical'],
                     colors: { 'Low': 'gray', 'Medium': 'blue', 'High': 'yellow', 'Critical': 'red' }
                 }},
-                { id: 'notes', name: 'Notes', type: 'LONG_TEXT', width: '300px' }
+                { id: 'notes', name: 'Notes', type: 'LONG_TEXT', width: '300px' },
+                { id: 'tasks', name: 'Tasks', type: 'CONNECTION', width: '240px', config: {
+                    targetSetId: tasksId,
+                    cardinality: 'many',
+                    edgeSchema: [
+                        { id: 'role', name: 'Role', type: 'TEXT' },
+                        { id: 'notes', name: 'Notes', type: 'TEXT' }
+                    ]
+                }},
+                { id: 'task_count', name: 'Task Count', type: 'LOOKUP', width: '120px', config: {
+                    connectionFieldId: 'tasks',
+                    targetFieldId: 'title',
+                    aggregation: 'count',
+                    separator: ', '
+                }}
             ];
-            
+
+            ensureConnectionRegistry(projectsSet, 'tasks');
+
             projectsSet.profiles = new Map([
                 ['default', { id: 'default', name: 'All Fields', visibleFields: [] }]
             ]);
-            
-            addRecord(projectsId, {
+
+            tasksSet.schema = [
+                { id: 'title', name: 'Task', type: 'TEXT', width: '220px' },
+                { id: 'status', name: 'Status', type: 'SINGLE_SELECT', width: '130px', config: {
+                    options: ['Not Started', 'In Progress', 'Blocked', 'Done'],
+                    colors: { 'Not Started': 'gray', 'In Progress': 'blue', 'Blocked': 'red', 'Done': 'green' }
+                }},
+                { id: 'owner', name: 'Owner', type: 'TEXT', width: '150px' },
+                { id: 'due_date', name: 'Due Date', type: 'DATE', width: '120px' }
+            ];
+
+            tasksSet.profiles = new Map([
+                ['default', { id: 'default', name: 'All Fields', visibleFields: [] }]
+            ]);
+
+            const websiteProjectId = addRecord(projectsId, {
                 name: 'Website Redesign',
                 status: 'In Progress',
                 budget: 50000,
@@ -1053,8 +1168,8 @@
                 priority: 'High',
                 notes: 'Complete overhaul of company website'
             });
-            
-            addRecord(projectsId, {
+
+            const mobileProjectId = addRecord(projectsId, {
                 name: 'Mobile App',
                 status: 'Planning',
                 budget: 120000,
@@ -1062,8 +1177,8 @@
                 priority: 'Critical',
                 notes: 'iOS and Android native apps'
             });
-            
-            addRecord(projectsId, {
+
+            const dbProjectId = addRecord(projectsId, {
                 name: 'Database Migration',
                 status: 'Completed',
                 budget: 30000,
@@ -1071,11 +1186,42 @@
                 priority: 'High',
                 notes: 'Migrate to new cloud infrastructure'
             });
-            
+
+            const taskWireframes = addRecord(tasksId, {
+                title: 'Create wireframes',
+                status: 'In Progress',
+                owner: 'Design Team',
+                due_date: '2024-02-01'
+            });
+
+            const taskApi = addRecord(tasksId, {
+                title: 'Finalize API',
+                status: 'Not Started',
+                owner: 'Backend Team',
+                due_date: '2024-03-10'
+            });
+
+            const taskMigrate = addRecord(tasksId, {
+                title: 'Cutover prep',
+                status: 'Blocked',
+                owner: 'IT Ops',
+                due_date: '2024-01-20'
+            });
+
+            addConnectionEdge(projectsId, 'tasks', websiteProjectId, taskWireframes, { role: 'Lead', notes: 'Design system' });
+            addConnectionEdge(projectsId, 'tasks', websiteProjectId, taskApi, { role: 'Backend', notes: 'Depends on auth' });
+            addConnectionEdge(projectsId, 'tasks', dbProjectId, taskMigrate, { role: 'Ops', notes: 'Schedule downtime' });
+
+            computeLookupsForRecord(projectsId, websiteProjectId);
+            computeLookupsForRecord(projectsId, dbProjectId);
+
             createView(projectsId, 'All Projects', { type: 'grid' });
             createView(projectsId, 'By Status', { type: 'kanban' });
             createView(projectsId, 'Card View', { type: 'card' });
-            
+
+            createView(tasksId, 'All Tasks', { type: 'grid' });
+            state.expandedSets.add(tasksId);
+
             state.currentSetId = projectsId;
             state.currentViewId = Array.from(projectsSet.views.keys())[0];
             state.expandedSets.add(projectsId);
@@ -1091,7 +1237,8 @@
                 schema: [],
                 records: new Map(),
                 views: new Map(),
-                profiles: new Map([['default', { id: 'default', name: 'All Fields', visibleFields: [] }]])
+                profiles: new Map([['default', { id: 'default', name: 'All Fields', visibleFields: [] }]]),
+                connections: new Map()
             });
             createEvent(
                 'Create Set',
@@ -1118,11 +1265,188 @@
             return viewId;
         }
 
+        function ensureConnectionRegistry(set, fieldId) {
+            if (!set.connections) set.connections = new Map();
+            if (!set.connections.has(fieldId)) {
+                set.connections.set(fieldId, { fieldId, edges: new Map() });
+            }
+            return set.connections.get(fieldId);
+        }
+
+        function getConnectionEdgesForRecord(set, fieldId, recordId) {
+            const registry = ensureConnectionRegistry(set, fieldId);
+            return Array.from(registry.edges.values()).filter(edge => edge.sourceId === recordId);
+        }
+
+        function syncConnectionValue(set, fieldId, sourceId) {
+            const record = set.records.get(sourceId);
+            if (!record) return;
+            record[fieldId] = getConnectionEdgesForRecord(set, fieldId, sourceId);
+        }
+
+        function addConnectionEdge(setId, fieldId, sourceId, targetId, edgeData = {}) {
+            const set = state.sets.get(setId);
+            const registry = ensureConnectionRegistry(set, fieldId);
+            const edgeId = `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const edge = { id: edgeId, sourceId, targetId, data: edgeData };
+            registry.edges.set(edgeId, edge);
+            syncConnectionValue(set, fieldId, sourceId);
+            computeLookupsForRecord(setId, sourceId);
+            createEvent(
+                'Connect Records',
+                'CON',
+                { type: 'Connection', id: edgeId, setId },
+                { setId, fieldId, sourceId, targetId, edgeData, summary: 'Connected records' },
+                { frame: 'edge', scale: 'relation' }
+            );
+            renderCurrentView();
+        }
+
+        function removeConnectionEdge(setId, fieldId, edgeId) {
+            const set = state.sets.get(setId);
+            const registry = ensureConnectionRegistry(set, fieldId);
+            const edge = registry.edges.get(edgeId);
+            if (!edge) return;
+            registry.edges.delete(edgeId);
+            syncConnectionValue(set, fieldId, edge.sourceId);
+            computeLookupsForRecord(setId, edge.sourceId);
+            createEvent(
+                'Remove Connection',
+                'NUL',
+                { type: 'Connection', id: edgeId, setId },
+                { setId, fieldId, edgeId, summary: 'Removed connection' },
+                { frame: 'edge', scale: 'relation' }
+            );
+            renderCurrentView();
+            const modal = document.getElementById('connectionModal');
+            if (modal && !modal.classList.contains('hidden')) renderConnectionModal();
+        }
+
+        function openConnectionModal(recordId) {
+            const set = getCurrentSet();
+            const connectionFields = set.schema.filter(f => f.type === 'CONNECTION');
+            if (connectionFields.length === 0) {
+                showToast('⚠️ Add a connection field first');
+                return;
+            }
+            state.activeConnectionRecordId = recordId;
+            state.activeConnectionFieldId = state.activeConnectionFieldId || connectionFields[0].id;
+            renderConnectionModal();
+            openModal('connectionModal');
+        }
+
+        function renderConnectionModal() {
+            const set = getCurrentSet();
+            const connectionFields = set.schema.filter(f => f.type === 'CONNECTION');
+            const fieldSelect = document.getElementById('connectionFieldSelect');
+            fieldSelect.innerHTML = connectionFields.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+            if (!state.activeConnectionFieldId && connectionFields.length > 0) state.activeConnectionFieldId = connectionFields[0].id;
+            if (state.activeConnectionFieldId && !connectionFields.find(f => f.id === state.activeConnectionFieldId) && connectionFields.length > 0) {
+                state.activeConnectionFieldId = connectionFields[0].id;
+            }
+            fieldSelect.value = state.activeConnectionFieldId;
+            fieldSelect.onchange = (e) => {
+                state.activeConnectionFieldId = e.target.value;
+                renderConnectionModal();
+            };
+
+            const field = connectionFields.find(f => f.id === state.activeConnectionFieldId);
+            const targetSelect = document.getElementById('connectionTargetSelect');
+            targetSelect.innerHTML = '';
+            if (field?.config?.targetSetId) {
+                const targetSet = state.sets.get(field.config.targetSetId);
+                targetSet?.records.forEach(record => {
+                    const label = record.name || record.title || record.id;
+                    targetSelect.innerHTML += `<option value="${record.id}">${label}</option>`;
+                });
+                if (targetSelect.options.length > 0) targetSelect.value = targetSelect.options[0].value;
+            } else {
+                targetSelect.innerHTML = '<option value="">Select a target set in field configuration</option>';
+            }
+
+            renderEdgeAttributes(field);
+            renderExistingConnections(field);
+        }
+
+        function renderEdgeAttributes(field) {
+            const container = document.getElementById('edgeAttributesContainer');
+            container.innerHTML = '';
+            (field?.config?.edgeSchema || []).forEach(edgeField => {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = `
+                    <label class="form-label">${edgeField.name}</label>
+                    <input type="text" data-edge-field="${edgeField.id}" class="edge-attr-input" placeholder="${edgeField.name}">
+                `;
+                container.appendChild(wrapper);
+            });
+        }
+
+        function renderExistingConnections(field) {
+            const container = document.getElementById('existingConnections');
+            container.innerHTML = '';
+            const set = getCurrentSet();
+            if (!field) return;
+            const edges = getConnectionEdgesForRecord(set, field.id, state.activeConnectionRecordId);
+            if (edges.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-500">No connections yet</p>';
+                return;
+            }
+
+            edges.forEach(edge => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200';
+                row.innerHTML = `
+                    <div>${renderConnectionBadge(edge, field)}</div>
+                    <button class="text-red-600 text-sm" onclick="removeConnectionEdge('${set.id}', '${field.id}', '${edge.id}')">Remove</button>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function saveConnectionFromModal() {
+            const set = getCurrentSet();
+            const field = set.schema.find(f => f.id === state.activeConnectionFieldId);
+            if (!field) return;
+            const targetId = document.getElementById('connectionTargetSelect').value;
+            if (!targetId) { showToast('⚠️ Select a target record'); return; }
+
+            const edgeData = {};
+            document.querySelectorAll('.edge-attr-input').forEach(input => {
+                edgeData[input.dataset.edgeField] = input.value;
+            });
+
+            if (field.config?.cardinality === 'one') {
+                const existing = getConnectionEdgesForRecord(set, field.id, state.activeConnectionRecordId);
+                existing.forEach(edge => removeConnectionEdge(set.id, field.id, edge.id));
+            }
+
+            addConnectionEdge(set.id, field.id, state.activeConnectionRecordId, targetId, edgeData);
+            closeConnectionModal();
+        }
+
+        function closeConnectionModal() {
+            state.activeConnectionRecordId = null;
+            state.activeConnectionFieldId = null;
+            closeModal('connectionModal');
+        }
+
         function addRecord(setId, data) {
             const set = state.sets.get(setId);
             const recordId = 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            const record = { id: recordId, ...data };
+            const record = { id: recordId };
+
+            set.schema.forEach(field => {
+                if (field.type === 'CONNECTION') ensureConnectionRegistry(set, field.id);
+                const incoming = data[field.id];
+                record[field.id] = incoming !== undefined ? incoming : FIELD_TYPES[field.type].defaultValue;
+            });
+
+            Object.entries(data).forEach(([key, value]) => {
+                if (!record.hasOwnProperty(key)) record[key] = value;
+            });
+
             set.records.set(recordId, record);
+            computeLookupsForRecord(setId, recordId);
             createEvent(
                 'Create Record',
                 'INS',
@@ -1284,7 +1608,7 @@
                     </div>
                 </div>
             `;
-            
+
             const headerRow = document.getElementById('tableHeader');
             schema.forEach(field => {
                 const th = document.createElement('th');
@@ -1296,8 +1620,9 @@
                 th.oncontextmenu = (e) => { e.preventDefault(); showColumnMenu(e, field); };
                 headerRow.appendChild(th);
             });
-            
+
             const tbody = document.getElementById('tableBody');
+            const hasConnections = set.schema.some(f => f.type === 'CONNECTION');
             records.forEach((record, index) => {
                 const tr = document.createElement('tr');
                 tr.dataset.recordId = record.id;
@@ -1307,7 +1632,11 @@
                 
                 const tdNum = document.createElement('td');
                 tdNum.className = 'row-number cell-editable text-center bg-gray-50 font-medium text-gray-500';
-                tdNum.textContent = index + 1;
+                tdNum.innerHTML = `
+                    <div class="flex items-center justify-center gap-2">
+                        <span>${index + 1}</span>
+                        ${hasConnections ? `<button class="text-blue-600 text-xs underline" onclick="event.stopPropagation(); openConnectionModal('${record.id}')">Connect</button>` : ''}
+                    </div>`;
                 tdNum.oncontextmenu = (e) => { e.preventDefault(); showRowMenu(e, record.id); };
                 tr.appendChild(tdNum);
                 
@@ -1346,9 +1675,25 @@
                     if (!value) return '';
                     const color = field.config?.colors?.[value] || 'gray';
                     return `<span class="badge badge-${color}">${value}</span>`;
+                case 'CONNECTION':
+                    if (!value || value.length === 0) return '';
+                    return `<div class="flex flex-wrap gap-1">${value.map(edge => renderConnectionBadge(edge, field)).join('')}</div>`;
+                case 'LOOKUP':
+                    if (value === undefined || value === null) return '';
+                    return value;
                 default:
                     return value || '';
             }
+        }
+
+        function renderConnectionBadge(edge, field) {
+            const targetSet = state.sets.get(field.config?.targetSetId);
+            const targetRecord = targetSet?.records.get(edge.targetId);
+            const targetName = targetRecord?.name || targetRecord?.title || targetRecord?.id || edge.targetId;
+            const meta = edge.data && Object.keys(edge.data).length
+                ? ` • ${Object.entries(edge.data).map(([k, v]) => `${k}: ${v}`).join(' • ')}`
+                : '';
+            return `<span class="badge badge-blue">${targetName}${meta}</span>`;
         }
 
         // CARD VIEW
@@ -1359,6 +1704,7 @@
             const view = getCurrentView();
             let records = Array.from(set.records.values());
             if (view && view.filters.length > 0) records = applyFilterGroups(records, view.filters, set.schema);
+            const hasConnections = set.schema.some(f => f.type === 'CONNECTION');
             
             const container = document.getElementById('viewContainer');
             container.innerHTML = '<div class="cards-grid" id="cardsGrid"></div>';
@@ -1384,6 +1730,9 @@
                             </div>
                         `;
                     }).join('')}
+                    ${hasConnections ? `<div class="mt-3 flex justify-end">
+                        <button class="text-blue-600 text-sm underline" onclick="event.stopPropagation(); openConnectionModal('${record.id}')">Connect</button>
+                    </div>` : ''}
                 `;
                 
                 grid.appendChild(card);
@@ -1493,10 +1842,11 @@
             card.className = 'kanban-card';
             card.draggable = true;
             card.dataset.recordId = record.id;
-            
+
             const primaryField = set.schema[0];
             const displayFields = set.schema.slice(1, 4);
-            
+            const hasConnections = set.schema.some(f => f.type === 'CONNECTION');
+
             card.innerHTML = `
                 <div class="font-semibold mb-2">${record[primaryField.id] || 'Untitled'}</div>
                 ${displayFields.map(field => {
@@ -1504,6 +1854,9 @@
                     if (!value && value !== 0 && value !== false) return '';
                     return `<div class="text-sm text-gray-600 mb-1">${renderCellValue(value, field)}</div>`;
                 }).join('')}
+                ${hasConnections ? `<div class="mt-2 text-right">
+                    <button class="text-blue-600 text-xs underline" onclick="event.stopPropagation(); openConnectionModal('${record.id}')">Connect</button>
+                </div>` : ''}
             `;
             
             card.addEventListener('dragstart', (e) => {
@@ -1562,7 +1915,9 @@
         function makeEditable(cell, recordId, field) {
             if (field.type === 'DATE') { showDatePicker(cell, recordId, field); return; }
             if (field.type === 'SINGLE_SELECT') { showSelectDropdown(cell, recordId, field); return; }
-            
+            if (field.type === 'CONNECTION') { openConnectionModal(recordId); return; }
+            if (field.type === 'LOOKUP') { return; }
+
             const set = getCurrentSet();
             const record = set.records.get(recordId);
             const currentValue = record[field.id];
@@ -1663,6 +2018,8 @@
                     summary: `Updated ${field.name}`
                 }
             );
+            computeLookupsForRecord(set.id, recordId);
+            propagateLookupsFromTarget(set.id, recordId);
             renderCurrentView();
             showToast(`✓ Updated ${field.name}`);
         }
@@ -1711,9 +2068,16 @@
         function updateFieldConfig(typeId) {
             document.getElementById('singleSelectConfig').classList.remove('visible');
             document.getElementById('linkToRecordConfig').classList.remove('visible');
+            document.getElementById('lookupConfig').classList.remove('visible');
             if (typeId === 'SINGLE_SELECT') {
                 document.getElementById('singleSelectConfig').classList.add('visible');
                 renderSelectOptions();
+            } else if (typeId === 'CONNECTION') {
+                document.getElementById('linkToRecordConfig').classList.add('visible');
+                renderConnectionFieldConfig();
+            } else if (typeId === 'LOOKUP') {
+                document.getElementById('lookupConfig').classList.add('visible');
+                renderLookupFieldConfig();
             }
         }
 
@@ -1731,6 +2095,26 @@
                     ${state.selectOptions.length > 1 ? `<button onclick="removeSelectOption(${i})" class="btn btn-secondary btn-sm">✕</button>` : ''}
                 </div>
             `).join('');
+        }
+
+        function renderConnectionFieldConfig() {
+            const linkSelect = document.getElementById('linkToSet');
+            linkSelect.innerHTML = '<option value="">Select a set...</option>';
+            state.sets.forEach((set, setId) => {
+                if (setId !== state.currentSetId) {
+                    linkSelect.innerHTML += `<option value="${setId}">${set.name}</option>`;
+                }
+            });
+        }
+
+        function renderLookupFieldConfig() {
+            const select = document.getElementById('lookupConnectionField');
+            const set = getCurrentSet();
+            select.innerHTML = '<option value="">Select connection...</option>';
+            if (!set) return;
+            set.schema.filter(f => f.type === 'CONNECTION').forEach(f => {
+                select.innerHTML += `<option value="${f.id}">${f.name}</option>`;
+            });
         }
 
         function addSelectOption() {
@@ -1762,17 +2146,41 @@
             }
             
             const newField = { id: fieldId, name: name, type: type, width: '150px', config: {} };
-            
+
             if (type === 'SINGLE_SELECT') {
                 newField.config = {
                     options: state.selectOptions.map(o => o.value),
                     colors: Object.fromEntries(state.selectOptions.map(o => [o.value, o.color]))
                 };
+            } else if (type === 'CONNECTION') {
+                const edgeSchema = (document.getElementById('edgeSchemaInput').value || '')
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean)
+                    .map(name => ({ id: name.toLowerCase().replace(/[^a-z0-9]/g, '_'), name, type: 'TEXT' }));
+                newField.config = {
+                    targetSetId: document.getElementById('linkToSet').value,
+                    cardinality: document.getElementById('connectionCardinality').value || 'many',
+                    edgeSchema,
+                    lookups: []
+                };
+                ensureConnectionRegistry(set, fieldId);
+            } else if (type === 'LOOKUP') {
+                newField.config = {
+                    connectionFieldId: document.getElementById('lookupConnectionField').value,
+                    targetFieldId: document.getElementById('lookupTargetField').value,
+                    aggregation: document.getElementById('lookupAggregation').value,
+                    separator: document.getElementById('lookupSeparator').value || ', '
+                };
             }
-            
+
             set.schema.push(newField);
             set.records.forEach(r => r[fieldId] = FIELD_TYPES[type].defaultValue);
-            
+
+            if (type === 'LOOKUP') {
+                set.records.forEach(r => computeLookupsForRecord(set.id, r.id));
+            }
+
             closeModal('addFieldModal');
             renderCurrentView();
             
@@ -1833,10 +2241,17 @@
                 return filterGroups.some(group => {
                     const operator = group.operator || 'AND';
                     const rules = group.filter(r => r.field);
-                    if (operator === 'AND') return rules.every(rule => record[rule.field] === rule.value);
-                    else return rules.some(rule => record[rule.field] === rule.value);
+                    if (operator === 'AND') return rules.every(rule => compareFilterValue(record, rule, schema));
+                    else return rules.some(rule => compareFilterValue(record, rule, schema));
                 });
             });
+        }
+
+        function compareFilterValue(record, rule, schema) {
+            const field = schema.find(f => f.id === rule.field);
+            const value = getNormalizedFieldValue(record, field);
+            if (value === undefined || value === null) return false;
+            return String(value).toLowerCase() === String(rule.value).toLowerCase();
         }
 
         function setGroupOperator(groupIndex, operator) {
@@ -1893,6 +2308,77 @@
             renderFilterBuilder();
         }
 
+        function getNormalizedFieldValue(record, field) {
+            if (!field) return undefined;
+            const raw = record[field.id];
+            if (field.type === 'CONNECTION') {
+                return (raw || []).map(edge => {
+                    const targetSet = state.sets.get(field.config?.targetSetId);
+                    const targetRecord = targetSet?.records.get(edge.targetId);
+                    return targetRecord?.name || targetRecord?.title || targetRecord?.id || edge.targetId;
+                }).join(', ');
+            }
+            return raw;
+        }
+
+        function computeLookupsForRecord(setId, recordId) {
+            const set = state.sets.get(setId);
+            if (!set) return;
+            const record = set.records.get(recordId);
+            if (!record) return;
+
+            set.schema.filter(f => f.type === 'LOOKUP').forEach(field => {
+                const connectionField = set.schema.find(f2 => f2.id === field.config.connectionFieldId);
+                if (!connectionField) return;
+                const connectionTargetSet = state.sets.get(connectionField.config?.targetSetId);
+                const edges = getConnectionEdgesForRecord(set, connectionField.id, recordId) || [];
+                const values = edges
+                    .map(edge => connectionTargetSet?.records.get(edge.targetId)?.[field.config.targetFieldId])
+                    .filter(v => v !== undefined && v !== null);
+
+                let derived = '';
+                switch(field.config.aggregation) {
+                    case 'count':
+                        derived = values.length;
+                        break;
+                    case 'sum':
+                        derived = values.reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+                        break;
+                    case 'avg':
+                        derived = values.length ? values.reduce((sum, v) => sum + (parseFloat(v) || 0), 0) / values.length : 0;
+                        break;
+                    case 'min':
+                        derived = values.length ? Math.min(...values.map(v => parseFloat(v) || 0)) : null;
+                        break;
+                    case 'max':
+                        derived = values.length ? Math.max(...values.map(v => parseFloat(v) || 0)) : null;
+                        break;
+                    case 'first':
+                        derived = values[0] ?? '';
+                        break;
+                    default:
+                        derived = values.join(field.config.separator || ', ');
+                        break;
+                }
+
+                record[field.id] = derived;
+            });
+        }
+
+        function propagateLookupsFromTarget(targetSetId, targetRecordId) {
+            state.sets.forEach(set => {
+                set.schema.filter(f => f.type === 'CONNECTION' && f.config?.targetSetId === targetSetId).forEach(connectionField => {
+                    const registry = ensureConnectionRegistry(set, connectionField.id);
+                    registry.edges.forEach(edge => {
+                        if (edge.targetId === targetRecordId) {
+                            syncConnectionValue(set, connectionField.id, edge.sourceId);
+                            computeLookupsForRecord(set.id, edge.sourceId);
+                        }
+                    });
+                });
+            });
+        }
+
         // EXPANDED RECORD
         function openExpandedRecord(recordId) {
             const set = getCurrentSet();
@@ -1938,6 +2424,14 @@
                         <option value="">Select...</option>
                         ${field.config.options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('')}
                     </select>`;
+                case 'CONNECTION':
+                    const badges = (value || []).map(edge => renderConnectionBadge(edge, field)).join('');
+                    return `
+                        <div class="flex flex-wrap gap-2 mb-2">${badges || '<span class="text-sm text-gray-400">No connections yet</span>'}</div>
+                        <button class="btn btn-secondary btn-sm" onclick="openConnectionModal('${recordId}')">Connect</button>
+                    `;
+                case 'LOOKUP':
+                    return `<input type="text" value="${value || ''}" disabled class="bg-gray-100">`;
                 default:
                     return `<input type="text" value="${value || ''}" onchange="updateRecordField('${recordId}', '${field.id}', this.value)">`;
             }
@@ -1988,6 +2482,7 @@
 
         function showRowMenu(e, recordId) {
             showContextMenu(e, [
+                { label: 'Connect', action: () => openConnectionModal(recordId) },
                 { label: 'Delete Record', action: () => confirmDelete('record', recordId), danger: true }
             ]);
         }
@@ -2075,6 +2570,19 @@
 
         function deleteRecord(recordId) {
             const set = getCurrentSet();
+            state.sets.forEach(otherSet => {
+                otherSet.connections?.forEach((entry, fieldId) => {
+                    entry.edges.forEach(edge => {
+                        if (edge.sourceId === recordId || edge.targetId === recordId) {
+                            entry.edges.delete(edge.id);
+                            if (edge.sourceId !== recordId) {
+                                syncConnectionValue(otherSet, fieldId, edge.sourceId);
+                                computeLookupsForRecord(otherSet.id, edge.sourceId);
+                            }
+                        }
+                    });
+                });
+            });
             set.records.delete(recordId);
             createEvent(
                 'Delete Record',
@@ -2181,7 +2689,11 @@
                     ...s,
                     records: Array.from(s.records.values()),
                     views: Array.from(s.views.values()),
-                    profiles: Array.from(s.profiles.values())
+                    profiles: Array.from(s.profiles.values()),
+                    connections: Array.from(s.connections?.entries() || []).map(([fieldId, entry]) => ({
+                        fieldId,
+                        edges: Array.from(entry.edges.values())
+                    }))
                 })),
                 eventStream: state.eventStream
             };
@@ -2211,9 +2723,8 @@
         function setupEventListeners() {
             document.getElementById('addRecordBtn').onclick = () => {
                 const set = getCurrentSet();
-                const record = { id: `rec_${Date.now()}` };
-                set.schema.forEach(f => record[f.id] = FIELD_TYPES[f.type].defaultValue);
-                set.records.set(record.id, record);
+                if (!set) return;
+                addRecord(set.id, {});
                 renderCurrentView();
                 showToast('✓ Record added');
             };
@@ -2273,6 +2784,9 @@
             document.getElementById('cancelKanbanConfigBtn').onclick = () => closeModal('kanbanConfigModal');
             document.getElementById('closeJsonViewerBtn').onclick = () => closeModal('jsonViewerModal');
             document.getElementById('copyJsonBtn').onclick = copyJsonToClipboard;
+            document.getElementById('closeConnectionBtn').onclick = closeConnectionModal;
+            document.getElementById('cancelConnectionBtn').onclick = closeConnectionModal;
+            document.getElementById('saveConnectionBtn').onclick = saveConnectionFromModal;
         }
 
         // JSON VIEWER
@@ -2301,7 +2815,11 @@
                             ...s,
                             records: Array.from(s.records.values()),
                             views: Array.from(s.views.values()),
-                            profiles: Array.from(s.profiles.values())
+                            profiles: Array.from(s.profiles.values()),
+                            connections: Array.from(s.connections?.entries() || []).map(([fieldId, entry]) => ({
+                                fieldId,
+                                edges: Array.from(entry.edges.values())
+                            }))
                         })),
                         eventStream: state.eventStream,
                         operatorSet: state.operatorSet,
@@ -2319,7 +2837,11 @@
                         recordCount: s.records.size,
                         viewCount: s.views.size,
                         records: Array.from(s.records.values()),
-                        views: Array.from(s.views.values())
+                        views: Array.from(s.views.values()),
+                        connections: Array.from(s.connections?.entries() || []).map(([fieldId, entry]) => ({
+                            fieldId,
+                            edges: Array.from(entry.edges.values())
+                        }))
                     }));
                     break;
                 case 'current':
@@ -2331,7 +2853,11 @@
                         schema: set.schema,
                         records: Array.from(set.records.values()),
                         views: Array.from(set.views.values()),
-                        profiles: Array.from(set.profiles.values())
+                        profiles: Array.from(set.profiles.values()),
+                        connections: Array.from(set.connections?.entries() || []).map(([fieldId, entry]) => ({
+                            fieldId,
+                            edges: Array.from(entry.edges.values())
+                        }))
                     } : null;
                     break;
                 case 'events':
