@@ -259,6 +259,8 @@
             text-transform: uppercase;
             color: #6b7280;
             letter-spacing: 0.05em;
+            min-width: 140px;
+            white-space: nowrap;
         }
         tbody tr { border-bottom: 1px solid #f3f4f6; transition: background-color 0.1s ease; }
         tbody tr:hover { background: #f9fafb; }
@@ -268,11 +270,23 @@
             font-size: 14px;
             color: #1f2937;
             vertical-align: middle;
+            min-width: 140px;
+            white-space: nowrap;
         }
-        td:first-child { color: #9ca3af; font-weight: 600; font-size: 13px; }
+        td:first-child {
+            color: #9ca3af;
+            font-weight: 600;
+            font-size: 13px;
+            min-width: 60px;
+        }
         tr:hover { background-color: #fafafa; }
         tr:hover .row-number { background: #3b82f6; color: white; cursor: pointer; }
         .row-number { transition: all 0.2s ease; }
+
+        .table-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         
         /* CARD VIEW */
         .cards-grid {
@@ -655,6 +669,43 @@
             border-radius: 4px;
         }
         .history-entry:hover { border-left-color: #3b82f6; background-color: #f9fafb; }
+
+        .mobile-sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.35);
+            z-index: 30;
+        }
+
+        @media (max-width: 1024px) {
+            :root { --sidebar-width: 240px; }
+            .app-container { grid-template-areas: "header" "main"; grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+            .app-sidebar {
+                position: fixed;
+                inset: 0 auto 0 0;
+                width: var(--sidebar-width);
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 40;
+            }
+            .mobile-sidebar-overlay { display: none; }
+            .mobile-layout.sidebar-open-mobile .app-sidebar { transform: translateX(0); box-shadow: 8px 0 24px rgba(0,0,0,0.18); }
+            .mobile-layout.sidebar-open-mobile .mobile-sidebar-overlay { display: block; }
+            .app-header { position: sticky; top: 0; z-index: 20; }
+            .toolbar { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .toolbar .view-type-switcher { width: 100%; overflow-x: auto; padding-bottom: 4px; }
+            .toolbar-actions { width: 100%; flex-wrap: wrap; }
+            .toolbar-actions button { flex: 1 1 calc(50% - 8px); min-width: 140px; }
+            .cards-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+            .kanban-board { min-height: auto; }
+        }
+
+        @media (max-width: 640px) {
+            .toolbar-actions button { flex: 1 1 100%; }
+            .cards-grid { grid-template-columns: 1fr; }
+            .kanban-column { min-width: 260px; }
+        }
     </style>
 </head>
 <body>
@@ -678,7 +729,9 @@
                 </button>
             </div>
         </div>
-        
+
+        <div class="mobile-sidebar-overlay" id="mobileSidebarOverlay" onclick="closeMobileSidebar()"></div>
+
         <!-- Header -->
         <div class="app-header">
             <div class="toolbar">
@@ -707,7 +760,7 @@
                         History
                     </button>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 toolbar-actions">
                     <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
                     <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
                     <button id="viewJsonBtn" class="btn btn-secondary btn-sm">View JSON</button>
@@ -954,6 +1007,7 @@
             operatorSet: {},
             interpretationRules: [],
             sidebarCollapsed: false,
+            sidebarOpenMobile: false,
             modalStack: [],
             currentRecordTab: 'history',
             confirmCallback: null,
@@ -996,6 +1050,23 @@
             if (state.currentSetId) switchSet(state.currentSetId, state.currentViewId);
             setupEventListeners();
             setupKeyboardShortcuts();
+            applyResponsiveLayout();
+            window.addEventListener('resize', applyResponsiveLayout);
+        }
+
+        function applyResponsiveLayout() {
+            const appContainer = document.getElementById('appContainer');
+            const isMobile = window.matchMedia('(max-width: 1024px)').matches;
+
+            if (isMobile) {
+                appContainer.classList.add('mobile-layout');
+                appContainer.classList.toggle('sidebar-open-mobile', state.sidebarOpenMobile);
+                appContainer.classList.remove('sidebar-collapsed');
+            } else {
+                appContainer.classList.remove('mobile-layout');
+                appContainer.classList.remove('sidebar-open-mobile');
+                appContainer.classList.toggle('sidebar-collapsed', state.sidebarCollapsed);
+            }
         }
 
         function initializeOperatorRules() {
@@ -1134,8 +1205,19 @@
 
         // SIDEBAR
         function toggleSidebar() {
-            state.sidebarCollapsed = !state.sidebarCollapsed;
-            document.getElementById('appContainer').classList.toggle('sidebar-collapsed');
+            const isMobile = window.matchMedia('(max-width: 1024px)').matches;
+            if (isMobile) {
+                state.sidebarOpenMobile = !state.sidebarOpenMobile;
+            } else {
+                state.sidebarCollapsed = !state.sidebarCollapsed;
+            }
+            applyResponsiveLayout();
+        }
+
+        function closeMobileSidebar() {
+            if (!state.sidebarOpenMobile) return;
+            state.sidebarOpenMobile = false;
+            applyResponsiveLayout();
         }
 
         function toggleSetExpansion(setId) {
@@ -1211,6 +1293,7 @@
             if (!viewId && set.views.size > 0) {
                 state.currentViewId = Array.from(set.views.keys())[0];
             }
+            closeMobileSidebar();
             renderSidebar();
             renderCurrentView();
         }
@@ -1275,7 +1358,7 @@
             container.innerHTML = `
                 <div class="max-w-full px-6 py-6">
                     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="overflow-x-auto">
+                        <div class="table-scroll">
                             <table id="dataTable" class="w-full border-collapse">
                                 <thead><tr id="tableHeader"><th class="column-header" style="width: 50px;">#</th></tr></thead>
                                 <tbody id="tableBody"></tbody>
@@ -1296,7 +1379,11 @@
                 th.oncontextmenu = (e) => { e.preventDefault(); showColumnMenu(e, field); };
                 headerRow.appendChild(th);
             });
-            
+
+            const table = document.getElementById('dataTable');
+            const minimumTableWidth = Math.max(schema.length * 170 + 80, 600);
+            table.style.minWidth = `${minimumTableWidth}px`;
+
             const tbody = document.getElementById('tableBody');
             records.forEach((record, index) => {
                 const tr = document.createElement('tr');
