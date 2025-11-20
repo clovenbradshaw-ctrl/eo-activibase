@@ -241,6 +241,18 @@
             user-select: none;
             position: relative;
         }
+        .column-resizer {
+            position: absolute;
+            top: 0;
+            right: -4px;
+            width: 8px;
+            height: 100%;
+            cursor: col-resize;
+            z-index: 5;
+        }
+        body.resizing {
+            cursor: col-resize;
+        }
         .column-header:hover { background: linear-gradient(180deg, #f5f5f5 0%, #eeeeee 100%); }
         .column-header[data-type="TEXT"] { border-top: 3px solid #3b82f6; }
         .column-header[data-type="NUMBER"] { border-top: 3px solid #10b981; }
@@ -250,7 +262,7 @@
         .column-header[data-type="URL"] { border-top: 3px solid #8b5cf6; }
         .column-header[data-type="SINGLE_SELECT"] { border-top: 3px solid #f59e0b; }
         .column-header[data-type="CHECKBOX"] { border-top: 3px solid #8b5cf6; }
-        table { width: 100%; border-collapse: collapse; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         thead { background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
         th {
             padding: 12px 16px;
@@ -260,8 +272,10 @@
             text-transform: uppercase;
             color: #6b7280;
             letter-spacing: 0.05em;
-            min-width: 140px;
+            min-width: 80px;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         tbody tr { border-bottom: 1px solid #f3f4f6; transition: background-color 0.1s ease; }
         tbody tr:hover { background: #f9fafb; }
@@ -271,8 +285,10 @@
             font-size: 14px;
             color: #1f2937;
             vertical-align: middle;
-            min-width: 140px;
+            min-width: 80px;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         td:first-child {
             color: #9ca3af;
@@ -1099,6 +1115,19 @@
             viewEditorContext: null
         };
 
+        const COLUMN_WIDTH_MIN = 60;
+        const COLUMN_WIDTH_MAX = 600;
+
+        function clampColumnWidth(width) {
+            if (isNaN(width)) return 150;
+            return Math.min(COLUMN_WIDTH_MAX, Math.max(COLUMN_WIDTH_MIN, width));
+        }
+
+        function getFieldWidth(field) {
+            const numericWidth = parseInt(field?.width || '150', 10);
+            return clampColumnWidth(numericWidth);
+        }
+
         const FIELD_TYPES = {
             TEXT: { id: 'TEXT', name: 'Single Line Text', defaultValue: '', icon: '📝' },
             LONG_TEXT: { id: 'LONG_TEXT', name: 'Long Text', defaultValue: '', icon: '📄' },
@@ -1690,6 +1719,54 @@
             if (!view.icon) view.icon = VIEW_TYPE_ICONS[view.type] || '📋';
         }
 
+        function applyColumnWidth(fieldId, width) {
+            const normalizedWidth = clampColumnWidth(width);
+            const widthPx = `${normalizedWidth}px`;
+            const set = getCurrentSet();
+            const field = set?.schema.find(f => f.id === fieldId);
+            if (field) field.width = widthPx;
+
+            document.querySelectorAll(`[data-field-id="${fieldId}"]`).forEach(el => {
+                el.style.width = widthPx;
+            });
+
+            const table = document.getElementById('dataTable');
+            if (table && set) {
+                const totalWidth = set.schema.reduce((sum, f) => sum + getFieldWidth(f), 0);
+                table.style.minWidth = `${Math.max(totalWidth, 600)}px`;
+            }
+        }
+
+        function addColumnResizer(th, field) {
+            const resizer = document.createElement('div');
+            resizer.className = 'column-resizer';
+            th.appendChild(resizer);
+
+            let startX = 0;
+            let startWidth = getFieldWidth(field);
+
+            const onMouseMove = (event) => {
+                const delta = event.clientX - startX;
+                applyColumnWidth(field.id, startWidth + delta);
+            };
+
+            const onMouseUp = () => {
+                document.body.classList.remove('resizing');
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+
+            resizer.addEventListener('mousedown', (event) => {
+                event.stopPropagation();
+                event.preventDefault();
+                startX = event.clientX;
+                startWidth = getFieldWidth(field);
+                document.body.classList.add('resizing');
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        }
+
         // GRID VIEW
         function renderGridView() {
             const set = getCurrentSet();
@@ -1730,15 +1807,17 @@
                 th.className = 'column-header';
                 th.dataset.type = field.type;
                 th.dataset.fieldId = field.id;
-                th.style.width = field.width || '150px';
+                const width = `${getFieldWidth(field)}px`;
+                th.style.width = width;
                 th.innerHTML = `<span>${field.name}</span>`;
+                addColumnResizer(th, field);
                 th.oncontextmenu = (e) => { e.preventDefault(); showColumnMenu(e, field); };
                 headerRow.appendChild(th);
             });
 
             const table = document.getElementById('dataTable');
-            const minimumTableWidth = Math.max(schema.length * 170, 600);
-            table.style.minWidth = `${minimumTableWidth}px`;
+            const minimumTableWidth = schema.reduce((sum, field) => sum + getFieldWidth(field), 0);
+            table.style.minWidth = `${Math.max(minimumTableWidth, 600)}px`;
 
             const tbody = document.getElementById('tableBody');
             records.forEach((record, index) => {
@@ -1751,6 +1830,7 @@
                     td.className = 'cell-editable';
                     td.dataset.recordId = record.id;
                     td.dataset.fieldId = field.id;
+                    td.style.width = `${getFieldWidth(field)}px`;
                     const value = record[field.id];
                     td.innerHTML = renderCellValue(value, field);
                     if (field.type === 'CHECKBOX') {
