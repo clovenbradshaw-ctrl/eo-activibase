@@ -245,8 +245,8 @@
             position: absolute;
             top: 0;
             right: -4px;
+            bottom: 0;
             width: 8px;
-            height: 100%;
             cursor: col-resize;
             z-index: 5;
         }
@@ -1737,10 +1737,13 @@
             }
         }
 
-        function addColumnResizer(th, field) {
+        function addColumnResizer(element, field) {
+            const existingResizer = element.querySelector('.column-resizer');
+            if (existingResizer) return;
+
             const resizer = document.createElement('div');
             resizer.className = 'column-resizer';
-            th.appendChild(resizer);
+            element.appendChild(resizer);
 
             let startX = 0;
             let startWidth = getFieldWidth(field);
@@ -1833,6 +1836,7 @@
                     td.style.width = `${getFieldWidth(field)}px`;
                     const value = record[field.id];
                     td.innerHTML = renderCellValue(value, field);
+                    addColumnResizer(td, field);
                     if (field.type === 'CHECKBOX') {
                         td.onclick = (e) => {
                             e.stopPropagation();
