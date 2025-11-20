@@ -823,6 +823,8 @@
                     <div id="expandedRecordHistoryColumn" class="overflow-hidden bg-gray-50 flex flex-col">
                         <div class="record-tabs">
                             <div class="record-tab active" data-tab="history" onclick="switchRecordTab('history')">History</div>
+                            <div class="record-tab" data-tab="popup" onclick="switchRecordTab('popup')">Popup Fields</div>
+                            <div class="record-tab" data-tab="connections" onclick="switchRecordTab('connections')">Connections</div>
                         </div>
                         <div class="flex-1 overflow-y-auto p-6" id="expandedRecordSidebar"></div>
                     </div>
@@ -1554,12 +1556,19 @@
             btn.title = isGridView ? 'Toggle row numbers column' : 'Row numbers are only available in grid view';
         }
 
+        function setRowNumbersVisibility(visible) {
+            const view = getCurrentView();
+            if (!view || view.type !== 'grid') return;
+
+            view.showRowNumbers = visible;
+            renderCurrentView();
+        }
+
         function toggleRowNumbers() {
             const view = getCurrentView();
             if (!view || view.type !== 'grid') return;
 
-            view.showRowNumbers = view.showRowNumbers === false ? true : false;
-            renderCurrentView();
+            setRowNumbersVisibility(view.showRowNumbers === false);
         }
 
         // GRID VIEW
@@ -1576,7 +1585,9 @@
             let records = Array.from(set.records.values());
             if (view && view.filters.length > 0) records = applyFilterGroups(records, view.filters, schema);
 
-            const rowNumberHeader = view.showRowNumbers === false ? '' : '<th class="column-header" style="width: 50px;">#</th>';
+            const rowNumberHeader = view.showRowNumbers === false
+                ? ''
+                : '<th class="column-header row-number-header" style="width: 50px;">#</th>';
 
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
@@ -1603,6 +1614,11 @@
                 th.oncontextmenu = (e) => { e.preventDefault(); showColumnMenu(e, field); };
                 headerRow.appendChild(th);
             });
+
+            const rowNumberHeaderEl = document.querySelector('.row-number-header');
+            if (rowNumberHeaderEl) {
+                rowNumberHeaderEl.oncontextmenu = (e) => { e.preventDefault(); showRowNumberMenu(e); };
+            }
 
             const table = document.getElementById('dataTable');
             const minimumTableWidth = Math.max(schema.length * 170 + (view.showRowNumbers === false ? 0 : 80), 600);
@@ -2476,14 +2492,33 @@
 
         function switchRecordTab(tab) {
             state.currentRecordTab = tab;
-            document.querySelectorAll('.record-tab').forEach(t => t.classList.remove('active'));
-            document.querySelector(`.record-tab[data-tab="${tab}"]`).classList.add('active');
             const recordId = document.getElementById('expandedRecordMain').dataset.recordId;
             renderRecordSidebar(recordId);
         }
 
         function renderRecordSidebar(recordId) {
             const container = document.getElementById('expandedRecordSidebar');
+            document.querySelectorAll('.record-tab').forEach(t => {
+                t.classList.toggle('active', t.dataset.tab === state.currentRecordTab);
+            });
+
+            if (!container) return;
+
+            switch (state.currentRecordTab) {
+                case 'popup':
+                    renderPopupSettingsSidebar(container);
+                    break;
+                case 'connections':
+                    renderConnectionsSidebar(container, recordId);
+                    break;
+                case 'history':
+                default:
+                    renderHistorySidebar(container, recordId);
+                    break;
+            }
+        }
+
+        function renderHistorySidebar(container, recordId) {
             const history = state.eventStream.filter(e => e.object?.id === recordId && e.op === 'SEG');
             container.innerHTML = `
                 <h3 class="font-semibold mb-4">Change History</h3>
@@ -2499,6 +2534,90 @@
                     </div>
                 `).join('')}
             `;
+        }
+
+        function renderPopupSettingsSidebar(container) {
+            container.innerHTML = `
+                <div class="space-y-4">
+                    <div>
+                        <h3 class="font-semibold">Popup Field Visibility</h3>
+                        <p class="text-sm text-gray-600">Adjust which fields show when this record is opened.</p>
+                    </div>
+                    <div id="popupSettingsSidebar" class="space-y-3"></div>
+                </div>
+            `;
+            renderPopupSettings('popupSettingsSidebar');
+        }
+
+        function renderConnectionsSidebar(container, recordId) {
+            const set = getCurrentSet();
+            const availableRecords = set ? Array.from(set.records.values()).filter(r => r.id !== recordId) : [];
+            const connections = Array.from(state.connections.values()).filter(edge => edge.sourceId === recordId || edge.targetId === recordId);
+
+            container.innerHTML = `
+                <div class="space-y-4">
+                    <div>
+                        <h3 class="font-semibold">Connections</h3>
+                        <p class="text-sm text-gray-600">Link this record to other records.</p>
+                    </div>
+                    <div class="border border-gray-200 bg-white rounded-lg p-4 space-y-3">
+                        <label class="form-label">Connect to</label>
+                        <select id="newConnectionTarget" class="border rounded px-3 py-2 text-sm w-full">
+                            <option value="">Select a record</option>
+                            ${availableRecords.map(rec => `<option value="${rec.id}">${rec.name || rec.id}</option>`).join('')}
+                        </select>
+                        <button class="btn btn-primary btn-sm" onclick="createConnectionFromSidebar('${recordId}')" ${availableRecords.length === 0 ? 'disabled' : ''}>Add Connection</button>
+                        ${availableRecords.length === 0 ? '<p class="text-xs text-gray-500">Add more records to create connections.</p>' : ''}
+                    </div>
+                    <div class="space-y-3">
+                        ${connections.length === 0 ? '<p class="text-gray-500">No connections yet.</p>' : connections.map(edge => renderConnectionCard(edge, recordId)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderConnectionCard(edge, recordId) {
+            const isSource = edge.sourceId === recordId;
+            const otherId = isSource ? edge.targetId : edge.sourceId;
+            const otherName = getRecordDisplayName(otherId);
+            const direction = isSource ? '→' : '←';
+            const timestamp = edge.updatedAt || edge.createdAt;
+
+            return `
+                <div class="border border-gray-200 rounded-lg p-3 bg-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-semibold">${direction} ${otherName}</div>
+                            <div class="text-xs text-gray-500">${isSource ? 'Source' : 'Target'} · ${timestamp ? getTimeAgo(timestamp) : ''}</div>
+                        </div>
+                        <button class="text-sm text-red-500" onclick="deleteConnectionFromSidebar('${edge.id}', '${recordId}')">Remove</button>
+                    </div>
+                    ${edge.metadata && Object.keys(edge.metadata).length ? `<div class="text-xs text-gray-600 mt-2">Metadata: ${JSON.stringify(edge.metadata)}</div>` : ''}
+                </div>
+            `;
+        }
+
+        function getRecordDisplayName(recordId) {
+            const ref = getRecordById(recordId);
+            return ref?.record?.name || recordId;
+        }
+
+        function createConnectionFromSidebar(recordId) {
+            const target = document.getElementById('newConnectionTarget')?.value;
+            if (!target) {
+                showToast('Select a record to connect');
+                return;
+            }
+
+            createConnection(recordId, target, {});
+            renderRecordSidebar(recordId);
+            showToast('✓ Connection created');
+        }
+
+        function deleteConnectionFromSidebar(connectionId, recordId) {
+            deleteConnection(connectionId);
+            renderRecordSidebar(recordId);
+            showToast('✓ Connection removed');
         }
 
         function updateRecordHistoryVisibility() {
@@ -2521,14 +2640,13 @@
             updateRecordHistoryVisibility();
         }
 
-        function renderPopupSettings() {
+        function renderPopupSettings(targetIds = ['popupSettingsFields', 'popupSettingsSidebar']) {
             const set = getCurrentSet();
             const view = getCurrentView();
             if (!set || !view) return;
 
             view.popupVisibilityRules = view.popupVisibilityRules || [];
-            const container = document.getElementById('popupSettingsFields');
-            container.innerHTML = set.schema.map(field => {
+            const popupSettingsHtml = set.schema.map(field => {
                 const rule = view.popupVisibilityRules.find(r => r.fieldId === field.id) || { visibility: 'show', criteria: { type: 'always', value: '' } };
                 const criteriaType = rule.criteria?.type || 'always';
                 const criteriaValue = rule.criteria?.value || '';
@@ -2572,6 +2690,12 @@
                     </div>
                 `;
             }).join('');
+
+            const targets = Array.isArray(targetIds) ? targetIds : [targetIds];
+            targets.forEach(id => {
+                const container = document.getElementById(id);
+                if (container) container.innerHTML = popupSettingsHtml;
+            });
         }
 
         function openPopupSettingsModal() {
@@ -2616,7 +2740,14 @@
 
         function showRowMenu(e, recordId) {
             showContextMenu(e, [
+                { label: 'Hide Row Numbers', action: () => setRowNumbersVisibility(false) },
                 { label: 'Delete Record', action: () => confirmDelete('record', recordId), danger: true }
+            ]);
+        }
+
+        function showRowNumberMenu(e) {
+            showContextMenu(e, [
+                { label: 'Hide Row Numbers', action: () => setRowNumbersVisibility(false) }
             ]);
         }
 
