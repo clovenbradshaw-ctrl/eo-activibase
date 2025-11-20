@@ -2803,6 +2803,7 @@
             const recordId = document.getElementById('expandedRecordMain').dataset.recordId;
             renderExpandedRecordMain(recordId);
             renderRecordSidebar(recordId);
+            updateRecordHistoryVisibility();
         }
 
         function renderRecordSidebar(recordId) {
@@ -2948,7 +2949,8 @@
             const historyColumn = document.getElementById('expandedRecordHistoryColumn');
             const mainWrapper = document.getElementById('expandedRecordMainWrapper');
             const toggleBtn = document.getElementById('toggleHistorySidebarBtn');
-            const isVisible = state.recordHistoryVisible;
+            const sidebarAllowed = state.currentRecordTab !== 'popup';
+            const isVisible = state.recordHistoryVisible && sidebarAllowed;
 
             if (historyColumn) historyColumn.classList.toggle('hidden', !isVisible);
             if (mainWrapper) {
@@ -2956,10 +2958,16 @@
                 mainWrapper.classList.toggle('md:col-span-2', isVisible);
                 mainWrapper.classList.toggle('border-r', isVisible);
             }
-            if (toggleBtn) toggleBtn.textContent = isVisible ? 'Hide History' : 'Show History';
+            if (toggleBtn) {
+                toggleBtn.disabled = !sidebarAllowed;
+                toggleBtn.textContent = sidebarAllowed
+                    ? (state.recordHistoryVisible ? 'Hide History' : 'Show History')
+                    : 'Sidebar hidden on Popup tab';
+            }
         }
 
         function toggleRecordHistoryVisibility() {
+            if (state.currentRecordTab === 'popup') return;
             state.recordHistoryVisible = !state.recordHistoryVisible;
             updateRecordHistoryVisibility();
         }
