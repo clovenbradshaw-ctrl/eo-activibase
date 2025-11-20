@@ -1643,6 +1643,14 @@
             return linkedSet ? Array.from(linkedSet.records.values()) : [];
         }
 
+        function createLinkedRecordOptionList(field) {
+            const options = getLinkedRecordOptions(field);
+            return options.map(opt => ({
+                id: opt.id,
+                label: opt.name || getRecordDisplayName(opt.id) || opt.id
+            }));
+        }
+
         function validateConnectionPayload(sourceId, targetId, metadata = {}) {
             if (!sourceId || !targetId) {
                 throw new Error('Connections require both sourceId and targetId');
@@ -2639,16 +2647,51 @@
             const record = set.records.get(recordId);
             const currentValue = record[field.id];
             const linkedSet = getLinkedSet(field);
-            const options = getLinkedRecordOptions(field);
+            const options = createLinkedRecordOptionList(field);
 
             cell.innerHTML = '';
 
+            const searchInput = document.createElement('input');
+            searchInput.type = 'text';
+            searchInput.placeholder = 'Search linked records...';
+            searchInput.className = 'w-full mb-2 px-2 py-1 border rounded text-sm';
+
             const select = document.createElement('select');
             select.className = 'w-full px-2 py-1 border rounded';
-            select.innerHTML = '<option value="">Select a record</option>' +
-                options.map(opt => `<option value="${opt.id}">${opt.name || opt.id}</option>`).join('');
-            select.value = currentValue || '';
-            select.disabled = !linkedSet || options.length === 0;
+            select.innerHTML = '<option value="">Select a record</option>';
+
+            const renderOptions = (query = '') => {
+                const normalizedQuery = query.trim().toLowerCase();
+                const filtered = options.filter(opt => opt.label.toLowerCase().includes(normalizedQuery));
+                const previousValue = select.value;
+
+                select.innerHTML = '<option value="">Select a record</option>';
+
+                if (filtered.length === 0) {
+                    const placeholder = document.createElement('option');
+                    placeholder.disabled = true;
+                    placeholder.textContent = 'No matches';
+                    select.appendChild(placeholder);
+                    select.value = '';
+                } else {
+                    filtered.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt.id;
+                        option.textContent = opt.label;
+                        select.appendChild(option);
+                    });
+
+                    const stillExists = filtered.some(opt => opt.id === previousValue);
+                    select.value = stillExists ? previousValue : (currentValue || '');
+                }
+
+                select.disabled = !linkedSet || options.length === 0 || filtered.length === 0;
+                searchInput.disabled = !linkedSet || options.length === 0;
+            };
+
+            renderOptions();
+
+            searchInput.oninput = () => renderOptions(searchInput.value);
 
             select.onchange = () => {
                 const newValue = select.value;
@@ -2660,6 +2703,7 @@
                 renderCurrentView();
             };
 
+            cell.appendChild(searchInput);
             cell.appendChild(select);
 
             if (!linkedSet || options.length === 0) {
@@ -2672,6 +2716,41 @@
             }
 
             select.focus();
+        }
+
+        function filterLinkedRecordSelect(selectId, query) {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+
+            const optionsData = select.dataset.options
+                ? JSON.parse(decodeURIComponent(select.dataset.options))
+                : [];
+            const normalizedQuery = query.trim().toLowerCase();
+            const filtered = optionsData.filter(opt => opt.label.toLowerCase().includes(normalizedQuery));
+            const previousValue = select.value;
+
+            select.innerHTML = '<option value="">Select a record</option>';
+
+            if (filtered.length === 0) {
+                const placeholder = document.createElement('option');
+                placeholder.disabled = true;
+                placeholder.textContent = 'No matches';
+                select.appendChild(placeholder);
+                select.value = '';
+                select.disabled = true;
+                return;
+            }
+
+            filtered.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.id;
+                option.textContent = opt.label;
+                select.appendChild(option);
+            });
+
+            const stillExists = filtered.some(opt => opt.id === previousValue);
+            select.value = stillExists ? previousValue : '';
+            select.disabled = false;
         }
 
         function updateRecord(recordId, fieldId, newValue, oldValue) {
@@ -3330,8 +3409,10 @@
                     return `<input type="checkbox" ${value ? 'checked' : ''} onchange="updateRecordField('${recordId}', '${field.id}', this.checked)">`;
                 case 'LINK_RECORD': {
                     const linkedSet = getLinkedSet(field);
-                    const options = getLinkedRecordOptions(field);
+                    const options = createLinkedRecordOptionList(field);
                     const disabled = !linkedSet || options.length === 0;
+                    const selectId = `linked-record-select-${recordId}-${field.id}`;
+                    const optionsDataAttr = encodeURIComponent(JSON.stringify(options));
                     const hint = !linkedSet
                         ? '<p class="text-xs text-gray-500 mt-1">Configure a linked set to enable selection.</p>'
                         : options.length === 0
@@ -3340,9 +3421,10 @@
 
                     return `
                         <div class="space-y-1">
-                            <select class="border rounded px-3 py-2 text-sm w-full" ${disabled ? 'disabled' : ''} onchange="updateRecordField('${recordId}', '${field.id}', this.value)">
+                            <input type="text" class="border rounded px-3 py-2 text-sm w-full" placeholder="Search linked records..." ${disabled ? 'disabled' : ''} oninput="filterLinkedRecordSelect('${selectId}', this.value)">
+                            <select id="${selectId}" class="border rounded px-3 py-2 text-sm w-full" data-options="${optionsDataAttr}" ${disabled ? 'disabled' : ''} onchange="updateRecordField('${recordId}', '${field.id}', this.value)">
                                 <option value="">Select a record</option>
-                                ${options.map(opt => `<option value="${opt.id}" ${opt.id === value ? 'selected' : ''}>${opt.name || opt.id}</option>`).join('')}
+                                ${options.map(opt => `<option value="${opt.id}" ${opt.id === value ? 'selected' : ''}>${opt.label}</option>`).join('')}
                             </select>
                             ${hint}
                         </div>
