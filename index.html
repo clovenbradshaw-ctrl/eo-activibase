@@ -1001,6 +1001,24 @@
         <div class="flex-1 overflow-y-auto p-6" id="historyContent"></div>
     </div>
 
+    <!-- Cell History Modal -->
+    <div id="cellHistoryModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900" id="cellHistoryTitle">Cell History</h2>
+                    <p class="text-sm text-gray-500 mt-1" id="cellHistorySubtitle"></p>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600 transition p-2" onclick="closeModal('cellHistoryModal')">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-auto" id="cellHistoryContent"></div>
+        </div>
+    </div>
+
     <!-- JSON Viewer Modal -->
     <div id="jsonViewerModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
         <div class="modal-container bg-white w-full max-w-6xl h-[90vh] max-h-[90vh] overflow-hidden flex flex-col">
@@ -1051,7 +1069,8 @@
             confirmCallback: null,
             selectOptions: [{ value: 'Option 1', color: 'blue' }],
             expandedSets: new Set(),
-            draggedRecord: null
+            draggedRecord: null,
+            cellHistoryContext: null
         };
 
         const FIELD_TYPES = {
@@ -1617,6 +1636,7 @@
                     } else {
                         td.onclick = (e) => { e.stopPropagation(); makeEditable(td, record.id, field); };
                     }
+                    td.oncontextmenu = (e) => { e.preventDefault(); showCellMenu(e, record.id, field); };
                     tr.appendChild(td);
                 });
                 
@@ -2200,6 +2220,133 @@
             openModal('expandedRecordModal');
         }
 
+        function openCellHistory(recordId, fieldId) {
+            const set = getCurrentSet();
+            const record = set.records.get(recordId);
+            const field = set.schema.find(f => f.id === fieldId);
+            const modal = document.getElementById('cellHistoryModal');
+
+            const entries = state.eventStream
+                .filter(e => e.op === 'SEG' && e.data?.recordId === recordId && e.data?.fieldId === fieldId)
+                .sort((a, b) => new Date(a.published) - new Date(b.published));
+
+            state.cellHistoryContext = {
+                recordId,
+                fieldId,
+                fieldName: field?.name || fieldId,
+                recordName: record?.name || recordId,
+                entries,
+                index: entries.length > 0 ? entries.length - 1 : 0,
+                selectedValueSource: 'new'
+            };
+
+            renderCellHistoryModal();
+            if (modal.classList.contains('hidden')) openModal('cellHistoryModal');
+        }
+
+        function renderCellHistoryModal() {
+            const container = document.getElementById('cellHistoryContent');
+            const title = document.getElementById('cellHistoryTitle');
+            const subtitle = document.getElementById('cellHistorySubtitle');
+            const ctx = state.cellHistoryContext;
+
+            if (!ctx) return;
+
+            title.textContent = `${ctx.fieldName} history`;
+            subtitle.textContent = `Record: ${ctx.recordName}`;
+
+            if (ctx.entries.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">No history for this cell yet.</p>';
+                return;
+            }
+
+            if (ctx.index >= ctx.entries.length) ctx.index = ctx.entries.length - 1;
+
+            const activeEntry = ctx.entries[ctx.index];
+            const selectedValue = ctx.selectedValueSource === 'old'
+                ? activeEntry.data?.oldValue
+                : activeEntry.data?.newValue;
+
+            container.innerHTML = `
+                <div class="flex items-center justify-between mb-4">
+                    <div class="text-sm text-gray-600">${ctx.entries.length} change${ctx.entries.length === 1 ? '' : 's'} found</div>
+                    <div class="flex items-center gap-2">
+                        <button class="btn btn-secondary btn-sm" ${ctx.index === 0 ? 'disabled' : ''} onclick="stepCellHistory(-1)">◀ Prev</button>
+                        <button class="btn btn-secondary btn-sm" ${ctx.index >= ctx.entries.length - 1 ? 'disabled' : ''} onclick="stepCellHistory(1)">Next ▶</button>
+                    </div>
+                </div>
+                <div class="space-y-3 mb-4">
+                    ${ctx.entries.map((entry, i) => `
+                        <div class="border rounded-lg p-3 ${i === ctx.index ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}" onclick="selectCellHistoryEntry(${i})">
+                            <div class="flex items-center justify-between">
+                                <div class="font-medium">${entry.data?.fieldName || ctx.fieldName}</div>
+                                <div class="text-xs text-gray-500">${new Date(entry.published).toLocaleString()}</div>
+                            </div>
+                            <div class="text-sm text-gray-600 mt-1">${entry.data?.summary || 'Updated value'}</div>
+                            <div class="text-sm mt-2 flex items-center gap-2">
+                                <span class="text-red-600">${entry.data?.oldValue ?? '—'}</span>
+                                <span>→</span>
+                                <span class="text-green-600">${entry.data?.newValue ?? '—'}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="border-t pt-4">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <span class="text-sm text-gray-700">Apply value from selected change:</span>
+                        <div class="flex items-center gap-2">
+                            <button class="btn btn-secondary btn-sm ${ctx.selectedValueSource === 'old' ? 'bg-gray-200' : ''}" onclick="chooseHistoryValue('old')">Use old value</button>
+                            <button class="btn btn-secondary btn-sm ${ctx.selectedValueSource === 'new' ? 'bg-gray-200' : ''}" onclick="chooseHistoryValue('new')">Use new value</button>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="applySelectedHistoricalValue()">Apply to cell</button>
+                    </div>
+                    <div class="mt-2 text-sm text-gray-600">Selected value preview: <span class="font-semibold text-gray-900">${selectedValue ?? '—'}</span></div>
+                </div>
+            `;
+        }
+
+        function selectCellHistoryEntry(index) {
+            if (!state.cellHistoryContext) return;
+            state.cellHistoryContext.index = index;
+            renderCellHistoryModal();
+        }
+
+        function stepCellHistory(direction) {
+            if (!state.cellHistoryContext || state.cellHistoryContext.entries.length === 0) return;
+            const newIndex = Math.min(Math.max(state.cellHistoryContext.index + direction, 0), state.cellHistoryContext.entries.length - 1);
+            state.cellHistoryContext.index = newIndex;
+            renderCellHistoryModal();
+        }
+
+        function chooseHistoryValue(source) {
+            if (!state.cellHistoryContext) return;
+            state.cellHistoryContext.selectedValueSource = source;
+            renderCellHistoryModal();
+        }
+
+        function applySelectedHistoricalValue() {
+            const ctx = state.cellHistoryContext;
+            if (!ctx || ctx.entries.length === 0) return;
+
+            const entry = ctx.entries[ctx.index];
+            const selectedValue = ctx.selectedValueSource === 'old'
+                ? entry.data?.oldValue
+                : entry.data?.newValue;
+
+            const set = getCurrentSet();
+            const record = set.records.get(ctx.recordId);
+            const currentValue = record ? record[ctx.fieldId] : undefined;
+
+            updateRecord(ctx.recordId, ctx.fieldId, selectedValue, currentValue);
+
+            if (!document.getElementById('expandedRecordModal').classList.contains('hidden')) {
+                renderExpandedRecordMain(ctx.recordId);
+                renderRecordSidebar(ctx.recordId);
+            }
+
+            openCellHistory(ctx.recordId, ctx.fieldId);
+        }
+
         function ensurePopupRule(fieldId) {
             const view = getCurrentView();
             if (!view) return null;
@@ -2448,6 +2595,12 @@
         function showRowMenu(e, recordId) {
             showContextMenu(e, [
                 { label: 'Delete Record', action: () => confirmDelete('record', recordId), danger: true }
+            ]);
+        }
+
+        function showCellMenu(e, recordId, field) {
+            showContextMenu(e, [
+                { label: 'Open Cell History', action: () => openCellHistory(recordId, field.id) }
             ]);
         }
 
