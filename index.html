@@ -2444,6 +2444,21 @@
             const record = set.records.get(recordId);
             const container = document.getElementById('expandedRecordMain');
             container.dataset.recordId = recordId;
+
+            if (state.currentRecordTab === 'popup') {
+                container.innerHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">Popup Field Visibility</h3>
+                            <p class="text-sm text-gray-600">Choose which fields show in this popup without leaving the record.</p>
+                        </div>
+                        <div id="expandedPopupSettings" class="space-y-3"></div>
+                    </div>
+                `;
+                renderPopupSettings('expandedPopupSettings');
+                return;
+            }
+
             const visibleFields = set.schema.filter(field => shouldDisplayFieldInPopup(field, record));
 
             container.innerHTML = visibleFields.length === 0
@@ -2493,6 +2508,7 @@
         function switchRecordTab(tab) {
             state.currentRecordTab = tab;
             const recordId = document.getElementById('expandedRecordMain').dataset.recordId;
+            renderExpandedRecordMain(recordId);
             renderRecordSidebar(recordId);
         }
 
