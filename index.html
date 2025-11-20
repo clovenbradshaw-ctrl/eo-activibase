@@ -442,6 +442,7 @@
         /* MODALS */
         .modal-overlay { backdrop-filter: blur(2px); animation: fadeIn 0.2s ease; }
         .modal-container { border-radius: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+        #expandedRecordModal .modal-container { height: 90vh; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .modal-header { padding: 24px 24px 16px 24px; border-bottom: 1px solid #f0f0f0; }
@@ -753,6 +754,12 @@
                         </svg>
                         Filter
                     </button>
+                    <button id="popupSettingsBtn" class="btn btn-secondary btn-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Popup Fields
+                    </button>
                     <button id="historyBtn" class="btn btn-secondary btn-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -843,6 +850,29 @@
             <div class="modal-footer flex justify-end gap-2">
                 <button id="clearFiltersBtn" class="btn btn-secondary">Clear All</button>
                 <button id="applyFiltersBtn" class="btn btn-primary">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="popupSettingsModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Popup Field Visibility</h2>
+                    <p class="text-sm text-gray-500 mt-1">Control which fields appear in record popups for this view.</p>
+                </div>
+                <button id="closePopupSettingsBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-body space-y-4">
+                <p class="text-sm text-gray-600">Choose whether each field should show or hide in the popup and optionally apply criteria to make the rule conditional.</p>
+                <div id="popupSettingsFields" class="space-y-3"></div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button id="closePopupSettingsFooterBtn" class="btn btn-secondary">Done</button>
             </div>
         </div>
     </div>
@@ -1202,6 +1232,7 @@
                 type: config.type || 'grid',
                 filters: config.filters || [],
                 hiddenFields: config.hiddenFields || [],
+                popupVisibilityRules: config.popupVisibilityRules || [],
                 kanbanGroupField: config.kanbanGroupField || null,
                 cardFields: config.cardFields || []
             });
@@ -2135,14 +2166,72 @@
             openModal('expandedRecordModal');
         }
 
+        function ensurePopupRule(fieldId) {
+            const view = getCurrentView();
+            if (!view) return null;
+            view.popupVisibilityRules = view.popupVisibilityRules || [];
+            let rule = view.popupVisibilityRules.find(r => r.fieldId === fieldId);
+            if (!rule) {
+                rule = { fieldId, visibility: 'show', criteria: { type: 'always', value: '' } };
+                view.popupVisibilityRules.push(rule);
+            }
+            return rule;
+        }
+
+        function evaluatePopupCriteria(criteria, value) {
+            if (!criteria || criteria.type === 'always') return true;
+
+            switch (criteria.type) {
+                case 'equals':
+                    return String(value ?? '').toLowerCase() === String(criteria.value ?? '').toLowerCase();
+                case 'notEquals':
+                    return String(value ?? '').toLowerCase() !== String(criteria.value ?? '').toLowerCase();
+                case 'contains':
+                    return String(value ?? '').toLowerCase().includes(String(criteria.value ?? '').toLowerCase());
+                case 'empty':
+                    return value === undefined || value === null || value === '';
+                case 'notEmpty':
+                    return !(value === undefined || value === null || value === '');
+                default:
+                    return true;
+            }
+        }
+
+        function refreshOpenRecordModal() {
+            const container = document.getElementById('expandedRecordMain');
+            const recordId = container?.dataset?.recordId;
+            if (recordId && !document.getElementById('expandedRecordModal').classList.contains('hidden')) {
+                renderExpandedRecordMain(recordId);
+            }
+        }
+
+        function shouldDisplayFieldInPopup(field, record) {
+            const view = getCurrentView();
+            if (!view) return true;
+            view.popupVisibilityRules = view.popupVisibilityRules || [];
+            const rule = view.popupVisibilityRules.find(r => r.fieldId === field.id);
+            if (!rule) return true;
+
+            const criteriaMet = evaluatePopupCriteria(rule.criteria, record[field.id]);
+            if (!rule.criteria || criteriaMet) {
+                return rule.visibility !== 'hide';
+            }
+
+            return true;
+        }
+
         function renderExpandedRecordMain(recordId) {
             const set = getCurrentSet();
             const record = set.records.get(recordId);
             const container = document.getElementById('expandedRecordMain');
             container.dataset.recordId = recordId;
-            container.innerHTML = `
+            const visibleFields = set.schema.filter(field => shouldDisplayFieldInPopup(field, record));
+
+            container.innerHTML = visibleFields.length === 0
+                ? '<p class="text-gray-500">No fields are visible in this popup based on the current view settings.</p>'
+                : `
                 <div class="space-y-4">
-                    ${set.schema.map(field => `
+                    ${visibleFields.map(field => `
                         <div class="field-editor">
                             <label class="form-label">${field.name}</label>
                             ${renderFieldEditor(recordId, field, record[field.id])}
@@ -2227,6 +2316,91 @@
         function toggleRecordHistoryVisibility() {
             state.recordHistoryVisible = !state.recordHistoryVisible;
             updateRecordHistoryVisibility();
+        }
+
+        function renderPopupSettings() {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+
+            view.popupVisibilityRules = view.popupVisibilityRules || [];
+            const container = document.getElementById('popupSettingsFields');
+            container.innerHTML = set.schema.map(field => {
+                const rule = view.popupVisibilityRules.find(r => r.fieldId === field.id) || { visibility: 'show', criteria: { type: 'always', value: '' } };
+                const criteriaType = rule.criteria?.type || 'always';
+                const criteriaValue = rule.criteria?.value || '';
+                const needsValue = ['equals', 'notEquals', 'contains'].includes(criteriaType);
+
+                return `
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex items-center justify-between gap-4 flex-wrap">
+                            <div>
+                                <div class="font-semibold text-gray-900">${field.name}</div>
+                                <div class="text-sm text-gray-500">${field.type}</div>
+                            </div>
+                            <div class="flex items-center gap-3 flex-wrap">
+                                <label class="text-sm text-gray-600 flex items-center gap-2">
+                                    Visibility
+                                    <select class="border rounded px-2 py-1" onchange="updatePopupVisibilityRule('${field.id}', this.value)">
+                                        <option value="show" ${rule.visibility !== 'hide' ? 'selected' : ''}>Show</option>
+                                        <option value="hide" ${rule.visibility === 'hide' ? 'selected' : ''}>Hide</option>
+                                    </select>
+                                </label>
+                                <label class="text-sm text-gray-600 flex items-center gap-2">
+                                    Criteria
+                                    <select class="border rounded px-2 py-1" onchange="updatePopupCriteriaType('${field.id}', this.value)">
+                                        <option value="always" ${criteriaType === 'always' ? 'selected' : ''}>Always</option>
+                                        <option value="equals" ${criteriaType === 'equals' ? 'selected' : ''}>Value equals</option>
+                                        <option value="notEquals" ${criteriaType === 'notEquals' ? 'selected' : ''}>Value not equal</option>
+                                        <option value="contains" ${criteriaType === 'contains' ? 'selected' : ''}>Value contains</option>
+                                        <option value="empty" ${criteriaType === 'empty' ? 'selected' : ''}>When empty</option>
+                                        <option value="notEmpty" ${criteriaType === 'notEmpty' ? 'selected' : ''}>When not empty</option>
+                                    </select>
+                                </label>
+                                <input
+                                    type="text"
+                                    class="border rounded px-3 py-1 text-sm ${needsValue ? '' : 'opacity-50'}"
+                                    placeholder="Criteria value"
+                                    value="${criteriaValue}"
+                                    ${needsValue ? '' : 'disabled'}
+                                    oninput="updatePopupCriteriaValue('${field.id}', this.value)">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openPopupSettingsModal() {
+            renderPopupSettings();
+            openModal('popupSettingsModal');
+        }
+
+        function updatePopupVisibilityRule(fieldId, visibility) {
+            const rule = ensurePopupRule(fieldId);
+            if (!rule) return;
+            rule.visibility = visibility;
+            refreshOpenRecordModal();
+        }
+
+        function updatePopupCriteriaType(fieldId, type) {
+            const rule = ensurePopupRule(fieldId);
+            if (!rule) return;
+            rule.criteria = rule.criteria || { type: 'always', value: '' };
+            rule.criteria.type = type;
+            if (!['equals', 'notEquals', 'contains'].includes(type)) {
+                rule.criteria.value = '';
+            }
+            renderPopupSettings();
+            refreshOpenRecordModal();
+        }
+
+        function updatePopupCriteriaValue(fieldId, value) {
+            const rule = ensurePopupRule(fieldId);
+            if (!rule) return;
+            rule.criteria = rule.criteria || { type: 'always', value: '' };
+            rule.criteria.value = value;
+            refreshOpenRecordModal();
         }
 
         // CONTEXT MENUS
@@ -2475,6 +2649,7 @@
             };
             document.getElementById('addFieldBtn').onclick = openAddFieldModal;
             document.getElementById('filterBtn').onclick = openFilterModal;
+            document.getElementById('popupSettingsBtn').onclick = openPopupSettingsModal;
             document.getElementById('historyBtn').onclick = () => {
                 document.getElementById('historyPanel').classList.add('open');
                 renderHistory();
@@ -2485,6 +2660,8 @@
             document.getElementById('toggleHistorySidebarBtn').onclick = toggleRecordHistoryVisibility;
             document.getElementById('closeExpandedRecordBtn').onclick = () => closeModal('expandedRecordModal');
             document.getElementById('closeFilterBtn').onclick = () => closeModal('filterModal');
+            document.getElementById('closePopupSettingsBtn').onclick = () => closeModal('popupSettingsModal');
+            document.getElementById('closePopupSettingsFooterBtn').onclick = () => closeModal('popupSettingsModal');
             document.getElementById('applyFiltersBtn').onclick = applyFilters;
             document.getElementById('clearFiltersBtn').onclick = clearFilters;
             document.getElementById('addFilterGroupBtn').onclick = addFilterGroup;
