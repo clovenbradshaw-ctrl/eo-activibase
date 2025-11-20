@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Workbase - Enhanced Database</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
     <style>
         :root {
             --primary: #2563eb;
@@ -101,18 +102,26 @@
         }
         .set-header:hover { background: #252931; color: #e5e7eb; }
         .set-header.active { background: #2563eb; color: #ffffff; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35); }
-        .set-icon { font-size: 18px; flex-shrink: 0; }
+        .set-icon { font-size: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
         .set-name { flex: 1; transition: opacity 0.2s; font-weight: 600; letter-spacing: -0.01em; }
-        .set-expand-icon { 
-            font-size: 12px; 
+        .set-expand-icon {
+            font-size: 12px;
             transition: transform 0.2s;
             opacity: 0.7;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         .set-item.expanded .set-expand-icon { transform: rotate(90deg); }
         .sidebar-collapsed .set-name { opacity: 0; width: 0; overflow: hidden; }
         .sidebar-collapsed .set-expand-icon { display: none; }
         .sidebar-collapsed .set-header { justify-content: center; padding: 10px; }
-        
+
+        .icon { display: inline-flex; align-items: center; justify-content: center; }
+        .icon-sm { font-size: 14px; }
+        .icon-md { font-size: 18px; }
+        .icon-lg { font-size: 22px; }
+
         .views-list {
             max-height: 0;
             overflow: hidden;
@@ -721,16 +730,14 @@
             <div class="sidebar-header">
                 <div class="sidebar-brand">Workbase</div>
                 <button class="sidebar-toggle" onclick="toggleSidebar()">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
+                    <i class="ph-bold ph-list icon icon-md"></i>
                 </button>
             </div>
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Sets</div>
                 <div id="setsList"></div>
                 <button onclick="openAddSetModal()" class="new-set-btn">
-                    <span class="set-icon">➕</span>
+                    <span class="set-icon icon-md"><i class="ph-bold ph-plus"></i></span>
                     <span class="set-name">New Set</span>
                 </button>
             </div>
@@ -744,39 +751,33 @@
                 <div class="flex items-center gap-3">
                     <div class="view-type-switcher">
                         <button class="view-type-btn active" data-type="grid" onclick="switchViewType('grid')">
-                            🔲 Grid
+                            <span class="icon icon-sm"><i class="ph ph-table"></i></span> Grid
                         </button>
                         <button class="view-type-btn" data-type="card" onclick="switchViewType('card')">
-                            🃏 Card
+                            <span class="icon icon-sm"><i class="ph ph-identification-badge"></i></span> Card
                         </button>
                         <button class="view-type-btn" data-type="kanban" onclick="switchViewType('kanban')">
-                            📊 Kanban
+                            <span class="icon icon-sm"><i class="ph ph-kanban"></i></span> Kanban
                         </button>
                     </div>
                     <button id="filterBtn" class="btn btn-secondary btn-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-                        </svg>
+                        <span class="icon icon-sm"><i class="ph ph-funnel-simple"></i></span>
                         Filter
                     </button>
                     <button id="popupSettingsBtn" class="btn btn-secondary btn-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        <span class="icon icon-sm"><i class="ph ph-list-magnifying-glass"></i></span>
                         Popup Fields
                     </button>
                     <button id="historyBtn" class="btn btn-secondary btn-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
+                        <span class="icon icon-sm"><i class="ph ph-clock-counter-clockwise"></i></span>
                         History
                     </button>
                 </div>
                 <div class="flex items-center gap-2 toolbar-actions">
-                    <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
-                    <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
-                    <button id="viewJsonBtn" class="btn btn-secondary btn-sm">View JSON</button>
-                    <button id="exportBtn" class="btn btn-secondary btn-sm">Export</button>
+                    <button id="addRecordBtn" class="btn btn-primary btn-sm"><span class="icon icon-sm"><i class="ph-bold ph-plus"></i></span> Add Record</button>
+                    <button id="addFieldBtn" class="btn btn-secondary btn-sm"><span class="icon icon-sm"><i class="ph-bold ph-plus-square"></i></span> Add Field</button>
+                    <button id="viewJsonBtn" class="btn btn-secondary btn-sm"><span class="icon icon-sm"><i class="ph ph-brackets-curly"></i></span> View JSON</button>
+                    <button id="exportBtn" class="btn btn-secondary btn-sm"><span class="icon icon-sm"><i class="ph ph-export"></i></span> Export</button>
                 </div>
             </div>
         </div>
@@ -813,9 +814,7 @@
                 <div class="flex items-center gap-2">
                     <button id="toggleHistorySidebarBtn" class="btn btn-secondary btn-sm">Hide History</button>
                     <button id="closeExpandedRecordBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
+                        <i class="ph-bold ph-x icon icon-md"></i>
                     </button>
                 </div>
             </div>
@@ -845,9 +844,7 @@
                     <p class="text-sm text-gray-500 mt-1">Create advanced filter conditions</p>
                 </div>
                 <button id="closeFilterBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="ph-bold ph-x icon icon-md"></i>
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto modal-body">
@@ -869,9 +866,7 @@
                     <p class="text-sm text-gray-500 mt-1">Control which fields appear in record popups for this view.</p>
                 </div>
                 <button id="closePopupSettingsBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="ph-bold ph-x icon icon-md"></i>
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto modal-body space-y-4">
@@ -892,9 +887,7 @@
                     <p class="text-sm text-gray-500 mt-1">Create a new field for your set</p>
                 </div>
                 <button id="closeAddFieldBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="ph-bold ph-x icon icon-md"></i>
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto modal-body space-y-5">
@@ -941,8 +934,8 @@
                     <input type="text" id="newSetName" placeholder="e.g., Projects, Contacts">
                 </div>
                 <div>
-                    <label class="form-label">Icon (emoji)</label>
-                    <input type="text" id="newSetIcon" placeholder="📊" maxlength="2">
+                    <label class="form-label">Icon (Phosphor name)</label>
+                    <input type="text" id="newSetIcon" placeholder="stack-simple">
                 </div>
             </div>
             <div class="modal-footer flex justify-end gap-2">
@@ -963,8 +956,8 @@
                     <input type="text" id="newViewName" placeholder="e.g., Active Items">
                 </div>
                 <div>
-                    <label class="form-label">View Icon (emoji)</label>
-                    <input type="text" id="newViewIcon" placeholder="📋" maxlength="2">
+                    <label class="form-label">View Icon (Phosphor name)</label>
+                    <input type="text" id="newViewIcon" placeholder="table">
                 </div>
                 <div>
                     <label class="form-label">Nest Under</label>
@@ -1006,9 +999,7 @@
                     <p class="text-sm opacity-90 mt-1">Full audit trail</p>
                 </div>
                 <button id="closeHistoryBtn" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="ph-bold ph-x icon icon-md"></i>
                 </button>
             </div>
             <input type="text" id="historySearch" class="w-full text-gray-900 rounded-lg" placeholder="Search history...">
@@ -1025,9 +1016,7 @@
                     <p class="text-sm text-gray-500 mt-1" id="cellHistorySubtitle"></p>
                 </div>
                 <button class="text-gray-400 hover:text-gray-600 transition p-2" onclick="closeModal('cellHistoryModal')">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="ph-bold ph-x icon icon-md"></i>
                 </button>
             </div>
             <div class="p-6 overflow-auto" id="cellHistoryContent"></div>
@@ -1043,9 +1032,7 @@
                     <p class="text-sm text-gray-500 mt-1">View the complete data structure</p>
                 </div>
                 <button id="closeJsonViewerBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="ph-bold ph-x icon icon-md"></i>
                 </button>
             </div>
             <div class="flex border-b border-gray-200">
@@ -1057,7 +1044,7 @@
             <div class="flex-1 overflow-hidden relative">
                 <pre id="jsonContent" class="p-6 overflow-auto h-full text-sm bg-gray-50 font-mono"></pre>
                 <button id="copyJsonBtn" class="absolute top-4 right-4 btn btn-secondary btn-sm">
-                    📋 Copy
+                    <span class="icon icon-sm"><i class="ph ph-copy"></i></span> Copy
                 </button>
             </div>
         </div>
@@ -1090,21 +1077,41 @@
             viewEditorContext: null
         };
 
+        const DEFAULT_ICON = { name: 'circle', weight: 'regular' };
+        const DEFAULT_SET_ICON = { name: 'stack-simple', weight: 'regular' };
+        const DEFAULT_VIEW_ICON = { name: 'table', weight: 'regular' };
+
+        function normalizeIcon(icon, fallback = DEFAULT_ICON) {
+            if (!icon) return { ...fallback };
+            if (typeof icon === 'string') return { name: icon, weight: 'regular' };
+            return { name: icon.name || fallback.name, weight: icon.weight || fallback.weight || 'regular' };
+        }
+
+        function renderIcon(icon, fallback = DEFAULT_ICON, extraClasses = '') {
+            const { name, weight } = normalizeIcon(icon, fallback);
+            const weightClass = weight === 'regular' ? 'ph' : `ph-${weight}`;
+            return `<i class="${weightClass} ph-${name} ${extraClasses}"></i>`;
+        }
+
         const FIELD_TYPES = {
-            TEXT: { id: 'TEXT', name: 'Single Line Text', defaultValue: '', icon: '📝' },
-            LONG_TEXT: { id: 'LONG_TEXT', name: 'Long Text', defaultValue: '', icon: '📄' },
-            NUMBER: { id: 'NUMBER', name: 'Number', defaultValue: 0, icon: '#️⃣' },
-            CURRENCY: { id: 'CURRENCY', name: 'Currency', defaultValue: 0, icon: '💵' },
-            DATE: { id: 'DATE', name: 'Date', defaultValue: '', icon: '📅' },
-            EMAIL: { id: 'EMAIL', name: 'Email', defaultValue: '', icon: '📧' },
-            URL: { id: 'URL', name: 'URL', defaultValue: '', icon: '🔗' },
-            PHONE: { id: 'PHONE', name: 'Phone', defaultValue: '', icon: '📞' },
-            LINK_RECORD: { id: 'LINK_RECORD', name: 'Link to Record', defaultValue: '', icon: '🪢', needsConfig: true },
-            SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', defaultValue: '', icon: '🎯', needsConfig: true },
-            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: '☑️' }
+            TEXT: { id: 'TEXT', name: 'Single Line Text', defaultValue: '', icon: { name: 'text-t', weight: 'regular' } },
+            LONG_TEXT: { id: 'LONG_TEXT', name: 'Long Text', defaultValue: '', icon: { name: 'text-indent', weight: 'regular' } },
+            NUMBER: { id: 'NUMBER', name: 'Number', defaultValue: 0, icon: { name: 'hash', weight: 'regular' } },
+            CURRENCY: { id: 'CURRENCY', name: 'Currency', defaultValue: 0, icon: { name: 'currency-dollar', weight: 'regular' } },
+            DATE: { id: 'DATE', name: 'Date', defaultValue: '', icon: { name: 'calendar-blank', weight: 'regular' } },
+            EMAIL: { id: 'EMAIL', name: 'Email', defaultValue: '', icon: { name: 'envelope-simple', weight: 'regular' } },
+            URL: { id: 'URL', name: 'URL', defaultValue: '', icon: { name: 'link-simple', weight: 'regular' } },
+            PHONE: { id: 'PHONE', name: 'Phone', defaultValue: '', icon: { name: 'phone-call', weight: 'regular' } },
+            LINK_RECORD: { id: 'LINK_RECORD', name: 'Link to Record', defaultValue: '', icon: { name: 'link-simple-horizontal', weight: 'regular' }, needsConfig: true },
+            SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', defaultValue: '', icon: { name: 'target', weight: 'regular' }, needsConfig: true },
+            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: { name: 'check-square-offset', weight: 'bold' } }
         };
 
-        const VIEW_TYPE_ICONS = { grid: '🔲', card: '🃏', kanban: '📊' };
+        const VIEW_TYPE_ICONS = {
+            grid: { name: 'table', weight: 'regular' },
+            card: { name: 'identification-badge', weight: 'regular' },
+            kanban: { name: 'kanban', weight: 'regular' }
+        };
 
         const EO_OPERATOR_SET = {
             INS: { id: 'INS', name: 'Instantiate', description: 'Create a new object that did not exist before.' },
@@ -1183,10 +1190,10 @@
         }
 
         function createSampleData() {
-            const projectsId = createSet('Projects', '📊');
+            const projectsId = createSet('Projects', { name: 'stack-simple', weight: 'regular' });
             const projectsSet = state.sets.get(projectsId);
 
-            const contactsId = createSet('Clients', '👥');
+            const contactsId = createSet('Clients', { name: 'users-three', weight: 'regular' });
             const contactsSet = state.sets.get(contactsId);
 
             contactsSet.schema = [
@@ -1268,12 +1275,13 @@
         }
 
         // SET MANAGEMENT
-        function createSet(name, icon = '📊') {
+        function createSet(name, icon = DEFAULT_SET_ICON) {
             const setId = 'set_' + Date.now();
+            const normalizedIcon = normalizeIcon(icon, DEFAULT_SET_ICON);
             state.sets.set(setId, {
                 id: setId,
                 name: name,
-                icon: icon,
+                icon: normalizedIcon,
                 schema: [],
                 records: new Map(),
                 views: new Map(),
@@ -1292,11 +1300,13 @@
         function createView(setId, name, config = {}) {
             const viewId = 'view_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             const set = state.sets.get(setId);
+            const fallbackIcon = VIEW_TYPE_ICONS[config.type || 'grid'] || DEFAULT_VIEW_ICON;
+            const normalizedIcon = normalizeIcon(config.icon || fallbackIcon, fallbackIcon);
             set.views.set(viewId, {
                 id: viewId,
                 name: name,
                 type: config.type || 'grid',
-                icon: config.icon || VIEW_TYPE_ICONS[config.type || 'grid'] || '📋',
+                icon: normalizedIcon,
                 filters: config.filters || [],
                 hiddenFields: config.hiddenFields || [],
                 showRowNumbers: config.showRowNumbers !== undefined ? config.showRowNumbers : true,
@@ -1489,6 +1499,8 @@
             state.sets.forEach((set, setId) => {
                 const isExpanded = state.expandedSets.has(setId);
                 const isActive = setId === state.currentSetId;
+                const setIconHtml = renderIcon(set.icon, DEFAULT_SET_ICON, 'icon icon-md');
+                const caretIcon = renderIcon({ name: 'caret-right', weight: 'bold' }, { name: 'caret-right', weight: 'bold' }, 'icon icon-sm');
 
                 const setItem = document.createElement('div');
                 setItem.className = `set-item ${isExpanded ? 'expanded' : ''}`;
@@ -1496,9 +1508,9 @@
                 const setHeader = document.createElement('div');
                 setHeader.className = `set-header ${isActive && !state.currentViewId ? 'active' : ''}`;
                 setHeader.innerHTML = `
-                    <span class="set-icon">${set.icon}</span>
+                    <span class="set-icon">${setIconHtml}</span>
                     <span class="set-name">${set.name}</span>
-                    <span class="set-expand-icon">▶</span>
+                    <span class="set-expand-icon">${caretIcon}</span>
                 `;
                 setHeader.onclick = (e) => { if (e.detail === 1) toggleSetExpansion(setId); };
                 setHeader.ondblclick = (e) => { e.stopPropagation(); openAddSetModal(setId); };
@@ -1514,7 +1526,7 @@
 
                     const addViewBtn = document.createElement('div');
                     addViewBtn.className = 'add-view-btn';
-                    addViewBtn.textContent = '+ Add View';
+                    addViewBtn.innerHTML = `<span class="icon icon-sm"><i class="ph-bold ph-plus"></i></span> Add View`;
                     addViewBtn.onclick = (e) => {
                         e.stopPropagation();
                         state.currentSetId = setId;
@@ -1534,11 +1546,12 @@
             const childViews = orderedViews.filter(([_, view]) => (view.parentId || null) === normalizedParent);
 
             childViews.forEach(([viewId, view]) => {
+                const viewIcon = renderIcon(view.icon, VIEW_TYPE_ICONS[view.type] || DEFAULT_VIEW_ICON, 'icon icon-sm');
                 const viewItem = document.createElement('div');
                 viewItem.className = `view-item ${viewId === state.currentViewId ? 'active' : ''}`;
                 viewItem.style.paddingLeft = `${12 + depth * 16}px`;
                 viewItem.innerHTML = `
-                    <span class="view-item-icon">${view.icon || VIEW_TYPE_ICONS[view.type] || '📋'}</span>
+                    <span class="view-item-icon">${viewIcon}</span>
                     <span>${view.name}</span>
                 `;
                 viewItem.onclick = (e) => {
@@ -1580,9 +1593,10 @@
                 const children = orderedViews.filter(([id, view]) => (view.parentId || null) === (parentId || null));
                 children.forEach(([id, view]) => {
                     if (excludeViewId && id === excludeViewId) return;
+                    const viewIcon = renderIcon(view.icon, VIEW_TYPE_ICONS[view.type] || DEFAULT_VIEW_ICON, 'icon icon-sm');
                     const option = document.createElement('option');
                     option.value = id;
-                    option.textContent = `${'• '.repeat(depth)}${view.icon || VIEW_TYPE_ICONS[view.type] || '📋'} ${view.name}`;
+                    option.innerHTML = `${'&bull; '.repeat(depth)}${viewIcon} ${view.name}`;
                     select.appendChild(option);
                     renderOptions(id, depth + 1);
                 });
@@ -1608,14 +1622,14 @@
                 if (titleEl) titleEl.textContent = 'Edit View';
                 if (saveBtn) saveBtn.textContent = 'Save';
                 if (nameInput) nameInput.value = view?.name || '';
-                if (iconInput) iconInput.value = view?.icon || VIEW_TYPE_ICONS[view?.type] || '📋';
+                if (iconInput) iconInput.value = normalizeIcon(view?.icon || VIEW_TYPE_ICONS[view?.type] || DEFAULT_VIEW_ICON, DEFAULT_VIEW_ICON).name;
                 populateViewParentOptions(setId, viewId, view?.parentId || null);
             } else {
                 state.viewEditorContext = { setId, viewId: null };
                 if (titleEl) titleEl.textContent = 'Create View';
                 if (saveBtn) saveBtn.textContent = 'Create';
                 if (nameInput) nameInput.value = '';
-                if (iconInput) iconInput.value = '';
+                if (iconInput) iconInput.value = normalizeIcon(VIEW_TYPE_ICONS['grid'], DEFAULT_VIEW_ICON).name;
                 populateViewParentOptions(setId);
             }
 
@@ -1680,7 +1694,8 @@
 
         function ensureViewDefaults(view) {
             if (view.showRowNumbers === undefined) view.showRowNumbers = true;
-            if (!view.icon) view.icon = VIEW_TYPE_ICONS[view.type] || '📋';
+            const fallbackIcon = VIEW_TYPE_ICONS[view.type] || DEFAULT_VIEW_ICON;
+            view.icon = normalizeIcon(view.icon || fallbackIcon, fallbackIcon);
         }
 
         function setRowNumbersVisibility(visible) {
@@ -1898,7 +1913,7 @@
                 const container = document.getElementById('viewContainer');
                 container.innerHTML = `
                     <div class="kanban-empty-state">
-                        <div class="text-4xl mb-4">📊</div>
+                        <div class="text-4xl mb-4">${renderIcon(VIEW_TYPE_ICONS.kanban, VIEW_TYPE_ICONS.kanban, 'icon icon-lg')}</div>
                         <p class="text-lg font-semibold mb-2">Configure Kanban Board</p>
                         <p class="mb-4">Select a single-select field to group your records</p>
                         <button onclick="openKanbanConfig()" class="btn btn-primary">Configure Kanban</button>
@@ -1909,7 +1924,7 @@
             
             const groupField = set.schema.find(f => f.id === view.kanbanGroupField);
             if (!groupField || groupField.type !== 'SINGLE_SELECT') {
-                showToast('⚠️ Invalid kanban configuration');
+                showToast('Invalid kanban configuration');
                 return;
             }
             
@@ -2053,7 +2068,7 @@
             
             closeModal('kanbanConfigModal');
             renderKanbanView();
-            showToast('✓ Kanban configured');
+            showToast('Kanban configured');
         }
 
         // CELL EDITING
@@ -2240,7 +2255,7 @@
                 option.className = `field-type-option ${fieldType.id === selectedType ? 'selected' : ''}`;
                 option.onclick = () => selectFieldType(fieldType.id);
                 option.innerHTML = `
-                    <div class="field-type-icon">${fieldType.icon}</div>
+                    <div class="field-type-icon">${renderIcon(fieldType.icon, DEFAULT_ICON, 'icon icon-md')}</div>
                     <div class="flex-1"><div class="font-medium text-sm">${fieldType.name}</div></div>
                 `;
                 grid.appendChild(option);
@@ -2337,7 +2352,7 @@
                 }
             }, 100);
             
-            showToast('✓ Field added');
+            showToast('Field added');
         }
 
         // FILTERING (simplified for space)
@@ -2436,7 +2451,7 @@
         function applyFilters() {
             closeModal('filterModal');
             renderCurrentView();
-            showToast('✓ Filters applied');
+            showToast('Filters applied');
         }
 
         function clearFilters() {
@@ -2505,12 +2520,12 @@
                 ? activeEntry.data?.oldValue
                 : activeEntry.data?.newValue;
 
-            container.innerHTML = `
+                container.innerHTML = `
                 <div class="flex items-center justify-between mb-4">
                     <div class="text-sm text-gray-600">${ctx.entries.length} change${ctx.entries.length === 1 ? '' : 's'} found</div>
                     <div class="flex items-center gap-2">
-                        <button class="btn btn-secondary btn-sm" ${ctx.index === 0 ? 'disabled' : ''} onclick="stepCellHistory(-1)">◀ Prev</button>
-                        <button class="btn btn-secondary btn-sm" ${ctx.index >= ctx.entries.length - 1 ? 'disabled' : ''} onclick="stepCellHistory(1)">Next ▶</button>
+                        <button class="btn btn-secondary btn-sm" ${ctx.index === 0 ? 'disabled' : ''} onclick="stepCellHistory(-1)">${renderIcon({ name: 'caret-left', weight: 'bold' }, { name: 'caret-left', weight: 'bold' }, 'icon icon-sm')} Prev</button>
+                        <button class="btn btn-secondary btn-sm" ${ctx.index >= ctx.entries.length - 1 ? 'disabled' : ''} onclick="stepCellHistory(1)">Next ${renderIcon({ name: 'caret-right', weight: 'bold' }, { name: 'caret-right', weight: 'bold' }, 'icon icon-sm')}</button>
                     </div>
                 </div>
                 <div class="space-y-3 mb-4">
@@ -2862,13 +2877,13 @@
 
             createConnection(recordId, target, {});
             renderRecordSidebar(recordId);
-            showToast('✓ Connection created');
+            showToast('Connection created');
         }
 
         function deleteConnectionFromSidebar(connectionId, recordId) {
             deleteConnection(connectionId);
             renderRecordSidebar(recordId);
-            showToast('✓ Connection removed');
+            showToast('Connection removed');
         }
 
         function updateRecordHistoryVisibility() {
@@ -3073,7 +3088,7 @@
             const view = getCurrentView();
             if (!view.hiddenFields.includes(fieldId)) view.hiddenFields.push(fieldId);
             renderCurrentView();
-            showToast('✓ Field hidden');
+            showToast('Field hidden');
         }
 
         function deleteField(fieldId) {
@@ -3090,7 +3105,7 @@
                 { frame: 'schema', scale: 'collection' }
             );
             renderCurrentView();
-            showToast('✓ Field deleted');
+            showToast('Field deleted');
         }
 
         function deleteRecord(recordId) {
@@ -3103,7 +3118,7 @@
                 { setId: set.id, recordId, summary: 'Record deleted' }
             );
             renderCurrentView();
-            showToast('✓ Record deleted');
+            showToast('Record deleted');
         }
 
         // UTILITIES
@@ -3179,9 +3194,7 @@
             toast.className = 'toast';
             toast.innerHTML = `
                 <div class="flex items-center gap-3">
-                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
+                    ${renderIcon({ name: 'check-circle', weight: 'bold' }, { name: 'check-circle', weight: 'bold' }, 'icon icon-md text-green-600')}
                     <span class="font-medium">${message}</span>
                 </div>
             `;
@@ -3217,7 +3230,7 @@
             a.download = 'workbase-export.json';
             a.click();
             URL.revokeObjectURL(url);
-            showToast('✓ Exported data');
+            showToast('Exported data');
         }
 
         function renderHistory() {
@@ -3240,7 +3253,7 @@
                 set.schema.forEach(f => record[f.id] = FIELD_TYPES[f.type].defaultValue);
                 set.records.set(record.id, record);
                 renderCurrentView();
-                showToast('✓ Record added');
+                showToast('Record added');
             };
             document.getElementById('addFieldBtn').onclick = openAddFieldModal;
             document.getElementById('filterBtn').onclick = openFilterModal;
@@ -3274,7 +3287,7 @@
             document.getElementById('closeAddFieldBtn').onclick = () => closeModal('addFieldModal');
             document.getElementById('saveAddSetBtn').onclick = () => {
                 const name = document.getElementById('newSetName').value.trim();
-                const icon = document.getElementById('newSetIcon').value.trim() || '📊';
+                const icon = normalizeIcon(document.getElementById('newSetIcon').value.trim() || DEFAULT_SET_ICON, DEFAULT_SET_ICON);
                 if (!name) { showConfirm('Please enter a set name', () => {}); return; }
                 if (state.setEditorContext?.setId) {
                     const set = state.sets.get(state.setEditorContext.setId);
@@ -3284,23 +3297,26 @@
                     state.setEditorContext = null;
                     renderSidebar();
                     renderCurrentView();
-                    showToast('✓ Set updated');
+                    showToast('Set updated');
                 } else {
                     const setId = createSet(name, icon);
                     closeModal('addSetModal');
                     document.getElementById('newSetName').value = '';
-                    document.getElementById('newSetIcon').value = '';
+                    document.getElementById('newSetIcon').value = normalizeIcon(DEFAULT_SET_ICON, DEFAULT_SET_ICON).name;
                     createView(setId, 'All ' + name, { type: 'grid' });
                     state.expandedSets.add(setId);
                     renderSidebar();
                     switchSet(setId, null);
-                    showToast('✓ Set created');
+                    showToast('Set created');
                 }
             };
             document.getElementById('cancelAddSetBtn').onclick = () => { state.setEditorContext = null; closeModal('addSetModal'); };
             document.getElementById('saveAddViewBtn').onclick = () => {
                 const name = document.getElementById('newViewName').value.trim();
-                const icon = document.getElementById('newViewIcon').value.trim() || '📋';
+                const icon = normalizeIcon(
+                    document.getElementById('newViewIcon').value.trim() || (VIEW_TYPE_ICONS['grid'] || DEFAULT_VIEW_ICON),
+                    VIEW_TYPE_ICONS['grid'] || DEFAULT_VIEW_ICON
+                );
                 const parentId = document.getElementById('newViewParent').value || null;
                 if (!name) { showConfirm('Please enter a view name', () => {}); return; }
                 const set = state.sets.get(state.viewEditorContext?.setId || state.currentSetId);
@@ -3322,16 +3338,16 @@
                     state.viewEditorContext = null;
                     renderSidebar();
                     switchSet(setId, view?.id || state.currentViewId);
-                    showToast('✓ View updated');
+                    showToast('View updated');
                 } else {
                     const viewId = createView(setId, name, { type: 'grid', icon, parentId });
                     closeModal('addViewModal');
                     document.getElementById('newViewName').value = '';
-                    document.getElementById('newViewIcon').value = '';
+                    document.getElementById('newViewIcon').value = normalizeIcon(VIEW_TYPE_ICONS['grid'], DEFAULT_VIEW_ICON).name;
                     state.viewEditorContext = null;
                     renderSidebar();
                     switchSet(setId, viewId);
-                    showToast('✓ View created');
+                    showToast('View created');
                 }
             };
             document.getElementById('cancelAddViewBtn').onclick = () => { state.viewEditorContext = null; closeModal('addViewModal'); };
@@ -3436,17 +3452,17 @@
             const content = document.getElementById('jsonContent').textContent;
             navigator.clipboard.writeText(content).then(() => {
                 const btn = document.getElementById('copyJsonBtn');
-                const originalText = btn.textContent;
-                btn.textContent = '✓ Copied!';
+                const originalText = btn.innerHTML;
+                btn.innerHTML = `${renderIcon({ name: 'check', weight: 'bold' }, { name: 'check', weight: 'bold' }, 'icon icon-sm')} Copied!`;
                 btn.classList.add('btn-primary');
                 btn.classList.remove('btn-secondary');
                 setTimeout(() => {
-                    btn.textContent = originalText;
+                    btn.innerHTML = originalText;
                     btn.classList.remove('btn-primary');
                     btn.classList.add('btn-secondary');
                 }, 2000);
             }).catch(err => {
-                showToast('⚠️ Failed to copy');
+                showToast('Failed to copy');
             });
         }
 
@@ -3470,13 +3486,13 @@
                 if (titleEl) titleEl.textContent = 'Edit Set';
                 if (saveBtn) saveBtn.textContent = 'Save';
                 if (nameInput) nameInput.value = set?.name || '';
-                if (iconInput) iconInput.value = set?.icon || '📊';
+                if (iconInput) iconInput.value = normalizeIcon(set?.icon || DEFAULT_SET_ICON, DEFAULT_SET_ICON).name;
             } else {
                 state.setEditorContext = null;
                 if (titleEl) titleEl.textContent = 'Create Set';
                 if (saveBtn) saveBtn.textContent = 'Create';
                 if (nameInput) nameInput.value = '';
-                if (iconInput) iconInput.value = '';
+                if (iconInput) iconInput.value = normalizeIcon(DEFAULT_SET_ICON, DEFAULT_SET_ICON).name;
             }
 
             openModal('addSetModal');
