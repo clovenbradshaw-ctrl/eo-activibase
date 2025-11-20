@@ -1011,6 +1011,7 @@
             currentUser: { type: 'Person', id: 'user_1', name: 'User' },
             operatorSet: {},
             interpretationRules: [],
+            connections: new Map(),
             sidebarCollapsed: false,
             sidebarOpenMobile: false,
             modalStack: [],
@@ -1087,6 +1088,18 @@
                     rule_id: 'rule_events_require_actor',
                     description: 'All events must be attributable to an actor.',
                     effect: 'require_actor'
+                },
+                {
+                    rule_id: 'rule_con_requires_object',
+                    applies_to_op: 'CON',
+                    description: 'Connections must reference a concrete edge object.',
+                    effect: 'require_object_id'
+                },
+                {
+                    rule_id: 'rule_con_requires_endpoints',
+                    applies_to_op: 'CON',
+                    description: 'Connections must include both source and target references.',
+                    effect: 'require_connection_endpoints'
                 },
                 {
                     rule_id: 'rule_nullify_marks_deleted',
@@ -1207,6 +1220,129 @@
                 { setId, recordId, data, summary: 'Created record' }
             );
             return recordId;
+        }
+
+        function getRecordById(recordId) {
+            for (const [setId, set] of state.sets.entries()) {
+                if (set.records.has(recordId)) {
+                    return { setId, set, record: set.records.get(recordId) };
+                }
+            }
+            return null;
+        }
+
+        function validateConnectionPayload(sourceId, targetId, metadata = {}) {
+            if (!sourceId || !targetId) {
+                throw new Error('Connections require both sourceId and targetId');
+            }
+
+            const sourceRef = getRecordById(sourceId);
+            const targetRef = getRecordById(targetId);
+
+            if (!sourceRef) throw new Error(`Source record ${sourceId} not found`);
+            if (!targetRef) throw new Error(`Target record ${targetId} not found`);
+            if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) {
+                throw new Error('Connection metadata must be an object');
+            }
+
+            return { sourceRef, targetRef, metadata };
+        }
+
+        function createConnection(sourceId, targetId, metadata = {}) {
+            const { sourceRef, targetRef, metadata: normalizedMetadata } = validateConnectionPayload(sourceId, targetId, metadata);
+            const connectionId = `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const connection = {
+                id: connectionId,
+                sourceId,
+                targetId,
+                metadata: normalizedMetadata,
+                createdAt: new Date().toISOString()
+            };
+
+            state.connections.set(connectionId, connection);
+
+            const summary = `Connected ${sourceRef.record.name || sourceId} → ${targetRef.record.name || targetId}`;
+            createEvent(
+                'Create Connection',
+                'CON',
+                { type: 'Connection', id: connectionId },
+                {
+                    edge: connection,
+                    sourceId,
+                    targetId,
+                    summary
+                },
+                { frame: 'graph', scale: 'relationship' }
+            );
+
+            return connectionId;
+        }
+
+        function updateConnection(connectionId, updates = {}) {
+            const existing = state.connections.get(connectionId);
+            if (!existing) throw new Error(`Connection ${connectionId} not found`);
+
+            const nextSourceId = updates.sourceId || existing.sourceId;
+            const nextTargetId = updates.targetId || existing.targetId;
+            const mergedMetadata = updates.metadata ? { ...existing.metadata, ...updates.metadata } : existing.metadata;
+            const { sourceRef, targetRef, metadata: normalizedMetadata } = validateConnectionPayload(nextSourceId, nextTargetId, mergedMetadata);
+
+            const updated = {
+                ...existing,
+                sourceId: nextSourceId,
+                targetId: nextTargetId,
+                metadata: normalizedMetadata,
+                updatedAt: new Date().toISOString()
+            };
+
+            const changes = {};
+            if (existing.sourceId !== nextSourceId) changes.sourceId = { from: existing.sourceId, to: nextSourceId };
+            if (existing.targetId !== nextTargetId) changes.targetId = { from: existing.targetId, to: nextTargetId };
+            if (JSON.stringify(existing.metadata) !== JSON.stringify(normalizedMetadata)) changes.metadata = { from: existing.metadata, to: normalizedMetadata };
+
+            state.connections.set(connectionId, updated);
+
+            const summary = `Updated connection ${connectionId} (${sourceRef.record.name || nextSourceId} → ${targetRef.record.name || nextTargetId})`;
+            createEvent(
+                'Update Connection',
+                'CON',
+                { type: 'Connection', id: connectionId },
+                {
+                    edge: updated,
+                    sourceId: nextSourceId,
+                    targetId: nextTargetId,
+                    changes: Object.keys(changes).length ? changes : undefined,
+                    summary
+                },
+                { frame: 'graph', scale: 'relationship' }
+            );
+
+            return updated;
+        }
+
+        function deleteConnection(connectionId) {
+            const existing = state.connections.get(connectionId);
+            if (!existing) throw new Error(`Connection ${connectionId} not found`);
+
+            const { sourceRef, targetRef } = validateConnectionPayload(existing.sourceId, existing.targetId, existing.metadata);
+            state.connections.delete(connectionId);
+
+            const summary = `Removed connection ${sourceRef.record.name || existing.sourceId} → ${targetRef.record.name || existing.targetId}`;
+            createEvent(
+                'Delete Connection',
+                'CON',
+                { type: 'Connection', id: connectionId },
+                {
+                    edge: existing,
+                    sourceId: existing.sourceId,
+                    targetId: existing.targetId,
+                    summary,
+                    deleted: true
+                },
+                { frame: 'graph', scale: 'relationship' }
+            );
+
+            return existing;
         }
 
         // SIDEBAR
@@ -2214,7 +2350,11 @@
                         appliedRules.push(rule.rule_id);
                         break;
                     case 'require_object_id':
-                        if (!event.object || !event.object.id) throw new Error('Instantiation requires an object reference with an id');
+                        if (!event.object || !event.object.id) throw new Error('Operations require an object reference with an id');
+                        appliedRules.push(rule.rule_id);
+                        break;
+                    case 'require_connection_endpoints':
+                        if (!event.data?.sourceId || !event.data?.targetId) throw new Error('Connections require both sourceId and targetId');
                         appliedRules.push(rule.rule_id);
                         break;
                     case 'mark_deleted':
@@ -2298,6 +2438,7 @@
                     views: Array.from(s.views.values()),
                     profiles: Array.from(s.profiles.values())
                 })),
+                connections: Array.from(state.connections.values()),
                 eventStream: state.eventStream
             };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -2419,6 +2560,7 @@
                             views: Array.from(s.views.values()),
                             profiles: Array.from(s.profiles.values())
                         })),
+                        connections: Array.from(state.connections.values()),
                         eventStream: state.eventStream,
                         operatorSet: state.operatorSet,
                         interpretationRules: state.interpretationRules,
@@ -2440,6 +2582,7 @@
                     break;
                 case 'current':
                     const set = getCurrentSet();
+                    const setRecordIds = set ? new Set(Array.from(set.records.keys())) : new Set();
                     data = set ? {
                         id: set.id,
                         name: set.name,
@@ -2447,7 +2590,8 @@
                         schema: set.schema,
                         records: Array.from(set.records.values()),
                         views: Array.from(set.views.values()),
-                        profiles: Array.from(set.profiles.values())
+                        profiles: Array.from(set.profiles.values()),
+                        connections: Array.from(state.connections.values()).filter(edge => setRecordIds.has(edge.sourceId) || setRecordIds.has(edge.targetId))
                     } : null;
                     break;
                 case 'events':
