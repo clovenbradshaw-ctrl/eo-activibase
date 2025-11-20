@@ -1852,9 +1852,10 @@
                     } else {
                         td.onclick = (e) => {
                             e.stopPropagation();
+                            const clickPosition = { x: e.clientX, y: e.clientY };
                             if (td._editTimer) clearTimeout(td._editTimer);
                             td._editTimer = setTimeout(() => {
-                                makeEditable(td, record.id, field);
+                                makeEditable(td, record.id, field, clickPosition);
                                 td._editTimer = null;
                             }, 180);
                         };
@@ -2108,7 +2109,7 @@
         }
 
         // CELL EDITING
-        function makeEditable(cell, recordId, field) {
+        function makeEditable(cell, recordId, field, clickPosition = null) {
             if (field.type === 'DATE') { showDatePicker(cell, recordId, field); return; }
             if (field.type === 'SINGLE_SELECT') { showSelectDropdown(cell, recordId, field); return; }
             if (field.type === 'LINK_RECORD') { showLinkedRecordDropdown(cell, recordId, field); return; }
@@ -2120,7 +2121,28 @@
             cell.contentEditable = true;
             cell.textContent = currentValue || '';
             cell.focus();
-            
+
+            if (clickPosition) {
+                const selection = window.getSelection();
+                let range = null;
+
+                if (document.caretPositionFromPoint) {
+                    const pos = document.caretPositionFromPoint(clickPosition.x, clickPosition.y);
+                    if (pos) {
+                        range = document.createRange();
+                        range.setStart(pos.offsetNode, pos.offset);
+                    }
+                } else if (document.caretRangeFromPoint) {
+                    range = document.caretRangeFromPoint(clickPosition.x, clickPosition.y);
+                }
+
+                if (range) {
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+            }
+
             const finishEdit = () => {
                 cell.contentEditable = false;
                 let newValue = cell.textContent.trim();
