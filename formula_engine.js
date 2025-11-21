@@ -13,6 +13,7 @@ class FormulaEngine {
   constructor() {
     this.fields = {};
     this.functions = this.initializeFunctions();
+    this.fieldReferenceCache = new Map();
   }
 
   /**
@@ -43,13 +44,13 @@ class FormulaEngine {
     try {
       // Replace field references {Field Name} with their values
       let processed = this.replaceFieldReferences(formula);
-      
+
       // Replace formula functions with JavaScript equivalents
       processed = this.replaceFunctionCalls(processed);
-      
+
       // Replace operators
       processed = this.replaceOperators(processed);
-      
+
       // Evaluate using Function constructor (safer than eval)
       const result = this.executeFormula(processed);
       return result;
@@ -62,30 +63,26 @@ class FormulaEngine {
    * Replace field references like {Field Name} or FieldName with their values
    */
   replaceFieldReferences(formula) {
+    const references = this.getFieldReferences(formula);
+    let result = formula;
+
     // Replace {Field Name} style references
-    let result = formula.replace(/\{([^}]+)\}/g, (match, fieldName) => {
-      const value = this.fields[fieldName];
-      return this.serializeValue(value);
+    references.braced.forEach((fieldName) => {
+      const escapedName = this.escapeRegExp(fieldName);
+      const pattern = new RegExp(`\\{${escapedName}\\}`, 'g');
+      const value = this.serializeValue(this.fields[fieldName]);
+      result = result.replace(pattern, value);
     });
 
     // Replace single-word field references (without braces)
-    // This is more complex as we need to avoid replacing function names
-    const fieldPattern = /\b([A-Za-z_][A-Za-z0-9_]*)\b/g;
-    result = result.replace(fieldPattern, (match) => {
-      // Don't replace if it's a known function
-      if (this.functions[match]) {
-        return match;
+    references.bare.forEach((fieldName) => {
+      if (!this.fields.hasOwnProperty(fieldName)) {
+        return;
       }
-      // Don't replace JavaScript keywords
-      const keywords = ['true', 'false', 'null', 'undefined', 'return', 'if', 'else', 'for', 'while'];
-      if (keywords.includes(match.toLowerCase())) {
-        return match;
-      }
-      // If it's a field, replace it
-      if (this.fields.hasOwnProperty(match)) {
-        return this.serializeValue(this.fields[match]);
-      }
-      return match;
+      const escapedName = this.escapeRegExp(fieldName);
+      const pattern = new RegExp(`\\b${escapedName}\\b`, 'g');
+      const value = this.serializeValue(this.fields[fieldName]);
+      result = result.replace(pattern, value);
     });
 
     return result;
@@ -99,7 +96,7 @@ class FormulaEngine {
       return 'null';
     }
     if (typeof value === 'string') {
-      return `"${value.replace(/"/g, '\\"')}"`;
+      return JSON.stringify(value);
     }
     if (value instanceof Date) {
       return `new Date("${value.toISOString()}")`;
@@ -142,13 +139,71 @@ class FormulaEngine {
     // Create a function that has access to all formula functions
     const functionNames = Object.keys(this.functions);
     const functionValues = Object.values(this.functions);
-    
+
+    // Shadow global objects to keep execution isolated
+    const sandboxGlobals = [
+      'window',
+      'global',
+      'globalThis',
+      'document',
+      'process',
+      'Function'
+    ];
+    const shadowDeclarations = sandboxGlobals
+      .map(name => `const ${name} = undefined;`)
+      .join(' ');
+
     const executor = new Function(
       ...functionNames,
-      `"use strict"; return (${processedFormula});`
+      `"use strict"; ${shadowDeclarations} return (${processedFormula});`
     );
-    
+
     return executor(...functionValues);
+  }
+
+  /**
+   * Parse and cache field references for reuse
+   */
+  getFieldReferences(formula) {
+    if (this.fieldReferenceCache.has(formula)) {
+      return this.fieldReferenceCache.get(formula);
+    }
+
+    const braced = new Set();
+    const bare = new Set();
+
+    // Braced references
+    const bracedMatches = formula.match(/\{([^}]+)\}/g) || [];
+    bracedMatches.forEach(match => {
+      const name = match.slice(1, -1);
+      braced.add(name);
+    });
+
+    // Bare references while excluding functions/keywords
+    const keywords = ['true', 'false', 'null', 'undefined', 'return', 'if', 'else', 'for', 'while'];
+    const fieldPattern = /\b([A-Za-z_][A-Za-z0-9_]*)\b/g;
+    let bareMatch;
+    while ((bareMatch = fieldPattern.exec(formula)) !== null) {
+      const candidate = bareMatch[1];
+      if (this.functions[candidate]) {
+        continue;
+      }
+      if (keywords.includes(candidate.toLowerCase())) {
+        continue;
+      }
+      if (braced.has(candidate)) {
+        continue;
+      }
+      bare.add(candidate);
+    }
+
+    const parsed = { braced: Array.from(braced), bare: Array.from(bare) };
+    this.fieldReferenceCache.set(formula, parsed);
+    return parsed;
+  }
+
+  escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   /**
