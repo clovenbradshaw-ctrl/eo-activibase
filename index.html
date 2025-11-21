@@ -705,10 +705,22 @@
         #addFieldModal .modal-header { padding: 16px 18px 10px 18px; }
         #addFieldModal .modal-body { padding: 16px 18px 18px 18px; }
         #addFieldModal .modal-footer { padding: 14px 18px; background: #f8fafc; }
-        .icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
-        .icon-option { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; border-radius: 10px; border: 1px solid #e5e7eb; background: #ffffff; cursor: pointer; transition: all 0.15s ease; }
-        .icon-option:hover { border-color: #d1d5db; box-shadow: 0 10px 30px rgba(0,0,0,0.04); }
-        .icon-option.active { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; }
+        .icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
+        .icon-option { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #ffffff; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+        .icon-option:hover { border-color: #cbd5e1; box-shadow: 0 6px 18px rgba(0,0,0,0.06); transform: translateY(-1px); }
+        .icon-option.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+        .icon-option .icon-chip { width: 44px; height: 44px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: #f8fafc; color: #0f172a; flex-shrink: 0; border: 1px solid #e2e8f0; }
+        .icon-option .icon-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+        .icon-option .icon-keywords { font-size: 11px; color: #64748b; display: flex; gap: 6px; flex-wrap: wrap; }
+        .icon-option .icon-keyword { background: #f8fafc; padding: 2px 6px; border-radius: 999px; border: 1px solid #e2e8f0; }
+
+        .icon-selector { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; cursor: pointer; transition: all 0.15s ease; }
+        .icon-selector:hover { border-color: #cbd5e1; background: #f1f5f9; box-shadow: inset 0 0 0 1px #e2e8f0; }
+        .icon-selector-icon { width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; color: #0f172a; }
+        .icon-selector-text { flex: 1; min-width: 0; }
+        .icon-selector-label { font-size: 13px; color: #475569; }
+        .icon-selector-token { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .icon-selector-chevron { color: #94a3b8; font-size: 12px; }
         .config-section { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease; margin-top: 0; }
         .config-section.visible { max-height: 500px; opacity: 1; margin-top: 16px; }
 
@@ -733,6 +745,7 @@
         .popup-field-card.dragging { opacity: 0.6; }
         .popup-field-card.drag-over { border-color: #1d4ed8; background: #eef2ff; }
         .popup-field-card .drag-handle { cursor: grab; color: #94a3b8; font-size: 18px; }
+        .popup-field-icon { width: 38px; height: 38px; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; color: #0f172a; }
         .popup-field-meta { flex: 1; min-width: 0; }
         .popup-field-name { font-weight: 700; color: #0f172a; display: flex; gap: 6px; align-items: center; }
         .popup-field-type { font-size: 13px; color: #64748b; }
@@ -1476,11 +1489,16 @@
                     <input type="text" id="newSetName" placeholder="e.g., Projects, Contacts">
                 </div>
                 <div>
-                    <label class="form-label">Icon (Phosphor token or emoji)</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="newSetIcon" placeholder="ph-squares-four" class="flex-1">
-                        <button id="openSetIconPickerBtn" class="btn btn-secondary btn-sm" type="button">Choose Icon</button>
+                    <label class="form-label">Icon</label>
+                    <div id="newSetIconSelector" class="icon-selector" role="button" tabindex="0">
+                        <div id="newSetIconPreview" class="icon-selector-icon" aria-hidden="true"></div>
+                        <div class="icon-selector-text">
+                            <div class="icon-selector-label">Pick a visual icon</div>
+                            <div id="newSetIconToken" class="icon-selector-token"></div>
+                        </div>
+                        <span class="icon-selector-chevron">▼</span>
                     </div>
+                    <input type="hidden" id="newSetIcon" value="ph-squares-four">
                 </div>
             </div>
             <div class="modal-footer flex justify-end gap-2">
@@ -1501,11 +1519,16 @@
                     <input type="text" id="newViewName" placeholder="e.g., Active Items">
                 </div>
                 <div>
-                    <label class="form-label">View Icon (Phosphor token or emoji)</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="newViewIcon" placeholder="ph-table" class="flex-1">
-                        <button id="openViewIconPickerBtn" class="btn btn-secondary btn-sm" type="button">Choose Icon</button>
+                    <label class="form-label">View Icon</label>
+                    <div id="newViewIconSelector" class="icon-selector" role="button" tabindex="0">
+                        <div id="newViewIconPreview" class="icon-selector-icon" aria-hidden="true"></div>
+                        <div class="icon-selector-text">
+                            <div class="icon-selector-label">Choose an icon visually</div>
+                            <div id="newViewIconToken" class="icon-selector-token"></div>
+                        </div>
+                        <span class="icon-selector-chevron">▼</span>
                     </div>
+                    <input type="hidden" id="newViewIcon" value="ph-table">
                 </div>
                 <div>
                     <label class="form-label">Nest Under</label>
@@ -1836,26 +1859,30 @@
         const VIEW_TYPE_ICONS = { grid: 'ph-table', card: 'ph-cards-three', kanban: 'ph-kanban' };
 
         const ICON_OPTIONS = [
-            { token: 'ph-squares-four', label: 'Grid' },
-            { token: 'ph-table', label: 'Table' },
-            { token: 'ph-cards-three', label: 'Cards' },
-            { token: 'ph-kanban', label: 'Kanban' },
-            { token: 'ph-list-bullets', label: 'List' },
-            { token: 'ph-folders', label: 'Folders' },
-            { token: 'ph-notebook', label: 'Notebook' },
-            { token: 'ph-clipboard-text', label: 'Notes' },
-            { token: 'ph-calendar-blank', label: 'Calendar' },
-            { token: 'ph-users-three', label: 'Team' },
-            { token: 'ph-tag', label: 'Tags' },
-            { token: 'ph-chart-line', label: 'Analytics' },
-            { token: 'ph-lightbulb', label: 'Ideas' },
-            { token: 'ph-rocket', label: 'Launch' },
-            { token: 'ph-briefcase', label: 'Work' },
-            { token: 'ph-shopping-cart', label: 'Commerce' },
-            { token: 'ph-house-line', label: 'Home' },
-            { token: 'ph-map-trifold', label: 'Map' },
-            { token: 'ph-phone', label: 'Phone' },
-            { token: 'ph-link-simple', label: 'Link' }
+            { token: 'ph-squares-four', label: 'Grid', keywords: ['dashboard', 'board', 'overview'] },
+            { token: 'ph-table', label: 'Table', keywords: ['grid', 'sheet', 'records'] },
+            { token: 'ph-cards-three', label: 'Cards', keywords: ['gallery', 'kanban', 'tiles'] },
+            { token: 'ph-kanban', label: 'Kanban', keywords: ['workflow', 'board', 'columns'] },
+            { token: 'ph-list-bullets', label: 'List', keywords: ['todo', 'tasks', 'rows'] },
+            { token: 'ph-folders', label: 'Folders', keywords: ['files', 'library', 'taxonomy'] },
+            { token: 'ph-notebook', label: 'Notebook', keywords: ['notes', 'doc', 'wiki'] },
+            { token: 'ph-clipboard-text', label: 'Brief', keywords: ['notes', 'summary', 'doc'] },
+            { token: 'ph-calendar-blank', label: 'Calendar', keywords: ['dates', 'schedule', 'events'] },
+            { token: 'ph-users-three', label: 'Team', keywords: ['people', 'collaboration', 'group'] },
+            { token: 'ph-tag', label: 'Tags', keywords: ['labels', 'categories', 'taxonomy'] },
+            { token: 'ph-chart-line', label: 'Analytics', keywords: ['metrics', 'reporting', 'dash'] },
+            { token: 'ph-lightbulb', label: 'Ideas', keywords: ['brainstorm', 'concepts', 'innovation'] },
+            { token: 'ph-rocket', label: 'Launch', keywords: ['project', 'ship', 'release'] },
+            { token: 'ph-briefcase', label: 'Work', keywords: ['portfolio', 'business', 'clients'] },
+            { token: 'ph-shopping-cart', label: 'Commerce', keywords: ['sales', 'store', 'orders'] },
+            { token: 'ph-house-line', label: 'Home', keywords: ['overview', 'landing', 'summary'] },
+            { token: 'ph-map-trifold', label: 'Map', keywords: ['location', 'routes', 'navigation'] },
+            { token: 'ph-phone', label: 'Phone', keywords: ['contact', 'call', 'support'] },
+            { token: 'ph-link-simple', label: 'Link', keywords: ['connection', 'attach', 'url'] },
+            { token: 'ph-lock-key', label: 'Permissions', keywords: ['security', 'access', 'roles'] },
+            { token: 'ph-cloud', label: 'Cloud', keywords: ['sync', 'storage', 'backup'] },
+            { token: 'ph-database', label: 'Data', keywords: ['storage', 'records', 'warehouse'] },
+            { token: 'ph-bell', label: 'Notifications', keywords: ['alerts', 'reminders', 'updates'] }
         ];
 
         function renderIcon(icon) {
@@ -1875,11 +1902,91 @@
             return trimmed;
         }
 
+        function buildIconSearchText(option) {
+            const keywords = (option.keywords || []).join(' ');
+            return `${option.label} ${option.token} ${keywords}`.toLowerCase();
+        }
+
+        function fuzzyScore(query, text) {
+            const normalizedQuery = (query || '').trim().toLowerCase();
+            if (!normalizedQuery) return 1;
+            const normalizedText = text.toLowerCase();
+            const parts = normalizedQuery.split(/\s+/).filter(Boolean);
+
+            let score = 0;
+            parts.forEach(part => {
+                if (normalizedText.includes(part)) {
+                    score += 2;
+                    return;
+                }
+
+                let lastIndex = -1;
+                let subsequenceScore = 0;
+                for (const char of part) {
+                    const idx = normalizedText.indexOf(char, lastIndex + 1);
+                    if (idx === -1) { subsequenceScore = 0; break; }
+                    const distance = lastIndex === -1 ? 0 : idx - lastIndex - 1;
+                    subsequenceScore += Math.max(0.1, 1 - distance * 0.08);
+                    lastIndex = idx;
+                }
+                if (subsequenceScore > 0) {
+                    const proximityBoost = Math.min(0.5, part.length / 12);
+                    score += (subsequenceScore / part.length) + proximityBoost;
+                }
+            });
+
+            return score / parts.length;
+        }
+
+        function findIconMeta(token) {
+            const clean = extractIconToken(token);
+            return ICON_OPTIONS.find(opt => opt.token === clean);
+        }
+
+        const ICON_SELECTOR_TARGETS = {
+            newSetIcon: { selectorId: 'newSetIconSelector', previewId: 'newSetIconPreview', tokenId: 'newSetIconToken' },
+            newViewIcon: { selectorId: 'newViewIconSelector', previewId: 'newViewIconPreview', tokenId: 'newViewIconToken' }
+        };
+
+        function syncIconSelector(inputId) {
+            const config = ICON_SELECTOR_TARGETS[inputId];
+            const input = document.getElementById(inputId);
+            if (!config || !input) return;
+            const token = extractIconToken(input.value || '');
+            const meta = findIconMeta(token);
+            const preview = document.getElementById(config.previewId);
+            if (preview) preview.innerHTML = renderIcon(token || 'ph-squares-four');
+            const tokenLabel = document.getElementById(config.tokenId);
+            if (tokenLabel) tokenLabel.textContent = meta ? `${meta.label} • ${meta.token}` : (token || 'Select an icon');
+        }
+
+        function bindIconSelector(inputId) {
+            const config = ICON_SELECTOR_TARGETS[inputId];
+            if (!config) return;
+            const selector = document.getElementById(config.selectorId);
+            if (selector) {
+                const trigger = () => openIconPicker(inputId);
+                selector.onclick = trigger;
+                selector.onkeydown = (event) => {
+                    if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+                        event.preventDefault();
+                        trigger();
+                    }
+                };
+            }
+            const input = document.getElementById(inputId);
+            if (input) input.addEventListener('change', () => syncIconSelector(inputId));
+            syncIconSelector(inputId);
+        }
+
         function openIconPicker(targetInputId) {
             state.iconPickerTarget = targetInputId;
             state.iconPickerQuery = '';
             const searchInput = document.getElementById('iconPickerSearch');
-            if (searchInput) searchInput.value = '';
+            if (searchInput) {
+                searchInput.value = '';
+                setTimeout(() => searchInput.focus(), 50);
+            }
             renderIconPickerOptions();
             openModal('iconPickerModal');
         }
@@ -1892,24 +1999,28 @@
 
             container.innerHTML = '';
 
-            const filtered = ICON_OPTIONS.filter(opt =>
-                opt.token.toLowerCase().includes(search) ||
-                opt.label.toLowerCase().includes(search)
-            );
+            const scored = ICON_OPTIONS
+                .map(opt => ({ ...opt, score: fuzzyScore(search, buildIconSearchText(opt)) }))
+                .filter(entry => entry.score > 0)
+                .sort((a, b) => b.score - a.score);
 
-            if (filtered.length === 0) {
-                container.innerHTML = '<p class="text-sm text-gray-500">No icons match your search.</p>';
+            if (scored.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-500">No icons match your search. Try a related term like “table” or “board”.</p>';
                 return;
             }
 
-            filtered.forEach(opt => {
+            scored.forEach(opt => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = `icon-option${opt.token === currentValue ? ' active' : ''}`;
+                const keywordHtml = (opt.keywords || []).map(kw => `<span class="icon-keyword">${kw}</span>`).join('');
                 btn.innerHTML = `
-                    <span class="text-2xl">${renderIcon(opt.token)}</span>
-                    <span class="text-sm font-medium">${opt.label}</span>
-                    <span class="text-xs text-gray-500">${opt.token}</span>
+                    <span class="icon-chip text-2xl">${renderIcon(opt.token)}</span>
+                    <span class="icon-copy">
+                        <span class="text-sm font-semibold">${opt.label}</span>
+                        <span class="text-xs text-gray-500">${opt.token}</span>
+                        ${keywordHtml ? `<span class="icon-keywords">${keywordHtml}</span>` : ''}
+                    </span>
                 `;
                 btn.onclick = () => selectIconFromPicker(opt.token);
                 container.appendChild(btn);
@@ -1919,7 +2030,10 @@
         function selectIconFromPicker(token) {
             if (state.iconPickerTarget) {
                 const input = document.getElementById(state.iconPickerTarget);
-                if (input) input.value = token;
+                if (input) {
+                    input.value = token;
+                    input.dispatchEvent(new Event('change'));
+                }
             }
             closeModal('iconPickerModal');
         }
@@ -2829,10 +2943,11 @@
                 if (titleEl) titleEl.textContent = 'Create View';
                 if (saveBtn) saveBtn.textContent = 'Create';
                 if (nameInput) nameInput.value = '';
-                if (iconInput) iconInput.value = '';
+                if (iconInput) iconInput.value = 'ph-table';
                 populateViewParentOptions(setId);
             }
 
+            syncIconSelector('newViewIcon');
             openModal('addViewModal');
         }
 
@@ -5066,20 +5181,23 @@
                 const rule = view.popupVisibilityRules.find(r => r.fieldId === field.id);
                 const isVisible = !rule || rule.visibility !== 'hide';
                 const hasCondition = rule?.criteria?.type && rule.criteria.type !== 'always';
+                const typeMeta = FIELD_TYPES[field.type] || {};
+                const typeLabel = typeMeta.name || field.type;
                 return `
                     <div class="popup-field-card" draggable="true" data-field-id="${field.id}">
                         <div class="drag-handle">⋮⋮</div>
+                        <div class="popup-field-icon">${renderIcon(typeMeta.icon || 'ph-app-window')}</div>
                         <div class="popup-field-meta">
                             <div class="popup-field-name">
                                 ${field.name}
                                 ${hasCondition ? '<span class="popup-badge warn">Conditional</span>' : ''}
                                 ${!isVisible ? '<span class="popup-badge warn">Hidden</span>' : ''}
                             </div>
-                            <div class="popup-field-type field-type">${field.type}</div>
+                            <div class="popup-field-type field-type">${typeLabel}</div>
                         </div>
                         <div class="flex items-center gap-2">
                             <div class="popup-toggle ${isVisible ? 'active' : ''}" onclick="togglePopupFieldVisibility('${field.id}')"></div>
-                            <button class="btn btn-secondary btn-sm" onclick="focusPopupCondition('${field.id}')">⚙️</button>
+                            <button class="btn btn-secondary btn-sm" onclick="focusPopupCondition('${field.id}')"><i class="ph ph-sliders-horizontal"></i></button>
                         </div>
                     </div>
                 `;
@@ -5703,8 +5821,8 @@
             document.getElementById('closeHistoryBtn').onclick = () => document.getElementById('historyPanel').classList.remove('open');
             document.getElementById('toggleHistorySidebarBtn').onclick = toggleRecordHistoryVisibility;
             document.getElementById('closeExpandedRecordBtn').onclick = () => closeModal('expandedRecordModal');
-            document.getElementById('openSetIconPickerBtn').onclick = () => openIconPicker('newSetIcon');
-            document.getElementById('openViewIconPickerBtn').onclick = () => openIconPicker('newViewIcon');
+            bindIconSelector('newSetIcon');
+            bindIconSelector('newViewIcon');
             document.getElementById('closeIconPickerBtn').onclick = () => closeModal('iconPickerModal');
             document.getElementById('iconPickerSearch').oninput = (event) => {
                 state.iconPickerQuery = event.target.value;
@@ -5750,7 +5868,8 @@
                     const setId = createSet(name, icon);
                     closeModal('addSetModal');
                     document.getElementById('newSetName').value = '';
-                    document.getElementById('newSetIcon').value = '';
+                    document.getElementById('newSetIcon').value = 'ph-squares-four';
+                    syncIconSelector('newSetIcon');
                     createView(setId, 'All ' + name, { type: 'grid' });
                     state.expandedSets.add(setId);
                     renderSidebar();
@@ -5788,7 +5907,8 @@
                     const viewId = createView(setId, name, { type: 'grid', icon, parentId });
                     closeModal('addViewModal');
                     document.getElementById('newViewName').value = '';
-                    document.getElementById('newViewIcon').value = '';
+                    document.getElementById('newViewIcon').value = 'ph-table';
+                    syncIconSelector('newViewIcon');
                     state.viewEditorContext = null;
                     renderSidebar();
                     switchSet(setId, viewId);
@@ -6010,9 +6130,9 @@
                 if (titleEl) titleEl.textContent = 'Create Set';
                 if (saveBtn) saveBtn.textContent = 'Create';
                 if (nameInput) nameInput.value = '';
-                if (iconInput) iconInput.value = '';
+                if (iconInput) iconInput.value = 'ph-squares-four';
             }
-
+            syncIconSelector('newSetIcon');
             openModal('addSetModal');
         }
 
