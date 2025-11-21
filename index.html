@@ -239,18 +239,46 @@
             transition: all 0.2s ease;
             position: relative;
         }
-        .cell-editable:hover {
+        .cell-editable:hover:not(.cell-editing):not(.cell-selected) {
             background: linear-gradient(to right, transparent, rgba(59, 130, 246, 0.03), transparent);
-            border-left: 2px solid rgba(59, 130, 246, 0.2);
+            cursor: pointer;
+            border-left: 2px solid rgba(59, 130, 246, 0.15);
         }
-        .cell-editable:focus {
-            outline: none;
-            background-color: #fff;
-            box-shadow: inset 0 0 0 2px #3b82f6;
-            border-radius: 4px;
+        .cell-selected {
+            outline: 2px solid #3b82f6 !important;
+            outline-offset: -2px;
+            background: #eff6ff !important;
+            position: relative;
+            z-index: 1;
         }
-        .cell-recently-changed { animation: flash-yellow 0.5s ease-out; }
+        .cell-editing {
+            outline: 2px solid #3b82f6 !important;
+            outline-offset: -2px;
+            background: white !important;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12) !important;
+            z-index: 2;
+        }
+        .cell-recently-changed { animation: none; }
         @keyframes flash-yellow { 0% { background-color: #fef3c7; } 100% { background-color: transparent; } }
+        .cell-keyboard-focus {
+            outline: 2px dashed #3b82f6;
+            outline-offset: -2px;
+        }
+        .cell-loading {
+            position: relative;
+            pointer-events: none;
+        }
+        .cell-loading::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
         
         /* TABLE HEADERS */
         .column-header {
@@ -354,8 +382,12 @@
         th .sort-indicator .direction-icon { font-size: 10px; }
 
         th .sort-indicator.muted { opacity: 0.5; }
-        tbody tr { border-bottom: 1px solid #f3f4f6; transition: background-color 0.1s ease; }
-        tbody tr:hover { background: #f9fafb; }
+        tbody tr {
+            border-bottom: 1px solid #f3f4f6;
+            transition: all 0.1s ease;
+        }
+        tbody tr:hover { background: #fafafa; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02); }
+        tbody tr:hover td:first-child { color: #3b82f6; font-weight: 700; }
         tbody tr:last-child { border-bottom: none; }
         td {
             padding: 16px;
@@ -399,6 +431,107 @@
         .record-counter {
             font-weight: 700;
             color: #111827;
+        }
+
+        /* Enhanced select dropdown */
+        .custom-select-dropdown {
+            position: absolute;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            min-width: 250px;
+            max-width: 400px;
+            max-height: 400px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .custom-select-search {
+            padding: 8px 12px;
+            border: none;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .custom-select-search:focus { border-bottom-color: #3b82f6; }
+
+        .custom-select-options { overflow-y: auto; flex: 1; }
+
+        .custom-select-option {
+            padding: 10px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .custom-select-option:hover { background: #f3f4f6; }
+        .custom-select-option.highlighted { background: #eff6ff; color: #1e40af; }
+        .custom-select-option.selected { background: #3b82f6; color: white; font-weight: 600; }
+
+        .custom-select-option-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .custom-select-option-text { flex: 1; }
+
+        .custom-select-option-badge {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .custom-select-empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: #9ca3af;
+        }
+
+        .custom-select-empty-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+            opacity: 0.5;
+        }
+
+        .custom-select-footer {
+            border-top: 1px solid #e5e7eb;
+            padding: 8px;
+            display: flex;
+            gap: 4px;
+        }
+
+        .custom-select-footer button {
+            flex: 1;
+            padding: 6px 12px;
+            font-size: 13px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .custom-select-footer button:hover { background: #f3f4f6; border-color: #d1d5db; }
+
+        .search-match {
+            background: #fef3c7;
+            font-weight: 600;
+            padding: 0 2px;
+            border-radius: 2px;
         }
 
         .table-scroll {
@@ -1432,7 +1565,10 @@
             iconPickerQuery: '',
             popupUi: { filter: 'all', activeTab: 'popupFields' },
             popupEventStream: [],
-            popupDraggedField: null
+            popupDraggedField: null,
+            selectedCell: null,
+            lastSelectedCell: null,
+            editingCell: null
         };
 
         const columnDragState = {
@@ -2347,7 +2483,13 @@
         function renderGridView() {
             const set = getCurrentSet();
             if (!set) return;
-            
+
+            const previousSelection = state.selectedCell
+                ? { recordId: state.selectedCell.recordId, fieldId: state.selectedCell.fieldId }
+                : state.lastSelectedCell;
+            state.selectedCell = null;
+            state.editingCell = null;
+
             const view = getCurrentView();
             const profile = getCurrentProfile();
             const schema = set.schema.filter(f =>
@@ -2433,28 +2575,26 @@
                     } else {
                         td.onclick = (e) => {
                             e.stopPropagation();
-                            const clickPosition = { x: e.clientX, y: e.clientY };
-                            if (td._editTimer) clearTimeout(td._editTimer);
-                            td._editTimer = setTimeout(() => {
-                                makeEditable(td, record.id, field, clickPosition);
-                                td._editTimer = null;
-                            }, 180);
+                            handleCellClick(td, record.id, field);
                         };
                         td.ondblclick = (e) => {
                             e.stopPropagation();
-                            if (td._editTimer) {
-                                clearTimeout(td._editTimer);
-                                td._editTimer = null;
-                            }
                             openExpandedRecord(record.id);
                         };
                     }
                     td.oncontextmenu = (e) => { e.preventDefault(); showCellMenu(e, record.id, field); };
                     tr.appendChild(td);
                 });
-                
+
                 tbody.appendChild(tr);
             });
+
+            if (previousSelection) {
+                const match = tbody.querySelector(`[data-record-id="${previousSelection.recordId}"][data-field-id="${previousSelection.fieldId}"]`);
+                if (match) {
+                    selectCell(match, previousSelection.recordId, previousSelection.fieldId);
+                }
+            }
         }
 
         function renderCellValue(value, field) {
@@ -2692,52 +2832,106 @@
         }
 
         // CELL EDITING
-        function makeEditable(cell, recordId, field, clickPosition = null) {
-            if (field.type === 'DATE') { showDatePicker(cell, recordId, field); return; }
-            if (field.type === 'SINGLE_SELECT') { showSelectDropdown(cell, recordId, field); return; }
-            if (field.type === 'LINK_RECORD') { showLinkedRecordDropdown(cell, recordId, field); return; }
+        function handleCellClick(td, recordId, field) {
+            if (state.editingCell && state.editingCell.td !== td) {
+                exitEditMode();
+            }
 
-            const set = getCurrentSet();
-            const record = set.records.get(recordId);
-            const currentValue = record[field.id];
-            
-            cell.contentEditable = true;
-            cell.textContent = currentValue || '';
-            cell.focus();
+            if (state.selectedCell?.td === td && state.selectedCell?.recordId === recordId) {
+                enterEditMode(td, recordId, field);
+                return;
+            }
 
-            if (clickPosition) {
-                const selection = window.getSelection();
-                let range = null;
+            selectCell(td, recordId, field.id);
+        }
 
-                if (document.caretPositionFromPoint) {
-                    const pos = document.caretPositionFromPoint(clickPosition.x, clickPosition.y);
-                    if (pos) {
-                        range = document.createRange();
-                        range.setStart(pos.offsetNode, pos.offset);
-                    }
-                } else if (document.caretRangeFromPoint) {
-                    range = document.caretRangeFromPoint(clickPosition.x, clickPosition.y);
-                }
+        function selectCell(td, recordId, fieldId) {
+            if (state.editingCell) exitEditMode();
 
-                if (range) {
-                    range.collapse(true);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
+            if (state.selectedCell?.td) {
+                state.selectedCell.td.classList.remove('cell-selected');
+                state.selectedCell.td.tabIndex = -1;
+            }
+
+            td.classList.add('cell-selected');
+            td.tabIndex = 0;
+            td.focus();
+
+            state.selectedCell = { td, recordId, fieldId };
+            state.lastSelectedCell = { recordId, fieldId };
+        }
+
+        function enterEditMode(td, recordId, field) {
+            exitEditMode(false);
+
+            td.classList.remove('cell-selected');
+            td.classList.add('cell-editing');
+            state.editingCell = { td, recordId, fieldId: field.id };
+
+            if (field.type === 'DATE') {
+                showDatePicker(td, recordId, field);
+            } else if (field.type === 'SINGLE_SELECT') {
+                showSelectDropdown(td, recordId, field);
+            } else if (field.type === 'LINK_RECORD') {
+                showLinkedRecordDropdown(td, recordId, field);
+            } else {
+                makeContentEditable(td, recordId, field);
+            }
+        }
+
+        function exitEditMode(save = true) {
+            if (!state.editingCell) return;
+
+            const { td, recordId, fieldId } = state.editingCell;
+
+            if (td.contentEditable === 'true') {
+                td.contentEditable = false;
+                if (save) {
+                    finalizeContentEdit(td, recordId, fieldId);
                 }
             }
 
-            const finishEdit = () => {
-                cell.contentEditable = false;
-                let newValue = cell.textContent.trim();
-                if (field.type === 'NUMBER' || field.type === 'CURRENCY') newValue = parseFloat(newValue) || 0;
-                if (String(newValue) !== String(currentValue)) updateRecord(recordId, field.id, newValue, currentValue);
+            td.classList.remove('cell-editing');
+            td.classList.add('cell-selected');
+            td.tabIndex = 0;
+
+            state.editingCell = null;
+            state.selectedCell = { td, recordId, fieldId };
+            state.lastSelectedCell = { recordId, fieldId };
+        }
+
+        function makeContentEditable(td, recordId, field) {
+            const set = getCurrentSet();
+            const record = set.records.get(recordId);
+            const currentValue = record[field.id];
+
+            td.contentEditable = true;
+            td.textContent = currentValue || '';
+            td.focus();
+
+            const range = document.createRange();
+            range.selectNodeContents(td);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        function finalizeContentEdit(td, recordId, fieldId) {
+            const set = getCurrentSet();
+            const record = set.records.get(recordId);
+            const field = set.schema.find(f => f.id === fieldId);
+            const currentValue = record[fieldId];
+
+            let newValue = td.textContent.trim();
+            if (field.type === 'NUMBER' || field.type === 'CURRENCY') {
+                newValue = parseFloat(newValue) || 0;
+            }
+
+            if (String(newValue) !== String(currentValue)) {
+                updateRecord(recordId, fieldId, newValue, currentValue);
+            } else {
                 renderCurrentView();
-            };
-            
-            cell.onblur = finishEdit;
-            cell.onkeydown = (e) => {
-                if (e.key === 'Enter' && field.type !== 'LONG_TEXT') { e.preventDefault(); finishEdit(); }
-            };
+            }
         }
 
         function toggleCheckbox(recordId, fieldId) {
@@ -2751,7 +2945,7 @@
             const set = getCurrentSet();
             const record = set.records.get(recordId);
             const currentValue = record[field.id];
-            
+
             const input = document.createElement('input');
             input.type = 'date';
             input.value = currentValue || '';
@@ -2760,119 +2954,209 @@
             cell.appendChild(input);
             input.focus();
             input.onblur = () => {
+                exitEditMode(false);
                 const newValue = input.value;
                 if (newValue !== currentValue) updateRecord(recordId, field.id, newValue, currentValue);
-                renderCurrentView();
+                else renderCurrentView();
             };
         }
 
-        function showSelectDropdown(cell, recordId, field) {
+        function showSelectDropdown(td, recordId, field) {
+            const options = field.config.options.map(opt => ({
+                value: opt,
+                label: opt,
+                color: field.config.colors?.[opt] || '#f3f4f6',
+                icon: ''
+            }));
+
+            showEnhancedSelectDropdown(td, recordId, field, options);
+        }
+
+        function showEnhancedSelectDropdown(td, recordId, field, options) {
             const set = getCurrentSet();
             const record = set.records.get(recordId);
             const currentValue = record[field.id];
-            
-            const rect = cell.getBoundingClientRect();
+
+            document.querySelectorAll('.custom-select-dropdown').forEach(d => d.remove());
+
             const dropdown = document.createElement('div');
-            dropdown.className = 'context-menu';
-            dropdown.style.top = `${rect.bottom + 4}px`;
+            dropdown.className = 'custom-select-dropdown';
+
+            const rect = td.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            const dropdownHeight = Math.min(400, options.length * 40 + 100);
+
+            if (spaceBelow >= dropdownHeight || spaceBelow > spaceAbove) {
+                dropdown.style.top = `${rect.bottom + 4}px`;
+            } else {
+                dropdown.style.bottom = `${window.innerHeight - rect.top + 4}px`;
+            }
             dropdown.style.left = `${rect.left}px`;
-            dropdown.style.minWidth = '200px';
-            
-            field.config.options.forEach(option => {
-                const item = document.createElement('div');
-                item.className = 'context-menu-item';
-                const color = field.config.colors[option] || 'gray';
-                item.innerHTML = `<span class="badge badge-${color}">${option}</span>`;
-                item.onclick = () => {
-                    if (option !== currentValue) updateRecord(recordId, field.id, option, currentValue);
-                    dropdown.remove();
-                    renderCurrentView();
-                };
-                dropdown.appendChild(item);
-            });
-            
+            dropdown.style.minWidth = `${rect.width}px`;
+
+            dropdown.innerHTML = `
+                <input 
+                    type="text" 
+                    class="custom-select-search" 
+                    placeholder="Search or type to filter..."
+                    autocomplete="off"
+                    spellcheck="false"
+                >
+                <div class="custom-select-options"></div>
+                <div class="custom-select-footer">
+                    <button class="clear-btn">Clear</button>
+                </div>
+            `;
+
             document.body.appendChild(dropdown);
-            setTimeout(() => {
-                document.addEventListener('click', function close(e) {
-                    if (!dropdown.contains(e.target)) { dropdown.remove(); document.removeEventListener('click', close); }
+
+            const searchInput = dropdown.querySelector('.custom-select-search');
+            const optionsContainer = dropdown.querySelector('.custom-select-options');
+            const clearBtn = dropdown.querySelector('.clear-btn');
+
+            let highlightedIndex = -1;
+            let filteredOptions = [...options];
+
+            function updateHighlight() {
+                optionsContainer.querySelectorAll('.custom-select-option').forEach((el, i) => {
+                    el.classList.toggle('highlighted', i === highlightedIndex);
                 });
-            }, 0);
-        }
-
-        function showLinkedRecordDropdown(cell, recordId, field) {
-            const set = getCurrentSet();
-            const record = set.records.get(recordId);
-            const currentValue = record[field.id];
-            const linkedSet = getLinkedSet(field);
-            const options = createLinkedRecordOptionList(field);
-
-            cell.innerHTML = '';
-
-            const searchInput = document.createElement('input');
-            searchInput.type = 'text';
-            searchInput.placeholder = 'Search linked records...';
-            searchInput.className = 'w-full mb-2 px-2 py-1 border rounded text-sm';
-
-            const select = document.createElement('select');
-            select.className = 'w-full px-2 py-1 border rounded';
-            select.innerHTML = '<option value="">Select a record</option>';
-
-            const renderOptions = (query = '') => {
-                const normalizedQuery = query.trim().toLowerCase();
-                const filtered = options.filter(opt => opt.label.toLowerCase().includes(normalizedQuery));
-                const previousValue = select.value;
-
-                select.innerHTML = '<option value="">Select a record</option>';
-
-                if (filtered.length === 0) {
-                    const placeholder = document.createElement('option');
-                    placeholder.disabled = true;
-                    placeholder.textContent = 'No matches';
-                    select.appendChild(placeholder);
-                    select.value = '';
-                } else {
-                    filtered.forEach(opt => {
-                        const option = document.createElement('option');
-                        option.value = opt.id;
-                        option.textContent = opt.label;
-                        select.appendChild(option);
-                    });
-
-                    const stillExists = filtered.some(opt => opt.id === previousValue);
-                    select.value = stillExists ? previousValue : (currentValue || '');
-                }
-
-                select.disabled = !linkedSet || options.length === 0 || filtered.length === 0;
-                searchInput.disabled = !linkedSet || options.length === 0;
-            };
-
-            renderOptions();
-
-            searchInput.oninput = () => renderOptions(searchInput.value);
-
-            select.onchange = () => {
-                const newValue = select.value;
-                if (newValue !== currentValue) updateRecord(recordId, field.id, newValue, currentValue);
-                renderCurrentView();
-            };
-
-            select.onblur = () => {
-                renderCurrentView();
-            };
-
-            cell.appendChild(searchInput);
-            cell.appendChild(select);
-
-            if (!linkedSet || options.length === 0) {
-                const note = document.createElement('div');
-                note.className = 'text-xs text-gray-500 mt-1';
-                note.textContent = linkedSet
-                    ? 'Add records to the linked set to choose one.'
-                    : 'Select a set to link to in the field configuration.';
-                cell.appendChild(note);
             }
 
-            select.focus();
+            function scrollToHighlighted() {
+                const highlighted = optionsContainer.querySelector('.highlighted');
+                if (highlighted) {
+                    highlighted.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+            }
+
+            function selectOption(value) {
+                if (value !== currentValue) {
+                    updateRecord(recordId, field.id, value, currentValue);
+                }
+                dropdown.remove();
+                exitEditMode();
+            }
+
+            function renderOptions(query = '') {
+                filteredOptions = query.trim() === ''
+                    ? [...options]
+                    : options.filter(opt => opt.label.toLowerCase().includes(query.toLowerCase()));
+
+                if (filteredOptions.length === 0) {
+                    optionsContainer.innerHTML = `
+                        <div class="custom-select-empty">
+                            <div class="custom-select-empty-icon">🔍</div>
+                            <div>No matches found</div>
+                            <div style="font-size: 12px; margin-top: 4px;">Try a different search term</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                optionsContainer.innerHTML = filteredOptions.map((opt, index) => {
+                    const isSelected = opt.value === currentValue;
+                    const isHighlighted = index === highlightedIndex;
+
+                    let displayLabel = opt.label;
+                    if (query.trim() !== '') {
+                        const regex = new RegExp(`(${query})`, 'gi');
+                        displayLabel = opt.label.replace(regex, '<span class="search-match">$1</span>');
+                    }
+
+                    return `
+                        <div 
+                            class="custom-select-option ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}"
+                            data-value="${opt.value}"
+                            data-index="${index}"
+                        >
+                            <div class="custom-select-option-icon" style="background: ${opt.color || '#f3f4f6'}">
+                                ${opt.icon || ''}
+                            </div>
+                            <div class="custom-select-option-text">${displayLabel}</div>
+                            ${isSelected ? '<span class="custom-select-option-badge">Current</span>' : ''}
+                        </div>
+                    `;
+                }).join('');
+
+                optionsContainer.querySelectorAll('.custom-select-option').forEach(el => {
+                    el.onclick = () => selectOption(el.dataset.value);
+                    el.onmouseenter = () => {
+                        highlightedIndex = parseInt(el.dataset.index);
+                        updateHighlight();
+                    };
+                });
+            }
+
+            searchInput.oninput = (e) => {
+                highlightedIndex = 0;
+                renderOptions(e.target.value);
+            };
+
+            searchInput.onkeydown = (e) => {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    highlightedIndex = Math.min(highlightedIndex + 1, filteredOptions.length - 1);
+                    updateHighlight();
+                    scrollToHighlighted();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    highlightedIndex = Math.max(highlightedIndex - 1, 0);
+                    updateHighlight();
+                    scrollToHighlighted();
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+                        selectOption(filteredOptions[highlightedIndex].value);
+                    }
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    dropdown.remove();
+                    exitEditMode(false);
+                }
+            };
+
+            clearBtn.onclick = () => {
+                selectOption('');
+            };
+
+            setTimeout(() => {
+                document.addEventListener('click', function closeDropdown(e) {
+                    if (!dropdown.contains(e.target) && e.target !== td) {
+                        dropdown.remove();
+                        exitEditMode(false);
+                        document.removeEventListener('click', closeDropdown);
+                    }
+                });
+            }, 0);
+
+            renderOptions();
+            searchInput.focus();
+        }
+
+        function showLinkedRecordDropdown(td, recordId, field) {
+            const linkedSet = getLinkedSet(field);
+            if (!linkedSet) {
+                showToast('⚠️ Configure linked set first');
+                exitEditMode(false);
+                return;
+            }
+
+            const options = Array.from(linkedSet.records.values()).map(rec => ({
+                value: rec.id,
+                label: rec.name || rec.id,
+                icon: '🔗',
+                color: '#e0f2fe'
+            }));
+
+            if (options.length === 0) {
+                showToast('⚠️ No records in linked set');
+                exitEditMode(false);
+                return;
+            }
+
+            showEnhancedSelectDropdown(td, recordId, field, options);
         }
 
         function filterLinkedRecordSelect(selectId, query) {
@@ -4955,6 +5239,18 @@
         function setupKeyboardShortcuts() {
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
+                    if (state.editingCell) {
+                        exitEditMode(false);
+                        return;
+                    }
+
+                    if (state.selectedCell) {
+                        state.selectedCell.td.classList.remove('cell-selected');
+                        state.selectedCell = null;
+                        state.lastSelectedCell = null;
+                        return;
+                    }
+
                     const openMenus = document.querySelectorAll('.context-menu');
                     if (openMenus.length) {
                         openMenus.forEach(menu => menu.remove());
@@ -4965,7 +5261,54 @@
                         closeModal(state.modalStack[state.modalStack.length - 1]);
                     }
                 }
+
+                if (e.key === 'Enter' && state.selectedCell && !state.editingCell) {
+                    e.preventDefault();
+                    const { td, recordId, fieldId } = state.selectedCell;
+                    const set = getCurrentSet();
+                    const field = set?.schema.find(f => f.id === fieldId);
+                    if (field) enterEditMode(td, recordId, field);
+                }
+
+                if (e.key === 'Tab' && state.selectedCell && !state.editingCell) {
+                    e.preventDefault();
+                    navigateToNextCell(e.shiftKey ? -1 : 1);
+                }
             });
+        }
+
+        function navigateToNextCell(direction) {
+            if (!state.selectedCell) return;
+
+            const currentTd = state.selectedCell.td;
+            const row = currentTd.parentElement;
+            const cells = Array.from(row.querySelectorAll('.cell-editable'));
+            const currentIndex = cells.indexOf(currentTd);
+
+            const nextIndex = currentIndex + direction;
+            if (nextIndex >= 0 && nextIndex < cells.length) {
+                const nextTd = cells[nextIndex];
+                const recordId = nextTd.dataset.recordId;
+                const fieldId = nextTd.dataset.fieldId;
+                selectCell(nextTd, recordId, fieldId);
+                return;
+            }
+
+            const tbody = row.parentElement;
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const rowIndex = rows.indexOf(row);
+            const nextRowIndex = direction > 0 ? rowIndex + 1 : rowIndex - 1;
+
+            if (nextRowIndex >= 0 && nextRowIndex < rows.length) {
+                const nextRow = rows[nextRowIndex];
+                const targetIndex = direction > 0 ? 0 : cells.length - 1;
+                const nextTd = nextRow.querySelectorAll('.cell-editable')[targetIndex];
+                if (nextTd) {
+                    const recordId = nextTd.dataset.recordId;
+                    const fieldId = nextTd.dataset.fieldId;
+                    selectCell(nextTd, recordId, fieldId);
+                }
+            }
         }
 
         function openAddSetModal(setId = null) {
