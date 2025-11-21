@@ -1453,7 +1453,16 @@
                 <div id="formulaFieldConfig" class="config-section">
                     <div class="bg-sky-50 border border-sky-200 rounded-lg p-4">
                         <label class="form-label">Formula</label>
-                        <textarea id="formulaExpression" rows="3" placeholder="e.g., {budget} * 1.1"></textarea>
+                        <div class="space-y-2">
+                            <textarea id="formulaExpression" rows="3" placeholder="e.g., {budget} * 1.1"></textarea>
+                            <div class="flex items-center gap-2">
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="launchFormulaEditorFromConfig()">
+                                    <i class="ph ph-magic-wand"></i>
+                                    Open Formula Editor
+                                </button>
+                                <span class="text-xs text-gray-600">Autocomplete, validation, and preview included.</span>
+                            </div>
+                        </div>
                         <p class="form-hint">Compose expressions using the JavaScript-style formula rules defined in the repo's formula engine.</p>
                     </div>
                 </div>
@@ -1750,7 +1759,32 @@
             editingCell: null,
             csvImportState: { headers: [], rows: [], mappings: {}, previewRows: [], matches: [] },
             fuzzyPanelState: { threshold: 0.65, matches: [] },
-            formulaFieldService: null
+            formulaFieldService: null,
+            formulaEditor: {
+                isOpen: false,
+                fieldId: null,
+                currentFormula: '',
+                cursorPosition: 0,
+                autocomplete: {
+                    isVisible: false,
+                    items: [],
+                    selectedIndex: 0,
+                    trigger: null,
+                    filterText: ''
+                },
+                validation: {
+                    isValid: true,
+                    errors: [],
+                    warnings: []
+                },
+                preview: {
+                    result: null,
+                    error: null
+                },
+                mode: 'code',
+                visualBlocks: [],
+                onSave: null
+            }
         };
 
         const columnDragState = {
@@ -1770,6 +1804,415 @@
         function clampColumnWidth(width) {
             if (isNaN(width)) return 150;
             return Math.min(COLUMN_WIDTH_MAX, Math.max(COLUMN_WIDTH_MIN, width));
+        }
+
+        const formulaEditorCSS = `
+            .formula-editor-modal {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.4);
+                backdrop-filter: blur(4px);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            }
+
+            .formula-editor-container {
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                width: 90%;
+                max-width: 900px;
+                max-height: 90vh;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+
+            .formula-editor-header {
+                padding: 20px 24px;
+                border-bottom: 1px solid #e5e7eb;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .formula-editor-tabs {
+                display: flex;
+                gap: 4px;
+                border-bottom: 1px solid #e5e7eb;
+                padding: 0 24px;
+            }
+
+            .formula-editor-tab {
+                padding: 12px 16px;
+                border: none;
+                background: transparent;
+                cursor: pointer;
+                font-weight: 500;
+                color: #6b7280;
+                border-bottom: 2px solid transparent;
+                transition: all 0.15s;
+            }
+
+            .formula-editor-tab:hover {
+                color: #111827;
+                background: #f9fafb;
+            }
+
+            .formula-editor-tab.active {
+                color: #3b82f6;
+                border-bottom-color: #3b82f6;
+            }
+
+            .formula-editor-body {
+                flex: 1;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .formula-input-wrapper {
+                position: relative;
+                padding: 16px 24px;
+                border-bottom: 1px solid #e5e7eb;
+            }
+
+            .formula-input {
+                width: 100%;
+                min-height: 120px;
+                padding: 12px;
+                border: 2px solid #e5e7eb;
+                border-radius: 8px;
+                font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                font-size: 14px;
+                line-height: 1.6;
+                resize: vertical;
+                transition: border-color 0.15s;
+            }
+
+            .formula-input:focus {
+                outline: none;
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            }
+
+            .formula-input.error {
+                border-color: #ef4444;
+            }
+
+            .formula-autocomplete {
+                position: absolute;
+                background: white;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+                max-height: 300px;
+                overflow-y: auto;
+                z-index: 1001;
+                min-width: 280px;
+            }
+
+            .autocomplete-item {
+                padding: 10px 14px;
+                cursor: pointer;
+                transition: background 0.1s;
+                border-bottom: 1px solid #f3f4f6;
+            }
+
+            .autocomplete-item:last-child {
+                border-bottom: none;
+            }
+
+            .autocomplete-item:hover {
+                background: #f9fafb;
+            }
+
+            .autocomplete-item.selected {
+                background: #eff6ff;
+                color: #1e40af;
+            }
+
+            .autocomplete-item-main {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-weight: 600;
+                margin-bottom: 4px;
+            }
+
+            .autocomplete-item-icon {
+                width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 4px;
+                font-size: 12px;
+            }
+
+            .autocomplete-item-icon.field {
+                background: #dbeafe;
+                color: #1e40af;
+            }
+
+            .autocomplete-item-icon.function {
+                background: #fef3c7;
+                color: #92400e;
+            }
+
+            .autocomplete-item-description {
+                font-size: 12px;
+                color: #6b7280;
+                line-height: 1.4;
+            }
+
+            .autocomplete-item-syntax {
+                font-size: 11px;
+                font-family: 'Monaco', 'Menlo', monospace;
+                color: #3b82f6;
+                margin-top: 4px;
+            }
+
+            .formula-validation {
+                padding: 12px 24px;
+                border-bottom: 1px solid #e5e7eb;
+            }
+
+            .validation-message {
+                display: flex;
+                align-items: start;
+                gap: 8px;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 13px;
+                margin-bottom: 8px;
+            }
+
+            .validation-message:last-child {
+                margin-bottom: 0;
+            }
+
+            .validation-message.error {
+                background: #fee2e2;
+                color: #991b1b;
+                border: 1px solid #fecaca;
+            }
+
+            .validation-message.warning {
+                background: #fef3c7;
+                color: #92400e;
+                border: 1px solid #fde68a;
+            }
+
+            .validation-message.success {
+                background: #d1fae5;
+                color: #065f46;
+                border: 1px solid #a7f3d0;
+            }
+
+            .formula-preview {
+                padding: 16px 24px;
+                background: #f9fafb;
+                border-bottom: 1px solid #e5e7eb;
+            }
+
+            .preview-label {
+                font-size: 12px;
+                font-weight: 600;
+                color: #6b7280;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin-bottom: 8px;
+            }
+
+            .preview-result {
+                padding: 12px;
+                background: white;
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                font-family: 'Monaco', 'Menlo', monospace;
+                font-size: 14px;
+                color: #111827;
+            }
+
+            .preview-error {
+                color: #dc2626;
+            }
+
+            .formula-helpers {
+                flex: 1;
+                overflow-y: auto;
+                padding: 16px 24px;
+            }
+
+            .helper-section {
+                margin-bottom: 24px;
+            }
+
+            .helper-section-title {
+                font-weight: 600;
+                font-size: 14px;
+                color: #111827;
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .helper-items {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 8px;
+            }
+
+            .helper-item {
+                padding: 8px 12px;
+                background: #f9fafb;
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: all 0.15s;
+                font-size: 13px;
+            }
+
+            .helper-item:hover {
+                background: #eff6ff;
+                border-color: #3b82f6;
+                color: #1e40af;
+            }
+
+            .helper-item-name {
+                font-weight: 600;
+                margin-bottom: 4px;
+            }
+
+            .helper-item-desc {
+                font-size: 11px;
+                color: #6b7280;
+            }
+
+            .formula-editor-footer {
+                padding: 16px 24px;
+                border-top: 1px solid #e5e7eb;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .formula-shortcuts {
+                display: flex;
+                gap: 16px;
+                font-size: 12px;
+                color: #6b7280;
+            }
+
+            .shortcut-hint {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+
+            .shortcut-key {
+                padding: 2px 6px;
+                background: #f3f4f6;
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
+                font-family: monospace;
+                font-size: 11px;
+            }
+
+            .visual-formula-builder {
+                padding: 24px;
+            }
+
+            .formula-blocks {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .formula-block {
+                background: white;
+                border: 2px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 16px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .formula-block-type {
+                padding: 4px 8px;
+                background: #f3f4f6;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: 600;
+                text-transform: uppercase;
+                color: #6b7280;
+            }
+
+            .formula-block-content {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .formula-block select,
+            .formula-block input {
+                padding: 6px 10px;
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+
+            .formula-block-actions {
+                display: flex;
+                gap: 4px;
+            }
+
+            .formula-block-action {
+                padding: 6px;
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                color: #6b7280;
+                transition: color 0.15s;
+            }
+
+            .formula-block-action:hover {
+                color: #111827;
+            }
+
+            .formula-block-action.delete:hover {
+                color: #dc2626;
+            }
+
+            .add-block-btn {
+                padding: 12px;
+                border: 2px dashed #d1d5db;
+                border-radius: 8px;
+                background: transparent;
+                color: #6b7280;
+                cursor: pointer;
+                transition: all 0.15s;
+                font-weight: 500;
+            }
+
+            .add-block-btn:hover {
+                border-color: #3b82f6;
+                color: #3b82f6;
+                background: #eff6ff;
+            }
+        `;
+
+        if (!document.getElementById('formulaEditorStyles')) {
+            const style = document.createElement('style');
+            style.id = 'formulaEditorStyles';
+            style.textContent = formulaEditorCSS;
+            document.head.appendChild(style);
         }
 
         function getFieldWidth(field) {
@@ -1816,6 +2259,791 @@
             record.__formulaMeta = record.__formulaMeta || {};
             record.__formulaMeta[field.id] = evaluation;
             record[field.id] = evaluation.success ? evaluation.result : '';
+        }
+
+        function getFormulaSpec() {
+            return window.FormulaLanguageSpec || { functions: {}, operators: [] };
+        }
+
+        function openFormulaEditor(fieldId = null, onSave = null) {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            const field = fieldId ? set.schema.find(f => f.id === fieldId) : null;
+
+            state.formulaEditor = {
+                ...state.formulaEditor,
+                isOpen: true,
+                fieldId,
+                currentFormula: field?.config?.formula || document.getElementById('formulaExpression')?.value || '',
+                cursorPosition: 0,
+                autocomplete: {
+                    isVisible: false,
+                    items: [],
+                    selectedIndex: 0,
+                    trigger: null,
+                    filterText: ''
+                },
+                validation: {
+                    isValid: true,
+                    errors: [],
+                    warnings: []
+                },
+                preview: {
+                    result: null,
+                    error: null
+                },
+                mode: 'code',
+                onSave,
+                visualBlocks: field?.config?.visualBlocks || []
+            };
+
+            renderFormulaEditor();
+        }
+
+        function renderFormulaEditor() {
+            const modal = `
+                <div class="formula-editor-modal" id="formulaEditorModal">
+                    <div class="formula-editor-container">
+                        <div class="formula-editor-header">
+                            <div>
+                                <h2 class="text-xl font-bold">Formula Editor</h2>
+                                <p class="text-sm text-gray-600 mt-1">Build formulas with autocomplete and live preview</p>
+                            </div>
+                            <button onclick="closeFormulaEditor()" class="text-gray-400 hover:text-gray-600">
+                                <i class="ph ph-x text-xl"></i>
+                            </button>
+                        </div>
+                        <div class="formula-editor-tabs">
+                            <button 
+                                class="formula-editor-tab ${state.formulaEditor.mode === 'code' ? 'active' : ''}"
+                                onclick="switchFormulaMode('code')"
+                            >
+                                <i class="ph ph-code"></i>
+                                Code Editor
+                            </button>
+                            <button 
+                                class="formula-editor-tab ${state.formulaEditor.mode === 'visual' ? 'active' : ''}"
+                                onclick="switchFormulaMode('visual')"
+                            >
+                                <i class="ph ph-flow-arrow"></i>
+                                Visual Builder
+                            </button>
+                            <button 
+                                class="formula-editor-tab"
+                                onclick="showFormulaExamples()"
+                            >
+                                <i class="ph ph-lightbulb"></i>
+                                Examples
+                            </button>
+                        </div>
+                        <div class="formula-editor-body">
+                            ${state.formulaEditor.mode === 'code' ? renderCodeEditor() : renderVisualBuilder()}
+                        </div>
+                        <div class="formula-editor-footer">
+                            <div class="formula-shortcuts">
+                                <div class="shortcut-hint">
+                                    <span class="shortcut-key">{</span>
+                                    <span>Field reference</span>
+                                </div>
+                                <div class="shortcut-hint">
+                                    <span class="shortcut-key">Ctrl+Space</span>
+                                    <span>Functions</span>
+                                </div>
+                                <div class="shortcut-hint">
+                                    <span class="shortcut-key">Tab</span>
+                                    <span>Accept suggestion</span>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="closeFormulaEditor()" class="btn btn-secondary">Cancel</button>
+                                <button onclick="saveFormula()" class="btn btn-primary">Save Formula</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('formulaEditorModal')?.remove();
+            document.body.insertAdjacentHTML('beforeend', modal);
+
+            setTimeout(() => {
+                const input = document.getElementById('formulaInput');
+                if (input) {
+                    input.focus();
+                    input.setSelectionRange(state.formulaEditor.currentFormula.length, state.formulaEditor.currentFormula.length);
+                }
+            }, 100);
+        }
+
+        function renderCodeEditor() {
+            const validation = state.formulaEditor.validation;
+            const preview = state.formulaEditor.preview;
+
+            return `
+                <div class="formula-input-wrapper">
+                    <textarea
+                        id="formulaInput"
+                        class="formula-input ${!validation.isValid ? 'error' : ''}"
+                        placeholder="Enter your formula... Type { for field references or Ctrl+Space for functions"
+                        oninput="handleFormulaInput(event)"
+                        onkeydown="handleFormulaKeydown(event)"
+                    >${state.formulaEditor.currentFormula}</textarea>
+                    ${state.formulaEditor.autocomplete.isVisible ? renderAutocomplete() : ''}
+                </div>
+                ${validation.errors.length > 0 || validation.warnings.length > 0 ? `
+                    <div class="formula-validation">
+                        ${validation.errors.map(error => `
+                            <div class="validation-message error">
+                                <i class="ph ph-warning-circle"></i>
+                                <span>${error}</span>
+                            </div>
+                        `).join('')}
+                        ${validation.warnings.map(warning => `
+                            <div class="validation-message warning">
+                                <i class="ph ph-warning"></i>
+                                <span>${warning}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                ${state.formulaEditor.currentFormula ? `
+                    <div class="formula-preview">
+                        <div class="preview-label">Preview</div>
+                        <div class="preview-result ${preview.error ? 'preview-error' : ''}">
+                            ${preview.error || preview.result || 'Enter a formula to see preview'}
+                        </div>
+                    </div>
+                ` : ''}
+                <div class="formula-helpers">
+                    ${renderFormulaHelpers()}
+                </div>
+            `;
+        }
+
+        function renderAutocomplete() {
+            const { items, selectedIndex } = state.formulaEditor.autocomplete;
+            if (!items.length) return '';
+
+            const input = document.getElementById('formulaInput');
+            if (!input) return '';
+
+            return `
+                <div class="formula-autocomplete" id="autocompleteMenu" style="top: 140px; left: 36px;">
+                    ${items.map((item, index) => `
+                        <div class="autocomplete-item ${index === selectedIndex ? 'selected' : ''}" onclick="selectAutocompleteItem(${index})">
+                            <div class="autocomplete-item-main">
+                                <div class="autocomplete-item-icon ${item.type}">
+                                    ${item.type === 'field' ? '📋' : 'ƒ'}
+                                </div>
+                                <span>${item.name}</span>
+                            </div>
+                            ${item.description ? `<div class="autocomplete-item-description">${item.description}</div>` : ''}
+                            ${item.syntax ? `<div class="autocomplete-item-syntax">${item.syntax}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderFormulaHelpers() {
+            const set = getCurrentSet();
+            if (!set) return '';
+
+            return `
+                <div class="helper-section">
+                    <div class="helper-section-title">
+                        <i class="ph ph-file-text text-blue-600"></i>
+                        <span>Available Fields</span>
+                    </div>
+                    <div class="helper-items">
+                        ${set.schema.map(field => `
+                            <div class="helper-item" onclick="insertField('${field.id}')">
+                                <div class="helper-item-name">{${field.name}}</div>
+                                <div class="helper-item-desc">${field.type}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="helper-section">
+                    <div class="helper-section-title">
+                        <i class="ph ph-function text-yellow-600"></i>
+                        <span>Common Functions</span>
+                    </div>
+                    <div class="helper-items">
+                        ${renderCommonFunctions()}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCommonFunctions() {
+            const common = [
+                { name: 'IF', syntax: 'IF(condition, value1, value2)', desc: 'Conditional logic' },
+                { name: 'SUM', syntax: 'SUM(number1, number2, ...)', desc: 'Add numbers' },
+                { name: 'CONCATENATE', syntax: 'CONCATENATE(text1, text2, ...)', desc: 'Join text' },
+                { name: 'DATESTR', syntax: 'DATESTR(date)', desc: 'Format date' },
+                { name: 'ROUND', syntax: 'ROUND(value, precision)', desc: 'Round number' },
+                { name: 'UPPER', syntax: 'UPPER(text)', desc: 'Uppercase text' }
+            ];
+
+            return common.map(fn => `
+                <div class="helper-item" onclick="insertFunction('${fn.syntax}')">
+                    <div class="helper-item-name">${fn.name}</div>
+                    <div class="helper-item-desc">${fn.desc}</div>
+                </div>
+            `).join('');
+        }
+
+        function handleFormulaInput(event) {
+            const input = event.target;
+            const value = input.value;
+            const cursorPos = input.selectionStart;
+
+            state.formulaEditor.currentFormula = value;
+            state.formulaEditor.cursorPosition = cursorPos;
+
+            checkAutocompleteTrigger(value, cursorPos);
+            validateFormula(value);
+            updateFormulaPreview(value);
+            renderFormulaEditor();
+        }
+
+        function checkAutocompleteTrigger(formula, cursorPos) {
+            const beforeCursor = formula.substring(0, cursorPos);
+            const fieldMatch = beforeCursor.match(/\{([^}]*)$/);
+            if (fieldMatch) {
+                const filterText = fieldMatch[1];
+                showFieldAutocomplete(filterText);
+                return;
+            }
+
+            const functionMatch = beforeCursor.match(/([A-Z_]+)\(([^)]*)$/i);
+            if (functionMatch) {
+                const functionName = functionMatch[1];
+                showFunctionAutocomplete(functionName);
+                return;
+            }
+
+            state.formulaEditor.autocomplete.isVisible = false;
+        }
+
+        function showFieldAutocomplete(filterText) {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            const fields = set.schema.filter(field =>
+                field.name.toLowerCase().includes(filterText.toLowerCase())
+            );
+
+            state.formulaEditor.autocomplete = {
+                isVisible: fields.length > 0,
+                items: fields.map(field => ({
+                    type: 'field',
+                    name: field.name,
+                    value: `{${field.name}}`,
+                    description: `${field.type} field`,
+                    syntax: null
+                })),
+                selectedIndex: 0,
+                trigger: 'field',
+                filterText
+            };
+        }
+
+        function showFunctionAutocomplete(functionName) {
+            const functions = [];
+            Object.values(getFormulaSpec().functions || {}).forEach(category => {
+                category.forEach(fn => {
+                    if (fn.name.toLowerCase().includes((functionName || '').toLowerCase())) {
+                        functions.push({
+                            type: 'function',
+                            name: fn.name,
+                            value: fn.syntax,
+                            description: fn.description,
+                            syntax: fn.syntax
+                        });
+                    }
+                });
+            });
+
+            state.formulaEditor.autocomplete = {
+                isVisible: functions.length > 0,
+                items: functions,
+                selectedIndex: 0,
+                trigger: 'function',
+                filterText: functionName
+            };
+        }
+
+        function handleFormulaKeydown(event) {
+            const autocomplete = state.formulaEditor.autocomplete;
+
+            if (!autocomplete.isVisible) {
+                if (event.key === ' ' && event.ctrlKey) {
+                    event.preventDefault();
+                    showFunctionAutocomplete('');
+                    renderFormulaEditor();
+                }
+                return;
+            }
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                autocomplete.selectedIndex = Math.min(
+                    autocomplete.selectedIndex + 1,
+                    autocomplete.items.length - 1
+                );
+                renderFormulaEditor();
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                autocomplete.selectedIndex = Math.max(autocomplete.selectedIndex - 1, 0);
+                renderFormulaEditor();
+            } else if (event.key === 'Enter' || event.key === 'Tab') {
+                event.preventDefault();
+                selectAutocompleteItem(autocomplete.selectedIndex);
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                autocomplete.isVisible = false;
+                renderFormulaEditor();
+            }
+        }
+
+        function selectAutocompleteItem(index) {
+            const autocomplete = state.formulaEditor.autocomplete;
+            const item = autocomplete.items[index];
+            if (!item) return;
+
+            const input = document.getElementById('formulaInput');
+            if (!input) return;
+
+            const formula = state.formulaEditor.currentFormula;
+            const cursorPos = state.formulaEditor.cursorPosition;
+
+            let newFormula = formula;
+            let newCursorPos = cursorPos;
+
+            if (autocomplete.trigger === 'field') {
+                const beforeCursor = formula.substring(0, cursorPos);
+                const afterCursor = formula.substring(cursorPos);
+                const match = beforeCursor.match(/\{([^}]*)$/);
+
+                if (match) {
+                    const startPos = beforeCursor.length - match[0].length;
+                    newFormula = formula.substring(0, startPos) + item.value + afterCursor;
+                    newCursorPos = startPos + item.value.length;
+                }
+            } else if (autocomplete.trigger === 'function') {
+                const beforeCursor = formula.substring(0, cursorPos);
+                const afterCursor = formula.substring(cursorPos);
+                const match = beforeCursor.match(/([A-Z_]+)\(([^)]*)$/i);
+
+                if (match) {
+                    const startPos = beforeCursor.length - match[0].length;
+                    newFormula = formula.substring(0, startPos) + item.syntax + afterCursor;
+                    newCursorPos = startPos + item.name.length + 1;
+                }
+            }
+
+            state.formulaEditor.currentFormula = newFormula;
+            state.formulaEditor.cursorPosition = newCursorPos;
+            state.formulaEditor.autocomplete.isVisible = false;
+
+            renderFormulaEditor();
+
+            setTimeout(() => {
+                input.focus();
+                input.setSelectionRange(newCursorPos, newCursorPos);
+            }, 0);
+        }
+
+        function insertField(fieldId) {
+            const set = getCurrentSet();
+            if (!set) return;
+            const field = set.schema.find(f => f.id === fieldId);
+            if (!field) return;
+
+            const input = document.getElementById('formulaInput');
+            const cursorPos = input?.selectionStart ?? state.formulaEditor.cursorPosition;
+            const formula = state.formulaEditor.currentFormula;
+
+            const insertion = `{${field.name}}`;
+            const newFormula = formula.substring(0, cursorPos) + insertion + formula.substring(cursorPos);
+
+            state.formulaEditor.currentFormula = newFormula;
+            state.formulaEditor.cursorPosition = cursorPos + insertion.length;
+
+            renderFormulaEditor();
+
+            setTimeout(() => {
+                const activeInput = document.getElementById('formulaInput');
+                if (activeInput) {
+                    activeInput.focus();
+                    activeInput.setSelectionRange(state.formulaEditor.cursorPosition, state.formulaEditor.cursorPosition);
+                }
+            }, 0);
+        }
+
+        function insertFunction(syntax) {
+            const input = document.getElementById('formulaInput');
+            const cursorPos = input?.selectionStart ?? state.formulaEditor.cursorPosition;
+            const formula = state.formulaEditor.currentFormula;
+
+            const newFormula = formula.substring(0, cursorPos) + syntax + formula.substring(cursorPos);
+            const firstParenPos = syntax.indexOf('(') + 1;
+            const newCursorPos = cursorPos + firstParenPos;
+
+            state.formulaEditor.currentFormula = newFormula;
+            state.formulaEditor.cursorPosition = newCursorPos;
+
+            renderFormulaEditor();
+
+            setTimeout(() => {
+                const activeInput = document.getElementById('formulaInput');
+                if (activeInput) {
+                    activeInput.focus();
+                    activeInput.setSelectionRange(newCursorPos, newCursorPos);
+                }
+            }, 0);
+        }
+
+        function validateFormula(formula) {
+            const set = getCurrentSet();
+            const errors = [];
+            const warnings = [];
+
+            const openBraces = (formula.match(/\{/g) || []).length;
+            const closeBraces = (formula.match(/\}/g) || []).length;
+            if (openBraces !== closeBraces) {
+                errors.push('Unmatched curly braces in formula');
+            }
+
+            const openParens = (formula.match(/\(/g) || []).length;
+            const closeParens = (formula.match(/\)/g) || []).length;
+            if (openParens !== closeParens) {
+                errors.push('Unmatched parentheses in formula');
+            }
+
+            const fieldRefs = formula.match(/\{([^}]+)\}/g) || [];
+            fieldRefs.forEach(ref => {
+                const fieldName = ref.slice(1, -1);
+                const exists = set?.schema?.some(f => f.name === fieldName || f.id === fieldName);
+                if (!exists) {
+                    errors.push(`Unknown field: ${fieldName}`);
+                }
+            });
+
+            const functionCalls = formula.match(/\b([A-Z_]+)\s*\(/g) || [];
+            functionCalls.forEach(call => {
+                const functionName = call.match(/([A-Z_]+)/)[1];
+                const exists = Object.values(getFormulaSpec().functions || {})
+                    .flat()
+                    .some(fn => fn.name === functionName);
+
+                if (!exists) {
+                    errors.push(`Unknown function: ${functionName}`);
+                }
+            });
+
+            if (formula.includes('&')) {
+                warnings.push('Using & for concatenation will convert values to text');
+            }
+
+            state.formulaEditor.validation = {
+                isValid: errors.length === 0,
+                errors,
+                warnings
+            };
+        }
+
+        function updateFormulaPreview(formula) {
+            if (!formula.trim()) {
+                state.formulaEditor.preview = { result: null, error: null };
+                return;
+            }
+
+            try {
+                const set = getCurrentSet();
+                if (!set) {
+                    state.formulaEditor.preview = { result: null, error: 'No set available for preview' };
+                    return;
+                }
+                const sampleRecord = Array.from(set.records.values())[0] || {};
+
+                const engine = new FormulaEngine();
+                const service = new FormulaFieldService({ engine });
+
+                const result = service.evaluateForRecord(formula, sampleRecord);
+
+                if (result.success) {
+                    state.formulaEditor.preview = {
+                        result: result.preview,
+                        error: null
+                    };
+                } else {
+                    state.formulaEditor.preview = {
+                        result: null,
+                        error: result.error.message
+                    };
+                }
+            } catch (error) {
+                state.formulaEditor.preview = {
+                    result: null,
+                    error: error.message
+                };
+            }
+        }
+
+        function renderVisualBuilder() {
+            return `
+                <div class="visual-formula-builder">
+                    <div class="mb-4">
+                        <h3 class="font-semibold mb-2">Build your formula visually</h3>
+                        <p class="text-sm text-gray-600">Drag and drop blocks to create your formula</p>
+                    </div>
+                    <div class="formula-blocks" id="visualFormulaBlocks">
+                        ${renderVisualBlocks()}
+                    </div>
+                    <button class="add-block-btn w-full" onclick="addFormulaBlock()">
+                        <i class="ph ph-plus"></i>
+                        Add Block
+                    </button>
+                    <div class="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div class="text-xs font-semibold text-gray-500 uppercase mb-2">Generated Formula</div>
+                        <div class="font-mono text-sm">${generateFormulaFromBlocks()}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderVisualBlocks() {
+            if (!state.formulaEditor.visualBlocks || state.formulaEditor.visualBlocks.length === 0) {
+                return '<p class="text-gray-500 text-center py-8">No blocks yet. Click "Add Block" to start building your formula.</p>';
+            }
+
+            return state.formulaEditor.visualBlocks.map((block, index) => `
+                <div class="formula-block">
+                    <div class="formula-block-type">${block.type}</div>
+                    <div class="formula-block-content">
+                        ${renderBlockContent(block, index)}
+                    </div>
+                    <div class="formula-block-actions">
+                        <button class="formula-block-action" onclick="moveBlock(${index}, -1)" ${index === 0 ? 'disabled' : ''}>
+                            <i class="ph ph-arrow-up"></i>
+                        </button>
+                        <button class="formula-block-action" onclick="moveBlock(${index}, 1)" ${index === state.formulaEditor.visualBlocks.length - 1 ? 'disabled' : ''}>
+                            <i class="ph ph-arrow-down"></i>
+                        </button>
+                        <button class="formula-block-action delete" onclick="removeBlock(${index})">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderBlockContent(block, index) {
+            const set = getCurrentSet();
+
+            switch (block.type) {
+                case 'field':
+                    return `
+                        <select onchange="updateBlock(${index}, 'field', this.value)">
+                            <option value="">Select field...</option>
+                            ${set.schema.map(f => `
+                                <option value="${f.id}" ${block.field === f.id ? 'selected' : ''}>${f.name}</option>
+                            `).join('')}
+                        </select>
+                    `;
+                case 'function':
+                    const functions = Object.values(getFormulaSpec().functions || {}).flat();
+                    return `
+                        <select onchange="updateBlock(${index}, 'function', this.value)">
+                            <option value="">Select function...</option>
+                            ${functions.map(fn => `
+                                <option value="${fn.name}" ${block.function === fn.name ? 'selected' : ''}>${fn.name}</option>
+                            `).join('')}
+                        </select>
+                        <input 
+                            type="text" 
+                            placeholder="Arguments" 
+                            value="${block.args || ''}"
+                            onchange="updateBlock(${index}, 'args', this.value)"
+                        >
+                    `;
+                case 'operator':
+                    return `
+                        <select onchange="updateBlock(${index}, 'operator', this.value)">
+                            <option value="">Select operator...</option>
+                            <option value="+" ${block.operator === '+' ? 'selected' : ''}>+ (Add)</option>
+                            <option value="-" ${block.operator === '-' ? 'selected' : ''}>- (Subtract)</option>
+                            <option value="*" ${block.operator === '*' ? 'selected' : ''}>* (Multiply)</option>
+                            <option value="/" ${block.operator === '/' ? 'selected' : ''}>/ (Divide)</option>
+                            <option value="&" ${block.operator === '&' ? 'selected' : ''}>& (Concatenate)</option>
+                            <option value=">" ${block.operator === '>' ? 'selected' : ''}>> (Greater than)</option>
+                            <option value="<" ${block.operator === '<' ? 'selected' : ''}>< (Less than)</option>
+                            <option value="=" ${block.operator === '=' ? 'selected' : ''}>= (Equal)</option>
+                        </select>
+                    `;
+                case 'value':
+                    return `
+                        <input 
+                            type="text" 
+                            placeholder="Enter value" 
+                            value="${block.value || ''}"
+                            onchange="updateBlock(${index}, 'value', this.value)"
+                        >
+                    `;
+                default:
+                    return '';
+            }
+        }
+
+        function addFormulaBlock() {
+            if (!state.formulaEditor.visualBlocks) {
+                state.formulaEditor.visualBlocks = [];
+            }
+
+            state.formulaEditor.visualBlocks.push({ type: 'field', field: '' });
+            renderFormulaEditor();
+        }
+
+        function updateBlock(index, property, value) {
+            if (!state.formulaEditor.visualBlocks[index]) return;
+            state.formulaEditor.visualBlocks[index][property] = value;
+            renderFormulaEditor();
+        }
+
+        function removeBlock(index) {
+            state.formulaEditor.visualBlocks.splice(index, 1);
+            renderFormulaEditor();
+        }
+
+        function moveBlock(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= state.formulaEditor.visualBlocks.length) return;
+
+            const blocks = state.formulaEditor.visualBlocks;
+            [blocks[index], blocks[newIndex]] = [blocks[newIndex], blocks[index]];
+            renderFormulaEditor();
+        }
+
+        function generateFormulaFromBlocks() {
+            if (!state.formulaEditor.visualBlocks || state.formulaEditor.visualBlocks.length === 0) {
+                return 'No formula yet';
+            }
+
+            const currentSet = getCurrentSet();
+            const parts = state.formulaEditor.visualBlocks.map(block => {
+                switch (block.type) {
+                    case 'field':
+                        const field = currentSet?.schema?.find(f => f.id === block.field);
+                        return field ? `{${field.name}}` : '[field]';
+                    case 'function':
+                        return `${block.function}(${block.args || ''})`;
+                    case 'operator':
+                        return block.operator || '[op]';
+                    case 'value':
+                        return typeof block.value === 'string' ? `"${block.value}"` : block.value;
+                    default:
+                        return '';
+                }
+            });
+
+            return parts.join(' ');
+        }
+
+        function switchFormulaMode(mode) {
+            if (mode === 'visual' && state.formulaEditor.mode === 'code') {
+                state.formulaEditor.visualBlocks = [];
+            } else if (mode === 'code' && state.formulaEditor.mode === 'visual') {
+                state.formulaEditor.currentFormula = generateFormulaFromBlocks();
+            }
+
+            state.formulaEditor.mode = mode;
+            renderFormulaEditor();
+        }
+
+        function saveFormula() {
+            const formula = state.formulaEditor.mode === 'visual'
+                ? generateFormulaFromBlocks()
+                : state.formulaEditor.currentFormula;
+
+            validateFormula(formula);
+
+            if (!state.formulaEditor.validation.isValid) {
+                showToast('⚠️ Please fix errors before saving');
+                return;
+            }
+
+            if (typeof state.formulaEditor.onSave === 'function') {
+                state.formulaEditor.onSave(formula, state.formulaEditor.visualBlocks);
+                closeFormulaEditor();
+                return;
+            }
+
+            const set = getCurrentSet();
+            const fieldId = state.formulaEditor.fieldId;
+
+            if (fieldId) {
+                const field = set.schema.find(f => f.id === fieldId);
+                if (field) {
+                    field.config = field.config || {};
+                    field.config.formula = formula;
+                    field.config.visualBlocks = state.formulaEditor.visualBlocks;
+                    recalculateFormulaField(fieldId);
+                }
+            }
+
+            closeFormulaEditor();
+            renderCurrentView();
+            showToast('✓ Formula saved');
+        }
+
+        function recalculateFormulaField(fieldId) {
+            const set = getCurrentSet();
+            const field = set.schema.find(f => f.id === fieldId);
+
+            if (!field || field.type !== 'FORMULA') return;
+
+            const engine = new FormulaEngine();
+            const service = new FormulaFieldService({ engine });
+
+            set.records.forEach(record => {
+                try {
+                    const result = service.evaluateForRecord(field.config.formula, record);
+                    if (result.success) {
+                        record[fieldId] = result.result;
+                    } else {
+                        record[fieldId] = '#ERROR';
+                    }
+                } catch (error) {
+                    record[fieldId] = '#ERROR';
+                }
+            });
+        }
+
+        function closeFormulaEditor() {
+            document.getElementById('formulaEditorModal')?.remove();
+            state.formulaEditor.isOpen = false;
+        }
+
+        function showFormulaExamples() {
+            showToast('Coming soon: curated formula examples');
+        }
+
+        function launchFormulaEditorFromConfig() {
+            const textarea = document.getElementById('formulaExpression');
+            const existingFormula = textarea?.value || '';
+
+            openFormulaEditor(null, (formula, blocks = []) => {
+                if (textarea) {
+                    textarea.value = formula;
+                    textarea.dataset.visualBlocks = JSON.stringify(blocks || []);
+                }
+            });
+
+            state.formulaEditor.currentFormula = existingFormula;
         }
 
         const FIELD_TYPES = {
@@ -3867,7 +5095,10 @@
           resetFieldNameValidation();
           document.getElementById('newFieldType').value = 'TEXT';
           const formulaInput = document.getElementById('formulaExpression');
-          if (formulaInput) formulaInput.value = '';
+          if (formulaInput) {
+              formulaInput.value = '';
+              delete formulaInput.dataset.visualBlocks;
+          }
           renderFieldTypeGrid('TEXT');
             closeFieldTypeDropdown();
             updateFieldConfig('TEXT');
@@ -4041,7 +5272,12 @@
             } else if (type === 'FORMULA') {
                 const formulaValue = document.getElementById('formulaExpression').value.trim();
                 if (!formulaValue) { showConfirm('Enter a formula expression for this field', () => {}); return; }
-                newField.config = { formula: formulaValue };
+                let visualBlocks = [];
+                const visualBlocksRaw = document.getElementById('formulaExpression')?.dataset?.visualBlocks;
+                if (visualBlocksRaw) {
+                    try { visualBlocks = JSON.parse(visualBlocksRaw); } catch (error) { visualBlocks = []; }
+                }
+                newField.config = { formula: formulaValue, visualBlocks };
             }
 
             set.schema.push(newField);
