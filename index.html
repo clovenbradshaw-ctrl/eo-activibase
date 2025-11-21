@@ -705,14 +705,12 @@
         #addFieldModal .modal-header { padding: 16px 18px 10px 18px; }
         #addFieldModal .modal-body { padding: 16px 18px 18px 18px; }
         #addFieldModal .modal-footer { padding: 14px 18px; background: #f8fafc; }
-        .icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
-        .icon-option { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #ffffff; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-        .icon-option:hover { border-color: #cbd5e1; box-shadow: 0 6px 18px rgba(0,0,0,0.06); transform: translateY(-1px); }
-        .icon-option.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
-        .icon-option .icon-chip { width: 44px; height: 44px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: #f8fafc; color: #0f172a; flex-shrink: 0; border: 1px solid #e2e8f0; }
-        .icon-option .icon-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-        .icon-option .icon-keywords { font-size: 11px; color: #64748b; display: flex; gap: 6px; flex-wrap: wrap; }
-        .icon-option .icon-keyword { background: #f8fafc; padding: 2px 6px; border-radius: 999px; border: 1px solid #e2e8f0; }
+        .icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+        .icon-option { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; cursor: pointer; transition: all 0.12s ease; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04); }
+        .icon-option:hover { border-color: #cbd5e1; background: #f8fafc; transform: translateY(-1px); }
+        .icon-option.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
+        .icon-option .icon-chip { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: #f1f5f9; color: #0f172a; border: 1px solid #e2e8f0; font-size: 22px; }
+        .icon-option .icon-label { font-size: 13px; font-weight: 600; color: #0f172a; text-align: center; line-height: 1.2; }
 
         .icon-selector { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; cursor: pointer; transition: all 0.15s ease; }
         .icon-selector:hover { border-color: #cbd5e1; background: #f1f5f9; box-shadow: inset 0 0 0 1px #e2e8f0; }
@@ -1555,10 +1553,7 @@
     <div id="iconPickerModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
         <div class="modal-container bg-white w-full max-w-2xl">
             <div class="modal-header flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-bold text-gray-900">Select an Icon</h2>
-                    <p class="form-hint mt-1">Choose from common Phosphor icons or enter a custom emoji/token.</p>
-                </div>
+                <h2 class="text-xl font-bold text-gray-900">Pick an icon</h2>
                 <button id="closeIconPickerBtn" class="btn btn-secondary btn-sm">Close</button>
             </div>
             <div class="modal-body space-y-4">
@@ -3241,14 +3236,9 @@
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = `icon-option${opt.token === currentValue ? ' active' : ''}`;
-                const keywordHtml = (opt.keywords || []).map(kw => `<span class="icon-keyword">${kw}</span>`).join('');
                 btn.innerHTML = `
-                    <span class="icon-chip text-2xl">${renderIcon(opt.token)}</span>
-                    <span class="icon-copy">
-                        <span class="text-sm font-semibold">${opt.label}</span>
-                        <span class="text-xs text-gray-500">${opt.token}</span>
-                        ${keywordHtml ? `<span class="icon-keywords">${keywordHtml}</span>` : ''}
-                    </span>
+                    <span class="icon-chip">${renderIcon(opt.token)}</span>
+                    <span class="icon-label">${opt.label}</span>
                 `;
                 btn.onclick = () => selectIconFromPicker(opt.token);
                 container.appendChild(btn);
