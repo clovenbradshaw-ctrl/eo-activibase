@@ -1739,8 +1739,8 @@
         <div class="modal-container bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
             <div class="modal-header flex items-center justify-between">
                 <div>
-                    <h2 class="text-xl font-bold text-gray-900">Import CSV into Current Set</h2>
-                    <p class="text-sm text-gray-500 mt-1">Upload a CSV, map columns to fields, and preview fuzzy matches before importing.</p>
+                    <h2 class="text-xl font-bold text-gray-900">Import CSV</h2>
+                    <p class="text-sm text-gray-500 mt-1">Choose a destination set before uploading, then map columns and preview fuzzy matches.</p>
                 </div>
                 <button id="closeCsvImportBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1749,6 +1749,33 @@
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto modal-body space-y-4">
+                <div class="csv-helper-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="text-lg font-semibold">Destination</h3>
+                            <p class="text-sm text-gray-500">Pick an existing set or create a new one before selecting a file.</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <label class="flex items-center gap-2 font-medium">
+                            <input type="radio" name="csvImportTargetMode" value="existing" checked>
+                            Import into existing set
+                        </label>
+                        <div id="csvExistingSetPicker" class="pl-7 space-y-2">
+                            <select id="csvTargetSetSelect"></select>
+                            <p class="text-xs text-gray-500">We'll map columns to the selected set's fields.</p>
+                        </div>
+                        <label class="flex items-center gap-2 font-medium">
+                            <input type="radio" name="csvImportTargetMode" value="new">
+                            Create a new set from this CSV
+                        </label>
+                        <div id="csvNewSetFields" class="pl-7 space-y-2 hidden">
+                            <input type="text" id="csvNewSetName" placeholder="e.g., Leads" class="w-full">
+                            <p class="text-xs text-gray-500">We'll create fields from your headers automatically.</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="csv-helper-grid">
                     <div class="csv-helper-card">
                         <label class="form-label">Upload CSV File</label>
@@ -1928,7 +1955,7 @@
             selectedCell: null,
             lastSelectedCell: null,
             editingCell: null,
-            csvImportState: { headers: [], rows: [], mappings: {}, previewRows: [], matches: [] },
+            csvImportState: { headers: [], rows: [], mappings: {}, previewRows: [], matches: [], targetMode: 'existing', targetSetId: null, newSetName: '' },
             fuzzyPanelState: { threshold: 0.65, matches: [] },
             formulaFieldService: null,
             formulaEditor: {
@@ -3967,7 +3994,17 @@
         }
 
         function resetCsvImportState() {
-            state.csvImportState = { headers: [], rows: [], mappings: {}, previewRows: [], matches: [] };
+            const defaultSetId = state.currentSetId || Array.from(state.sets.keys())[0] || null;
+            state.csvImportState = {
+                headers: [],
+                rows: [],
+                mappings: {},
+                previewRows: [],
+                matches: [],
+                targetMode: defaultSetId ? 'existing' : 'new',
+                targetSetId: defaultSetId,
+                newSetName: ''
+            };
             const badge = document.getElementById('csvRowCountBadge');
             if (badge) badge.textContent = '0 rows';
             const mappingEl = document.getElementById('csvMappingContainer');
@@ -3980,6 +4017,62 @@
             if (textInput) textInput.value = '';
             const fileInput = document.getElementById('csvFileInput');
             if (fileInput) fileInput.value = '';
+            populateCsvTargetSetOptions();
+            syncCsvImportTargetUi();
+        }
+
+        function populateCsvTargetSetOptions() {
+            const select = document.getElementById('csvTargetSetSelect');
+            if (!select) return;
+            const options = Array.from(state.sets.values()).map(set => `<option value="${set.id}">${set.name}</option>`);
+            if (!options.length) {
+                select.innerHTML = '<option value="" disabled>No sets available</option>';
+                select.value = '';
+                state.csvImportState.targetSetId = null;
+                return;
+            }
+            select.innerHTML = options.join('');
+            const desired = state.csvImportState.targetSetId || state.currentSetId || select.options[0]?.value || '';
+            select.value = desired;
+            state.csvImportState.targetSetId = select.value || null;
+        }
+
+        function syncCsvImportTargetUi() {
+            const mode = state.csvImportState.targetMode;
+            document.querySelectorAll('input[name="csvImportTargetMode"]').forEach(input => {
+                input.checked = input.value === mode;
+            });
+            document.getElementById('csvExistingSetPicker')?.classList.toggle('hidden', mode !== 'existing');
+            document.getElementById('csvNewSetFields')?.classList.toggle('hidden', mode !== 'new');
+            const select = document.getElementById('csvTargetSetSelect');
+            if (select && mode === 'existing') select.value = state.csvImportState.targetSetId || '';
+            const nameInput = document.getElementById('csvNewSetName');
+            if (nameInput && mode === 'new') nameInput.value = state.csvImportState.newSetName || '';
+        }
+
+        function getCsvTargetSet() {
+            if (state.csvImportState.targetMode === 'existing') {
+                const setId = state.csvImportState.targetSetId || state.currentSetId;
+                return setId ? state.sets.get(setId) : null;
+            }
+            return {
+                id: null,
+                name: state.csvImportState.newSetName?.trim() || 'New Set',
+                schema: [],
+                records: new Map()
+            };
+        }
+
+        function handleCsvTargetChange() {
+            populateCsvTargetSetOptions();
+            syncCsvImportTargetUi();
+            if (state.csvImportState.headers.length) {
+                const set = getCsvTargetSet();
+                state.csvImportState.mappings = autoMapColumns(state.csvImportState.headers, set);
+                renderCsvMapping();
+                renderCsvPreview();
+                renderCsvMatches();
+            }
         }
 
         function openCsvImportModal() {
@@ -3990,6 +4083,12 @@
         function handleCsvFileSelected(event) {
             const file = event.target.files?.[0];
             if (!file) return;
+            const targetSet = getCsvTargetSet();
+            if (!targetSet) {
+                showToast('⚠️ Choose a destination set first');
+                event.target.value = '';
+                return;
+            }
             const reader = new FileReader();
             reader.onload = (e) => {
                 const { headers, rows } = parseCsvContent(e.target.result || '');
@@ -4000,6 +4099,11 @@
 
         function previewCsvFromText() {
             const text = document.getElementById('csvTextInput')?.value || '';
+            const targetSet = getCsvTargetSet();
+            if (!targetSet) {
+                showToast('⚠️ Choose a destination set first');
+                return;
+            }
             const { headers, rows } = parseCsvContent(text);
             handleCsvData(headers, rows);
         }
@@ -4048,8 +4152,9 @@
 
         function autoMapColumns(headers, set) {
             const mappings = {};
+            const schema = set?.schema || [];
             headers.forEach(h => {
-                const match = findBestFieldMatch(h, set.schema);
+                const match = findBestFieldMatch(h, schema);
                 if (match && match.score >= CSV_FIELD_MATCH_THRESHOLD) {
                     mappings[h] = match.field.id;
                 } else {
@@ -4060,8 +4165,11 @@
         }
 
         function handleCsvData(headers, rows) {
-            const set = getCurrentSet();
-            if (!set) return;
+            const set = getCsvTargetSet();
+            if (state.csvImportState.targetMode === 'existing' && !set) {
+                showToast('⚠️ Choose a destination set first');
+                return;
+            }
             state.csvImportState.headers = headers;
             state.csvImportState.rows = rows;
             state.csvImportState.mappings = autoMapColumns(headers, set);
@@ -4074,7 +4182,7 @@
 
         function renderCsvMapping() {
             const container = document.getElementById('csvMappingContainer');
-            const set = getCurrentSet();
+            const set = getCsvTargetSet();
             if (!container || !set) return;
             if (!state.csvImportState.headers.length) {
                 container.innerHTML = '<p class="text-sm text-gray-500">No headers detected yet.</p>';
@@ -4110,7 +4218,7 @@
         }
 
         function buildCsvPreviewRows(limit = 5) {
-            const set = getCurrentSet();
+            const set = getCsvTargetSet();
             if (!set) return [];
             const mappedHeaders = state.csvImportState.headers
                 .map(header => [header, state.csvImportState.mappings[header]])
@@ -4132,7 +4240,7 @@
 
         function renderCsvPreview() {
             const container = document.getElementById('csvPreviewContainer');
-            const set = getCurrentSet();
+            const set = getCsvTargetSet();
             if (!container || !set) return;
             const mappedEntries = state.csvImportState.headers
                 .map(header => [header, state.csvImportState.mappings[header]])
@@ -4204,7 +4312,7 @@
 
         function renderCsvMatches() {
             const container = document.getElementById('csvMatchSuggestions');
-            const set = getCurrentSet();
+            const set = getCsvTargetSet();
             if (!container || !set) return;
             if (!state.csvImportState.rows.length) {
                 container.innerHTML = '<p class="text-sm text-gray-500">Load rows to see suggestions.</p>';
@@ -4254,7 +4362,29 @@
         }
 
         function importCsvRecords() {
-            const set = getCurrentSet();
+            let set = null;
+            if (state.csvImportState.targetMode === 'existing') {
+                const setId = state.csvImportState.targetSetId || state.currentSetId;
+                if (!setId) {
+                    showToast('⚠️ Choose a destination set first');
+                    return;
+                }
+                set = state.sets.get(setId);
+            } else {
+                const name = (state.csvImportState.newSetName || '').trim();
+                if (!name) {
+                    showToast('⚠️ Name your new set before importing');
+                    return;
+                }
+                const setId = createSet(name);
+                createView(setId, 'All ' + name, { type: 'grid' });
+                state.expandedSets.add(setId);
+                renderSidebar();
+                switchSet(setId, null);
+                set = state.sets.get(setId);
+                state.csvImportState.targetMode = 'existing';
+                state.csvImportState.targetSetId = setId;
+            }
             if (!set) return;
             const mappedHeaders = Object.entries(state.csvImportState.mappings).filter(([, fieldId]) => fieldId);
             if (!mappedHeaders.length) {
@@ -4301,7 +4431,7 @@
                 addRecord(set.id, recordData);
             });
 
-            renderCurrentView();
+            switchSet(set.id, null);
             showToast(`✓ Imported ${state.csvImportState.rows.length} records`);
             closeModal('csvImportModal');
         }
@@ -7541,6 +7671,19 @@
             document.getElementById('runCsvImportBtn').onclick = importCsvRecords;
             document.getElementById('cancelCsvImportBtn').onclick = () => closeModal('csvImportModal');
             document.getElementById('closeCsvImportBtn').onclick = () => closeModal('csvImportModal');
+            document.querySelectorAll('input[name="csvImportTargetMode"]').forEach(input => {
+                input.onchange = (event) => {
+                    state.csvImportState.targetMode = event.target.value;
+                    handleCsvTargetChange();
+                };
+            });
+            document.getElementById('csvTargetSetSelect').onchange = (event) => {
+                state.csvImportState.targetSetId = event.target.value || null;
+                handleCsvTargetChange();
+            };
+            document.getElementById('csvNewSetName').oninput = (event) => {
+                state.csvImportState.newSetName = event.target.value;
+            };
             document.getElementById('fuzzyPanelBtn').onclick = openFuzzyPanel;
             document.getElementById('closeFuzzyPanelBtn').onclick = closeFuzzyPanel;
             document.getElementById('refreshFuzzyMatchesBtn').onclick = renderFuzzyPanel;
