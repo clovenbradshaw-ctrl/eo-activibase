@@ -960,7 +960,7 @@
                     </button>
                     <button id="popupSettingsBtn" class="btn btn-secondary btn-sm">
                         <i class="ph ph-popcorn"></i>
-                        Popup Fields
+                        Modal Fields
                     </button>
                     <button id="historyBtn" class="btn btn-secondary btn-sm">
                         <i class="ph ph-clock-counter-clockwise"></i>
@@ -1088,8 +1088,8 @@
         <div class="modal-container bg-white popup-config-shell">
             <div class="popup-config-header">
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-900">Popup Configuration</h2>
-                    <p class="text-sm text-gray-600 mt-1">Curate which fields show in record popups, define conditional visibility, and preview layouts.</p>
+                    <h2 class="text-2xl font-bold text-gray-900">Modal Configuration</h2>
+                    <p class="text-sm text-gray-600 mt-1">Curate which fields show in record modals, define conditional visibility, and preview layouts.</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <button class="btn btn-secondary btn-sm" onclick="resetPopupLayout()">Reset</button>
@@ -1101,7 +1101,6 @@
                 <button class="popup-config-tab active" data-tab="popupFields" onclick="setPopupTab('popupFields')">🎯 Fields <span class="popup-badge" id="popupFieldCountBadge">0</span></button>
                 <button class="popup-config-tab" data-tab="popupLayout" onclick="setPopupTab('popupLayout')">📐 Layout</button>
                 <button class="popup-config-tab" data-tab="popupConditions" onclick="setPopupTab('popupConditions')">⚡ Conditions</button>
-                <button class="popup-config-tab" data-tab="popupEvents" onclick="setPopupTab('popupEvents')">📊 Event Stream</button>
             </div>
 
             <div class="popup-config-body">
@@ -1116,7 +1115,7 @@
                 <div class="popup-tab-panel" id="popupLayout">
                     <div class="popup-panel-scroll space-y-4">
                         <div class="popup-card">
-                            <h4>Popup Size</h4>
+                            <h4>Modal Size</h4>
                             <div class="popup-layout-options" id="popupSizeOptions"></div>
                         </div>
                         <div class="popup-card">
@@ -1132,14 +1131,8 @@
 
                 <div class="popup-tab-panel" id="popupConditions">
                     <div class="popup-panel-scroll">
-                        <div class="popup-info"><span>⚡</span><span><strong>Conditional visibility</strong> lets you keep popups focused and contextual.</span></div>
+                        <div class="popup-info"><span>⚡</span><span><strong>Conditional visibility</strong> lets you keep modals focused and contextual.</span></div>
                         <div id="popupConditionsList" class="popup-conditions"></div>
-                    </div>
-                </div>
-
-                <div class="popup-tab-panel" id="popupEvents">
-                    <div class="popup-panel-scroll">
-                        <div class="popup-event-stream" id="popupEventStream"></div>
                     </div>
                 </div>
 
@@ -3501,7 +3494,7 @@
             const visibleFields = orderedFields.filter(field => shouldDisplayFieldInPopup(field, record));
 
             container.innerHTML = visibleFields.length === 0
-                ? '<p class="text-gray-500">No fields are visible in this popup based on the current view settings.</p>'
+                ? '<p class="text-gray-500">No fields are visible in this modal based on the current view settings.</p>'
                 : `
                 <div class="space-y-4">
                     ${visibleFields.map(field => `
@@ -4266,7 +4259,7 @@
                 case 'reorder':
                     return `Reordered fields (${event.data.from} → ${event.data.to})`;
                 case 'size':
-                    return `Popup size changed to ${event.data.size}`;
+                    return `Modal size changed to ${event.data.size}`;
                 case 'columns':
                     return `Layout updated to ${event.data.columns} columns`;
                 case 'template':
