@@ -1,10 +1,19 @@
-const FormulaEngine = require('./formula_engine');
-const formulaSpec = require('./formula_language.json');
+const FormulaEngine = typeof require !== 'undefined'
+  ? require('./formula_engine')
+  : (typeof window !== 'undefined' ? window.FormulaEngine : null);
+
+const formulaSpec = typeof require !== 'undefined'
+  ? require('./formula_language.json')
+  : (typeof window !== 'undefined' ? window.FormulaLanguageSpec : null);
 
 class FormulaFieldService {
   constructor({ engine = new FormulaEngine(), spec = formulaSpec } = {}) {
+    if (!engine) {
+      throw new Error('FormulaEngine is required for FormulaFieldService');
+    }
+
     this.engine = engine;
-    this.spec = spec;
+    this.spec = spec || { functions: {}, operators: [], field_reference_syntax: '' };
     this.functionSpecMap = this.buildFunctionSpecMap();
   }
 
@@ -150,4 +159,10 @@ class FormulaFieldService {
   }
 }
 
-module.exports = FormulaFieldService;
+if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+  module.exports = FormulaFieldService;
+}
+
+if (typeof window !== 'undefined') {
+  window.FormulaFieldService = FormulaFieldService;
+}
