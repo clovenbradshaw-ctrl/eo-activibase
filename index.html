@@ -6,6 +6,8 @@
     <title>Workbase - Enhanced Database</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="formula_engine.js"></script>
+    <script src="formula_field_service.js"></script>
     <style>
         :root {
             --primary: #111827;
@@ -1370,6 +1372,13 @@
                         <p class="form-hint">Select which set to link to</p>
                     </div>
                 </div>
+                <div id="formulaFieldConfig" class="config-section">
+                    <div class="bg-sky-50 border border-sky-200 rounded-lg p-4">
+                        <label class="form-label">Formula</label>
+                        <textarea id="formulaExpression" rows="3" placeholder="e.g., {budget} * 1.1"></textarea>
+                        <p class="form-hint">Compose expressions using the JavaScript-style formula rules defined in the repo's formula engine.</p>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer flex justify-end gap-2">
                 <button id="cancelAddFieldBtn" class="btn btn-secondary">Cancel</button>
@@ -1568,7 +1577,8 @@
             popupDraggedField: null,
             selectedCell: null,
             lastSelectedCell: null,
-            editingCell: null
+            editingCell: null,
+            formulaFieldService: null
         };
 
         const columnDragState = {
@@ -1595,6 +1605,47 @@
             return clampColumnWidth(numericWidth);
         }
 
+        async function initializeFormulaSupport() {
+            if (typeof FormulaFieldService === 'undefined' || typeof FormulaEngine === 'undefined') {
+                console.warn('Formula libraries are not available. Formula fields will be disabled.');
+                return;
+            }
+
+            try {
+                const response = await fetch('formula_language.json');
+                const spec = await response.json();
+                window.FormulaLanguageSpec = spec;
+                state.formulaFieldService = new FormulaFieldService({
+                    spec,
+                    engine: new FormulaEngine()
+                });
+                recomputeAllFormulas();
+            } catch (error) {
+                console.warn('Unable to initialize formula support', error);
+            }
+        }
+
+        function recomputeAllFormulas() {
+            state.sets.forEach(set => recomputeFormulasForSet(set));
+        }
+
+        function recomputeFormulasForSet(set) {
+            if (!state.formulaFieldService || !set) return;
+            const formulaFields = set.schema.filter(f => f.type === 'FORMULA');
+            if (!formulaFields.length) return;
+            set.records.forEach(record => {
+                formulaFields.forEach(field => evaluateFormulaField(record, field));
+            });
+        }
+
+        function evaluateFormulaField(record, field) {
+            if (!state.formulaFieldService || !field?.config?.formula) return;
+            const evaluation = state.formulaFieldService.evaluateForRecord(field.config.formula, record);
+            record.__formulaMeta = record.__formulaMeta || {};
+            record.__formulaMeta[field.id] = evaluation;
+            record[field.id] = evaluation.success ? evaluation.result : '';
+        }
+
         const FIELD_TYPES = {
             TEXT: { id: 'TEXT', name: 'Single Line Text', description: 'Quick text field for titles and short labels', defaultValue: '', icon: 'ph-text-t' },
             LONG_TEXT: { id: 'LONG_TEXT', name: 'Long Text', description: 'Multi-line notes, descriptions, or comments', defaultValue: '', icon: 'ph-article' },
@@ -1606,7 +1657,8 @@
             PHONE: { id: 'PHONE', name: 'Phone', description: 'International phone numbers for contacts', defaultValue: '', icon: 'ph-phone' },
             LINK_RECORD: { id: 'LINK_RECORD', name: 'Link to Record', description: 'Connect records across sets with relationships', defaultValue: '', icon: 'ph-link-simple-horizontal', needsConfig: true },
             SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', description: 'Choose one option from a defined list', defaultValue: '', icon: 'ph-list-bullets', needsConfig: true },
-            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', description: 'Quick yes/no or done/undone tracking', defaultValue: false, icon: 'ph-check-square' }
+            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', description: 'Quick yes/no or done/undone tracking', defaultValue: false, icon: 'ph-check-square' },
+            FORMULA: { id: 'FORMULA', name: 'Formula', description: 'Calculated values using the repo\'s JavaScript formula rules', defaultValue: '', icon: 'ph-equals', needsConfig: true }
         };
 
         const VIEW_TYPE_ICONS = { grid: 'ph-table', card: 'ph-cards-three', kanban: 'ph-kanban' };
@@ -1717,6 +1769,7 @@
             state.operatorSet = EO_OPERATOR_SET;
             initializeOperatorRules();
             createSampleData();
+            initializeFormulaSupport();
             renderSidebar();
             if (state.currentSetId) switchSet(state.currentSetId, state.currentViewId);
             setupEventListeners();
@@ -1913,6 +1966,7 @@
                 { type: 'Record', id: recordId, setId },
                 { setId, recordId, data, summary: 'Created record' }
             );
+            recomputeFormulasForSet(set);
             return recordId;
         }
 
@@ -2558,7 +2612,7 @@
                     td.dataset.fieldId = field.id;
                     td.style.width = `${getFieldWidth(field)}px`;
                     const value = record[field.id];
-                    td.innerHTML = renderCellValue(value, field);
+                    td.innerHTML = renderCellValue(value, field, record);
                     addColumnResizer(td, field);
                     if (field.type === 'CHECKBOX') {
                         td.onclick = (e) => {
@@ -2597,7 +2651,7 @@
             }
         }
 
-        function renderCellValue(value, field) {
+        function renderCellValue(value, field, record) {
             switch(field.type) {
                 case 'TEXT': case 'LONG_TEXT': case 'EMAIL': case 'URL': case 'PHONE':
                     return value || '';
@@ -2617,6 +2671,16 @@
                     if (!value) return '';
                     const color = field.config?.colors?.[value] || 'gray';
                     return `<span class="badge badge-${color}">${value}</span>`;
+                case 'FORMULA':
+                    if (record?.__formulaMeta?.[field.id]?.success) {
+                        const meta = record.__formulaMeta[field.id];
+                        return meta.preview || meta.result || '';
+                    }
+                    if (record?.__formulaMeta?.[field.id]?.error) {
+                        const message = record.__formulaMeta[field.id].error.message;
+                        return `<span class="text-red-600" title="${message}">${message}</span>`;
+                    }
+                    return value || '';
                 default:
                     return value || '';
             }
@@ -2652,7 +2716,7 @@
                         return `
                             <div class="card-field">
                                 <div class="card-field-label">${field.name}</div>
-                                <div class="card-field-value">${renderCellValue(value, field)}</div>
+                                <div class="card-field-value">${renderCellValue(value, field, record)}</div>
                             </div>
                         `;
                     }).join('')}
@@ -2775,7 +2839,7 @@
                 ${displayFields.map(field => {
                     const value = record[field.id];
                     if (!value && value !== 0 && value !== false) return '';
-                    return `<div class="text-sm text-gray-600 mb-1">${renderCellValue(value, field)}</div>`;
+                    return `<div class="text-sm text-gray-600 mb-1">${renderCellValue(value, field, record)}</div>`;
                 }).join('')}
             `;
             
@@ -2863,6 +2927,13 @@
 
         function enterEditMode(td, recordId, field) {
             exitEditMode(false);
+
+            if (field.type === 'FORMULA') {
+                td.classList.add('cell-selected');
+                state.editingCell = null;
+                showToast('Formula fields are calculated automatically');
+                return;
+            }
 
             td.classList.remove('cell-selected');
             td.classList.add('cell-editing');
@@ -3213,6 +3284,7 @@
                     summary: `Updated ${field.name}`
                 }
             );
+            recomputeFormulasForSet(set);
             renderCurrentView();
             showToast(`✓ Updated ${field.name}`);
         }
@@ -3222,6 +3294,8 @@
             state.selectOptions = [{ value: 'Option 1', color: 'blue' }];
             document.getElementById('newFieldName').value = '';
             document.getElementById('newFieldType').value = 'TEXT';
+            const formulaInput = document.getElementById('formulaExpression');
+            if (formulaInput) formulaInput.value = '';
             renderFieldTypeGrid('TEXT');
             closeFieldTypeDropdown();
             updateFieldConfig('TEXT');
@@ -3312,11 +3386,14 @@
         function updateFieldConfig(typeId) {
             document.getElementById('singleSelectConfig').classList.remove('visible');
             document.getElementById('linkToRecordConfig').classList.remove('visible');
+            document.getElementById('formulaFieldConfig').classList.remove('visible');
             if (typeId === 'SINGLE_SELECT') {
                 document.getElementById('singleSelectConfig').classList.add('visible');
                 renderSelectOptions();
             } else if (typeId === 'LINK_RECORD') {
                 document.getElementById('linkToRecordConfig').classList.add('visible');
+            } else if (typeId === 'FORMULA') {
+                document.getElementById('formulaFieldConfig').classList.add('visible');
             }
         }
 
@@ -3375,11 +3452,16 @@
                 const linkedSetId = document.getElementById('linkToSet').value;
                 if (!linkedSetId) { showConfirm('Select a set to link to', () => {}); return; }
                 newField.config = { linkedSetId };
+            } else if (type === 'FORMULA') {
+                const formulaValue = document.getElementById('formulaExpression').value.trim();
+                if (!formulaValue) { showConfirm('Enter a formula expression for this field', () => {}); return; }
+                newField.config = { formula: formulaValue };
             }
-            
+
             set.schema.push(newField);
             set.records.forEach(r => r[fieldId] = FIELD_TYPES[type].defaultValue);
-            
+            recomputeFormulasForSet(set);
+
             closeModal('addFieldModal');
             renderCurrentView();
             

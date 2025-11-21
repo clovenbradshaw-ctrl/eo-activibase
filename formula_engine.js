@@ -760,7 +760,7 @@ class FormulaEngine {
 }
 
 // Export for Node.js
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
   module.exports = FormulaEngine;
 }
 
