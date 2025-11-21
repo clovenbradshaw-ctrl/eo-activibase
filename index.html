@@ -20,6 +20,8 @@
             --text-secondary: #4b5563;
             --sidebar-width: 260px;
             --sidebar-collapsed-width: 64px;
+            --mobile-padding: 16px;
+            --mobile-bottom-bar-height: 72px;
         }
 
         * { box-sizing: border-box; }
@@ -28,6 +30,98 @@
             margin: 0;
             background: var(--muted-surface);
             color: var(--text);
+        }
+
+        .mobile-topbar {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 12px var(--mobile-padding);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .mobile-topbar-title {
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: -0.01em;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .mobile-icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text);
+        }
+
+        .mobile-bottom-bar {
+            display: none;
+            position: fixed;
+            inset: auto 0 0;
+            height: var(--mobile-bottom-bar-height);
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            z-index: 40;
+            padding: 10px var(--mobile-padding);
+            grid-template-columns: repeat(4, 1fr) 64px;
+            gap: 10px;
+            box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.08);
+        }
+
+        .mobile-bottom-action {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--muted-surface);
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .mobile-bottom-action.active {
+            border-color: var(--primary);
+            background: #e0e7ff;
+            color: var(--primary);
+        }
+
+        .mobile-fab {
+            position: fixed;
+            right: var(--mobile-padding);
+            bottom: calc(var(--mobile-bottom-bar-height) + 12px);
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: #fff;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 10px 30px rgba(37, 99, 235, 0.35);
+            z-index: 45;
+            cursor: pointer;
         }
 
         i.ph {
@@ -1116,6 +1210,22 @@
         }
 
         @media (max-width: 1024px) {
+            body { padding-bottom: var(--mobile-bottom-bar-height); }
+            .mobile-topbar { display: flex; }
+            .mobile-bottom-bar { display: grid; }
+            .mobile-fab { display: inline-flex; }
+            .app-header { display: none; }
+            .app-main { padding: 12px var(--mobile-padding); }
+        }
+
+        @media (max-width: 768px) {
+            .toolbar-actions button { min-height: 44px; }
+            .grid-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -16px; padding: 0 16px; }
+            .grid-table { min-width: 720px; }
+            .view-type-btn { padding: 10px 12px; }
+        }
+
+        @media (max-width: 1024px) {
             :root { --sidebar-width: 240px; }
             .app-container { grid-template-areas: "header" "main"; grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
             .app-sidebar {
@@ -1146,6 +1256,16 @@
     </style>
 </head>
 <body>
+    <div class="mobile-topbar" id="mobileTopbar">
+        <button class="mobile-icon-btn" onclick="toggleSidebar()" aria-label="Toggle navigation">
+            <i class="ph ph-list"></i>
+        </button>
+        <div class="mobile-topbar-title" id="mobileTopbarTitle">Workbase</div>
+        <button class="mobile-icon-btn" onclick="triggerPrimaryAction()" aria-label="Add record">
+            <i class="ph ph-plus"></i>
+        </button>
+    </div>
+
     <div class="app-container" id="appContainer">
         <!-- Sidebar -->
         <div class="app-sidebar">
@@ -1218,12 +1338,39 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Main Content -->
         <div class="app-main">
             <div id="viewContainer"></div>
         </div>
     </div>
+
+    <div class="mobile-bottom-bar" id="mobileBottomBar">
+        <button class="mobile-bottom-action" data-mobile-nav="grid" onclick="switchViewType('grid')">
+            <i class="ph ph-table"></i>
+            <span>Grid</span>
+        </button>
+        <button class="mobile-bottom-action" data-mobile-nav="card" onclick="switchViewType('card')">
+            <i class="ph ph-cards-three"></i>
+            <span>Card</span>
+        </button>
+        <button class="mobile-bottom-action" data-mobile-nav="kanban" onclick="switchViewType('kanban')">
+            <i class="ph ph-kanban"></i>
+            <span>Kanban</span>
+        </button>
+        <button class="mobile-bottom-action" onclick="document.getElementById('filterBtn')?.click()">
+            <i class="ph ph-funnel"></i>
+            <span>Filter</span>
+        </button>
+        <button class="mobile-bottom-action" onclick="document.getElementById('sortBtn')?.click()">
+            <i class="ph ph-arrows-down-up"></i>
+            <span>Sort</span>
+        </button>
+    </div>
+
+    <button class="mobile-fab" id="mobileFab" onclick="triggerPrimaryAction()" aria-label="Quick add">
+        <i class="ph ph-plus"></i>
+    </button>
 
     <!-- All Modals from previous version -->
     <div id="confirmModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
@@ -3285,16 +3432,48 @@
         function applyResponsiveLayout() {
             const appContainer = document.getElementById('appContainer');
             const isMobile = window.matchMedia('(max-width: 1024px)').matches;
+            const bottomBar = document.getElementById('mobileBottomBar');
+            const fab = document.getElementById('mobileFab');
+            const topbar = document.getElementById('mobileTopbar');
 
             if (isMobile) {
                 appContainer.classList.add('mobile-layout');
                 appContainer.classList.toggle('sidebar-open-mobile', state.sidebarOpenMobile);
                 appContainer.classList.remove('sidebar-collapsed');
+                bottomBar?.classList.remove('hidden');
+                fab?.classList.remove('hidden');
+                topbar?.classList.remove('hidden');
             } else {
                 appContainer.classList.remove('mobile-layout');
                 appContainer.classList.remove('sidebar-open-mobile');
                 appContainer.classList.toggle('sidebar-collapsed', state.sidebarCollapsed);
+                bottomBar?.classList.add('hidden');
+                fab?.classList.add('hidden');
+                topbar?.classList.add('hidden');
             }
+
+            updateMobileChrome();
+        }
+
+        function updateMobileChrome() {
+            const titleEl = document.getElementById('mobileTopbarTitle');
+            const set = getCurrentSet();
+            const view = getCurrentView();
+
+            if (titleEl) titleEl.textContent = set?.name || 'Workbase';
+
+            document.querySelectorAll('.mobile-bottom-action').forEach(btn => {
+                const type = btn.dataset.mobileNav;
+                if (!type) return;
+                btn.classList.toggle('active', view?.type === type);
+            });
+        }
+
+        function triggerPrimaryAction() {
+            const addRecordBtn = document.getElementById('addRecordBtn');
+            if (addRecordBtn) { addRecordBtn.click(); return; }
+
+            document.getElementById('addFieldBtn')?.click();
         }
 
         function initializeOperatorRules() {
@@ -4246,6 +4425,7 @@
             closeMobileSidebar();
             renderSidebar();
             renderCurrentView();
+            updateMobileChrome();
         }
 
         function getCurrentSet() { return state.sets.get(state.currentSetId); }
@@ -4263,8 +4443,9 @@
                 btn.classList.remove('active');
                 if (btn.dataset.type === type) btn.classList.add('active');
             });
-            
+
             renderCurrentView();
+            updateMobileChrome();
         }
 
         function renderCurrentView() {
@@ -4278,6 +4459,8 @@
                 btn.classList.remove('active');
                 if (btn.dataset.type === view.type) btn.classList.add('active');
             });
+
+            updateMobileChrome();
 
             switch(view.type) {
                 case 'grid':
