@@ -896,19 +896,21 @@
         .filter-rule { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: center; padding: 8px; background: white; border-radius: 6px; margin-bottom: 8px; }
         
         /* UTILITIES */
-        .form-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; }
-        .form-hint { font-size: 12px; color: #6b7280; margin-top: 6px; }
-        input[type="text"], input[type="number"], input[type="date"], input[type="email"], input[type="url"], select, textarea {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
+          .form-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; }
+          .form-hint { font-size: 12px; color: #6b7280; margin-top: 6px; }
+          .form-error { font-size: 12px; color: #b91c1c; margin-top: 6px; }
+          input[type="text"], input[type="number"], input[type="date"], input[type="email"], input[type="url"], select, textarea {
+              width: 100%;
+              padding: 8px 12px;
+              border: 1px solid #cbd5e1;
+              border-radius: 6px;
             font-size: 13px;
             transition: all 0.15s ease;
             background: white;
-        }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
+          }
+          input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+          .input-error { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15); }
+          ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #f3f4f6; }
         ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
@@ -1411,11 +1413,12 @@
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto modal-body space-y-5">
-                <div>
-                    <label class="form-label">Field Name</label>
-                    <input type="text" id="newFieldName" placeholder="e.g., Status, Amount, Contact Person" autofocus>
-                    <p class="form-hint">A descriptive name for your field</p>
-                </div>
+                  <div>
+                      <label class="form-label">Field Name</label>
+                      <input type="text" id="newFieldName" placeholder="e.g., Status, Amount, Contact Person" autofocus aria-describedby="fieldNameError">
+                      <p class="form-hint">A descriptive name for your field</p>
+                      <p id="fieldNameError" class="form-error hidden" role="alert"></p>
+                  </div>
                 <div>
                     <label class="form-label">Field Type</label>
                     <div class="field-type-select">
@@ -3819,11 +3822,11 @@
             select.disabled = false;
         }
 
-        function updateRecord(recordId, fieldId, newValue, oldValue) {
-            const set = getCurrentSet();
-            const record = set.records.get(recordId);
-            const field = set.schema.find(f => f.id === fieldId);
-            record[fieldId] = newValue;
+      function updateRecord(recordId, fieldId, newValue, oldValue) {
+          const set = getCurrentSet();
+          const record = set.records.get(recordId);
+          const field = set.schema.find(f => f.id === fieldId);
+          record[fieldId] = newValue;
             createEvent(
                 'Update Cell',
                 'SEG',
@@ -3840,17 +3843,32 @@
             );
             recomputeFormulasForSet(set);
             renderCurrentView();
-            showToast(`✓ Updated ${field.name}`);
-        }
+          showToast(`✓ Updated ${field.name}`);
+      }
 
-        // FIELD MANAGEMENT
-        function openAddFieldModal() {
-            state.selectOptions = [{ value: 'Option 1', color: 'blue' }];
-            document.getElementById('newFieldName').value = '';
-            document.getElementById('newFieldType').value = 'TEXT';
-            const formulaInput = document.getElementById('formulaExpression');
-            if (formulaInput) formulaInput.value = '';
-            renderFieldTypeGrid('TEXT');
+      // FIELD MANAGEMENT
+      function resetFieldNameValidation() {
+          const nameInput = document.getElementById('newFieldName');
+          const nameError = document.getElementById('fieldNameError');
+          if (nameInput) {
+              nameInput.classList.remove('input-error');
+              nameInput.removeAttribute('aria-invalid');
+          }
+          if (nameError) {
+              nameError.classList.add('hidden');
+              nameError.textContent = '';
+          }
+      }
+
+      function openAddFieldModal() {
+          state.selectOptions = [{ value: 'Option 1', color: 'blue' }];
+          const nameInput = document.getElementById('newFieldName');
+          if (nameInput) nameInput.value = '';
+          resetFieldNameValidation();
+          document.getElementById('newFieldType').value = 'TEXT';
+          const formulaInput = document.getElementById('formulaExpression');
+          if (formulaInput) formulaInput.value = '';
+          renderFieldTypeGrid('TEXT');
             closeFieldTypeDropdown();
             updateFieldConfig('TEXT');
 
@@ -3982,13 +4000,27 @@
             renderSelectOptions();
         }
 
-        function saveField() {
-            const name = document.getElementById('newFieldName').value.trim();
-            const type = document.getElementById('newFieldType').value;
-            if (!name) { showConfirm('Please enter a field name', () => {}); return; }
-            
-            const set = getCurrentSet();
-            const fieldId = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      function saveField() {
+          const nameInput = document.getElementById('newFieldName');
+          const nameError = document.getElementById('fieldNameError');
+          const name = nameInput.value.trim();
+          const type = document.getElementById('newFieldType').value;
+
+          if (!name) {
+              if (nameError) {
+                  nameError.textContent = 'Please add a field name to continue.';
+                  nameError.classList.remove('hidden');
+              }
+              nameInput.classList.add('input-error');
+              nameInput.setAttribute('aria-invalid', 'true');
+              nameInput.focus();
+              return;
+          }
+
+          resetFieldNameValidation();
+
+          const set = getCurrentSet();
+          const fieldId = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
             
             if (set.schema.find(f => f.id === fieldId)) {
                 showConfirm('A field with this name already exists', () => {});
@@ -5692,13 +5724,15 @@
                 state.confirmCallback = null;
                 closeModal('confirmModal');
             };
-            document.getElementById('addSortRuleBtn').onclick = addSortRule;
-            document.getElementById('clearSortsBtn').onclick = clearSorts;
-            document.getElementById('applySortsBtn').onclick = applySortsFromModal;
-            document.getElementById('closeSortBtn').onclick = () => closeModal('sortModal');
-            document.getElementById('saveAddFieldBtn').onclick = saveField;
-            document.getElementById('cancelAddFieldBtn').onclick = () => closeModal('addFieldModal');
-            document.getElementById('closeAddFieldBtn').onclick = () => closeModal('addFieldModal');
+          document.getElementById('addSortRuleBtn').onclick = addSortRule;
+          document.getElementById('clearSortsBtn').onclick = clearSorts;
+          document.getElementById('applySortsBtn').onclick = applySortsFromModal;
+          document.getElementById('closeSortBtn').onclick = () => closeModal('sortModal');
+          const fieldNameInput = document.getElementById('newFieldName');
+          if (fieldNameInput) fieldNameInput.addEventListener('input', resetFieldNameValidation);
+          document.getElementById('saveAddFieldBtn').onclick = saveField;
+          document.getElementById('cancelAddFieldBtn').onclick = () => closeModal('addFieldModal');
+          document.getElementById('closeAddFieldBtn').onclick = () => closeModal('addFieldModal');
             document.getElementById('saveAddSetBtn').onclick = () => {
                 const name = document.getElementById('newSetName').value.trim();
                 const icon = extractIconToken(document.getElementById('newSetIcon').value.trim() || 'ph-squares-four');
