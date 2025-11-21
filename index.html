@@ -799,7 +799,17 @@
         #addFieldModal .modal-header { padding: 16px 18px 10px 18px; }
         #addFieldModal .modal-body { padding: 16px 18px 18px 18px; }
         #addFieldModal .modal-footer { padding: 14px 18px; background: #f8fafc; }
-        .icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 8px; }
+        .icon-picker-shell { max-height: 90vh; display: flex; flex-direction: column; }
+        .icon-picker-body { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+        .icon-picker-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .icon-picker-search { flex: 1 1 260px; }
+        .icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 8px; max-height: 60vh; overflow: auto; padding-right: 4px; }
+        .icon-pagination { display: flex; align-items: center; gap: 12px; margin-left: auto; font-size: 13px; color: #475569; }
+        .icon-pagination-count { font-weight: 700; }
+        .icon-pagination-buttons { display: inline-flex; align-items: center; gap: 6px; }
+        .icon-page-btn { padding: 6px 10px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; font-weight: 600; color: #0f172a; cursor: pointer; transition: all 0.15s ease; }
+        .icon-page-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .icon-page-btn:disabled { opacity: 0.55; cursor: not-allowed; background: #f8fafc; }
         .icon-option { display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; cursor: pointer; transition: all 0.12s ease; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04); }
         .icon-option:hover { border-color: #cbd5e1; background: #f8fafc; transform: translateY(-1px); }
         .icon-option.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
@@ -1744,13 +1754,16 @@
     </div>
 
     <div id="iconPickerModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-2xl">
+        <div class="modal-container bg-white w-full max-w-2xl icon-picker-shell">
             <div class="modal-header flex items-center justify-between">
                 <h2 class="text-xl font-bold text-gray-900">Pick an icon</h2>
                 <button id="closeIconPickerBtn" class="btn btn-secondary btn-sm">Close</button>
             </div>
-            <div class="modal-body space-y-4">
-                <input type="text" id="iconPickerSearch" placeholder="Search icons (e.g., table, folder)" class="w-full">
+            <div class="modal-body space-y-4 icon-picker-body">
+                <div class="icon-picker-controls">
+                    <input type="text" id="iconPickerSearch" placeholder="Search icons (e.g., table, folder)" class="w-full icon-picker-search">
+                    <div id="iconPickerPagination" class="icon-pagination"></div>
+                </div>
                 <div id="iconPickerOptions" class="icon-picker-grid"></div>
             </div>
         </div>
@@ -1994,6 +2007,7 @@
             popupUi: { filter: 'all', activeTab: 'popupFields' },
             popupEventStream: [],
             popupDraggedField: null,
+            iconPickerPage: 1,
             selectedCell: null,
             lastSelectedCell: null,
             editingCell: null,
@@ -3576,6 +3590,8 @@
             { token: 'ph-plant', label: 'Plant', keywords: ['nature', 'growing', 'organic'] }
         ];
 
+        const ICONS_PER_PAGE = 60;
+
         function renderIcon(icon) {
             if (!icon) return '';
             const trimmed = icon.toString().trim();
@@ -3678,6 +3694,7 @@
         function openIconPicker(targetInputId) {
             state.iconPickerTarget = targetInputId;
             state.iconPickerQuery = '';
+            state.iconPickerPage = 1;
             const searchInput = document.getElementById('iconPickerSearch');
             if (searchInput) {
                 searchInput.value = '';
@@ -3689,11 +3706,13 @@
 
         function renderIconPickerOptions() {
             const container = document.getElementById('iconPickerOptions');
+            const pagination = document.getElementById('iconPickerPagination');
             if (!container) return;
             const search = (state.iconPickerQuery || '').toLowerCase();
             const currentValue = state.iconPickerTarget ? extractIconToken(document.getElementById(state.iconPickerTarget)?.value || '') : '';
 
             container.innerHTML = '';
+            if (pagination) pagination.innerHTML = '';
 
             const scored = ICON_OPTIONS
                 .map(opt => ({ ...opt, score: fuzzyScore(search, buildIconSearchText(opt)) }))
@@ -3705,7 +3724,35 @@
                 return;
             }
 
-            scored.forEach(opt => {
+            const totalPages = Math.max(1, Math.ceil(scored.length / ICONS_PER_PAGE));
+            state.iconPickerPage = Math.min(Math.max(state.iconPickerPage, 1), totalPages);
+            const startIndex = (state.iconPickerPage - 1) * ICONS_PER_PAGE;
+            const pagedIcons = scored.slice(startIndex, startIndex + ICONS_PER_PAGE);
+
+            if (pagination) {
+                pagination.innerHTML = `
+                    <span class="icon-pagination-count">${scored.length} icons</span>
+                    <div class="icon-pagination-buttons">
+                        <button type="button" class="icon-page-btn" data-direction="prev" ${state.iconPickerPage === 1 ? 'disabled' : ''}>Prev</button>
+                        <span class="text-sm text-gray-600">Page ${state.iconPickerPage} / ${totalPages}</span>
+                        <button type="button" class="icon-page-btn" data-direction="next" ${state.iconPickerPage === totalPages ? 'disabled' : ''}>Next</button>
+                    </div>
+                `;
+
+                pagination.querySelectorAll('.icon-page-btn').forEach(btn => {
+                    btn.onclick = () => {
+                        const direction = btn.getAttribute('data-direction');
+                        if (direction === 'prev' && state.iconPickerPage > 1) {
+                            state.iconPickerPage -= 1;
+                        } else if (direction === 'next' && state.iconPickerPage < totalPages) {
+                            state.iconPickerPage += 1;
+                        }
+                        renderIconPickerOptions();
+                    };
+                });
+            }
+
+            pagedIcons.forEach(opt => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = `icon-option${opt.token === currentValue ? ' active' : ''}`;
@@ -8002,6 +8049,7 @@
             document.getElementById('closeIconPickerBtn').onclick = () => closeModal('iconPickerModal');
             document.getElementById('iconPickerSearch').oninput = (event) => {
                 state.iconPickerQuery = event.target.value;
+                state.iconPickerPage = 1;
                 renderIconPickerOptions();
             };
             document.getElementById('closeFilterBtn').onclick = () => closeModal('filterModal');
