@@ -1958,6 +1958,7 @@
             csvImportState: { headers: [], rows: [], mappings: {}, previewRows: [], matches: [], targetMode: 'existing', targetSetId: null, newSetName: '' },
             fuzzyPanelState: { threshold: 0.65, matches: [] },
             formulaFieldService: null,
+            fieldTypeHistory: new Map(),
             formulaEditor: {
                 isOpen: false,
                 fieldId: null,
@@ -3540,6 +3541,11 @@
             if (trimmed.startsWith('ph ')) return `<i class="${trimmed}"></i>`;
             if (trimmed.startsWith('ph-')) return `<i class="ph ${trimmed}"></i>`;
             return trimmed;
+        }
+
+        function cloneConfig(config) {
+            if (typeof structuredClone === 'function') return structuredClone(config || null);
+            return JSON.parse(JSON.stringify(config || null));
         }
 
         function extractIconToken(icon) {
@@ -5810,6 +5816,88 @@
           showToast(`✓ Updated ${field.name}`);
       }
 
+        function buildDefaultConfigForType(type) {
+            switch(type) {
+                case 'SINGLE_SELECT':
+                    return { options: [{ value: 'Option 1', color: 'blue' }] };
+                case 'LINK_RECORD':
+                    return { linkedSetId: state.currentSetId };
+                case 'FORMULA':
+                    return { formula: '', visualBlocks: [] };
+                default:
+                    return null;
+            }
+        }
+
+        function snapshotFieldValues(set, fieldId) {
+            const values = new Map();
+            set.records.forEach((record, recordId) => {
+                values.set(recordId, record[fieldId]);
+            });
+            return values;
+        }
+
+        function restoreFieldValues(set, fieldId, values) {
+            values.forEach((value, recordId) => {
+                const record = set.records.get(recordId);
+                if (record) record[fieldId] = value;
+            });
+        }
+
+        function convertValueForType(value, fromType, toType, targetConfig = {}) {
+            const defaults = FIELD_TYPES[toType]?.defaultValue;
+            if (value === undefined || value === null) return defaults;
+
+            switch(toType) {
+                case 'TEXT':
+                case 'LONG_TEXT':
+                    return value === '' ? '' : String(value);
+                case 'NUMBER':
+                case 'CURRENCY': {
+                    if (value === '') return 0;
+                    if (value instanceof Date) return value.getTime();
+                    if (typeof value === 'boolean') return value ? 1 : 0;
+                    const cleaned = String(value).replace(/[$,]/g, '');
+                    const parsed = Number(cleaned);
+                    return Number.isNaN(parsed) ? 0 : parsed;
+                }
+                case 'DATE': {
+                    if (value instanceof Date) return value;
+                    if (typeof value === 'number') {
+                        const date = new Date(value);
+                        return Number.isNaN(date.getTime()) ? '' : date;
+                    }
+                    const parsed = new Date(value);
+                    return Number.isNaN(parsed.getTime()) ? '' : parsed;
+                }
+                case 'EMAIL':
+                case 'URL':
+                case 'PHONE':
+                    return String(value ?? '').trim();
+                case 'CHECKBOX':
+                    if (typeof value === 'string') {
+                        return ['true', '1', 'yes', 'y', 'checked', 'on'].includes(value.trim().toLowerCase());
+                    }
+                    return Boolean(value);
+                case 'SINGLE_SELECT': {
+                    const str = String(value ?? '').trim();
+                    if (!str) return '';
+                    const options = targetConfig.options || [];
+                    if (!options.some(opt => opt.value === str)) {
+                        options.push({ value: str, color: 'gray' });
+                        targetConfig.options = options;
+                    }
+                    return str;
+                }
+                case 'LINK_RECORD':
+                    return typeof value === 'string' ? value : '';
+                case 'FORMULA':
+                    return defaults;
+                default:
+                    return value;
+            }
+        }
+
       // FIELD MANAGEMENT
       function resetFieldNameValidation() {
           const nameInput = document.getElementById('newFieldName');
@@ -5920,6 +6008,86 @@
             dropdown.classList.add('hidden');
             trigger.classList.remove('active');
             state.fieldTypeDropdownOpen = false;
+        }
+
+        function hasFieldHistory(setId, fieldId) {
+            const key = `${setId}:${fieldId}`;
+            const stack = state.fieldTypeHistory.get(key);
+            return Array.isArray(stack) && stack.length > 0;
+        }
+
+        function changeFieldType(fieldId, newType) {
+            const set = getCurrentSet();
+            const field = set.schema.find(f => f.id === fieldId);
+            if (!field || !FIELD_TYPES[newType]) return;
+
+            const previousType = field.type;
+            if (previousType === newType) return;
+
+            const historyKey = `${set.id}:${fieldId}`;
+            const historyStack = state.fieldTypeHistory.get(historyKey) || [];
+            historyStack.push({
+                type: previousType,
+                config: cloneConfig(field.config),
+                values: snapshotFieldValues(set, fieldId)
+            });
+            state.fieldTypeHistory.set(historyKey, historyStack);
+
+            const targetConfig = cloneConfig(buildDefaultConfigForType(newType));
+
+            set.records.forEach((record, recordId) => {
+                const oldValue = record[fieldId];
+                record[fieldId] = convertValueForType(oldValue, previousType, newType, targetConfig || {});
+            });
+
+            field.type = newType;
+            field.config = targetConfig;
+
+            createEvent(
+                'Change Field Type',
+                'SEG',
+                { type: 'Field', id: fieldId, setId: set.id },
+                { previousType, newType, fieldId, fieldName: field.name, setId: set.id, summary: `Changed ${field.name} to ${FIELD_TYPES[newType].name}` }
+            );
+
+            recomputeFormulasForSet(set);
+            renderCurrentView();
+            showToast(`✓ ${field.name} is now ${FIELD_TYPES[newType].name}`);
+        }
+
+        function revertFieldType(fieldId) {
+            const set = getCurrentSet();
+            const field = set.schema.find(f => f.id === fieldId);
+            if (!field) return;
+
+            const historyKey = `${set.id}:${fieldId}`;
+            const historyStack = state.fieldTypeHistory.get(historyKey) || [];
+            const last = historyStack.pop();
+
+            if (!last) {
+                showToast('No previous type to restore');
+                return;
+            }
+
+            field.type = last.type;
+            field.config = cloneConfig(last.config);
+            restoreFieldValues(set, fieldId, last.values);
+            if (historyStack.length === 0) {
+                state.fieldTypeHistory.delete(historyKey);
+            } else {
+                state.fieldTypeHistory.set(historyKey, historyStack);
+            }
+
+            createEvent(
+                'Revert Field Type',
+                'SEG',
+                { type: 'Field', id: fieldId, setId: set.id },
+                { restoredType: last.type, fieldId, fieldName: field.name, setId: set.id, summary: `Reverted ${field.name} to ${FIELD_TYPES[last.type].name}` }
+            );
+
+            recomputeFormulasForSet(set);
+            renderCurrentView();
+            showToast(`↩️ ${field.name} restored to ${FIELD_TYPES[last.type].name}`);
         }
 
         function updateFieldConfig(typeId) {
@@ -7382,9 +7550,22 @@
         // CONTEXT MENUS
         function showColumnMenu(e, field) {
             showContextMenu(e, [
+                { label: 'Change Field Type…', action: () => promptFieldTypeChange(field) },
+                hasFieldHistory(getCurrentSet()?.id, field.id) ? { label: 'Revert Last Type Change', action: () => revertFieldType(field.id) } : null,
                 { label: 'Hide Field', action: () => hideField(field.id) },
                 { label: 'Delete Field', action: () => confirmDelete('field', field.id), danger: true }
-            ]);
+            ].filter(Boolean));
+        }
+
+        function promptFieldTypeChange(field) {
+            const choices = Object.values(FIELD_TYPES)
+                .map(ft => `${ft.id} (${ft.name})`)
+                .join('\n');
+            const response = prompt(`Change \"${field.name}\" to which type?\n${choices}`, field.type);
+            const normalized = (response || '').trim().toUpperCase();
+            if (normalized && FIELD_TYPES[normalized]) {
+                changeFieldType(field.id, normalized);
+            }
         }
 
         function showCellMenu(e, recordId, field) {
