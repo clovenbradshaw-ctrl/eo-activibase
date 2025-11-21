@@ -1719,7 +1719,7 @@
     </div>
 
     <div id="addViewModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-md">
+        <div class="modal-container bg-white w-full max-w-xl">
             <div class="modal-header">
                 <h2 id="addViewModalTitle" class="text-xl font-bold text-gray-900">Create View</h2>
             </div>
@@ -1744,6 +1744,27 @@
                     <label class="form-label">Nest Under</label>
                     <select id="newViewParent"></select>
                     <p class="form-hint">Optionally place this view under another view</p>
+                </div>
+                <div>
+                    <label class="form-label">How do you want to start?</label>
+                    <div class="space-y-3">
+                        <label class="flex items-center gap-2 font-medium">
+                            <input type="radio" name="viewCreationMode" value="blank" checked>
+                            Blank View
+                        </label>
+                        <label class="flex items-start gap-2 font-medium">
+                            <input type="radio" name="viewCreationMode" value="key">
+                            <div class="flex-1">
+                                <div>Create From Key</div>
+                                <div class="mt-2">
+                                    <select id="keyCandidateSelect" class="w-full" disabled>
+                                        <option value="">Scanning for identity properties…</option>
+                                    </select>
+                                    <p class="form-hint">We look for reused identifiers, links, and fuzzy matches to seed the shape.</p>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer flex justify-end gap-2">
@@ -1880,6 +1901,50 @@
             <div class="modal-footer flex justify-end gap-2">
                 <button id="cancelCsvImportBtn" class="btn btn-secondary">Cancel</button>
                 <button id="runCsvImportBtn" class="btn btn-primary">Import Records</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="columnRulesModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Column Rules</h2>
+                    <p class="text-sm text-gray-500 mt-1">Pick how we resolve multiple observations per property.</p>
+                </div>
+                <button id="closeColumnRulesBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-body space-y-4">
+                <div>
+                    <label class="form-label">Property</label>
+                    <select id="columnRulesFieldSelect"></select>
+                </div>
+                <div>
+                    <label class="form-label">Rule</label>
+                    <select id="columnRulesRuleSelect">
+                        <option value="sup_all">Show all (Multiple Observations)</option>
+                        <option value="prefer_newest">Prefer newest</option>
+                        <option value="prefer_oldest">Prefer oldest</option>
+                        <option value="prefer_set">Prefer value from set…</option>
+                        <option value="average_numeric">Average numeric</option>
+                        <option value="median_numeric">Median numeric</option>
+                        <option value="concat_text">Concatenate text</option>
+                        <option value="first_non_null">First non-null</option>
+                    </select>
+                </div>
+                <div id="columnRulesSetPicker" class="hidden">
+                    <label class="form-label">Preferred Set</label>
+                    <select id="columnRulesPreferredSet"></select>
+                </div>
+                <div class="rounded-lg border border-gray-200 p-3 bg-gray-50" id="columnRulesSummary"></div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button id="deleteColumnRuleBtn" class="btn btn-secondary">Clear Rule</button>
+                <button id="saveColumnRuleBtn" class="btn btn-primary">Save Rule</button>
             </div>
         </div>
     </div>
@@ -3316,7 +3381,7 @@
             FORMULA: { id: 'FORMULA', name: 'Formula', description: 'Calculated values using the repo\'s JavaScript formula rules', defaultValue: '', icon: 'ph-equals', needsConfig: true }
         };
 
-        const VIEW_TYPE_ICONS = { grid: 'ph-table', card: 'ph-cards-three', kanban: 'ph-kanban' };
+        const VIEW_TYPE_ICONS = { grid: 'ph-table', card: 'ph-cards-three', kanban: 'ph-kanban', KEY_DERIVED: 'ph-key' };
 
         const ICON_OPTIONS = [
             // Organization & Layout
@@ -3996,7 +4061,7 @@
         function createView(setId, name, config = {}) {
             const viewId = 'view_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             const set = state.sets.get(setId);
-            set.views.set(viewId, {
+            const viewPayload = {
                 id: viewId,
                 name: name,
                 type: config.type || 'grid',
@@ -4007,9 +4072,226 @@
                 popupVisibilityRules: config.popupVisibilityRules || [],
                 kanbanGroupField: config.kanbanGroupField || null,
                 cardFields: config.cardFields || [],
-                parentId: config.parentId || null
-            });
+                parentId: config.parentId || null,
+                key: config.key || null,
+                schema: config.schema || null,
+                relationships: config.relationships || [],
+                rollups: config.rollups || [],
+                columnRules: config.columnRules || {},
+                createdAt: Date.now(),
+                createdBy: state.currentUser.id
+            };
+            set.views.set(viewId, viewPayload);
+
+            if (config.type === 'KEY_DERIVED') {
+                createEvent(
+                    'Create Key View',
+                    'SYN',
+                    { type: 'View', id: viewId, setId },
+                    { view: viewPayload, summary: `Generated view "${name}" from identity property` },
+                    { scale: 'collection' }
+                );
+            }
+
             return viewId;
+        }
+
+        function scoreFieldAsKey(set, field) {
+            let score = 0;
+            if (field.type === 'LINK_RECORD') score += 0.35;
+
+            const values = Array.from(set.records.values()).map(r => r[field.id]).filter(v => v !== undefined && v !== null);
+            if (values.length > 0) {
+                const unique = new Set(values.map(v => JSON.stringify(v))).size;
+                const reuseRatio = 1 - unique / values.length;
+                score += reuseRatio * 0.4;
+            }
+
+            for (const [otherSetId, otherSet] of state.sets.entries()) {
+                if (otherSetId === set.id) continue;
+                const overlap = otherSet.schema.some(f => f.id === field.id || f.name === field.name);
+                if (overlap) score += 0.15;
+            }
+
+            score = Math.min(1, score);
+            return { score };
+        }
+
+        function findKeyCandidates() {
+            const candidates = new Map();
+
+            state.sets.forEach((set, setId) => {
+                set.schema.forEach(field => {
+                    const usage = scoreFieldAsKey(set, field);
+                    if (usage.score > 0.6) {
+                        candidates.set(`${setId}:${field.id}`, {
+                            setId,
+                            fieldId: field.id,
+                            fieldName: field.name,
+                            score: usage.score
+                        });
+                    }
+                });
+            });
+
+            return [...candidates.values()].sort((a, b) => b.score - a.score);
+        }
+
+        function findFieldAcrossSets(fieldId) {
+            for (const [setId, set] of state.sets.entries()) {
+                const field = set.schema.find(f => f.id === fieldId);
+                if (field) return { setId, field };
+            }
+            return null;
+        }
+
+        function findAllItemsForKey(setId, fieldId) {
+            const results = [];
+
+            state.sets.forEach(set => {
+                set.records.forEach((record, id) => {
+                    if (record[fieldId] !== null && record[fieldId] !== undefined) {
+                        results.push({ setId: set.id, recordId: id, record });
+                    }
+                });
+            });
+
+            return results;
+        }
+
+        function buildPropertyInventory(items, keyFieldId) {
+            const propertyCount = new Map();
+
+            items.forEach(({ record }) => {
+                Object.keys(record).forEach(fieldId => {
+                    if (fieldId === keyFieldId) return;
+                    propertyCount.set(fieldId, (propertyCount.get(fieldId) || 0) + 1);
+                });
+            });
+
+            return [...propertyCount.entries()]
+                .filter(([_, count]) => count / Math.max(items.length, 1) > 0.2)
+                .map(([f]) => f);
+        }
+
+        function detectRelationships(propertyIds) {
+            return propertyIds
+                .map(fieldId => {
+                    const hit = findFieldAcrossSets(fieldId);
+                    if (!hit) return null;
+                    if (hit.field.type === 'LINK_RECORD') {
+                        return { fieldId, setId: hit.setId, type: 'link' };
+                    }
+                    if (Array.isArray(hit.field.defaultValue)) {
+                        return { fieldId, setId: hit.setId, type: 'array' };
+                    }
+                    return null;
+                })
+                .filter(Boolean);
+        }
+
+        function detectRollups(keyRef) {
+            const rollups = [];
+            state.sets.forEach((set, setId) => {
+                const hasReference = set.schema.some(f => f.id === keyRef.fieldId || f.name === keyRef.fieldId || f.config?.linkedSetId === keyRef.setId);
+                if (hasReference) {
+                    rollups.push({
+                        type: 'count',
+                        fromSetId: setId,
+                        fieldId: keyRef.fieldId,
+                        label: `Count of ${set.name} where ${keyRef.fieldId} matches`
+                    });
+                }
+            });
+            return rollups;
+        }
+
+        function autoDetectSchemaFromKey(keyRef) {
+            const allItems = findAllItemsForKey(keyRef.setId, keyRef.fieldId);
+            const propertyIds = buildPropertyInventory(allItems, keyRef.fieldId);
+            const relationships = detectRelationships(propertyIds);
+            const rollups = detectRollups(keyRef);
+
+            const schema = propertyIds.map(propId => {
+                const match = findFieldAcrossSets(propId);
+                return {
+                    id: `derived_${propId}`,
+                    sourceFieldId: propId,
+                    sourceSetId: match?.setId || null,
+                    name: match?.field?.name || propId,
+                    type: match?.field?.type || 'TEXT'
+                };
+            });
+
+            return { schema, relationships, rollups };
+        }
+
+        function groupByKeyValue(items, keyFieldId) {
+            const grouped = new Map();
+            items.forEach(item => {
+                const key = item.record[keyFieldId];
+                if (key === undefined || key === null) return;
+                if (!grouped.has(key)) grouped.set(key, []);
+                grouped.get(key).push(item);
+            });
+            return grouped;
+        }
+
+        function applyColumnRule(values, ruleConfig = {}) {
+            if (!values || values.length === 0) return null;
+            const uniqueValues = values.filter(v => v !== undefined && v !== null);
+            if (uniqueValues.length === 0) return null;
+            const rule = ruleConfig.rule || 'sup_all';
+
+            switch (rule) {
+                case 'prefer_newest':
+                    return uniqueValues[uniqueValues.length - 1];
+                case 'prefer_oldest':
+                    return uniqueValues[0];
+                case 'prefer_set':
+                    if (ruleConfig.setId) {
+                        const found = uniqueValues.find(v => v && v.__sourceSetId === ruleConfig.setId);
+                        if (found !== undefined) return found;
+                    }
+                    return uniqueValues[0];
+                case 'average_numeric':
+                    const nums = uniqueValues.map(Number).filter(n => !Number.isNaN(n));
+                    return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+                case 'median_numeric':
+                    const sorted = uniqueValues.map(Number).filter(n => !Number.isNaN(n)).sort((a, b) => a - b);
+                    if (!sorted.length) return null;
+                    const mid = Math.floor(sorted.length / 2);
+                    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+                case 'concat_text':
+                    return uniqueValues.join(', ');
+                case 'first_non_null':
+                    return uniqueValues.find(v => v !== null && v !== undefined);
+                case 'sup_all':
+                default:
+                    return { value: uniqueValues.map(val => ({ val })), _sup: true };
+            }
+        }
+
+        function buildRowsFromGroups(grouped, view) {
+            const rows = [];
+            grouped.forEach((items, keyValue) => {
+                const row = { id: `key_${keyValue}`, keyValue, __sourceItems: items };
+                (view.schema || []).forEach(field => {
+                    const values = items.map(item => {
+                        const raw = item.record[field.sourceFieldId || field.id];
+                        if (raw && typeof raw === 'object' && !raw.__sourceSetId) {
+                            return { ...raw, __sourceSetId: item.setId };
+                        }
+                        if (raw !== undefined && raw !== null) {
+                            return typeof raw === 'object' ? { ...raw, __sourceSetId: item.setId } : raw;
+                        }
+                        return undefined;
+                    }).filter(v => v !== undefined);
+                    row[field.id] = applyColumnRule(values, view.columnRules?.[field.id]);
+                });
+                rows.push(row);
+            });
+            return rows;
         }
 
         function addRecord(setId, data) {
@@ -4869,6 +5151,9 @@
             const saveBtn = document.getElementById('saveAddViewBtn');
             const nameInput = document.getElementById('newViewName');
             const iconInput = document.getElementById('newViewIcon');
+            const keySelect = document.getElementById('keyCandidateSelect');
+            const radioBlank = document.querySelector('input[name="viewCreationMode"][value="blank"]');
+            const radioKey = document.querySelector('input[name="viewCreationMode"][value="key"]');
 
             state.currentSetId = setId;
             if (viewId) {
@@ -4879,6 +5164,15 @@
                 if (nameInput) nameInput.value = view?.name || '';
                 if (iconInput) iconInput.value = extractIconToken(view?.icon || VIEW_TYPE_ICONS[view?.type]);
                 populateViewParentOptions(setId, viewId, view?.parentId || null);
+                if (radioBlank && radioKey) {
+                    radioBlank.checked = view?.type !== 'KEY_DERIVED';
+                    radioKey.checked = view?.type === 'KEY_DERIVED';
+                }
+                if (keySelect && view?.type === 'KEY_DERIVED' && view.key) {
+                    const optionValue = `${view.key.setId}:${view.key.fieldId}`;
+                    keySelect.innerHTML = `<option value="${optionValue}">${view.key.fieldId}</option>`;
+                    keySelect.disabled = true;
+                }
             } else {
                 state.viewEditorContext = { setId, viewId: null };
                 if (titleEl) titleEl.textContent = 'Create View';
@@ -4886,6 +5180,17 @@
                 if (nameInput) nameInput.value = '';
                 if (iconInput) iconInput.value = 'ph-table';
                 populateViewParentOptions(setId);
+                const candidates = findKeyCandidates();
+                if (keySelect) {
+                    keySelect.disabled = candidates.length === 0;
+                    keySelect.innerHTML = candidates.length === 0
+                        ? '<option value="">No stable identity properties detected yet</option>'
+                        : candidates.map(c => `<option value="${c.setId}:${c.fieldId}">${c.fieldName} (${state.sets.get(c.setId)?.name || 'Set'})</option>`).join('');
+                }
+                if (radioBlank && radioKey) {
+                    radioBlank.checked = true;
+                    radioKey.checked = false;
+                }
             }
 
             syncIconSelector('newViewIcon');
@@ -4949,12 +5254,16 @@
                 case 'kanban':
                     renderKanbanView();
                     break;
+                case 'KEY_DERIVED':
+                    renderKeyDerivedView();
+                    break;
             }
         }
 
         function ensureViewDefaults(view) {
             if (!view.icon) view.icon = VIEW_TYPE_ICONS[view.type] || 'ph-note';
             if (!view.sorts) view.sorts = [];
+            if (!view.columnRules) view.columnRules = {};
         }
 
         function applyColumnWidth(fieldId, width) {
@@ -5176,7 +5485,13 @@
 
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
-                <div class="max-w-full px-6 py-6">
+                <div class="flex items-center justify-between px-6 pt-6">
+                    <div class="text-sm text-gray-600">Live collection view</div>
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">Column Rules</button>
+                    </div>
+                </div>
+                <div class="max-w-full px-6 pb-6">
                     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                         <div class="table-scroll">
                             <table id="dataTable" class="border-collapse">
@@ -5268,7 +5583,77 @@
             }
         }
 
+        function renderKeyDerivedView() {
+            const view = getCurrentView();
+            if (!view?.key) return renderGridView();
+
+            const keyRef = view.key;
+            const allItems = findAllItemsForKey(keyRef.setId, keyRef.fieldId);
+            const grouped = groupByKeyValue(allItems, keyRef.fieldId);
+            const rows = buildRowsFromGroups(grouped, view);
+
+            const container = document.getElementById('viewContainer');
+            container.innerHTML = `
+                <div class="flex items-center justify-between px-6 pt-6">
+                    <div class="text-sm text-gray-600">Generated view — no data mutated</div>
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">Column Rules</button>
+                    </div>
+                </div>
+                <div class="max-w-full px-6 pb-6">
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="table-scroll">
+                            <table id="dataTable" class="border-collapse">
+                                <thead><tr id="tableHeader"></tr></thead>
+                                <tbody id="tableBody"></tbody>
+                            </table>
+                        </div>
+                        <div class="table-footer">
+                            <span class="record-counter" id="recordCounter">${rows.length} collections</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const headerRow = document.getElementById('tableHeader');
+            headerRow.innerHTML = '';
+            const keyHeader = document.createElement('th');
+            keyHeader.className = 'column-header';
+            keyHeader.textContent = 'Identity Property';
+            headerRow.appendChild(keyHeader);
+
+            (view.schema || []).forEach(field => {
+                const th = document.createElement('th');
+                th.className = 'column-header';
+                th.dataset.fieldId = field.id;
+                th.textContent = field.name;
+                headerRow.appendChild(th);
+            });
+
+            const tbody = document.getElementById('tableBody');
+            rows.forEach(row => {
+                const tr = document.createElement('tr');
+                const identityCell = document.createElement('td');
+                identityCell.textContent = row.keyValue;
+                tr.appendChild(identityCell);
+
+                (view.schema || []).forEach(field => {
+                    const td = document.createElement('td');
+                    td.className = 'cell-editable';
+                    const value = row[field.id];
+                    td.innerHTML = renderCellValue(value, field, row);
+                    td.onclick = () => openObservationModal({ keyValue: row.keyValue, field, items: row.__sourceItems });
+                    tr.appendChild(td);
+                });
+
+                tbody.appendChild(tr);
+            });
+        }
+
         function renderCellValue(value, field, record) {
+            if (value && typeof value === 'object' && value._sup) {
+                return renderSuperpositionCell(value.value || []);
+            }
             switch(field.type) {
                 case 'TEXT': case 'LONG_TEXT': case 'EMAIL': case 'URL': case 'PHONE':
                     return value || '';
@@ -5303,6 +5688,101 @@
             }
         }
 
+        function openColumnRulesModal() {
+            const modal = document.getElementById('columnRulesModal');
+            const view = getCurrentView();
+            if (!modal || !view) return;
+
+            const fields = view.type === 'KEY_DERIVED' ? (view.schema || []) : getCurrentSet()?.schema || [];
+            const fieldSelect = document.getElementById('columnRulesFieldSelect');
+            fieldSelect.innerHTML = '';
+            fields.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f.id;
+                opt.textContent = f.name;
+                fieldSelect.appendChild(opt);
+            });
+
+            const ruleSelect = document.getElementById('columnRulesRuleSelect');
+            const setPicker = document.getElementById('columnRulesSetPicker');
+            const preferredSet = document.getElementById('columnRulesPreferredSet');
+            preferredSet.innerHTML = '';
+            state.sets.forEach(set => {
+                const opt = document.createElement('option');
+                opt.value = set.id;
+                opt.textContent = set.name;
+                preferredSet.appendChild(opt);
+            });
+
+            const currentRule = view.columnRules?.[fieldSelect.value] || { rule: 'sup_all' };
+            ruleSelect.value = currentRule.rule || 'sup_all';
+            preferredSet.value = currentRule.setId || '';
+            setPicker.classList.toggle('hidden', ruleSelect.value !== 'prefer_set');
+
+            updateColumnRulesSummary();
+            openModal('columnRulesModal');
+        }
+
+        function updateColumnRulesSummary() {
+            const view = getCurrentView();
+            if (!view) return;
+            const summary = document.getElementById('columnRulesSummary');
+            const fieldSelect = document.getElementById('columnRulesFieldSelect');
+            const ruleSelect = document.getElementById('columnRulesRuleSelect');
+            const preferredSet = document.getElementById('columnRulesPreferredSet');
+            const field = (view.schema || getCurrentSet()?.schema || []).find(f => f.id === fieldSelect.value);
+            const ruleText = ruleSelect.options[ruleSelect.selectedIndex]?.textContent;
+            const setName = preferredSet.value ? state.sets.get(preferredSet.value)?.name : null;
+            summary.textContent = `${field?.name || 'Field'} → ${ruleText}${setName ? ` (${setName})` : ''}`;
+        }
+
+        function saveColumnRule() {
+            const view = getCurrentView();
+            if (!view) return;
+            const fieldId = document.getElementById('columnRulesFieldSelect').value;
+            const rule = document.getElementById('columnRulesRuleSelect').value;
+            const setId = document.getElementById('columnRulesPreferredSet').value || null;
+
+            view.columnRules = view.columnRules || {};
+            view.columnRules[fieldId] = { rule, ...(rule === 'prefer_set' ? { setId } : {}) };
+
+            createEvent(
+                'View Schema Update',
+                'SEG',
+                { type: 'View', id: view.id, setId: view.key?.setId || state.currentSetId },
+                { viewId: view.id, changes: { columnRules: view.columnRules }, summary: 'Updated column rules' },
+                { scale: 'collection' }
+            );
+
+            closeModal('columnRulesModal');
+            renderCurrentView();
+        }
+
+        function deleteColumnRule() {
+            const view = getCurrentView();
+            if (!view) return;
+            const fieldId = document.getElementById('columnRulesFieldSelect').value;
+            if (view.columnRules?.[fieldId]) {
+                delete view.columnRules[fieldId];
+                createEvent(
+                    'View Schema Update',
+                    'SEG',
+                    { type: 'View', id: view.id, setId: view.key?.setId || state.currentSetId },
+                    { viewId: view.id, changes: { columnRules: view.columnRules }, summary: 'Cleared column rule' },
+                    { scale: 'collection' }
+                );
+            }
+            closeModal('columnRulesModal');
+            renderCurrentView();
+        }
+
+        function renderSuperpositionCell(entries) {
+            if (!Array.isArray(entries) || entries.length === 0) return '';
+            const compact = entries.map(e => e?.val ?? '').filter(Boolean).join(' | ');
+            const tooltip = entries.map(e => `${e?.val ?? ''} — ${e?.context?.source || 'observation'}`).join('\n');
+            return `<span class="sup-chip" title="${tooltip}">${compact}</span>`;
+        }
+
         // CARD VIEW
         function renderCardView() {
             const set = getCurrentSet();
@@ -5314,7 +5794,12 @@
             if (view?.sorts?.length) records = applySorts(records, view.sorts, set.schema);
 
             const container = document.getElementById('viewContainer');
-            container.innerHTML = '<div class="cards-grid" id="cardsGrid"></div>';
+            container.innerHTML = `
+                <div class="flex items-center justify-between px-6 pt-6">
+                    <div class="text-sm text-gray-600">Card layout</div>
+                    <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">Column Rules</button>
+                </div>
+                <div class="cards-grid" id="cardsGrid"></div>`;
             
             const grid = document.getElementById('cardsGrid');
             records.forEach(record => {
@@ -5540,6 +6025,13 @@
 
             state.selectedCell = { td, recordId, fieldId };
             state.lastSelectedCell = { recordId, fieldId };
+
+            const set = getCurrentSet();
+            const record = set?.records.get(recordId);
+            const value = record ? record[fieldId] : null;
+            if (value && value._sup) {
+                openObservationModal({ recordId, fieldId, setId: set?.id });
+            }
         }
 
         function enterEditMode(td, recordId, field) {
@@ -6634,27 +7126,45 @@
         }
 
         function openCellHistory(recordId, fieldId) {
-            const set = getCurrentSet();
-            const record = set.records.get(recordId);
-            const field = set.schema.find(f => f.id === fieldId);
+            openObservationModal({ recordId, fieldId, setId: getCurrentSet()?.id });
+        }
+
+        function openObservationModal({ recordId = null, fieldId = null, setId = null, keyValue = null, field = null, items = [] }) {
             const modal = document.getElementById('cellHistoryModal');
+            const targetSet = setId ? state.sets.get(setId) : getCurrentSet();
+            const record = recordId ? targetSet?.records.get(recordId) : null;
+            const schemaField = field || targetSet?.schema?.find(f => f.id === fieldId) || { id: fieldId, name: fieldId, type: 'TEXT' };
 
             const entries = state.eventStream
-                .filter(e => e.op === 'SEG' && e.data?.recordId === recordId && e.data?.fieldId === fieldId)
+                .filter(e => e.op === 'SEG' && e.data?.fieldId === schemaField.id && (!recordId || e.data?.recordId === recordId))
                 .sort((a, b) => new Date(a.published) - new Date(b.published));
+
+            const supValues = [];
+            const latestValue = record ? record[schemaField.id] : null;
+            if (latestValue && latestValue._sup && Array.isArray(latestValue.value)) supValues.push(...latestValue.value);
+            if (items.length > 0 && schemaField) {
+                items.forEach(item => {
+                    const candidate = item.record[schemaField.sourceFieldId || schemaField.id];
+                    if (candidate && candidate._sup && Array.isArray(candidate.value)) supValues.push(...candidate.value);
+                });
+            }
 
             state.cellHistoryContext = {
                 recordId,
-                fieldId,
-                fieldName: field?.name || fieldId,
-                recordName: record?.name || recordId,
+                fieldId: schemaField.id,
+                fieldName: schemaField.name || schemaField.id,
+                recordName: record?.name || keyValue || recordId || 'Item',
                 entries,
                 index: entries.length > 0 ? entries.length - 1 : 0,
-                selectedValueSource: 'new'
+                selectedValueSource: 'new',
+                supValues,
+                latestValue,
+                fieldType: schemaField.type,
+                sourceSetName: targetSet?.name
             };
 
             renderCellHistoryModal();
-            if (modal.classList.contains('hidden')) openModal('cellHistoryModal');
+            if (modal?.classList.contains('hidden')) openModal('cellHistoryModal');
         }
 
         function renderCellHistoryModal() {
@@ -6664,58 +7174,50 @@
             const ctx = state.cellHistoryContext;
 
             if (!ctx) return;
+            ctx.activePanel = ctx.activePanel || 'latest';
 
-            title.textContent = `${ctx.fieldName} history`;
-            subtitle.textContent = `Record: ${ctx.recordName}`;
+            title.textContent = `${ctx.fieldName} observations`;
+            subtitle.textContent = ctx.recordName ? `Item: ${ctx.recordName}` : 'Multiple items';
 
-            if (ctx.entries.length === 0) {
-                container.innerHTML = '<p class="text-gray-500">No history for this cell yet.</p>';
-                return;
-            }
+            const supList = (ctx.supValues || []).map(entry => `<div class="flex items-center justify-between border rounded-lg p-2"><span class="font-medium">${entry.val ?? ''}</span><span class="text-xs text-gray-500">${entry.context?.source || 'observation'}</span></div>`).join('');
+            const timeline = ctx.entries.map((entry, i) => `
+                <div class="border rounded-lg p-3 ${i === ctx.index ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}" onclick="selectCellHistoryEntry(${i})">
+                    <div class="flex items-center justify-between">
+                        <div class="font-medium">${entry.data?.fieldName || ctx.fieldName}</div>
+                        <div class="text-xs text-gray-500">${new Date(entry.published).toLocaleString()}</div>
+                    </div>
+                    <div class="text-sm text-gray-600 mt-1">${entry.data?.summary || 'Updated value'}</div>
+                    <div class="text-sm mt-2 flex items-center gap-2">
+                        <span class="text-red-600">${entry.data?.oldValue ?? '—'}</span>
+                        <span>→</span>
+                        <span class="text-green-600">${entry.data?.newValue ?? '—'}</span>
+                    </div>
+                </div>
+            `).join('');
 
-            if (ctx.index >= ctx.entries.length) ctx.index = ctx.entries.length - 1;
-
-            const activeEntry = ctx.entries[ctx.index];
+            const activeEntry = ctx.entries[ctx.index] || {};
             const selectedValue = ctx.selectedValueSource === 'old'
                 ? activeEntry.data?.oldValue
                 : activeEntry.data?.newValue;
+            const latestValue = ctx.latestValue ?? selectedValue;
 
             container.innerHTML = `
-                <div class="flex items-center justify-between mb-4">
-                    <div class="text-sm text-gray-600">${ctx.entries.length} change${ctx.entries.length === 1 ? '' : 's'} found</div>
-                    <div class="flex items-center gap-2">
-                        <button class="btn btn-secondary btn-sm" ${ctx.index === 0 ? 'disabled' : ''} onclick="stepCellHistory(-1)">◀ Prev</button>
-                        <button class="btn btn-secondary btn-sm" ${ctx.index >= ctx.entries.length - 1 ? 'disabled' : ''} onclick="stepCellHistory(1)">Next ▶</button>
-                    </div>
+                <div class="flex items-center gap-2 mb-4">
+                    ${['latest','observations','timeline','connections'].map(tab => `<button class="btn btn-secondary btn-sm ${ctx.activePanel === tab ? 'bg-gray-200' : ''}" onclick="setObservationPanel('${tab}')">${tab === 'latest' ? '📌 Latest Value' : tab === 'observations' ? '🔁 Observations' : tab === 'timeline' ? '🕒 Timeline' : '🔗 Connections'}</button>`).join('')}
                 </div>
-                <div class="space-y-3 mb-4">
-                    ${ctx.entries.map((entry, i) => `
-                        <div class="border rounded-lg p-3 ${i === ctx.index ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}" onclick="selectCellHistoryEntry(${i})">
-                            <div class="flex items-center justify-between">
-                                <div class="font-medium">${entry.data?.fieldName || ctx.fieldName}</div>
-                                <div class="text-xs text-gray-500">${new Date(entry.published).toLocaleString()}</div>
-                            </div>
-                            <div class="text-sm text-gray-600 mt-1">${entry.data?.summary || 'Updated value'}</div>
-                            <div class="text-sm mt-2 flex items-center gap-2">
-                                <span class="text-red-600">${entry.data?.oldValue ?? '—'}</span>
-                                <span>→</span>
-                                <span class="text-green-600">${entry.data?.newValue ?? '—'}</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="border-t pt-4">
-                    <div class="flex items-center gap-3 flex-wrap">
-                        <span class="text-sm text-gray-700">Apply value from selected change:</span>
-                        <div class="flex items-center gap-2">
-                            <button class="btn btn-secondary btn-sm ${ctx.selectedValueSource === 'old' ? 'bg-gray-200' : ''}" onclick="chooseHistoryValue('old')">Use old value</button>
-                            <button class="btn btn-secondary btn-sm ${ctx.selectedValueSource === 'new' ? 'bg-gray-200' : ''}" onclick="chooseHistoryValue('new')">Use new value</button>
-                        </div>
-                        <button class="btn btn-primary btn-sm" onclick="applySelectedHistoricalValue()">Apply to cell</button>
-                    </div>
-                    <div class="mt-2 text-sm text-gray-600">Selected value preview: <span class="font-semibold text-gray-900">${selectedValue ?? '—'}</span></div>
+                <div class="space-y-4">
+                    ${ctx.activePanel === 'latest' ? `<div class="text-lg font-semibold">${renderCellValue(latestValue, { type: ctx.fieldType || 'TEXT' }, {}) || '—'}</div>` : ''}
+                    ${ctx.activePanel === 'observations' ? (supList || '<p class="text-gray-500">No multiple observations yet.</p>') : ''}
+                    ${ctx.activePanel === 'timeline' ? `<div class="flex items-center justify-between mb-2"><div class="text-sm text-gray-600">${ctx.entries.length} change${ctx.entries.length === 1 ? '' : 's'} found</div><div class="flex items-center gap-2"><button class="btn btn-secondary btn-sm" ${ctx.index === 0 ? 'disabled' : ''} onclick="stepCellHistory(-1)">◀ Prev</button><button class="btn btn-secondary btn-sm" ${ctx.index >= ctx.entries.length - 1 ? 'disabled' : ''} onclick="stepCellHistory(1)">Next ▶</button></div></div><div class="space-y-3">${timeline}</div>` : ''}
+                    ${ctx.activePanel === 'connections' ? `<div class="text-sm text-gray-600">Source Set: ${ctx.sourceSetName || 'Unknown'}</div>` : ''}
                 </div>
             `;
+        }
+
+        function setObservationPanel(panel) {
+            if (!state.cellHistoryContext) return;
+            state.cellHistoryContext.activePanel = panel;
+            renderCellHistoryModal();
         }
 
         function selectCellHistoryEntry(index) {
@@ -8075,7 +8577,16 @@
           document.getElementById('saveAddFieldBtn').onclick = saveField;
           document.getElementById('cancelAddFieldBtn').onclick = () => closeModal('addFieldModal');
           document.getElementById('closeAddFieldBtn').onclick = () => closeModal('addFieldModal');
-            document.getElementById('saveAddSetBtn').onclick = () => {
+          document.getElementById('closeColumnRulesBtn').onclick = () => closeModal('columnRulesModal');
+          document.getElementById('columnRulesRuleSelect').onchange = (e) => {
+            document.getElementById('columnRulesSetPicker').classList.toggle('hidden', e.target.value !== 'prefer_set');
+            updateColumnRulesSummary();
+          };
+          document.getElementById('columnRulesFieldSelect').onchange = updateColumnRulesSummary;
+          document.getElementById('columnRulesPreferredSet').onchange = updateColumnRulesSummary;
+          document.getElementById('saveColumnRuleBtn').onclick = saveColumnRule;
+          document.getElementById('deleteColumnRuleBtn').onclick = deleteColumnRule;
+          document.getElementById('saveAddSetBtn').onclick = () => {
                 const name = document.getElementById('newSetName').value.trim();
                 const icon = extractIconToken(document.getElementById('newSetIcon').value.trim() || 'ph-squares-four');
                 if (!name) { showConfirm('Please enter a set name', () => {}); return; }
@@ -8106,6 +8617,8 @@
                 const name = document.getElementById('newViewName').value.trim();
                 const icon = extractIconToken(document.getElementById('newViewIcon').value.trim() || 'ph-table');
                 const parentId = document.getElementById('newViewParent').value || null;
+                const creationMode = document.querySelector('input[name="viewCreationMode"]:checked')?.value || 'blank';
+                const keyCandidate = document.getElementById('keyCandidateSelect')?.value || '';
                 if (!name) { showConfirm('Please enter a view name', () => {}); return; }
                 const set = state.sets.get(state.viewEditorContext?.setId || state.currentSetId);
                 const setId = set?.id;
@@ -8128,18 +8641,57 @@
                     switchSet(setId, view?.id || state.currentViewId);
                     showToast('✓ View updated');
                 } else {
-                    const viewId = createView(setId, name, { type: 'grid', icon, parentId });
-                    closeModal('addViewModal');
-                    document.getElementById('newViewName').value = '';
-                    document.getElementById('newViewIcon').value = 'ph-table';
-                    syncIconSelector('newViewIcon');
-                    state.viewEditorContext = null;
-                    renderSidebar();
-                    switchSet(setId, viewId);
-                    showToast('✓ View created');
+                    if (creationMode === 'key' && keyCandidate.includes(':')) {
+                        const [keySetId, fieldId] = keyCandidate.split(':');
+                        const keyRef = { setId: keySetId, fieldId };
+                        const detection = autoDetectSchemaFromKey(keyRef);
+                        const viewId = createView(keySetId, name, {
+                            type: 'KEY_DERIVED',
+                            icon: 'ph-key',
+                            parentId,
+                            key: keyRef,
+                            schema: detection.schema,
+                            relationships: detection.relationships,
+                            rollups: detection.rollups,
+                            filters: [{ field: fieldId, operator: 'notEmpty' }]
+                        });
+                        createEvent(
+                            'View Schema Update',
+                            'SEG',
+                            { type: 'View', id: viewId, setId: keySetId },
+                            { viewId, changes: { schema: detection.schema, relationships: detection.relationships, rollups: detection.rollups }, summary: 'Auto-generated schema from key' },
+                            { scale: 'collection' }
+                        );
+                        closeModal('addViewModal');
+                        document.getElementById('newViewName').value = '';
+                        document.getElementById('newViewIcon').value = 'ph-table';
+                        syncIconSelector('newViewIcon');
+                        state.viewEditorContext = null;
+                        renderSidebar();
+                        switchSet(keySetId, viewId);
+                        showToast('✓ Generated view from key');
+                    } else {
+                        const viewId = createView(setId, name, { type: 'grid', icon, parentId });
+                        closeModal('addViewModal');
+                        document.getElementById('newViewName').value = '';
+                        document.getElementById('newViewIcon').value = 'ph-table';
+                        syncIconSelector('newViewIcon');
+                        state.viewEditorContext = null;
+                        renderSidebar();
+                        switchSet(setId, viewId);
+                        showToast('✓ View created');
+                    }
                 }
             };
             document.getElementById('cancelAddViewBtn').onclick = () => { state.viewEditorContext = null; closeModal('addViewModal'); };
+            const viewCreationModes = document.querySelectorAll('input[name="viewCreationMode"]');
+            viewCreationModes.forEach(radio => {
+                radio.onchange = (e) => {
+                    const select = document.getElementById('keyCandidateSelect');
+                    const enableKey = e.target.value === 'key';
+                    if (select) select.disabled = !enableKey || select.options.length === 0;
+                };
+            });
             document.getElementById('saveKanbanConfigBtn').onclick = saveKanbanConfig;
             document.getElementById('cancelKanbanConfigBtn').onclick = () => closeModal('kanbanConfigModal');
             document.getElementById('closeJsonViewerBtn').onclick = () => closeModal('jsonViewerModal');
