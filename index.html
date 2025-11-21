@@ -3880,7 +3880,7 @@
                 case 'LINK_RECORD': {
                     const linkedSet = getLinkedSet(field);
                     const options = createLinkedRecordOptionList(field);
-                    const disabled = !linkedSet || options.length === 0;
+                    const disableSelect = !linkedSet || options.length === 0;
                     const selectId = `linked-record-select-${recordId}-${field.id}`;
                     const optionsDataAttr = encodeURIComponent(JSON.stringify(options));
                     const hint = !linkedSet
@@ -3891,8 +3891,8 @@
 
                     return `
                         <div class="space-y-1">
-                            <input type="text" class="border rounded px-3 py-2 text-sm w-full" placeholder="Search linked records..." ${disabled ? 'disabled' : ''} oninput="filterLinkedRecordSelect('${selectId}', this.value)">
-                            <select id="${selectId}" class="border rounded px-3 py-2 text-sm w-full" data-options="${optionsDataAttr}" ${disabled ? 'disabled' : ''} onchange="updateRecordField('${recordId}', '${field.id}', this.value)">
+                            <input type="text" class="border rounded px-3 py-2 text-sm w-full" placeholder="Search linked records..." ${!linkedSet ? 'disabled' : ''} oninput="filterLinkedRecordSelect('${selectId}', this.value)">
+                            <select id="${selectId}" class="border rounded px-3 py-2 text-sm w-full" data-options="${optionsDataAttr}" ${disableSelect ? 'disabled' : ''} onchange="updateRecordField('${recordId}', '${field.id}', this.value)">
                                 <option value="">Select a record</option>
                                 ${options.map(opt => `<option value="${opt.id}" ${opt.id === value ? 'selected' : ''}>${opt.label}</option>`).join('')}
                             </select>
