@@ -1638,6 +1638,45 @@
         </div>
     </div>
 
+    <div id="changeFieldTypeModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Change Field Type</h2>
+                    <p class="text-sm text-gray-500 mt-1">Update the type for <span id="changeFieldName" class="font-medium text-gray-900"></span></p>
+                </div>
+                <button id="closeChangeFieldTypeBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-body space-y-5">
+                <div>
+                    <label class="form-label">Field Type</label>
+                    <div class="field-type-select">
+                        <button type="button" id="changeFieldTypeTrigger" class="field-type-trigger">
+                            <div class="field-type-trigger-content">
+                                <span class="field-type-trigger-icon" aria-hidden="true"></span>
+                                <div class="field-type-trigger-text">
+                                    <div class="field-type-name" id="changeSelectedFieldTypeName"></div>
+                                    <div class="field-type-description" id="changeSelectedFieldTypeDescription"></div>
+                                </div>
+                            </div>
+                            <span class="field-type-trigger-arrow" aria-hidden="true">▼</span>
+                        </button>
+                        <div id="changeFieldTypeDropdown" class="field-type-dropdown hidden"></div>
+                    </div>
+                    <input type="hidden" id="changeFieldTypeInput" value="TEXT">
+                </div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button id="cancelChangeFieldTypeBtn" class="btn btn-secondary">Cancel</button>
+                <button id="saveChangeFieldTypeBtn" class="btn btn-primary">Update Type</button>
+            </div>
+        </div>
+    </div>
+
     <div id="addSetModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
         <div class="modal-container bg-white w-full max-w-md">
             <div class="modal-header">
@@ -1942,6 +1981,8 @@
             confirmCallback: null,
             selectOptions: [{ value: 'Option 1', color: 'blue' }],
             fieldTypeDropdownOpen: false,
+            changeFieldTypeDropdownOpen: false,
+            changeFieldContext: null,
             expandedSets: new Set(),
             draggedRecord: null,
             cellHistoryContext: null,
@@ -5984,11 +6025,58 @@
             closeFieldTypeDropdown();
         }
 
+        function renderChangeFieldTypeGrid(selectedType) {
+            const trigger = document.getElementById('changeFieldTypeTrigger');
+            const dropdown = document.getElementById('changeFieldTypeDropdown');
+            const selectedName = document.getElementById('changeSelectedFieldTypeName');
+            const selectedDescription = document.getElementById('changeSelectedFieldTypeDescription');
+
+            if (!trigger || !dropdown) return;
+
+            const fieldType = FIELD_TYPES[selectedType] || Object.values(FIELD_TYPES)[0];
+            const iconTarget = trigger.querySelector('.field-type-trigger-icon');
+            if (iconTarget) iconTarget.innerHTML = renderIcon(fieldType.icon);
+            if (selectedName) selectedName.textContent = fieldType.name;
+            if (selectedDescription) selectedDescription.textContent = fieldType.description || fieldType.id.replace(/_/g, ' ');
+
+            dropdown.innerHTML = '';
+            Object.values(FIELD_TYPES).forEach(optionType => {
+                const option = document.createElement('div');
+                option.className = `field-type-option ${optionType.id === selectedType ? 'selected' : ''}`;
+                option.dataset.typeId = optionType.id;
+                option.innerHTML = `
+                    <div class="field-type-icon">${renderIcon(optionType.icon)}</div>
+                    <div class="field-type-info">
+                        <div class="field-type-name">${optionType.name}</div>
+                        <div class="field-type-description">${optionType.description || optionType.id.replace(/_/g, ' ')}</div>
+                    </div>
+                    <span class="field-type-check">${optionType.id === selectedType ? '✓' : ''}</span>
+                `;
+                option.onclick = () => selectChangeFieldType(optionType.id);
+                dropdown.appendChild(option);
+            });
+        }
+
+        function selectChangeFieldType(typeId) {
+            const input = document.getElementById('changeFieldTypeInput');
+            if (input) input.value = typeId;
+            renderChangeFieldTypeGrid(typeId);
+            closeChangeFieldTypeDropdown();
+        }
+
         function toggleFieldTypeDropdown() {
             if (state.fieldTypeDropdownOpen) {
                 closeFieldTypeDropdown();
             } else {
                 openFieldTypeDropdown();
+            }
+        }
+
+        function toggleChangeFieldTypeDropdown() {
+            if (state.changeFieldTypeDropdownOpen) {
+                closeChangeFieldTypeDropdown();
+            } else {
+                openChangeFieldTypeDropdown();
             }
         }
 
@@ -6001,6 +6089,15 @@
             state.fieldTypeDropdownOpen = true;
         }
 
+        function openChangeFieldTypeDropdown() {
+            const dropdown = document.getElementById('changeFieldTypeDropdown');
+            const trigger = document.getElementById('changeFieldTypeTrigger');
+            if (!dropdown || !trigger) return;
+            dropdown.classList.remove('hidden');
+            trigger.classList.add('active');
+            state.changeFieldTypeDropdownOpen = true;
+        }
+
         function closeFieldTypeDropdown() {
             const dropdown = document.getElementById('fieldTypeDropdown');
             const trigger = document.getElementById('fieldTypeTrigger');
@@ -6008,6 +6105,15 @@
             dropdown.classList.add('hidden');
             trigger.classList.remove('active');
             state.fieldTypeDropdownOpen = false;
+        }
+
+        function closeChangeFieldTypeDropdown() {
+            const dropdown = document.getElementById('changeFieldTypeDropdown');
+            const trigger = document.getElementById('changeFieldTypeTrigger');
+            if (!dropdown || !trigger) return;
+            dropdown.classList.add('hidden');
+            trigger.classList.remove('active');
+            state.changeFieldTypeDropdownOpen = false;
         }
 
         function hasFieldHistory(setId, fieldId) {
@@ -6053,6 +6159,16 @@
             recomputeFormulasForSet(set);
             renderCurrentView();
             showToast(`✓ ${field.name} is now ${FIELD_TYPES[newType].name}`);
+        }
+
+        function saveChangeFieldType() {
+            const context = state.changeFieldContext;
+            const input = document.getElementById('changeFieldTypeInput');
+            const newType = input?.value;
+            if (!context || !newType) return;
+            changeFieldType(context.id, newType);
+            state.changeFieldContext = null;
+            closeModal('changeFieldTypeModal');
         }
 
         function revertFieldType(fieldId) {
@@ -7550,22 +7666,22 @@
         // CONTEXT MENUS
         function showColumnMenu(e, field) {
             showContextMenu(e, [
-                { label: 'Change Field Type…', action: () => promptFieldTypeChange(field) },
+                { label: 'Change Field Type…', action: () => openChangeFieldTypeModal(field) },
                 hasFieldHistory(getCurrentSet()?.id, field.id) ? { label: 'Revert Last Type Change', action: () => revertFieldType(field.id) } : null,
                 { label: 'Hide Field', action: () => hideField(field.id) },
                 { label: 'Delete Field', action: () => confirmDelete('field', field.id), danger: true }
             ].filter(Boolean));
         }
 
-        function promptFieldTypeChange(field) {
-            const choices = Object.values(FIELD_TYPES)
-                .map(ft => `${ft.id} (${ft.name})`)
-                .join('\n');
-            const response = prompt(`Change \"${field.name}\" to which type?\n${choices}`, field.type);
-            const normalized = (response || '').trim().toUpperCase();
-            if (normalized && FIELD_TYPES[normalized]) {
-                changeFieldType(field.id, normalized);
-            }
+        function openChangeFieldTypeModal(field) {
+            state.changeFieldContext = field;
+            const nameTarget = document.getElementById('changeFieldName');
+            const input = document.getElementById('changeFieldTypeInput');
+            if (nameTarget) nameTarget.textContent = field.name;
+            if (input) input.value = field.type;
+            renderChangeFieldTypeGrid(field.type);
+            closeChangeFieldTypeDropdown();
+            openModal('changeFieldTypeModal');
         }
 
         function showCellMenu(e, recordId, field) {
@@ -7826,6 +7942,13 @@
         function setupEventListeners() {
             const fieldTypeTrigger = document.getElementById('fieldTypeTrigger');
             if (fieldTypeTrigger) fieldTypeTrigger.onclick = (event) => { event.preventDefault(); toggleFieldTypeDropdown(); };
+
+            const changeFieldTypeTrigger = document.getElementById('changeFieldTypeTrigger');
+            if (changeFieldTypeTrigger) changeFieldTypeTrigger.onclick = (event) => { event.preventDefault(); toggleChangeFieldTypeDropdown(); };
+
+            document.getElementById('saveChangeFieldTypeBtn').onclick = saveChangeFieldType;
+            document.getElementById('cancelChangeFieldTypeBtn').onclick = () => { state.changeFieldContext = null; closeModal('changeFieldTypeModal'); };
+            document.getElementById('closeChangeFieldTypeBtn').onclick = () => { state.changeFieldContext = null; closeModal('changeFieldTypeModal'); };
 
             document.getElementById('addRecordBtn').onclick = () => {
                 const set = getCurrentSet();
