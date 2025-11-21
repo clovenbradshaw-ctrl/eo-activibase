@@ -683,46 +683,38 @@
         .badge-cyan { background-color: #cffafe; color: #155e75; }
         .badge-pink { background-color: #fce7f3; color: #9f1239; }
         
-        /* FIELD TYPE GRID */
-        .field-type-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            grid-auto-rows: 1fr;
-            gap: 10px;
-            max-height: 360px;
-            overflow-y: auto;
-            align-items: stretch;
-        }
-        .field-type-option {
-            padding: 12px 14px;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        /* FIELD TYPE DROPDOWN */
+        .field-type-select { position: relative; }
+        .field-type-trigger {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
             background: white;
-            min-height: 64px;
-            height: 100%;
-        }
-        .field-type-option:hover { border-color: #d1d5db; box-shadow: 0 6px 16px rgba(0,0,0,0.05); }
-        .field-type-option.selected { border-color: var(--border-strong); background: #f8fafc; box-shadow: 0 10px 24px rgba(0,0,0,0.06); }
-        .field-type-icon {
-            width: 36px;
-            height: 36px;
             display: flex;
             align-items: center;
-            justify-content: center;
-            background: #f3f4f6;
-            border-radius: 8px;
-            flex-shrink: 0;
-            font-size: 18px;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.2s;
         }
+        .field-type-trigger:hover { border-color: #94a3b8; }
+        .field-type-trigger.active { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .field-type-trigger-content { display: flex; align-items: center; gap: 10px; }
+        .field-type-trigger-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; border-radius: 6px; font-size: 18px; }
+        .field-type-trigger-text { display: flex; flex-direction: column; gap: 2px; text-align: left; }
+        .field-type-trigger-arrow { color: #64748b; font-size: 13px; }
+        .field-type-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); max-height: 400px; overflow-y: auto; z-index: 1000; }
+        .field-type-dropdown.hidden { display: none; }
+        .field-type-option { padding: 10px 12px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid #f1f5f9; }
+        .field-type-option:last-child { border-bottom: none; }
+        .field-type-option:hover { background: #f8fafc; }
+        .field-type-option.selected { background: #eff6ff; border-left: 3px solid #3b82f6; }
+        .field-type-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; border-radius: 6px; font-size: 18px; }
         .field-type-option.selected .field-type-icon { background: #3b82f6; color: white; }
-        .field-type-content { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-        .field-type-name { font-weight: 600; font-size: 14px; color: #111827; }
-        .field-type-id { font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; color: #6b7280; }
+        .field-type-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .field-type-name { font-size: 14px; font-weight: 600; color: #0f172a; }
+        .field-type-description { font-size: 12px; color: #64748b; line-height: 1.4; }
+        .field-type-check { margin-left: auto; color: #3b82f6; font-weight: 700; font-size: 14px; }
         
         /* FILTER BUILDER */
         .filter-group { background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
@@ -1195,7 +1187,19 @@
                 </div>
                 <div>
                     <label class="form-label">Field Type</label>
-                    <div id="fieldTypeGrid" class="field-type-grid"></div>
+                    <div class="field-type-select">
+                        <button type="button" id="fieldTypeTrigger" class="field-type-trigger">
+                            <div class="field-type-trigger-content">
+                                <span class="field-type-trigger-icon" aria-hidden="true"></span>
+                                <div class="field-type-trigger-text">
+                                    <div class="field-type-name" id="selectedFieldTypeName"></div>
+                                    <div class="field-type-description" id="selectedFieldTypeDescription"></div>
+                                </div>
+                            </div>
+                            <span class="field-type-trigger-arrow" aria-hidden="true">▼</span>
+                        </button>
+                        <div id="fieldTypeDropdown" class="field-type-dropdown hidden"></div>
+                    </div>
                     <input type="hidden" id="newFieldType" value="TEXT">
                 </div>
                 <div id="singleSelectConfig" class="config-section">
@@ -1397,6 +1401,7 @@
             recordHistoryVisible: true,
             confirmCallback: null,
             selectOptions: [{ value: 'Option 1', color: 'blue' }],
+            fieldTypeDropdownOpen: false,
             expandedSets: new Set(),
             draggedRecord: null,
             cellHistoryContext: null,
@@ -1434,17 +1439,17 @@
         }
 
         const FIELD_TYPES = {
-            TEXT: { id: 'TEXT', name: 'Single Line Text', defaultValue: '', icon: 'ph-text-t' },
-            LONG_TEXT: { id: 'LONG_TEXT', name: 'Long Text', defaultValue: '', icon: 'ph-article' },
-            NUMBER: { id: 'NUMBER', name: 'Number', defaultValue: 0, icon: 'ph-hash' },
-            CURRENCY: { id: 'CURRENCY', name: 'Currency', defaultValue: 0, icon: 'ph-currency-dollar' },
-            DATE: { id: 'DATE', name: 'Date', defaultValue: '', icon: 'ph-calendar-blank' },
-            EMAIL: { id: 'EMAIL', name: 'Email', defaultValue: '', icon: 'ph-envelope-simple' },
-            URL: { id: 'URL', name: 'URL', defaultValue: '', icon: 'ph-link-simple' },
-            PHONE: { id: 'PHONE', name: 'Phone', defaultValue: '', icon: 'ph-phone' },
-            LINK_RECORD: { id: 'LINK_RECORD', name: 'Link to Record', defaultValue: '', icon: 'ph-link-simple-horizontal', needsConfig: true },
-            SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', defaultValue: '', icon: 'ph-list-bullets', needsConfig: true },
-            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', defaultValue: false, icon: 'ph-check-square' }
+            TEXT: { id: 'TEXT', name: 'Single Line Text', description: 'Quick text field for titles and short labels', defaultValue: '', icon: 'ph-text-t' },
+            LONG_TEXT: { id: 'LONG_TEXT', name: 'Long Text', description: 'Multi-line notes, descriptions, or comments', defaultValue: '', icon: 'ph-article' },
+            NUMBER: { id: 'NUMBER', name: 'Number', description: 'Store numeric values with sorting and calculations', defaultValue: 0, icon: 'ph-hash' },
+            CURRENCY: { id: 'CURRENCY', name: 'Currency', description: 'Track prices, budgets, and financial amounts', defaultValue: 0, icon: 'ph-currency-dollar' },
+            DATE: { id: 'DATE', name: 'Date', description: 'Capture due dates, milestones, and schedules', defaultValue: '', icon: 'ph-calendar-blank' },
+            EMAIL: { id: 'EMAIL', name: 'Email', description: 'Contact email addresses with validation', defaultValue: '', icon: 'ph-envelope-simple' },
+            URL: { id: 'URL', name: 'URL', description: 'Links to webpages, docs, or media', defaultValue: '', icon: 'ph-link-simple' },
+            PHONE: { id: 'PHONE', name: 'Phone', description: 'International phone numbers for contacts', defaultValue: '', icon: 'ph-phone' },
+            LINK_RECORD: { id: 'LINK_RECORD', name: 'Link to Record', description: 'Connect records across sets with relationships', defaultValue: '', icon: 'ph-link-simple-horizontal', needsConfig: true },
+            SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', description: 'Choose one option from a defined list', defaultValue: '', icon: 'ph-list-bullets', needsConfig: true },
+            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', description: 'Quick yes/no or done/undone tracking', defaultValue: false, icon: 'ph-check-square' }
         };
 
         const VIEW_TYPE_ICONS = { grid: 'ph-table', card: 'ph-cards-three', kanban: 'ph-kanban' };
@@ -2913,8 +2918,9 @@
             document.getElementById('newFieldName').value = '';
             document.getElementById('newFieldType').value = 'TEXT';
             renderFieldTypeGrid('TEXT');
+            closeFieldTypeDropdown();
             updateFieldConfig('TEXT');
-            
+
             const linkSelect = document.getElementById('linkToSet');
             linkSelect.innerHTML = '';
             state.sets.forEach((set, setId) => {
@@ -2934,28 +2940,68 @@
         }
 
         function renderFieldTypeGrid(selectedType) {
-            const grid = document.getElementById('fieldTypeGrid');
-            grid.innerHTML = '';
-            Object.values(FIELD_TYPES).forEach(fieldType => {
+            const trigger = document.getElementById('fieldTypeTrigger');
+            const dropdown = document.getElementById('fieldTypeDropdown');
+            const selectedName = document.getElementById('selectedFieldTypeName');
+            const selectedDescription = document.getElementById('selectedFieldTypeDescription');
+
+            if (!trigger || !dropdown) return;
+
+            const fieldType = FIELD_TYPES[selectedType] || Object.values(FIELD_TYPES)[0];
+            const iconTarget = trigger.querySelector('.field-type-trigger-icon');
+            if (iconTarget) iconTarget.innerHTML = renderIcon(fieldType.icon);
+            if (selectedName) selectedName.textContent = fieldType.name;
+            if (selectedDescription) selectedDescription.textContent = fieldType.description || fieldType.id.replace(/_/g, ' ');
+
+            dropdown.innerHTML = '';
+            Object.values(FIELD_TYPES).forEach(optionType => {
                 const option = document.createElement('div');
-                option.className = `field-type-option ${fieldType.id === selectedType ? 'selected' : ''}`;
-                option.onclick = (e) => selectFieldType(fieldType.id, e.currentTarget);
+                option.className = `field-type-option ${optionType.id === selectedType ? 'selected' : ''}`;
+                option.dataset.typeId = optionType.id;
                 option.innerHTML = `
-                    <div class="field-type-icon">${renderIcon(fieldType.icon)}</div>
-                    <div class="field-type-content">
-                        <div class="field-type-name">${fieldType.name}</div>
-                        <div class="field-type-id">${fieldType.id.replace(/_/g, ' ')}</div>
+                    <div class="field-type-icon">${renderIcon(optionType.icon)}</div>
+                    <div class="field-type-info">
+                        <div class="field-type-name">${optionType.name}</div>
+                        <div class="field-type-description">${optionType.description || optionType.id.replace(/_/g, ' ')}</div>
                     </div>
+                    <span class="field-type-check">${optionType.id === selectedType ? '✓' : ''}</span>
                 `;
-                grid.appendChild(option);
+                option.onclick = () => selectFieldType(optionType.id);
+                dropdown.appendChild(option);
             });
         }
 
-        function selectFieldType(typeId, target) {
+        function selectFieldType(typeId) {
             document.getElementById('newFieldType').value = typeId;
-            document.querySelectorAll('.field-type-option').forEach(opt => opt.classList.remove('selected'));
-            target.classList.add('selected');
+            renderFieldTypeGrid(typeId);
             updateFieldConfig(typeId);
+            closeFieldTypeDropdown();
+        }
+
+        function toggleFieldTypeDropdown() {
+            if (state.fieldTypeDropdownOpen) {
+                closeFieldTypeDropdown();
+            } else {
+                openFieldTypeDropdown();
+            }
+        }
+
+        function openFieldTypeDropdown() {
+            const dropdown = document.getElementById('fieldTypeDropdown');
+            const trigger = document.getElementById('fieldTypeTrigger');
+            if (!dropdown || !trigger) return;
+            dropdown.classList.remove('hidden');
+            trigger.classList.add('active');
+            state.fieldTypeDropdownOpen = true;
+        }
+
+        function closeFieldTypeDropdown() {
+            const dropdown = document.getElementById('fieldTypeDropdown');
+            const trigger = document.getElementById('fieldTypeTrigger');
+            if (!dropdown || !trigger) return;
+            dropdown.classList.add('hidden');
+            trigger.classList.remove('active');
+            state.fieldTypeDropdownOpen = false;
         }
 
         function updateFieldConfig(typeId) {
@@ -4625,6 +4671,9 @@
 
         // EVENT LISTENERS
         function setupEventListeners() {
+            const fieldTypeTrigger = document.getElementById('fieldTypeTrigger');
+            if (fieldTypeTrigger) fieldTypeTrigger.onclick = (event) => { event.preventDefault(); toggleFieldTypeDropdown(); };
+
             document.getElementById('addRecordBtn').onclick = () => {
                 const set = getCurrentSet();
                 const record = { id: `rec_${Date.now()}` };
@@ -4742,6 +4791,12 @@
             document.getElementById('closeJsonViewerBtn').onclick = () => closeModal('jsonViewerModal');
             document.getElementById('copyJsonBtn').onclick = copyJsonToClipboard;
         }
+
+        document.addEventListener('click', (event) => {
+            const selector = document.querySelector('.field-type-select');
+            if (!selector) return;
+            if (!selector.contains(event.target)) closeFieldTypeDropdown();
+        });
 
         // JSON VIEWER
         let currentJsonTab = 'all';
