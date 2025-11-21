@@ -942,6 +942,73 @@
             flex-direction: column;
         }
         .side-panel.open { transform: translateX(0); }
+
+        .csv-helper-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 12px;
+        }
+
+        .csv-helper-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px;
+            background: white;
+        }
+
+        .csv-preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .csv-preview-table th, .csv-preview-table td {
+            border: 1px solid #e5e7eb;
+            padding: 6px 8px;
+            text-align: left;
+            background: white;
+        }
+
+        .csv-preview-table th { background: #f9fafb; font-weight: 700; }
+
+        .csv-match-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 9999px;
+            background: #eef2ff;
+            color: #4338ca;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .fuzzy-match-row {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #fff;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .fuzzy-match-row strong { display: block; font-size: 14px; }
+
+        .fuzzy-score {
+            font-weight: 700;
+            color: #16a34a;
+        }
+
+        .panel-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
         
         .option-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
         .option-row input { flex: 1; }
@@ -1125,8 +1192,16 @@
                 <div class="flex items-center gap-2 toolbar-actions">
                     <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
                     <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
+                    <button id="importCsvBtn" class="btn btn-secondary btn-sm">
+                        <i class="ph ph-upload-simple"></i>
+                        Import CSV
+                    </button>
                     <button id="viewJsonBtn" class="btn btn-secondary btn-sm">View JSON</button>
                     <button id="exportBtn" class="btn btn-secondary btn-sm">Export</button>
+                    <button id="fuzzyPanelBtn" class="btn btn-secondary btn-sm">
+                        <i class="ph ph-graph"></i>
+                        Fuzzy Matches
+                    </button>
                 </div>
             </div>
         </div>
@@ -1477,6 +1552,75 @@
         </div>
     </div>
 
+    <div id="csvImportModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Import CSV into Current Set</h2>
+                    <p class="text-sm text-gray-500 mt-1">Upload a CSV, map columns to fields, and preview fuzzy matches before importing.</p>
+                </div>
+                <button id="closeCsvImportBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-body space-y-4">
+                <div class="csv-helper-grid">
+                    <div class="csv-helper-card">
+                        <label class="form-label">Upload CSV File</label>
+                        <input type="file" id="csvFileInput" accept=".csv" />
+                        <p class="form-hint">Headers are required. We will auto-map matching field names.</p>
+                    </div>
+                    <div class="csv-helper-card">
+                        <label class="form-label">Or Paste CSV Text</label>
+                        <textarea id="csvTextInput" rows="5" placeholder="name,industry\nAcme,Technology"></textarea>
+                        <div class="mt-2 flex justify-end">
+                            <button id="parseCsvTextBtn" class="btn btn-secondary btn-sm">Preview CSV</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="csv-helper-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="text-lg font-semibold">Field Mapping</h3>
+                            <p class="text-sm text-gray-500">Match CSV columns to fields in the current set.</p>
+                        </div>
+                        <span class="csv-match-pill" id="csvRowCountBadge">0 rows</span>
+                    </div>
+                    <div id="csvMappingContainer" class="space-y-2"></div>
+                </div>
+
+                <div class="csv-helper-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="text-lg font-semibold">Preview</h3>
+                            <p class="text-sm text-gray-500">First few records with applied mapping.</p>
+                        </div>
+                        <button id="refreshCsvPreviewBtn" class="btn btn-secondary btn-sm">Refresh Preview</button>
+                    </div>
+                    <div id="csvPreviewContainer" class="overflow-auto"></div>
+                </div>
+
+                <div class="csv-helper-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="text-lg font-semibold">Fuzzy Match Suggestions</h3>
+                            <p class="text-sm text-gray-500">We surface potential duplicates against existing records.</p>
+                        </div>
+                        <div class="text-xs text-gray-500">Score ≥ 0.6 shown</div>
+                    </div>
+                    <div id="csvMatchSuggestions" class="space-y-2"></div>
+                </div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button id="cancelCsvImportBtn" class="btn btn-secondary">Cancel</button>
+                <button id="runCsvImportBtn" class="btn btn-primary">Import Records</button>
+            </div>
+        </div>
+    </div>
+
     <div id="historyPanel" class="side-panel">
         <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 flex-shrink-0">
             <div class="flex items-center justify-between mb-4">
@@ -1493,6 +1637,29 @@
             <input type="text" id="historySearch" class="w-full text-gray-900 rounded-lg" placeholder="Search history...">
         </div>
         <div class="flex-1 overflow-y-auto p-6" id="historyContent"></div>
+    </div>
+
+    <div id="fuzzyMatchPanel" class="side-panel">
+        <div class="bg-gradient-to-r from-emerald-500 to-blue-600 text-white p-6 flex-shrink-0">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-xl font-bold">Fuzzy Matches</h3>
+                    <p class="text-sm opacity-90 mt-1">Possible duplicate or related records</p>
+                </div>
+                <button id="closeFuzzyPanelBtn" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="panel-controls">
+                <label class="text-sm flex-1">Similarity threshold
+                    <input id="fuzzyThresholdInput" type="range" min="0.4" max="0.95" step="0.01" value="0.65" class="w-full">
+                </label>
+                <button id="refreshFuzzyMatchesBtn" class="btn btn-secondary btn-sm">Recompute</button>
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-6" id="fuzzyMatchList"></div>
     </div>
 
     <!-- Cell History Modal -->
@@ -1578,6 +1745,8 @@
             selectedCell: null,
             lastSelectedCell: null,
             editingCell: null,
+            csvImportState: { headers: [], rows: [], mappings: {}, previewRows: [], matches: [] },
+            fuzzyPanelState: { threshold: 0.65, matches: [] },
             formulaFieldService: null
         };
 
@@ -1996,6 +2165,391 @@
                 id: opt.id,
                 label: opt.name || getRecordDisplayName(opt.id) || opt.id
             }));
+        }
+
+        // CSV IMPORT & FUZZY MATCHING
+        function resetCsvImportState() {
+            state.csvImportState = { headers: [], rows: [], mappings: {}, previewRows: [], matches: [] };
+            const badge = document.getElementById('csvRowCountBadge');
+            if (badge) badge.textContent = '0 rows';
+            const mappingEl = document.getElementById('csvMappingContainer');
+            if (mappingEl) mappingEl.innerHTML = '<p class="text-sm text-gray-500">Load a CSV file or paste CSV text to start mapping.</p>';
+            const previewEl = document.getElementById('csvPreviewContainer');
+            if (previewEl) previewEl.innerHTML = '<p class="text-sm text-gray-500">Preview will appear after parsing.</p>';
+            const matchesEl = document.getElementById('csvMatchSuggestions');
+            if (matchesEl) matchesEl.innerHTML = '<p class="text-sm text-gray-500">No suggestions yet.</p>';
+            const textInput = document.getElementById('csvTextInput');
+            if (textInput) textInput.value = '';
+            const fileInput = document.getElementById('csvFileInput');
+            if (fileInput) fileInput.value = '';
+        }
+
+        function openCsvImportModal() {
+            resetCsvImportState();
+            openModal('csvImportModal');
+        }
+
+        function handleCsvFileSelected(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const { headers, rows } = parseCsvContent(e.target.result || '');
+                handleCsvData(headers, rows);
+            };
+            reader.readAsText(file);
+        }
+
+        function previewCsvFromText() {
+            const text = document.getElementById('csvTextInput')?.value || '';
+            const { headers, rows } = parseCsvContent(text);
+            handleCsvData(headers, rows);
+        }
+
+        function parseCsvContent(text) {
+            if (!text || !text.trim()) return { headers: [], rows: [] };
+            const rows = [];
+            let current = '';
+            let inQuotes = false;
+            const result = [];
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const nextChar = text[i + 1];
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    rowPush(current);
+                } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                    rowPush(current);
+                    if (result.length) rows.push(result.splice(0));
+                } else {
+                    current += char;
+                }
+            }
+            rowPush(current);
+            if (result.length) rows.push(result);
+
+            function rowPush(value) {
+                result.push(value.trim());
+                current = '';
+            }
+
+            const headers = rows.shift() || [];
+            const normalizedRows = rows.filter(r => r.length && r.some(cell => cell !== '')).map(r => {
+                const obj = {};
+                headers.forEach((h, idx) => obj[h] = r[idx] || '');
+                return obj;
+            });
+            return { headers, rows: normalizedRows };
+        }
+
+        function autoMapColumns(headers, set) {
+            const mappings = {};
+            headers.forEach(h => {
+                const normalized = h.trim().toLowerCase();
+                const match = set.schema.find(f => f.name.toLowerCase() === normalized || f.id.toLowerCase() === normalized);
+                mappings[h] = match ? match.id : '';
+            });
+            return mappings;
+        }
+
+        function handleCsvData(headers, rows) {
+            const set = getCurrentSet();
+            if (!set) return;
+            state.csvImportState.headers = headers;
+            state.csvImportState.rows = rows;
+            state.csvImportState.mappings = autoMapColumns(headers, set);
+            const badge = document.getElementById('csvRowCountBadge');
+            if (badge) badge.textContent = `${rows.length} rows`;
+            renderCsvMapping();
+            renderCsvPreview();
+            renderCsvMatches();
+        }
+
+        function renderCsvMapping() {
+            const container = document.getElementById('csvMappingContainer');
+            const set = getCurrentSet();
+            if (!container || !set) return;
+            if (!state.csvImportState.headers.length) {
+                container.innerHTML = '<p class="text-sm text-gray-500">No headers detected yet.</p>';
+                return;
+            }
+
+            container.innerHTML = state.csvImportState.headers.map(header => {
+                const mappedField = state.csvImportState.mappings[header] || '';
+                const options = ['<option value="">Skip</option>'].concat(
+                    set.schema.map(f => `<option value="${f.id}" ${mappedField === f.id ? 'selected' : ''}>${f.name}</option>`)
+                ).join('');
+                return `
+                    <div class="flex items-center gap-3">
+                        <div class="w-1/3 font-medium">${header}</div>
+                        <select data-csv-header="${header}" class="flex-1">${options}</select>
+                    </div>
+                `;
+            }).join('');
+
+            container.querySelectorAll('select').forEach(select => {
+                select.onchange = (event) => {
+                    const header = event.target.dataset.csvHeader;
+                    state.csvImportState.mappings[header] = event.target.value;
+                    renderCsvPreview();
+                    renderCsvMatches();
+                };
+            });
+        }
+
+        function buildCsvPreviewRows(limit = 5) {
+            const set = getCurrentSet();
+            if (!set) return [];
+            const mappedHeaders = Object.entries(state.csvImportState.mappings)
+                .filter(([, fieldId]) => fieldId);
+            return state.csvImportState.rows.slice(0, limit).map(row => {
+                const preview = { __original: row };
+                mappedHeaders.forEach(([header, fieldId]) => {
+                    const field = set.schema.find(f => f.id === fieldId);
+                    let value = row[header] || '';
+                    if (['NUMBER', 'CURRENCY'].includes(field?.type)) {
+                        const numeric = parseFloat(value);
+                        value = isNaN(numeric) ? '' : numeric;
+                    }
+                    preview[fieldId] = value;
+                });
+                return preview;
+            });
+        }
+
+        function renderCsvPreview() {
+            const container = document.getElementById('csvPreviewContainer');
+            const set = getCurrentSet();
+            if (!container || !set) return;
+            const mappedFields = Object.values(state.csvImportState.mappings).filter(Boolean);
+            if (!mappedFields.length || !state.csvImportState.rows.length) {
+                container.innerHTML = '<p class="text-sm text-gray-500">Map at least one column to preview records.</p>';
+                return;
+            }
+
+            const previewRows = buildCsvPreviewRows();
+            state.csvImportState.previewRows = previewRows;
+            const headerCells = mappedFields.map(fieldId => {
+                const field = set.schema.find(f => f.id === fieldId);
+                return `<th>${field?.name || fieldId}</th>`;
+            }).join('');
+
+            const bodyRows = previewRows.map(row => {
+                const cells = mappedFields.map(fieldId => `<td>${row[fieldId] ?? ''}</td>`).join('');
+                return `<tr>${cells}</tr>`;
+            }).join('');
+
+            container.innerHTML = `
+                <table class="csv-preview-table">
+                    <thead><tr>${headerCells}</tr></thead>
+                    <tbody>${bodyRows}</tbody>
+                </table>
+            `;
+        }
+
+        function similarityScore(a, b) {
+            const s1 = (a || '').toString().trim().toLowerCase();
+            const s2 = (b || '').toString().trim().toLowerCase();
+            if (!s1 || !s2) return 0;
+            const distance = levenshteinDistance(s1, s2);
+            return 1 - (distance / Math.max(s1.length, s2.length));
+        }
+
+        function levenshteinDistance(a, b) {
+            const matrix = Array.from({ length: b.length + 1 }, () => []);
+            for (let i = 0; i <= b.length; i++) matrix[i][0] = i;
+            for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+            return matrix[b.length][a.length];
+        }
+
+        function resolvePrimaryFieldFromMappings(set) {
+            const nameField = Object.entries(state.csvImportState.mappings).find(([, fieldId]) => fieldId === 'name');
+            if (nameField) return nameField[1];
+            const textFields = set.schema.filter(f => ['TEXT', 'LONG_TEXT'].includes(f.type));
+            const mappedTextField = Object.entries(state.csvImportState.mappings)
+                .map(([, fieldId]) => set.schema.find(f => f.id === fieldId))
+                .find(f => f && ['TEXT', 'LONG_TEXT'].includes(f.type));
+            return mappedTextField?.id || textFields[0]?.id || set.schema[0]?.id;
+        }
+
+        function renderCsvMatches() {
+            const container = document.getElementById('csvMatchSuggestions');
+            const set = getCurrentSet();
+            if (!container || !set) return;
+            if (!state.csvImportState.rows.length) {
+                container.innerHTML = '<p class="text-sm text-gray-500">Load rows to see suggestions.</p>';
+                return;
+            }
+
+            const keyFieldId = resolvePrimaryFieldFromMappings(set);
+            if (!keyFieldId) {
+                container.innerHTML = '<p class="text-sm text-gray-500">Map at least one text column to find duplicates.</p>';
+                return;
+            }
+
+            const existing = Array.from(set.records.values());
+            const matches = [];
+            state.csvImportState.rows.forEach(row => {
+                const mappedValue = Object.entries(state.csvImportState.mappings).find(([, fieldId]) => fieldId === keyFieldId);
+                const candidateValue = mappedValue ? row[mappedValue[0]] : '';
+                let bestMatch = null;
+                existing.forEach(rec => {
+                    const score = similarityScore(candidateValue, rec[keyFieldId]);
+                    if (score >= 0.6 && (!bestMatch || score > bestMatch.score)) {
+                        bestMatch = { csvValue: candidateValue, record: rec, score };
+                    }
+                });
+                if (bestMatch) matches.push(bestMatch);
+            });
+
+            state.csvImportState.matches = matches;
+            if (!matches.length) {
+                container.innerHTML = '<p class="text-sm text-gray-500">No close matches detected.</p>';
+                return;
+            }
+
+            container.innerHTML = matches.slice(0, 10).map(match => `
+                <div class="fuzzy-match-row">
+                    <div class="flex-1">
+                        <div class="text-sm text-gray-500">CSV Value</div>
+                        <strong>${match.csvValue || '(blank)'}</strong>
+                    </div>
+                    <div class="flex-1">
+                        <div class="text-sm text-gray-500">Existing Record</div>
+                        <strong>${match.record.name || match.record.id}</strong>
+                        <div class="text-xs text-gray-500">Score: <span class="fuzzy-score">${match.score.toFixed(2)}</span></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function importCsvRecords() {
+            const set = getCurrentSet();
+            if (!set) return;
+            const mappedHeaders = Object.entries(state.csvImportState.mappings).filter(([, fieldId]) => fieldId);
+            if (!mappedHeaders.length) {
+                showToast('⚠️ Map at least one column');
+                return;
+            }
+            if (!state.csvImportState.rows.length) {
+                showToast('⚠️ No rows to import');
+                return;
+            }
+
+            state.csvImportState.rows.forEach(row => {
+                const recordData = {};
+                mappedHeaders.forEach(([header, fieldId]) => {
+                    const field = set.schema.find(f => f.id === fieldId);
+                    let value = row[header];
+                    if (['NUMBER', 'CURRENCY'].includes(field?.type)) {
+                        const numeric = parseFloat(value);
+                        value = isNaN(numeric) ? 0 : numeric;
+                    }
+                    recordData[fieldId] = value;
+                });
+                addRecord(set.id, recordData);
+            });
+
+            renderCurrentView();
+            showToast(`✓ Imported ${state.csvImportState.rows.length} records`);
+            closeModal('csvImportModal');
+        }
+
+        function computeFuzzyMatchesForSet(set, threshold = state.fuzzyPanelState.threshold) {
+            if (!set) return [];
+            const candidates = Array.from(set.records.values());
+            const textFields = set.schema.filter(f => ['TEXT', 'LONG_TEXT'].includes(f.type));
+            const fieldId = textFields[0]?.id || set.schema[0]?.id;
+            const matches = [];
+            for (let i = 0; i < candidates.length; i++) {
+                for (let j = i + 1; j < candidates.length; j++) {
+                    const a = candidates[i];
+                    const b = candidates[j];
+                    const score = similarityScore(a[fieldId], b[fieldId]);
+                    if (score >= threshold) {
+                        matches.push({ a, b, score, fieldId });
+                    }
+                }
+            }
+            return matches.sort((x, y) => y.score - x.score).slice(0, 50);
+        }
+
+        function renderFuzzyPanel() {
+            const container = document.getElementById('fuzzyMatchList');
+            const thresholdInput = document.getElementById('fuzzyThresholdInput');
+            if (!container || !thresholdInput) return;
+            const set = getCurrentSet();
+            if (!set) return;
+            const threshold = parseFloat(thresholdInput.value) || state.fuzzyPanelState.threshold;
+            state.fuzzyPanelState.threshold = threshold;
+            const matches = computeFuzzyMatchesForSet(set, threshold);
+            state.fuzzyPanelState.matches = matches;
+
+            if (!matches.length) {
+                container.innerHTML = '<p class="text-sm text-gray-500">No matches at this threshold.</p>';
+                return;
+            }
+
+            container.innerHTML = matches.map(match => `
+                <div class="fuzzy-match-row">
+                    <div class="flex-1">
+                        <div class="text-sm text-gray-500">Record A</div>
+                        <strong>${match.a.name || match.a.id}</strong>
+                    </div>
+                    <div class="flex-1">
+                        <div class="text-sm text-gray-500">Record B</div>
+                        <strong>${match.b.name || match.b.id}</strong>
+                        <div class="text-xs text-gray-500">Score: <span class="fuzzy-score">${match.score.toFixed(2)}</span></div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="btn btn-secondary btn-sm" data-link="${match.a.id}|${match.b.id}" data-score="${match.score}">Link</button>
+                        <button class="btn btn-secondary btn-sm" data-dismiss="${match.a.id}|${match.b.id}">Dismiss</button>
+                    </div>
+                </div>
+            `).join('');
+
+            container.querySelectorAll('[data-link]').forEach(btn => {
+                btn.onclick = () => {
+                    const [sourceId, targetId] = btn.dataset.link.split('|');
+                    const score = parseFloat(btn.dataset.score || '0');
+                    createConnection(sourceId, targetId, { reason: 'fuzzy-match', score });
+                    showToast('✓ Linked records');
+                };
+            });
+
+            container.querySelectorAll('[data-dismiss]').forEach(btn => {
+                btn.onclick = () => {
+                    btn.closest('.fuzzy-match-row').remove();
+                };
+            });
+        }
+
+        function openFuzzyPanel() {
+            renderFuzzyPanel();
+            document.getElementById('fuzzyMatchPanel').classList.add('open');
+        }
+
+        function closeFuzzyPanel() {
+            document.getElementById('fuzzyMatchPanel').classList.remove('open');
         }
 
         function validateConnectionPayload(sourceId, targetId, metadata = {}) {
@@ -5103,6 +5657,17 @@
             };
             document.getElementById('viewJsonBtn').onclick = openJsonViewer;
             document.getElementById('exportBtn').onclick = exportJSON;
+            document.getElementById('importCsvBtn').onclick = openCsvImportModal;
+            document.getElementById('parseCsvTextBtn').onclick = previewCsvFromText;
+            document.getElementById('csvFileInput').onchange = handleCsvFileSelected;
+            document.getElementById('refreshCsvPreviewBtn').onclick = renderCsvPreview;
+            document.getElementById('runCsvImportBtn').onclick = importCsvRecords;
+            document.getElementById('cancelCsvImportBtn').onclick = () => closeModal('csvImportModal');
+            document.getElementById('closeCsvImportBtn').onclick = () => closeModal('csvImportModal');
+            document.getElementById('fuzzyPanelBtn').onclick = openFuzzyPanel;
+            document.getElementById('closeFuzzyPanelBtn').onclick = closeFuzzyPanel;
+            document.getElementById('refreshFuzzyMatchesBtn').onclick = renderFuzzyPanel;
+            document.getElementById('fuzzyThresholdInput').oninput = renderFuzzyPanel;
             document.getElementById('closeHistoryBtn').onclick = () => document.getElementById('historyPanel').classList.remove('open');
             document.getElementById('toggleHistorySidebarBtn').onclick = toggleRecordHistoryVisibility;
             document.getElementById('closeExpandedRecordBtn').onclick = () => closeModal('expandedRecordModal');
