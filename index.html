@@ -799,8 +799,8 @@
         #addFieldModal .modal-header { padding: 16px 18px 10px 18px; }
         #addFieldModal .modal-body { padding: 16px 18px 18px 18px; }
         #addFieldModal .modal-footer { padding: 14px 18px; background: #f8fafc; }
-        .icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
-        .icon-option { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; cursor: pointer; transition: all 0.12s ease; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04); }
+        .icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 10px; }
+        .icon-option { display: flex; align-items: center; justify-content: center; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; cursor: pointer; transition: all 0.12s ease; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04); }
         .icon-option:hover { border-color: #cbd5e1; background: #f8fafc; transform: translateY(-1px); }
         .icon-option.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
         .icon-option .icon-chip { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: #f1f5f9; color: #0f172a; border: 1px solid #e2e8f0; font-size: 22px; }
@@ -3636,7 +3636,6 @@
                 btn.className = `icon-option${opt.token === currentValue ? ' active' : ''}`;
                 btn.innerHTML = `
                     <span class="icon-chip">${renderIcon(opt.token)}</span>
-                    <span class="icon-label">${opt.label}</span>
                 `;
                 btn.onclick = () => selectIconFromPicker(opt.token);
                 container.appendChild(btn);
