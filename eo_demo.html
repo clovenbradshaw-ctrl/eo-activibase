@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EO Framework Demo - Epistemic Observability</title>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="eo_styles.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f4f5f7;
+            color: #0b1324;
+        }
+
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .demo-header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .demo-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            letter-spacing: -0.02em;
+        }
+
+        .demo-header p {
+            margin: 0;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+
+        .demo-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .demo-section h2 {
+            margin: 0 0 16px 0;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .demo-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+
+        .demo-table th,
+        .demo-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .demo-table th {
+            background: #f9fafb;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6b7280;
+        }
+
+        .demo-table td {
+            font-size: 14px;
+        }
+
+        .demo-table tr:hover td {
+            background: #f9fafb;
+        }
+
+        .demo-table td[data-eo-cell] {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .demo-table td[data-eo-cell]:hover {
+            background: #dbeafe;
+        }
+
+        .demo-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
+        .demo-btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .demo-btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .demo-btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .demo-btn-secondary {
+            background: #f4f5f7;
+            color: #0b1324;
+            border: 1px solid #e5e7eb;
+        }
+
+        .demo-btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .demo-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .demo-stat {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .demo-stat-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+
+        .demo-stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0b1324;
+        }
+
+        .demo-log {
+            background: #0f172a;
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 16px;
+            color: #e5e7eb;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .demo-log-entry {
+            margin-bottom: 4px;
+        }
+
+        .demo-log-time {
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>🌟 EO Framework Demo</h1>
+            <p>
+                Epistemic Observability (EO) brings automatic context tracking, superposition of multiple values,
+                and stability classification to your data. Click any cell to explore its context, history, and perspectives.
+            </p>
+        </div>
+
+        <div class="demo-section">
+            <h2>Sample Data Table</h2>
+            <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">
+                Click any cell to view its value, context, history, and superposition (if applicable).
+            </p>
+
+            <table class="demo-table" id="demoTable">
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>Revenue</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Stability</th>
+                    </tr>
+                </thead>
+                <tbody id="demoTableBody">
+                    <!-- Populated by JavaScript -->
+                </tbody>
+            </table>
+
+            <div class="demo-actions">
+                <button class="demo-btn demo-btn-primary" onclick="demo.simulateImport()">
+                    📥 Simulate CSV Import
+                </button>
+                <button class="demo-btn demo-btn-secondary" onclick="demo.simulateEdit()">
+                    ✏️ Simulate User Edit
+                </button>
+                <button class="demo-btn demo-btn-secondary" onclick="demo.addSuperposition()">
+                    ⚡ Add Superposition
+                </button>
+                <button class="demo-btn demo-btn-secondary" onclick="demo.refreshStats()">
+                    📊 Refresh Stats
+                </button>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>EO Statistics</h2>
+            <div class="demo-stats" id="demoStats">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>Activity Log</h2>
+            <div class="demo-log" id="demoLog">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Load EO Framework -->
+    <script src="eo_data_structures.js"></script>
+    <script src="eo_context_engine.js"></script>
+    <script src="eo_sup_detector.js"></script>
+    <script src="eo_stability_classifier.js"></script>
+    <script src="eo_cell_modal.js"></script>
+    <script src="eo_integration.js"></script>
+
+    <script>
+        // Demo application
+        class EODemo {
+            constructor() {
+                this.eo = new EOIntegration();
+                this.eo.initialize();
+                this.eo.setCurrentUser('demo_user', 'Demo User');
+                this.eo.enableDebug();
+
+                this.sampleData = [
+                    { id: 'rec_1', Team: 'Sales', Revenue: 420000, Score: 85, Status: 'Active' },
+                    { id: 'rec_2', Team: 'Marketing', Revenue: 280000, Score: 92, Status: 'Active' },
+                    { id: 'rec_3', Team: 'Engineering', Revenue: 650000, Score: 78, Status: 'Active' }
+                ];
+
+                this.logEntries = [];
+            }
+
+            init() {
+                this.log('🌟 EO Demo initialized');
+                this.simulateImport();
+            }
+
+            log(message) {
+                const timestamp = new Date().toLocaleTimeString();
+                this.logEntries.unshift({ timestamp, message });
+                if (this.logEntries.length > 50) this.logEntries.pop();
+
+                const logDiv = document.getElementById('demoLog');
+                logDiv.innerHTML = this.logEntries.map(entry => `
+                    <div class="demo-log-entry">
+                        <span class="demo-log-time">[${entry.timestamp}]</span> ${entry.message}
+                    </div>
+                `).join('');
+            }
+
+            simulateImport() {
+                this.log('📥 Importing sample data from "sales_Q4_2025.csv"');
+                this.eo.handleImport('sales_Q4_2025.csv', this.sampleData);
+                this.log(`✓ Imported ${this.sampleData.length} records with automatic context inference`);
+                this.renderTable();
+                this.refreshStats();
+            }
+
+            simulateEdit() {
+                const records = this.eo.getAllRecords();
+                if (records.length === 0) {
+                    this.log('⚠️ No records available. Import data first.');
+                    return;
+                }
+
+                const record = records[Math.floor(Math.random() * records.length)];
+                const fieldName = 'Revenue';
+                const oldValue = this.eo.getCellDisplayValue(record.record_id, fieldName);
+                const newValue = oldValue + Math.floor(Math.random() * 50000) - 25000;
+
+                this.log(`✏️ User editing ${record.record_id}.${fieldName}: ${oldValue} → ${newValue}`);
+                this.eo.handleEdit(record.record_id, fieldName, oldValue, newValue);
+                this.log('✓ Edit captured with context');
+
+                this.renderTable();
+                this.refreshStats();
+            }
+
+            addSuperposition() {
+                const records = this.eo.getAllRecords();
+                if (records.length === 0) {
+                    this.log('⚠️ No records available. Import data first.');
+                    return;
+                }
+
+                const record = records[0];
+                const fieldName = 'Revenue';
+                const cell = record.cells.find(c => c.field_name === fieldName);
+
+                if (!cell) return;
+
+                // Add a new value with different context (manual estimate)
+                const newValue = cell.values[0].value * 0.93; // 7% different
+                const context = EODataStructures.createContextSchema({
+                    method: 'declared',
+                    definition: 'manual_estimate',
+                    scale: 'individual',
+                    source: { system: 'user_edit' },
+                    agent: { type: 'person', id: 'analyst', name: 'Business Analyst' }
+                });
+
+                EODataStructures.addValueToCell(cell, newValue, context);
+
+                this.log(`⚡ Added superposition to ${record.record_id}.${fieldName}`);
+                this.log(`   Now has ${cell.values.length} perspectives: measured (${cell.values[0].value}) + declared (${newValue})`);
+
+                this.renderTable();
+                this.refreshStats();
+            }
+
+            renderTable() {
+                const tbody = document.getElementById('demoTableBody');
+                const records = this.eo.getAllRecords();
+
+                tbody.innerHTML = records.map(record => {
+                    const team = this.eo.getCellDisplayValue(record.record_id, 'Team');
+                    const revenue = this.eo.getCellDisplayValue(record.record_id, 'Revenue');
+                    const score = this.eo.getCellDisplayValue(record.record_id, 'Score');
+                    const status = this.eo.getCellDisplayValue(record.record_id, 'Status');
+
+                    const revenueIndicator = this.eo.getCellSUPIndicator(record.record_id, 'Revenue');
+                    const stabilityBadge = this.eo.getStabilityBadge(record.record_id);
+
+                    return `
+                        <tr>
+                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Team">
+                                ${team}
+                            </td>
+                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Revenue">
+                                $${Number(revenue).toLocaleString()}
+                                ${revenueIndicator}
+                            </td>
+                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Score">
+                                ${score}
+                            </td>
+                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Status">
+                                ${status}
+                            </td>
+                            <td>
+                                ${stabilityBadge}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            refreshStats() {
+                const stats = this.eo.getStatistics();
+                const statsDiv = document.getElementById('demoStats');
+
+                statsDiv.innerHTML = `
+                    <div class="demo-stat">
+                        <div class="demo-stat-label">Total Records</div>
+                        <div class="demo-stat-value">${stats.totalRecords}</div>
+                    </div>
+                    <div class="demo-stat">
+                        <div class="demo-stat-label">Total Cells</div>
+                        <div class="demo-stat-value">${stats.totalCells}</div>
+                    </div>
+                    <div class="demo-stat">
+                        <div class="demo-stat-label">Cells with SUP</div>
+                        <div class="demo-stat-value">${stats.cellsWithSUP}</div>
+                    </div>
+                    <div class="demo-stat">
+                        <div class="demo-stat-label">SUP Percentage</div>
+                        <div class="demo-stat-value">${stats.supPercentage}%</div>
+                    </div>
+                    <div class="demo-stat">
+                        <div class="demo-stat-label">Emerging</div>
+                        <div class="demo-stat-value">${stats.stability.counts.emerging}</div>
+                    </div>
+                    <div class="demo-stat">
+                        <div class="demo-stat-label">Forming</div>
+                        <div class="demo-stat-value">${stats.stability.counts.forming}</div>
+                    </div>
+                    <div class="demo-stat">
+                        <div class="demo-stat-label">Stable</div>
+                        <div class="demo-stat-value">${stats.stability.counts.stable}</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize demo
+        const demo = new EODemo();
+        window.addEventListener('DOMContentLoaded', () => demo.init());
+    </script>
+</body>
+</html>
