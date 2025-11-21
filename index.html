@@ -3513,6 +3513,39 @@
         }
 
         // CSV IMPORT & FUZZY MATCHING
+        const CREATE_FIELD_PREFIX = '__create__';
+        const CSV_FIELD_MATCH_THRESHOLD = 0.75;
+
+        function slugifyFieldId(name) {
+            return (name || '').toLowerCase()
+                .replace(/[^a-z0-9]/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_+|_+$/g, '') || 'field';
+        }
+
+        function isCreateFieldValue(value) {
+            return typeof value === 'string' && value.startsWith(CREATE_FIELD_PREFIX);
+        }
+
+        function buildCreateFieldValue(header) {
+            return `${CREATE_FIELD_PREFIX}${slugifyFieldId(header)}`;
+        }
+
+        function findBestFieldMatch(header, schema) {
+            const target = (header || '').trim();
+            let best = null;
+            schema.forEach(field => {
+                const score = Math.max(
+                    similarityScore(target, field.name),
+                    similarityScore(target, field.id)
+                );
+                if (!best || score > best.score) {
+                    best = { field, score };
+                }
+            });
+            return best;
+        }
+
         function resetCsvImportState() {
             state.csvImportState = { headers: [], rows: [], mappings: {}, previewRows: [], matches: [] };
             const badge = document.getElementById('csvRowCountBadge');
@@ -3596,9 +3629,12 @@
         function autoMapColumns(headers, set) {
             const mappings = {};
             headers.forEach(h => {
-                const normalized = h.trim().toLowerCase();
-                const match = set.schema.find(f => f.name.toLowerCase() === normalized || f.id.toLowerCase() === normalized);
-                mappings[h] = match ? match.id : '';
+                const match = findBestFieldMatch(h, set.schema);
+                if (match && match.score >= CSV_FIELD_MATCH_THRESHOLD) {
+                    mappings[h] = match.field.id;
+                } else {
+                    mappings[h] = buildCreateFieldValue(h);
+                }
             });
             return mappings;
         }
@@ -3627,13 +3663,18 @@
 
             container.innerHTML = state.csvImportState.headers.map(header => {
                 const mappedField = state.csvImportState.mappings[header] || '';
-                const options = ['<option value="">Skip</option>'].concat(
-                    set.schema.map(f => `<option value="${f.id}" ${mappedField === f.id ? 'selected' : ''}>${f.name}</option>`)
-                ).join('');
+                const createValue = buildCreateFieldValue(header);
+                const options = ['<option value="">Skip</option>']
+                    .concat(`<option value="${createValue}" ${mappedField === createValue ? 'selected' : ''}>➕ Create new field: "${header}"</option>`)
+                    .concat(set.schema.map(f => `<option value="${f.id}" ${mappedField === f.id ? 'selected' : ''}>${f.name}</option>`))
+                    .join('');
                 return `
                     <div class="flex items-center gap-3">
                         <div class="w-1/3 font-medium">${header}</div>
-                        <select data-csv-header="${header}" class="flex-1">${options}</select>
+                        <div class="flex-1">
+                            <select data-csv-header="${header}" class="flex-1">${options}</select>
+                            ${isCreateFieldValue(mappedField) ? `<p class="text-xs text-amber-600 mt-1">Will create a new text field named "${header}"</p>` : ''}
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -3651,7 +3692,8 @@
         function buildCsvPreviewRows(limit = 5) {
             const set = getCurrentSet();
             if (!set) return [];
-            const mappedHeaders = Object.entries(state.csvImportState.mappings)
+            const mappedHeaders = state.csvImportState.headers
+                .map(header => [header, state.csvImportState.mappings[header]])
                 .filter(([, fieldId]) => fieldId);
             return state.csvImportState.rows.slice(0, limit).map(row => {
                 const preview = { __original: row };
@@ -3672,21 +3714,25 @@
             const container = document.getElementById('csvPreviewContainer');
             const set = getCurrentSet();
             if (!container || !set) return;
-            const mappedFields = Object.values(state.csvImportState.mappings).filter(Boolean);
-            if (!mappedFields.length || !state.csvImportState.rows.length) {
+            const mappedEntries = state.csvImportState.headers
+                .map(header => [header, state.csvImportState.mappings[header]])
+                .filter(([, fieldId]) => fieldId);
+            if (!mappedEntries.length || !state.csvImportState.rows.length) {
                 container.innerHTML = '<p class="text-sm text-gray-500">Map at least one column to preview records.</p>';
                 return;
             }
 
             const previewRows = buildCsvPreviewRows();
             state.csvImportState.previewRows = previewRows;
-            const headerCells = mappedFields.map(fieldId => {
+            const headerCells = mappedEntries.map(([header, fieldId]) => {
                 const field = set.schema.find(f => f.id === fieldId);
-                return `<th>${field?.name || fieldId}</th>`;
+                const label = field?.name || header;
+                const badge = field ? '' : '<span class="ml-2 text-xs font-semibold text-amber-600">(creates field)</span>';
+                return `<th>${label}${badge}</th>`;
             }).join('');
 
             const bodyRows = previewRows.map(row => {
-                const cells = mappedFields.map(fieldId => `<td>${row[fieldId] ?? ''}</td>`).join('');
+                const cells = mappedEntries.map(([, fieldId]) => `<td>${row[fieldId] ?? ''}</td>`).join('');
                 return `<tr>${cells}</tr>`;
             }).join('');
 
@@ -3800,9 +3846,30 @@
                 return;
             }
 
+            const existingFieldIds = new Set(set.schema.map(f => f.id));
+            mappedHeaders
+                .filter(([, fieldId]) => isCreateFieldValue(fieldId))
+                .forEach(([header, fieldId]) => {
+                    const suggestedId = fieldId.replace(CREATE_FIELD_PREFIX, '') || slugifyFieldId(header);
+                    const fieldName = header?.trim() || 'New Field';
+                    let uniqueId = suggestedId;
+                    let counter = 1;
+                    while (existingFieldIds.has(uniqueId)) {
+                        uniqueId = `${suggestedId}_${counter++}`;
+                    }
+
+                    const newField = { id: uniqueId, name: fieldName, type: 'TEXT', width: '150px', config: {} };
+                    set.schema.push(newField);
+                    set.records.forEach(r => r[uniqueId] = FIELD_TYPES.TEXT.defaultValue);
+                    existingFieldIds.add(uniqueId);
+                    state.csvImportState.mappings[header] = uniqueId;
+                });
+
+            const finalizedMappings = Object.entries(state.csvImportState.mappings).filter(([, fieldId]) => fieldId);
+
             state.csvImportState.rows.forEach(row => {
                 const recordData = {};
-                mappedHeaders.forEach(([header, fieldId]) => {
+                finalizedMappings.forEach(([header, fieldId]) => {
                     const field = set.schema.find(f => f.id === fieldId);
                     let value = row[header];
                     if (['NUMBER', 'CURRENCY'].includes(field?.type)) {
