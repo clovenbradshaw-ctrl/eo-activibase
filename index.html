@@ -6088,8 +6088,14 @@
             }
         }
 
-        function openCsvImportModal() {
+        function openCsvImportModal(targetSetId = null) {
             resetCsvImportState();
+            if (targetSetId) {
+                state.csvImportState.targetMode = 'existing';
+                state.csvImportState.targetSetId = targetSetId;
+                populateCsvTargetSetOptions();
+                syncCsvImportTargetUi();
+            }
             openModal('csvImportModal');
         }
 
@@ -12463,10 +12469,11 @@
                 renderHistory();
           };
           document.getElementById('saveAddSetBtn').onclick = () => {
-                const name = document.getElementById('newSetName').value.trim();
+                const nameInput = document.getElementById('newSetName');
+                const name = nameInput.value.trim();
                 const icon = extractIconToken(document.getElementById('newSetIcon').value.trim() || 'ph-squares-four');
                 const worldId = document.getElementById('newSetWorld').value || state.currentWorldId;
-                if (!name) { showConfirm('Please enter a set name', () => {}); return; }
+                if (!name) { showToast('⚠️ Please enter a set name'); nameInput?.focus(); return; }
                 if (state.setEditorContext?.setId) {
                     const set = state.sets.get(state.setEditorContext.setId);
                     const previousWorldId = set.worldId;
@@ -12495,6 +12502,9 @@
                     renderSidebar();
                     switchSet(setId, null);
                     showToast('✓ Set created');
+                    showConfirm('Import CSV into this set now?', () => {
+                        openCsvImportModal(setId);
+                    });
                 }
             };
             document.getElementById('cancelAddSetBtn').onclick = () => { state.setEditorContext = null; closeModal('addSetModal'); };
