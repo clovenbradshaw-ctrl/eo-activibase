@@ -1751,9 +1751,9 @@
         }
 
         @media (min-width: 1100px) {
-            .view-stage-actions { flex-direction: row; align-items: center; }
+            .view-stage-actions { flex-direction: column; }
             .toolbar-row { flex: 1; }
-            .toolbar-row.secondary { justify-content: flex-end; }
+            .toolbar-row.secondary { justify-content: space-between; }
         }
 
         @media (max-width: 640px) {
@@ -5373,37 +5373,18 @@
         function renderViewActions(extraControls = '') {
             return `
                 <div class="view-stage-actions">
-                    <div class="toolbar-row scrollable">
-                        <div class="toolbar-group">
-                            <div class="primary-actions">
-                                <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
-                                <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
-                            </div>
-                            <div class="view-stage-inline-actions">
-                                <button id="filterBtn" class="btn btn-secondary btn-sm">
-                                    <i class="ph ph-funnel-simple"></i>
-                                    Filter
-                                </button>
-                                <button id="sortBtn" class="btn btn-secondary btn-sm">
-                                    <i class="ph ph-arrows-down-up"></i>
-                                    Sort
-                                </button>
-                            </div>
-                            ${extraControls ? `<div class="toolbar-group">${extraControls}</div>` : ''}
-                        </div>
-                    </div>
-                    <div class="toolbar-row secondary">
+                    <div class="toolbar-row">
                         <div class="selection-group">
                             <div id="selectionIndicator" class="selection-indicator hidden">
                                 <i class="ph ph-check-square-offset"></i>
                                 <span><span id="selectedCount">0</span> selected</span>
                             </div>
+                        </div>
+                        <div class="toolbar-group">
                             <button id="deleteSelectedBtn" class="btn btn-danger btn-sm" disabled>
                                 <i class="ph ph-trash"></i>
                                 Delete
                             </button>
-                        </div>
-                        <div class="toolbar-group">
                             <button id="reifyViewBtn" class="btn btn-secondary btn-sm">
                                 <i class="ph ph-cube-focus"></i>
                                 Reify View
@@ -5433,6 +5414,25 @@
                                     </button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                    <div class="toolbar-row scrollable secondary">
+                        <div class="toolbar-group">
+                            <div class="primary-actions">
+                                <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
+                                <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
+                            </div>
+                            <div class="view-stage-inline-actions">
+                                <button id="filterBtn" class="btn btn-secondary btn-sm">
+                                    <i class="ph ph-funnel-simple"></i>
+                                    Filter
+                                </button>
+                                <button id="sortBtn" class="btn btn-secondary btn-sm">
+                                    <i class="ph ph-arrows-down-up"></i>
+                                    Sort
+                                </button>
+                            </div>
+                            ${extraControls ? `<div class="toolbar-group">${extraControls}</div>` : ''}
                         </div>
                     </div>
                 </div>
