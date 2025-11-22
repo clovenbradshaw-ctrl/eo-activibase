@@ -1397,7 +1397,7 @@
             display: flex;
             align-items: flex-end;
             gap: 2px;
-            padding: 0 16px;
+            padding: 0 10px;
             background: transparent;
             overflow-x: auto;
             position: relative;
@@ -1408,8 +1408,8 @@
             position: relative;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 16px;
+            gap: 6px;
+            padding: 6px 12px;
             border-bottom: 2px solid transparent;
             background: transparent;
             cursor: pointer;
@@ -1417,6 +1417,7 @@
             color: #6b7280;
             white-space: nowrap;
             flex-shrink: 0;
+            user-select: none;
         }
 
         .view-tab:hover {
@@ -1429,6 +1430,23 @@
             border-bottom-color: #3b82f6;
             color: #111827;
         }
+
+        .view-tab.tab-being-dragged {
+            opacity: 0.6;
+        }
+
+        .view-tab.tab-drop-before::before,
+        .view-tab.tab-drop-after::after {
+            content: '';
+            position: absolute;
+            top: 6px;
+            bottom: 6px;
+            width: 3px;
+            background: #cbd5e1;
+            border-radius: 999px;
+        }
+        .view-tab.tab-drop-before::before { left: -4px; }
+        .view-tab.tab-drop-after::after { right: -4px; }
 
         .view-tab-icon {
             color: inherit;
@@ -1443,12 +1461,12 @@
             opacity: 1;
         }
 
-        .view-tab-text { display: flex; align-items: center; gap: 6px; min-width: 0; }
-        .view-tab-name { font-weight: 500; font-size: 13px; color: inherit; white-space: nowrap; }
+        .view-tab-text { display: flex; align-items: center; gap: 4px; min-width: 0; }
+        .view-tab-name { font-weight: 600; font-size: 12px; color: inherit; white-space: nowrap; }
         .view-tab-meta {
-            font-size: 11px;
+            font-size: 10px;
             color: #9ca3af;
-            padding: 2px 8px;
+            padding: 1px 7px;
             border-radius: 6px;
             background: #f3f4f6;
             letter-spacing: 0.01em;
@@ -2597,7 +2615,14 @@
             ghost: null,
             offsetX: 0,
             offsetY: 0,
-            sourceElement: null
+            sourceElement: null,
+            preventClick: false
+        };
+
+        const tabDragState = {
+            draggingKey: null,
+            dropKey: null,
+            dropPosition: null
         };
 
         const COLUMN_WIDTH_MIN = 60;
@@ -6110,15 +6135,63 @@
             }
         }
 
-        function moveViewTab(setId, viewId, direction) {
-            const key = getTabKey(setId, viewId);
-            const index = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId) === key);
-            if (index === -1) return;
-            const newIndex = Math.max(0, Math.min(state.openTabs.length - 1, index + direction));
-            if (newIndex === index) return;
-            const [tab] = state.openTabs.splice(index, 1);
-            state.openTabs.splice(newIndex, 0, tab);
+        function reorderOpenTabs(dragKey, targetKey, position) {
+            const fromIndex = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId) === dragKey);
+            const targetIndex = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId) === targetKey);
+            if (fromIndex === -1 || targetIndex === -1 || dragKey === targetKey) return;
+
+            const [dragged] = state.openTabs.splice(fromIndex, 1);
+            const adjustedTarget = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+            const insertIndex = position === 'before' ? adjustedTarget : adjustedTarget + 1;
+            state.openTabs.splice(insertIndex, 0, dragged);
             renderViewTabs();
+        }
+
+        function clearTabDropIndicators() {
+            document.querySelectorAll('.view-tab').forEach(tab => {
+                tab.classList.remove('tab-drop-before', 'tab-drop-after', 'tab-being-dragged');
+            });
+        }
+
+        function handleTabDragStart(event, tab) {
+            const key = getTabKey(tab.setId, tab.viewId);
+            tabDragState.draggingKey = key;
+            tabDragState.dropKey = null;
+            tabDragState.dropPosition = null;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', key);
+            event.currentTarget.classList.add('tab-being-dragged');
+        }
+
+        function handleTabDragOver(event, targetTab) {
+            if (!tabDragState.draggingKey) return;
+            event.preventDefault();
+
+            const targetKey = getTabKey(targetTab.setId, targetTab.viewId);
+            if (targetKey === tabDragState.draggingKey) return;
+
+            const rect = event.currentTarget.getBoundingClientRect();
+            const position = event.clientX < rect.left + rect.width / 2 ? 'before' : 'after';
+            clearTabDropIndicators();
+            event.currentTarget.classList.add(position === 'before' ? 'tab-drop-before' : 'tab-drop-after');
+            tabDragState.dropKey = targetKey;
+            tabDragState.dropPosition = position;
+        }
+
+        function finalizeTabDrag() {
+            clearTabDropIndicators();
+            tabDragState.draggingKey = null;
+            tabDragState.dropKey = null;
+            tabDragState.dropPosition = null;
+        }
+
+        function handleTabDrop(event, targetTab) {
+            if (!tabDragState.draggingKey) return;
+            event.preventDefault();
+            const targetKey = getTabKey(targetTab.setId, targetTab.viewId);
+            const position = tabDragState.dropPosition || 'after';
+            reorderOpenTabs(tabDragState.draggingKey, targetKey, position);
+            finalizeTabDrag();
         }
 
         function renderViewTabs() {
@@ -6150,10 +6223,18 @@
                 const view = set?.views.get(tab.viewId);
                 if (!set || !view) return;
                 const isActive = state.currentSetId === tab.setId && state.currentViewId === tab.viewId;
+                const tabKey = getTabKey(tab.setId, tab.viewId);
 
                 const tabEl = document.createElement('div');
                 tabEl.className = `view-tab ${isActive ? 'active' : ''}`;
+                tabEl.dataset.tabKey = tabKey;
+                tabEl.draggable = true;
                 tabEl.onclick = () => switchSet(tab.setId, tab.viewId);
+                tabEl.ondragstart = (e) => handleTabDragStart(e, tab);
+                tabEl.ondragover = (e) => handleTabDragOver(e, tab);
+                tabEl.ondragleave = () => clearTabDropIndicators();
+                tabEl.ondrop = (e) => handleTabDrop(e, tab);
+                tabEl.ondragend = finalizeTabDrag;
 
                 const iconSpan = document.createElement('span');
                 iconSpan.className = 'view-tab-icon';
@@ -6169,25 +6250,11 @@
                 const actions = document.createElement('div');
                 actions.className = 'view-tab-actions';
 
-                const moveLeftBtn = document.createElement('button');
-                moveLeftBtn.className = 'view-tab-btn';
-                moveLeftBtn.innerHTML = '<i class="ph ph-caret-left"></i>';
-                moveLeftBtn.disabled = index === 0;
-                moveLeftBtn.onclick = (e) => { e.stopPropagation(); moveViewTab(tab.setId, tab.viewId, -1); };
-
-                const moveRightBtn = document.createElement('button');
-                moveRightBtn.className = 'view-tab-btn';
-                moveRightBtn.innerHTML = '<i class="ph ph-caret-right"></i>';
-                moveRightBtn.disabled = index === state.openTabs.length - 1;
-                moveRightBtn.onclick = (e) => { e.stopPropagation(); moveViewTab(tab.setId, tab.viewId, 1); };
-
                 const closeBtn = document.createElement('button');
                 closeBtn.className = 'view-tab-btn';
                 closeBtn.innerHTML = '<i class="ph ph-x"></i>';
                 closeBtn.onclick = (e) => { e.stopPropagation(); closeViewTab(tab.setId, tab.viewId); };
 
-                actions.appendChild(moveLeftBtn);
-                actions.appendChild(moveRightBtn);
                 actions.appendChild(closeBtn);
 
                 tabEl.appendChild(iconSpan);
@@ -6411,6 +6478,8 @@
             columnDragState.dropPosition = null;
             columnDragState.ghost = null;
             columnDragState.sourceElement = null;
+
+            setTimeout(() => { columnDragState.preventClick = false; }, 30);
         }
 
         function handleColumnDragMove(event) {
@@ -6426,6 +6495,7 @@
             columnDragState.timer = null;
             columnDragState.draggedFieldId = field.id;
             columnDragState.sourceElement = element;
+            columnDragState.preventClick = true;
 
             const rect = element.getBoundingClientRect();
             columnDragState.offsetX = startPosition.clientX - rect.left;
@@ -6443,28 +6513,43 @@
         }
 
         function setupColumnDragInteractions(element, field) {
-            const cancelTimer = () => {
-                if (columnDragState.timer) {
-                    clearTimeout(columnDragState.timer);
-                    columnDragState.timer = null;
+            let pointerActive = false;
+            let dragStarted = false;
+            let startPosition = null;
+
+            const handlePointerDown = (event) => {
+                if (event.button !== undefined && event.button !== 0) return;
+                if (event.target.closest('.column-resizer')) return;
+                pointerActive = true;
+                dragStarted = false;
+                startPosition = getPointerPosition(event);
+            };
+
+            const handlePointerMove = (event) => {
+                if (!pointerActive || dragStarted) return;
+                const position = getPointerPosition(event);
+                const deltaX = Math.abs(position.clientX - startPosition.clientX);
+                const deltaY = Math.abs(position.clientY - startPosition.clientY);
+                if (deltaX > 6 || deltaY > 6) {
+                    dragStarted = true;
+                    startColumnDrag(position, element, field);
                 }
             };
 
-            const startTimer = (event) => {
-                if (event.button !== undefined && event.button !== 0) return;
-                if (event.target.closest('.column-resizer')) return;
-                const startPosition = getPointerPosition(event);
-                cancelTimer();
-                columnDragState.timer = setTimeout(() => startColumnDrag(startPosition, element, field), 400);
+            const resetPointerState = () => {
+                pointerActive = false;
+                dragStarted = false;
+                startPosition = null;
             };
 
-            element.addEventListener('mousedown', startTimer);
-            element.addEventListener('touchstart', startTimer);
-            element.addEventListener('mouseup', cancelTimer);
-            element.addEventListener('mouseleave', cancelTimer);
-            element.addEventListener('mousemove', cancelTimer);
-            element.addEventListener('touchend', cancelTimer);
-            element.addEventListener('touchcancel', cancelTimer);
+            element.addEventListener('mousedown', handlePointerDown);
+            element.addEventListener('touchstart', handlePointerDown);
+            element.addEventListener('mousemove', handlePointerMove);
+            element.addEventListener('touchmove', handlePointerMove, { passive: false });
+            element.addEventListener('mouseup', resetPointerState);
+            element.addEventListener('mouseleave', resetPointerState);
+            element.addEventListener('touchend', resetPointerState);
+            element.addEventListener('touchcancel', resetPointerState);
         }
 
         // GRID VIEW
@@ -6535,7 +6620,10 @@
                 const indicatorClass = sortConfig ? 'sort-indicator' : 'sort-indicator muted';
                 const orderBadge = sortConfig ? `<span class="order-badge">${sortIndex + 1}</span>` : '';
                 th.innerHTML = `<span>${field.name}</span><span class="${indicatorClass}"><span class="direction-icon">${directionIcon}</span>${orderBadge}</span>`;
-                th.onclick = () => toggleColumnSort(field.id);
+                th.onclick = () => {
+                    if (columnDragState.preventClick) return;
+                    toggleColumnSort(field.id);
+                };
                 addColumnResizer(th, field);
                 setupColumnDragInteractions(th, field);
                 th.oncontextmenu = (e) => { e.preventDefault(); showColumnMenu(e, field); };
