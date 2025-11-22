@@ -73,3 +73,22 @@ runTest('autocomplete suggestions only include real schema fields', () => {
   const suggestions = service.getFieldSuggestions(schema);
   assert.deepStrictEqual(suggestions.map(f => f.name), ['Visible']);
 });
+
+runTest('aliases map pretty names to immutable ids', () => {
+  const service = createService();
+  const schema = [
+    {
+      id: 'stable_id',
+      name: 'internal_name',
+      displayName: 'Pretty Name',
+      type: 'TEXT'
+    }
+  ];
+  const record = { stable_id: 'hello' };
+
+  const result = service.evaluateForRecord('{Pretty Name}', record, schema);
+
+  assert.strictEqual(result.success, true);
+  assert.strictEqual(result.result, 'hello');
+  assert.strictEqual(result.normalizedFormula, '{stable_id}');
+});
