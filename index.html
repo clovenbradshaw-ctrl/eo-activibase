@@ -1082,8 +1082,7 @@
         /* GRAPH VIEW */
         .graph-container {
             width: 100%;
-            height: 100%;
-            min-height: 600px;
+            height: 600px;
             background: #fafbfc;
             border-radius: 8px;
             overflow: hidden;
@@ -9408,7 +9407,6 @@
 
         function renderGraph(definitions, connections, entities = []) {
             const container = document.getElementById('graphContainer');
-
             if (!container) return;
 
             // Clean up previous network instance
@@ -9417,198 +9415,77 @@
                 graphNetwork = null;
             }
 
-            const typeColors = {
-                Record: { background: '#4A90E2', border: '#2E5C8A', highlight: '#5FA3F5' },
-                Field: { background: '#50C878', border: '#2E7D4E', highlight: '#63DB8B' },
-                Set: { background: '#F39C12', border: '#B8730F', highlight: '#F5A623' },
-                Connection: { background: '#9B59B6', border: '#6C3483', highlight: '#AE6CC9' },
-                ViewEntity: { background: '#1ABC9C', border: '#138D75', highlight: '#2DD4AF' }
-            };
-
+            // Build nodes from definitions
+            const nodes = [];
             const nodeMap = new Map();
-            const definitionsByKey = new Map();
 
             definitions.forEach(def => {
                 const key = `${def.entity?.type}:${def.entity?.id}`;
-                if (key) definitionsByKey.set(key, def);
+                if (!nodeMap.has(key)) {
+                    const label = def.term || `${def.entity?.type} ${def.entity?.id}`;
+                    nodes.push({
+                        id: key,
+                        label: label,
+                        title: def.definition || def.notes || label
+                    });
+                    nodeMap.set(key, true);
+                }
             });
 
-            const visNodes = [];
-            const addNode = (entity) => {
-                const key = `${entity.type}:${entity.id}`;
-                if (nodeMap.has(key)) return key;
-
-                const definition = definitionsByKey.get(key);
-                const colorScheme = typeColors[entity.type] || typeColors.ViewEntity;
-                const label = definition?.term || renderEntityLabel(entity);
-                const tooltip = definition?.definition || definition?.notes || label;
-
-                visNodes.push({
-                    id: key,
-                    label: label.length > 20 ? label.substring(0, 18) + '...' : label,
-                    title: `<div style="max-width: 300px; padding: 8px;">
-                        <strong style="font-size: 14px;">${label}</strong>
-                        <div style="font-size: 11px; color: #666; margin-top: 4px;">${entity.type}</div>
-                        ${tooltip !== label ? `<div style="margin-top: 8px; font-size: 12px;">${tooltip}</div>` : ''}
-                    </div>`,
-                    color: {
-                        background: colorScheme.background,
-                        border: colorScheme.border,
-                        highlight: {
-                            background: colorScheme.highlight,
-                            border: colorScheme.border
-                        },
-                        hover: {
-                            background: colorScheme.highlight,
-                            border: colorScheme.border
-                        }
-                    },
-                    font: {
-                        color: '#ffffff',
-                        size: 14,
-                        face: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto',
-                        bold: {
-                            color: '#ffffff'
-                        }
-                    },
-                    shape: 'dot',
-                    size: 25,
-                    borderWidth: 3,
-                    shadow: {
-                        enabled: true,
-                        color: 'rgba(0,0,0,0.2)',
-                        size: 10,
-                        x: 2,
-                        y: 2
-                    },
-                    entity: entity
-                });
-
-                nodeMap.set(key, true);
-                return key;
-            };
-
-            // Add all entities as nodes
-            (entities || []).forEach(entity => addNode(entity));
-            definitions.forEach(def => addNode(def.entity));
-
-            // Create edges from connections
-            const visEdges = [];
+            // Build edges from connections
+            const edges = [];
             connections.forEach((conn, idx) => {
-                const sourceKey = addNode(conn.subject);
-                const targetKey = addNode(conn.operand);
-                const edgeLabel = `${conn.operator || ''} ${conn.mode || ''}`.trim() || 'linked';
+                const fromKey = `${conn.subject?.type}:${conn.subject?.id}`;
+                const toKey = `${conn.operand?.type}:${conn.operand?.id}`;
 
-                visEdges.push({
+                // Add nodes if they don't exist
+                if (!nodeMap.has(fromKey)) {
+                    nodes.push({ id: fromKey, label: `${conn.subject?.type} ${conn.subject?.id}` });
+                    nodeMap.set(fromKey, true);
+                }
+                if (!nodeMap.has(toKey)) {
+                    nodes.push({ id: toKey, label: `${conn.operand?.type} ${conn.operand?.id}` });
+                    nodeMap.set(toKey, true);
+                }
+
+                edges.push({
                     id: `edge-${idx}`,
-                    from: sourceKey,
-                    to: targetKey,
-                    label: edgeLabel,
-                    arrows: {
-                        to: {
-                            enabled: true,
-                            scaleFactor: 0.8
-                        }
-                    },
-                    color: {
-                        color: '#94a3b8',
-                        highlight: '#475569',
-                        hover: '#475569'
-                    },
-                    font: {
-                        size: 11,
-                        color: '#64748b',
-                        background: 'rgba(255,255,255,0.9)',
-                        strokeWidth: 0,
-                        align: 'middle'
-                    },
-                    smooth: {
-                        type: 'continuous',
-                        roundness: 0.5
-                    },
-                    width: 2
+                    from: fromKey,
+                    to: toKey,
+                    label: conn.operator || '',
+                    arrows: 'to'
                 });
             });
 
-            if (visNodes.length === 0) {
-                container.innerHTML = `
-                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; font-size: 14px;">
-                        No graph data available
-                    </div>
-                `;
+            if (nodes.length === 0) {
+                container.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">No graph data available</div>';
                 return;
             }
 
-            // Create the network
+            // Create network with minimal options
             const data = {
-                nodes: new vis.DataSet(visNodes),
-                edges: new vis.DataSet(visEdges)
+                nodes: new vis.DataSet(nodes),
+                edges: new vis.DataSet(edges)
             };
 
             const options = {
-                nodes: {
-                    borderWidthSelected: 4
-                },
-                edges: {
-                    selectionWidth: 3
-                },
+                autoResize: true,
+                height: '100%',
+                width: '100%',
                 physics: {
-                    enabled: true,
-                    barnesHut: {
-                        gravitationalConstant: -3000,
-                        centralGravity: 0.3,
-                        springLength: 150,
-                        springConstant: 0.04,
-                        damping: 0.09,
-                        avoidOverlap: 0.5
-                    },
-                    stabilization: {
-                        enabled: true,
-                        iterations: 100,
-                        updateInterval: 25
-                    }
-                },
-                interaction: {
-                    hover: true,
-                    tooltipDelay: 100,
-                    navigationButtons: true,
-                    keyboard: {
-                        enabled: true,
-                        speed: { x: 10, y: 10, zoom: 0.02 }
-                    },
-                    zoomView: true,
-                    dragView: true
+                    enabled: false
                 },
                 layout: {
-                    improvedLayout: true,
-                    randomSeed: 42
+                    hierarchical: false
                 }
             };
 
             graphNetwork = new vis.Network(container, data, options);
 
-            // Add event listeners
-            graphNetwork.on('click', function(params) {
-                if (params.nodes.length > 0) {
-                    const nodeId = params.nodes[0];
-                    const node = visNodes.find(n => n.id === nodeId);
-                    if (node && node.entity) {
-                        console.log('Clicked node:', node.entity);
-                        // You can add custom click handling here
-                        // For example, opening a detail view
-                    }
-                }
-            });
-
-            graphNetwork.on('stabilizationIterationsDone', function() {
-                graphNetwork.setOptions({ physics: { enabled: false } });
-                graphNetwork.fit({
-                    animation: {
-                        duration: 500,
-                        easingFunction: 'easeInOutQuad'
-                    }
-                });
-            });
+            // Fit to view immediately
+            setTimeout(() => {
+                graphNetwork.fit({ padding: 50 });
+            }, 100);
         }
 
         function serializeTagsInput(value) {
