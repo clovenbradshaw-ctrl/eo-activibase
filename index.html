@@ -2652,6 +2652,7 @@
         // STATE
         const state = {
             worlds: new Map(),
+            entities: new Map(),
             currentWorldId: null,
             sets: new Map(),
             currentSetId: null,
@@ -2733,6 +2734,16 @@
                 onSave: null
             }
         };
+
+        function registerEntity(entity) {
+            if (!entity || !entity.id || !entity.type) {
+                throw new Error('Entities require an id and type');
+            }
+            if (!state.entities) state.entities = new Map();
+            const payload = { ...entity };
+            state.entities.set(entity.id, payload);
+            return payload;
+        }
 
         const columnDragState = {
             timer: null,
@@ -4979,6 +4990,9 @@
             const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
             if (deleteSelectedBtn) deleteSelectedBtn.onclick = handleDeleteSelectedRecords;
 
+            const reifyBtn = document.getElementById('reifyViewBtn');
+            if (reifyBtn) reifyBtn.onclick = reifyCurrentView;
+
             const toolbarActions = [
                 ['popupSettingsBtn', openPopupSettingsModal],
                 ['importCsvBtn', openCsvImportModal],
@@ -5018,6 +5032,10 @@
                         <button id="deleteSelectedBtn" class="btn btn-danger btn-sm" disabled>
                             <i class="ph ph-trash"></i>
                             Delete
+                        </button>
+                        <button id="reifyViewBtn" class="btn btn-secondary btn-sm">
+                            <i class="ph ph-cube-focus"></i>
+                            Reify View
                         </button>
                         ${extraControls}
                         <div class="toolbar-menu">
@@ -5305,6 +5323,7 @@
                 views: new Map(),
                 profiles: new Map([['default', { id: 'default', name: 'All Fields', visibleFields: [] }]])
             });
+            registerEntity({ id: setId, type: 'Set', name, worldId: resolvedWorldId });
             const world = getWorld(resolvedWorldId);
             world?.setIds?.add(setId);
             createEvent(
@@ -5322,6 +5341,7 @@
             const set = state.sets.get(setId);
             const viewPayload = {
                 id: viewId,
+                setId,
                 name: name,
                 type: config.type || 'grid',
                 icon: config.icon || VIEW_TYPE_ICONS[config.type || 'grid'] || '📋',
@@ -5356,6 +5376,112 @@
             }
 
             return viewId;
+        }
+
+        function reifyCurrentView() {
+            const view = getCurrentView();
+            if (!view) {
+                showToast('⚠️ No active view to reify');
+                return null;
+            }
+            const setId = state.currentSetId;
+            return reifyView({ ...view, setId: view.setId || setId });
+        }
+
+        function reifyView(view) {
+            if (!view) return null;
+
+            const randomId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            const id = `entity_view_${randomId}`;
+            const viewCopy = JSON.parse(JSON.stringify(view));
+            const viewEntity = {
+                id,
+                type: 'ViewEntity',
+                viewConfig: viewCopy,
+                sourceSet: view.setId || view.sourceSet || null,
+                createdAt: Date.now()
+            };
+
+            registerEntity(viewEntity);
+
+            addDefinition({
+                id: `def_${id}`,
+                entity: { type: 'ViewEntity', id },
+                term: view.name || 'Reified View',
+                definition: 'A view created from filters, groups, or aggregates.',
+                notes: JSON.stringify(viewCopy, null, 2),
+                tags: ['reified', 'view']
+            });
+
+            const lineage = extractViewLineage(view, id);
+            lineage.forEach(conn => addConnection(conn));
+
+            showToast(`✓ View reified as entity: ${id}`);
+            return id;
+        }
+
+        function extractViewLineage(view, newEntityId) {
+            const list = [];
+            const sourceSetId = view.setId || view.sourceSet || view.sourceSetId || null;
+            const idFactory = () => `conn_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`}`;
+
+            if (Array.isArray(view.filters)) {
+                view.filters.forEach(filter => {
+                    if (!filter?.fieldId) return;
+                    list.push({
+                        id: idFactory(),
+                        subject: { type: 'Field', id: filter.fieldId },
+                        operator: 'SEG',
+                        mode: 'filters by',
+                        operand: { type: 'ViewEntity', id: newEntityId },
+                        description: 'View generated by filtering',
+                        params: filter
+                    });
+                });
+            }
+
+            if (Array.isArray(view.groupBy)) {
+                view.groupBy.forEach(group => {
+                    if (!group?.fieldId) return;
+                    list.push({
+                        id: idFactory(),
+                        subject: { type: 'Field', id: group.fieldId },
+                        operator: 'SEG',
+                        mode: 'groups by',
+                        operand: { type: 'ViewEntity', id: newEntityId },
+                        description: 'View grouped by field',
+                        params: group
+                    });
+                });
+            }
+
+            if (Array.isArray(view.aggregationRules)) {
+                view.aggregationRules.forEach(rule => {
+                    list.push({
+                        id: idFactory(),
+                        subject: { type: 'Set', id: sourceSetId },
+                        operator: 'SYN',
+                        mode: 'aggregates into',
+                        operand: { type: 'ViewEntity', id: newEntityId },
+                        description: 'Aggregated fields/materialized view',
+                        params: rule
+                    });
+                });
+            }
+
+            if (view.pivotField) {
+                list.push({
+                    id: idFactory(),
+                    subject: { type: 'Field', id: view.pivotField },
+                    operator: 'SUP',
+                    mode: 'superposes over',
+                    operand: { type: 'ViewEntity', id: newEntityId },
+                    description: 'View pivoted on field',
+                    params: {}
+                });
+            }
+
+            return list;
         }
 
         function scoreKeyCandidate(set, fieldId, fieldName, fieldType = 'TEXT') {
@@ -5632,6 +5758,7 @@
             const recordId = 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             const record = { id: recordId, ...data };
             set.records.set(recordId, record);
+            registerEntity({ id: recordId, type: 'Record', setId, data, createdAt: new Date().toISOString() });
             createEvent(
                 'Create Record',
                 'INS',
@@ -6316,6 +6443,7 @@
             };
 
             state.connections.set(connectionId, payload);
+            registerEntity({ id: connectionId, type: 'Connection', worldId: payload.worldId, subject: payload.subject, operand: payload.operand });
 
             const summary = `Connected ${renderEntityLabel(payload.subject)} ${payload.mode || ''} ${renderEntityLabel(payload.operand)}`.trim();
             createEvent(
@@ -7999,6 +8127,7 @@
             const view = getCurrentView();
             const definitions = getDefinitionView();
             const connections = getConnectionView();
+            const entities = state.entities ? Array.from(state.entities.values()) : [];
 
             const container = document.getElementById('viewContainer');
             const nodeLabel = definitions.length === 1 ? 'node' : 'nodes';
@@ -8022,12 +8151,12 @@
                 </div>
             `;
 
-            renderGraph(definitions, connections);
+            renderGraph(definitions, connections, entities);
 
             finalizeViewStage();
         }
 
-        function renderGraph(definitions, connections) {
+        function renderGraph(definitions, connections, entities = []) {
             const container = document.getElementById('graphContainer');
             const svg = document.getElementById('graphSvg');
             const width = container?.clientWidth || 800;
@@ -8041,14 +8170,22 @@
                 Record: '#3b82f6',
                 Field: '#10b981',
                 Set: '#f59e0b',
-                Connection: '#8b5cf6'
+                Connection: '#8b5cf6',
+                ViewEntity: '#0ea5e9'
             };
 
             const nodes = [];
             const nodeMap = new Map();
-            const addNode = (entity, definition = null) => {
+            const definitionsByKey = new Map();
+            definitions.forEach(def => {
+                const key = `${def.entity?.type}:${def.entity?.id}`;
+                if (key) definitionsByKey.set(key, def);
+            });
+
+            const addNode = (entity) => {
                 const key = `${entity.type}:${entity.id}`;
                 if (nodeMap.has(key)) return nodeMap.get(key);
+                const definition = definitionsByKey.get(key);
                 const node = {
                     id: key,
                     entity,
@@ -8065,7 +8202,8 @@
                 return node;
             };
 
-            definitions.forEach(def => addNode(def.entity, def));
+            (entities || []).forEach(entity => addNode(entity));
+            definitions.forEach(def => addNode(def.entity));
 
             const links = [];
             connections.forEach(conn => {
@@ -8295,6 +8433,7 @@
                 records: def => def.entity?.type === 'Record',
                 fields: def => def.entity?.type === 'Field',
                 connections: def => def.entity?.type === 'Connection',
+                viewEntities: def => def.entity?.type === 'ViewEntity',
                 core: def => (def.tags || []).includes('core'),
                 demo: def => (def.tags || []).includes('demo')
             };
@@ -8333,6 +8472,7 @@
                                     <option value="Field">Field</option>
                                     <option value="Set">Set</option>
                                     <option value="Connection">Connection</option>
+                                    <option value="ViewEntity">ViewEntity</option>
                                 </select>
                             </div>
                             <div>
@@ -8530,6 +8670,7 @@
                                     <option value="Field">Field</option>
                                     <option value="Set">Set</option>
                                     <option value="Connection">Connection</option>
+                                    <option value="ViewEntity">ViewEntity</option>
                                 </select>
                             </div>
                             <div>
@@ -8553,6 +8694,7 @@
                                     <option value="Field">Field</option>
                                     <option value="Set">Set</option>
                                     <option value="Connection">Connection</option>
+                                    <option value="ViewEntity">ViewEntity</option>
                                 </select>
                             </div>
                             <div>
