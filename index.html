@@ -2546,6 +2546,7 @@
             leanContext: null, // Will be initialized in initializeApp
             interpretationRules: [],
             connections: new Map(),
+            demoRefs: {},
             connectionBuilder: { targetSetId: null, targetRecordId: '', metadataJson: '', searchQuery: '' },
             sidebarCollapsed: false,
             sidebarOpenMobile: false,
@@ -3076,10 +3077,110 @@
                     spec,
                     engine: new FormulaEngine()
                 });
+                registerDemoFormulaHelpers();
                 recomputeAllFormulas();
             } catch (error) {
                 console.warn('Unable to initialize formula support', error);
             }
+        }
+
+        function registerDemoFormulaHelpers() {
+            if (!state.formulaFieldService) return;
+
+            const findUnitRecordByName = (unitName) => {
+                if (!unitName) return null;
+                const targetName = unitName.toString().trim().toLowerCase();
+                const scopedSet = state.demoRefs?.temperature?.unitSetId
+                    ? state.sets.get(state.demoRefs.temperature.unitSetId)
+                    : null;
+                const setsToScan = scopedSet ? [scopedSet] : Array.from(state.sets.values());
+
+                for (const set of setsToScan) {
+                    if (!set?.records?.size) continue;
+                    for (const record of set.records.values()) {
+                        if (typeof record.name === 'string' && record.name.trim().toLowerCase() === targetName) {
+                            return record;
+                        }
+                    }
+                }
+                return null;
+            };
+
+            const findConversionRecord = (sourceUnitId, targetUnitId) => {
+                if (!sourceUnitId || !targetUnitId) return null;
+                const outbound = Array.from(state.connections.values()).filter(edge =>
+                    edge.sourceId === sourceUnitId && edge.metadata?.relationship === 'unit_conversion'
+                );
+
+                for (const connection of outbound) {
+                    const conversionId = connection.targetId;
+                    const pointsToTarget = Array.from(state.connections.values()).some(edge =>
+                        edge.sourceId === conversionId &&
+                        edge.targetId === targetUnitId &&
+                        edge.metadata?.relationship === 'unit_conversion'
+                    );
+
+                    if (pointsToTarget) {
+                        const conversionRef = getRecordById(conversionId);
+                        if (conversionRef?.record) return conversionRef.record;
+                    }
+                }
+
+                return null;
+            };
+
+            const convertValueBetweenUnits = (value, sourceUnitId, targetUnitId) => {
+                const numericValue = Number(value);
+                if (Number.isNaN(numericValue) || !sourceUnitId || !targetUnitId) return null;
+                if (sourceUnitId === targetUnitId) return numericValue;
+
+                const conversion = findConversionRecord(sourceUnitId, targetUnitId);
+                if (!conversion) return null;
+
+                const preOffset = Number(conversion.pre_offset ?? 0);
+                const scale = Number(conversion.scale ?? 1);
+                const postOffset = Number(conversion.post_offset ?? 0);
+
+                if ([preOffset, scale, postOffset].some(v => Number.isNaN(v))) return null;
+                return (numericValue + preOffset) * scale + postOffset;
+            };
+
+            state.formulaFieldService.registerHelper('CONVERT_LINKED_VALUE', (readingId, targetUnitName) => {
+                const readingRef = getRecordById(readingId);
+                if (!readingRef?.record) return null;
+
+                const targetUnit = findUnitRecordByName(targetUnitName);
+                if (!targetUnit) return null;
+
+                const sourceUnitId = readingRef.record.unit;
+                return convertValueBetweenUnits(readingRef.record.value, sourceUnitId, targetUnit.id);
+            }, {
+                category: 'Lookup',
+                description: 'Converts a linked numeric reading to the target unit by following conversion connections',
+                return_type: 'number'
+            });
+
+            state.formulaFieldService.registerHelper('AVERAGE_TO_UNIT', (targetUnitName, primaryReadingId, secondaryReadingId) => {
+                const targetUnit = findUnitRecordByName(targetUnitName);
+                if (!targetUnit) return null;
+
+                const readingIds = [primaryReadingId, secondaryReadingId].filter(Boolean);
+                const convertedValues = readingIds
+                    .map(id => {
+                        const readingRef = getRecordById(id);
+                        if (!readingRef?.record) return null;
+                        return convertValueBetweenUnits(readingRef.record.value, readingRef.record.unit, targetUnit.id);
+                    })
+                    .filter(value => typeof value === 'number' && !Number.isNaN(value));
+
+                if (!convertedValues.length) return null;
+                const total = convertedValues.reduce((sum, value) => sum + value, 0);
+                return total / convertedValues.length;
+            }, {
+                category: 'Math',
+                description: 'Averages linked numeric readings after converting them to the requested unit through connection definitions',
+                return_type: 'number'
+            });
         }
 
         function recomputeAllFormulas() {
@@ -4637,6 +4738,18 @@
             const contactsId = createSet('Clients', 'ph-users-three', defaultWorldId);
             const contactsSet = state.sets.get(contactsId);
 
+            const temperatureUnitsId = createSet('Temperature Units', 'ph-thermometer', defaultWorldId);
+            const temperatureUnitsSet = state.sets.get(temperatureUnitsId);
+
+            const conversionDefinitionsId = createSet('Conversion Definitions', 'ph-arrows-left-right', defaultWorldId);
+            const conversionDefinitionsSet = state.sets.get(conversionDefinitionsId);
+
+            const temperatureReadingsId = createSet('Temperature Readings', 'ph-thermometer-simple', defaultWorldId);
+            const temperatureReadingsSet = state.sets.get(temperatureReadingsId);
+
+            const temperatureObservationsId = createSet('Temperature Observations', 'ph-flame', defaultWorldId);
+            const temperatureObservationsSet = state.sets.get(temperatureObservationsId);
+
             contactsSet.schema = [
                 { id: 'name', name: 'Client Name', type: 'TEXT', width: '200px' },
                 { id: 'industry', name: 'Industry', type: 'SINGLE_SELECT', width: '140px', config: {
@@ -4655,6 +4768,60 @@
             const northbankId = addRecord(contactsId, { name: 'Northbank Finance', industry: 'Finance', website: 'https://northbank.example.com' });
 
             createView(contactsId, 'All Clients', { type: 'grid' });
+
+            temperatureUnitsSet.schema = [
+                { id: 'name', name: 'Unit Name', type: 'TEXT', width: '180px' },
+                { id: 'symbol', name: 'Symbol', type: 'TEXT', width: '80px' }
+            ];
+
+            const fahrenheitUnitId = addRecord(temperatureUnitsId, { name: 'Fahrenheit', symbol: '°F' });
+            const celsiusUnitId = addRecord(temperatureUnitsId, { name: 'Celsius', symbol: '°C' });
+
+            conversionDefinitionsSet.schema = [
+                { id: 'name', name: 'Definition', type: 'TEXT', width: '220px' },
+                { id: 'from_unit', name: 'From Unit', type: 'LINK_RECORD', width: '160px', config: { linkedSetId: temperatureUnitsId } },
+                { id: 'to_unit', name: 'To Unit', type: 'LINK_RECORD', width: '160px', config: { linkedSetId: temperatureUnitsId } },
+                { id: 'pre_offset', name: 'Pre-Offset', type: 'NUMBER', width: '120px' },
+                { id: 'scale', name: 'Scale', type: 'NUMBER', width: '120px' },
+                { id: 'post_offset', name: 'Post-Offset', type: 'NUMBER', width: '120px' },
+                { id: 'notes', name: 'Notes', type: 'LONG_TEXT', width: '260px' }
+            ];
+
+            const fToCDefinitionId = addRecord(conversionDefinitionsId, {
+                name: 'Fahrenheit → Celsius',
+                from_unit: fahrenheitUnitId,
+                to_unit: celsiusUnitId,
+                pre_offset: -32,
+                scale: 5 / 9,
+                post_offset: 0,
+                notes: 'C = (F - 32) × 5/9 defined as a record for traversal'
+            });
+
+            createConnection(fahrenheitUnitId, fToCDefinitionId, { relationship: 'unit_conversion', role: 'from' });
+            createConnection(fToCDefinitionId, celsiusUnitId, { relationship: 'unit_conversion', role: 'to' });
+
+            createView(temperatureUnitsId, 'Units', { type: 'grid' });
+            createView(conversionDefinitionsId, 'Conversions', { type: 'grid' });
+
+            temperatureReadingsSet.schema = [
+                { id: 'label', name: 'Reading Label', type: 'TEXT', width: '200px' },
+                { id: 'value', name: 'Value', type: 'NUMBER', width: '120px' },
+                { id: 'unit', name: 'Unit', type: 'LINK_RECORD', width: '160px', config: { linkedSetId: temperatureUnitsId } }
+            ];
+
+            const readingFahrenheitId = addRecord(temperatureReadingsId, {
+                label: 'Outdoor Sensor (°F)',
+                value: 77,
+                unit: fahrenheitUnitId
+            });
+
+            const readingCelsiusId = addRecord(temperatureReadingsId, {
+                label: 'Outdoor Sensor (°C)',
+                value: 25,
+                unit: celsiusUnitId
+            });
+
+            createView(temperatureReadingsId, 'Readings', { type: 'grid' });
 
             projectsSet.schema = [
                 { id: 'name', name: 'Project Name', type: 'TEXT', width: '200px' },
@@ -4710,9 +4877,55 @@
             createView(projectsId, 'By Status', { type: 'kanban' });
             createView(projectsId, 'Card View', { type: 'card' });
 
+            temperatureObservationsSet.schema = [
+                { id: 'name', name: 'Observation Name', type: 'TEXT', width: '220px' },
+                {
+                    id: 'fahrenheit_observation',
+                    name: 'Fahrenheit Observation',
+                    type: 'LINK_RECORD',
+                    width: '200px',
+                    config: { linkedSetId: temperatureReadingsId }
+                },
+                {
+                    id: 'celsius_observation',
+                    name: 'Celsius Observation',
+                    type: 'LINK_RECORD',
+                    width: '200px',
+                    config: { linkedSetId: temperatureReadingsId }
+                },
+                {
+                    id: 'avg_temp_c',
+                    name: 'Average Temp (°C)',
+                    type: 'FORMULA',
+                    width: '180px',
+                    config: { formula: '=AVERAGE_TO_UNIT("Celsius", {Fahrenheit Observation}, {Celsius Observation})' }
+                }
+            ];
+
+            addRecord(temperatureObservationsId, {
+                name: 'Outdoor Bench Reading',
+                fahrenheit_observation: readingFahrenheitId,
+                celsius_observation: readingCelsiusId
+            });
+
+            createView(temperatureObservationsId, 'Observations', { type: 'grid' });
+
+            state.demoRefs.temperature = {
+                unitSetId: temperatureUnitsId,
+                readingSetId: temperatureReadingsId,
+                observationSetId: temperatureObservationsId,
+                conversionSetId: conversionDefinitionsId,
+                fahrenheitUnitId,
+                celsiusUnitId
+            };
+
             state.currentSetId = projectsId;
             state.currentViewId = Array.from(projectsSet.views.keys())[0];
             state.expandedSets.add(projectsId);
+            state.expandedSets.add(temperatureObservationsId);
+            state.expandedSets.add(temperatureReadingsId);
+            state.expandedSets.add(temperatureUnitsId);
+            state.expandedSets.add(conversionDefinitionsId);
         }
 
         // WORLD & SET MANAGEMENT
