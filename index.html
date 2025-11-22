@@ -1106,6 +1106,23 @@
             border-color: var(--border-strong) !important;
         }
 
+        /* Custom graph navigation buttons */
+        .graph-nav-btn {
+            transition: all 0.2s ease;
+        }
+
+        .graph-nav-btn:hover {
+            background: #f3f4f6 !important;
+            border-color: #d1d5db !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15) !important;
+        }
+
+        .graph-nav-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        }
+
         /* Tooltip styling */
         .vis-tooltip {
             background: white !important;
@@ -8470,6 +8487,11 @@
 
         // GRAPH VIEW
         let graphNetwork = null;
+        let graphConnectionState = {
+            isConnecting: false,
+            sourceNodeId: null,
+            tempEdgeId: null
+        };
 
         function renderGraphView() {
             const set = getCurrentSet();
@@ -8494,13 +8516,43 @@
                     ${set ? renderViewActions() : ''}
                 </div>
                 <div class="view-stage-body">
-                    <div class="graph-container" id="graphContainer"></div>
+                    <div class="graph-container" id="graphContainer" style="position: relative;">
+                        <div class="graph-nav-controls" style="position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; flex-direction: column; gap: 8px;">
+                            <button id="graphZoomIn" class="graph-nav-btn" title="Zoom In" style="width: 36px; height: 36px; border: 1px solid #e5e7eb; background: white; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 18px; font-weight: bold; color: #374151;">+</button>
+                            <button id="graphZoomOut" class="graph-nav-btn" title="Zoom Out" style="width: 36px; height: 36px; border: 1px solid #e5e7eb; background: white; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 18px; font-weight: bold; color: #374151;">−</button>
+                            <button id="graphFit" class="graph-nav-btn" title="Fit to View" style="width: 36px; height: 36px; border: 1px solid #e5e7eb; background: white; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 14px; color: #374151;">⊡</button>
+                        </div>
+                    </div>
                 </div>
             `;
 
             renderGraph(definitions, connections, entities);
 
             finalizeViewStage();
+        }
+
+        function getEntityDisplayName(entityType, entityId) {
+            if (!entityType || !entityId) return entityId || 'Unknown';
+
+            if (entityType === 'Record') {
+                return getRecordDisplayName(entityId);
+            } else if (entityType === 'Set') {
+                const set = state.sets.get(entityId);
+                return set?.name || entityId;
+            } else if (entityType === 'World') {
+                const world = state.worlds.get(entityId);
+                return world?.name || entityId;
+            } else if (entityType === 'View') {
+                // Try to find the view in all sets
+                for (const set of state.sets.values()) {
+                    if (set.views.has(entityId)) {
+                        return set.views.get(entityId)?.name || entityId;
+                    }
+                }
+                return entityId;
+            }
+
+            return entityId;
         }
 
         function renderGraph(definitions, connections, entities = []) {
@@ -8512,6 +8564,13 @@
                 graphNetwork.destroy();
                 graphNetwork = null;
             }
+
+            // Reset connection state
+            graphConnectionState = {
+                isConnecting: false,
+                sourceNodeId: null,
+                tempEdgeId: null
+            };
 
             // Define color scheme based on tags
             const getNodeStyle = (def) => {
@@ -8541,12 +8600,15 @@
                 const key = `${def.entity?.type}:${def.entity?.id}`;
                 defMap.set(key, def);
                 if (!nodeMap.has(key)) {
-                    const label = def.term || `${def.entity?.type} ${def.entity?.id}`;
+                    const displayName = getEntityDisplayName(def.entity?.type, def.entity?.id);
+                    const label = def.term || displayName;
                     const style = getNodeStyle(def);
                     nodes.push({
                         id: key,
                         label: label,
                         title: def.definition || def.notes || label,
+                        entityType: def.entity?.type,
+                        entityId: def.entity?.id,
                         ...style
                     });
                     nodeMap.set(key, true);
@@ -8571,20 +8633,26 @@
                 // Add nodes if they don't exist
                 if (!nodeMap.has(fromKey)) {
                     const def = defMap.get(fromKey);
+                    const displayName = getEntityDisplayName(conn.subject?.type, conn.subject?.id);
                     const style = def ? getNodeStyle(def) : { color: '#6B7280', shape: 'dot' };
                     nodes.push({
                         id: fromKey,
-                        label: `${conn.subject?.type} ${conn.subject?.id}`,
+                        label: displayName,
+                        entityType: conn.subject?.type,
+                        entityId: conn.subject?.id,
                         ...style
                     });
                     nodeMap.set(fromKey, true);
                 }
                 if (!nodeMap.has(toKey)) {
                     const def = defMap.get(toKey);
+                    const displayName = getEntityDisplayName(conn.operand?.type, conn.operand?.id);
                     const style = def ? getNodeStyle(def) : { color: '#6B7280', shape: 'dot' };
                     nodes.push({
                         id: toKey,
-                        label: `${conn.operand?.type} ${conn.operand?.id}`,
+                        label: displayName,
+                        entityType: conn.operand?.type,
+                        entityId: conn.operand?.id,
                         ...style
                     });
                     nodeMap.set(toKey, true);
@@ -8660,12 +8728,87 @@
                 interaction: {
                     hover: true,
                     tooltipDelay: 200,
-                    navigationButtons: true,
+                    navigationButtons: false,
                     keyboard: true
+                },
+                manipulation: {
+                    enabled: false
                 }
             };
 
             graphNetwork = new vis.Network(container, data, options);
+
+            // Setup navigation controls
+            const zoomInBtn = document.getElementById('graphZoomIn');
+            const zoomOutBtn = document.getElementById('graphZoomOut');
+            const fitBtn = document.getElementById('graphFit');
+
+            if (zoomInBtn) {
+                zoomInBtn.onclick = () => {
+                    const scale = graphNetwork.getScale();
+                    graphNetwork.moveTo({ scale: scale * 1.2 });
+                };
+            }
+
+            if (zoomOutBtn) {
+                zoomOutBtn.onclick = () => {
+                    const scale = graphNetwork.getScale();
+                    graphNetwork.moveTo({ scale: scale * 0.8 });
+                };
+            }
+
+            if (fitBtn) {
+                fitBtn.onclick = () => {
+                    graphNetwork.fit({ padding: 50, animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+                };
+            }
+
+            // Click-to-connect functionality
+            graphNetwork.on('click', (params) => {
+                if (params.nodes.length > 0) {
+                    const clickedNodeId = params.nodes[0];
+
+                    if (!graphConnectionState.isConnecting) {
+                        // Start connection
+                        graphConnectionState.isConnecting = true;
+                        graphConnectionState.sourceNodeId = clickedNodeId;
+
+                        // Highlight source node
+                        graphNetwork.selectNodes([clickedNodeId]);
+                        showToast('Click on another node to connect');
+                    } else {
+                        // Complete connection
+                        const targetNodeId = clickedNodeId;
+
+                        if (graphConnectionState.sourceNodeId === targetNodeId) {
+                            showToast('Cannot connect a node to itself');
+                            graphConnectionState.isConnecting = false;
+                            graphConnectionState.sourceNodeId = null;
+                            graphNetwork.unselectAll();
+                            return;
+                        }
+
+                        // Get node data
+                        const sourceNode = data.nodes.get(graphConnectionState.sourceNodeId);
+                        const targetNode = data.nodes.get(targetNodeId);
+
+                        if (sourceNode && targetNode) {
+                            openGraphConnectionModal(sourceNode, targetNode);
+                        }
+
+                        // Reset state
+                        graphConnectionState.isConnecting = false;
+                        graphConnectionState.sourceNodeId = null;
+                        graphNetwork.unselectAll();
+                    }
+                } else if (graphConnectionState.isConnecting) {
+                    // Cancel connection if clicking on empty space
+                    graphConnectionState.isConnecting = false;
+                    graphConnectionState.sourceNodeId = null;
+                    graphNetwork.unselectAll();
+                    showToast('Connection cancelled');
+                }
+            });
 
             // Disable physics after stabilization
             graphNetwork.once('stabilizationIterationsDone', () => {
@@ -8678,6 +8821,97 @@
                     graphNetwork.fit({ padding: 50, animation: { duration: 1000, easingFunction: 'easeInOutQuad' } });
                 }, 100);
             });
+        }
+
+        function openGraphConnectionModal(sourceNode, targetNode) {
+            const formats = Array.from(state.connectionFormats.values());
+
+            // Pre-populate the connection modal with source and target
+            resetConnectionForm();
+
+            // Open a custom modal for selecting connection type
+            const modalHtml = `
+                <div id="graphConnectionModal" class="fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+                    <div class="bg-white rounded-lg shadow-xl max-w-md w-full modal-container">
+                        <div class="modal-header">
+                            <h2 class="text-xl font-bold text-gray-900">Create Connection</h2>
+                            <button class="text-gray-400 hover:text-gray-600 transition" onclick="closeGraphConnectionModal()" aria-label="Close">
+                                <i class="ph ph-x text-xl"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-4">
+                                <p class="text-sm text-gray-600 mb-2">From:</p>
+                                <p class="font-semibold text-gray-900">${sourceNode.label}</p>
+                                <p class="text-xs text-gray-500">${sourceNode.entityType}: ${sourceNode.entityId}</p>
+                            </div>
+                            <div class="mb-4">
+                                <p class="text-sm text-gray-600 mb-2">To:</p>
+                                <p class="font-semibold text-gray-900">${targetNode.label}</p>
+                                <p class="text-xs text-gray-500">${targetNode.entityType}: ${targetNode.entityId}</p>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Connection Type</label>
+                                <select id="graphConnectionFormat" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Select a connection type...</option>
+                                    ${formats.map(fmt => `<option value="${fmt.id}">${fmt.operator} - ${fmt.mode || 'No mode'}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+                                <textarea id="graphConnectionDescription" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer flex gap-2 justify-end">
+                            <button class="btn btn-secondary" type="button" onclick="closeGraphConnectionModal()">Cancel</button>
+                            <button class="btn btn-primary" type="button" onclick="handleGraphConnectionSubmit('${sourceNode.entityType}', '${sourceNode.entityId}', '${targetNode.entityType}', '${targetNode.entityId}')">Create Connection</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove any existing modal
+            const existingModal = document.getElementById('graphConnectionModal');
+            if (existingModal) existingModal.remove();
+
+            // Add modal to page
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        function closeGraphConnectionModal() {
+            const modal = document.getElementById('graphConnectionModal');
+            if (modal) modal.remove();
+        }
+
+        function handleGraphConnectionSubmit(sourceType, sourceId, targetType, targetId) {
+            const formatId = document.getElementById('graphConnectionFormat')?.value;
+            const description = document.getElementById('graphConnectionDescription')?.value?.trim() || '';
+
+            if (!formatId) {
+                showToast('Please select a connection type');
+                return;
+            }
+
+            const payload = {
+                formatId,
+                subject: { type: sourceType, id: sourceId },
+                operand: { type: targetType, id: targetId },
+                description,
+                params: {}
+            };
+
+            try {
+                addConnection(payload);
+                showToast('✓ Connection created');
+                closeGraphConnectionModal();
+
+                // Refresh the graph view
+                const definitions = getDefinitionView();
+                const connections = getConnectionView();
+                renderGraph(definitions, connections);
+            } catch (error) {
+                showToast(`⚠️ ${error.message || 'Failed to create connection'}`);
+            }
         }
 
         function serializeTagsInput(value) {
