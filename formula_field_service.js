@@ -1,376 +1,253 @@
+/**
+ * Formula Field Service
+ * Handles formula evaluation for records with field name mapping
+ */
+
 const FormulaEngine = typeof require !== 'undefined'
   ? require('./formula_engine')
   : (typeof window !== 'undefined' ? window.FormulaEngine : null);
 
-const formulaSpec = typeof require !== 'undefined'
-  ? require('./formula_language.json')
-  : (typeof window !== 'undefined' ? window.FormulaLanguageSpec : null);
-
 class FormulaFieldService {
-  constructor({ engine = new FormulaEngine(), spec = formulaSpec } = {}) {
-    if (!engine) {
-      throw new Error('FormulaEngine is required for FormulaFieldService');
-    }
-
-    this.engine = engine;
-    this.spec = spec || { functions: {}, operators: [], field_reference_syntax: '' };
-    this.functionSpecMap = this.buildFunctionSpecMap();
+  constructor() {
+    this.engine = new FormulaEngine();
   }
 
-  buildFunctionSpecMap() {
-    const map = new Map();
-    Object.values(this.spec.functions).forEach((group) => {
-      group.forEach((fn) => {
-        map.set(fn.name.toUpperCase(), fn);
-      });
-    });
-    return map;
-  }
-
-  getFieldAliases(field = {}) {
-    const aliases = new Set();
-    const aliasKeys = [
-      'name',
-      'displayName',
-      'display_name',
-      'prettyName',
-      'pretty_name',
-      'label'
-    ];
-
-    aliasKeys.forEach((key) => {
-      const value = field[key];
-      if (typeof value === 'string' && value.trim()) {
-        aliases.add(value.trim());
-      }
-    });
-
-    if (typeof field?.config?.label === 'string' && field.config.label.trim()) {
-      aliases.add(field.config.label.trim());
-    }
-
-    return Array.from(aliases);
-  }
-
-  normalizeFieldReference(fieldName) {
-    if (!fieldName) return '';
-    return `{${fieldName}}`;
-  }
-
-  normalizeFormula(formula) {
-    if (!formula) return '';
-    return formula.trim().replace(/^=/, '').trim();
-  }
-
-  buildFieldLookup(schemaFields = []) {
-    const lookup = {};
-
-    schemaFields.forEach((field) => {
-      if (!field) return;
-      this.getFieldAliases(field).forEach((alias) => {
-        lookup[alias.toLowerCase()] = field;
-      });
-      if (field.id) {
-        lookup[String(field.id).toLowerCase()] = field;
-      }
-    });
-
-    return lookup;
-  }
-
-  ensureBracedReferences(formula, knownFields = []) {
-    let normalized = formula;
-    knownFields.forEach((field) => {
-      const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const pattern = new RegExp(`\\b${escaped}\\b`, 'g');
-      normalized = normalized.replace(pattern, (match, offset, source) => {
-        const before = source[offset - 1];
-        const after = source[offset + match.length];
-        if (before === '{' && after === '}') {
-          return match;
-        }
-        return `{${field}}`;
-      });
-    });
-    return normalized;
-  }
-
-  collectOperatorWarnings(formula) {
-    const warnings = [];
-    if (/([^&])&([^&])/.test(formula)) {
-      warnings.push('Using & concatenation will coerce values to strings. Confirm this is intended.');
-    }
-    if (/([^=!<>])=([^=])/.test(formula)) {
-      warnings.push('Single = compares with type coercion. Consider explicit equality for clarity.');
-    }
-    return warnings;
-  }
-
-  inferReturnType(formula) {
-    const match = formula.match(/^\s*([A-Z_]+)\s*\(/i);
-    if (!match) return null;
-    const fnSpec = this.functionSpecMap.get(match[1].toUpperCase());
-    return fnSpec ? fnSpec.return_type : null;
-  }
-
-  formatPreview(result, typeHint) {
-    if (result === null || result === undefined) return '';
-    if (typeHint === 'number') {
-      const numeric = Number(result);
-      return Number.isNaN(numeric) ? String(result) : new Intl.NumberFormat().format(numeric);
-    }
-    if (typeHint === 'date' || result instanceof Date) {
-      const dateValue = result instanceof Date ? result : new Date(result);
-      return Number.isNaN(dateValue.getTime()) ? String(result) : dateValue.toLocaleString();
-    }
-    if (typeHint === 'boolean') {
-      return Boolean(result).toString();
-    }
-    return String(result);
-  }
-
-  validateFields(formula, recordFields) {
-    const references = this.engine.getFieldReferences(formula);
-    const missing = [];
-    [...references.braced, ...references.bare].forEach((name) => {
-      if (!Object.prototype.hasOwnProperty.call(recordFields, name)) {
-        missing.push(name);
-      }
-    });
-    return missing;
-  }
-
-  buildFieldReferenceMap(schemaFields = [], record = {}) {
-    const map = new Map();
-
-    schemaFields.forEach((field) => {
-      this.getFieldAliases(field).forEach((alias) => {
-        map.set(alias, field.id);
-      });
-      if (field?.id) {
-        map.set(field.id, field.id);
-      }
-    });
-
-    Object.keys(record).forEach((key) => {
-      if (!map.has(key)) {
-        map.set(key, key);
-      }
-    });
-
-    return map;
-  }
-
-  replaceFieldNamesWithIds(formula, fieldMap = new Map()) {
-    let updated = formula;
-
-    fieldMap.forEach((targetId, sourceKey) => {
-      if (!sourceKey || sourceKey === targetId) return;
-      const escaped = sourceKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const pattern = new RegExp(`\\{${escaped}\\}`, 'g');
-      updated = updated.replace(pattern, `{${targetId}}`);
-    });
-
-    return updated;
-  }
-
-  replaceBracedReferencesWithIds(formula, lookup = {}) {
-    let unknownRef = null;
-    const resolvedFormula = formula.replace(/\{([^}]+)\}/g, (match, insideBraces) => {
-      const ref = insideBraces.trim();
-      const normalizedRef = ref.toLowerCase();
-      const field = lookup[normalizedRef];
-
-      if (!field) {
-        unknownRef = ref;
-        return match;
-      }
-
-      return `{${field.id}}`;
-    });
-
-    return { resolvedFormula, unknownRef };
-  }
-
-  levenshteinDistance(a, b) {
-    const matrix = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
-
-    for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
-    for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
-
-    for (let i = 1; i <= a.length; i++) {
-      for (let j = 1; j <= b.length; j++) {
-        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j] + 1,
-          matrix[i][j - 1] + 1,
-          matrix[i - 1][j - 1] + cost
-        );
-      }
-    }
-
-    return matrix[a.length][b.length];
-  }
-
-  findClosestFieldName(ref = '', schemaFields = []) {
-    const normalizedRef = ref.toLowerCase();
-    let closest = null;
-    let bestDistance = Infinity;
-
-    schemaFields.forEach((field) => {
-      if (!field?.name) return;
-      const distance = this.levenshteinDistance(normalizedRef, field.name.toLowerCase());
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        closest = field.name;
-      }
-    });
-
-    return bestDistance <= 3 ? closest : null;
-  }
-
-  normalizeRecordKeys(record = {}, schemaFields = []) {
-    const normalized = {};
-    const fieldLookup = this.buildFieldLookup(schemaFields);
-
-    // First pass: copy values using field IDs
-    Object.keys(record).forEach((key) => {
-      const lowerKey = key.toLowerCase();
-      const field = fieldLookup[lowerKey];
-
-      if (field && field.id) {
-        // Map display name/alias to field ID
-        normalized[field.id] = record[key];
-      } else {
-        // Keep original key if no field mapping found
-        normalized[key] = record[key];
-      }
-    });
-
-    return normalized;
-  }
-
-  evaluateForRecord(formula, record = {}, schemaFields = []) {
-    const cleanedFormula = this.normalizeFormula(formula);
-    if (!cleanedFormula) {
+  /**
+   * Evaluate a formula for a specific record
+   *
+   * @param {string} formula - The formula to evaluate (e.g., "={Price} * {Quantity}")
+   * @param {Object} record - Record with field values
+   * @param {Array} schema - Array of field definitions with id, name, displayName, etc.
+   * @returns {Object} Result with success, value, or error
+   */
+  evaluateForRecord(formula, record = {}, schema = []) {
+    if (!formula || typeof formula !== 'string') {
       return {
         success: false,
-        error: {
-          code: 'EMPTY_FORMULA',
-          message: 'Formula is empty'
-        },
-        warnings: [],
-        normalizedFormula: ''
+        error: 'Formula is required and must be a string'
       };
     }
-
-    // Normalize record keys to use field IDs instead of display names
-    const normalizedRecord = this.normalizeRecordKeys(record, schemaFields);
-
-    const fieldMap = this.buildFieldReferenceMap(schemaFields, normalizedRecord);
-    const normalizedFormula = this.ensureBracedReferences(
-      cleanedFormula,
-      Array.from(fieldMap.keys())
-    );
-
-    const fieldLookup = this.buildFieldLookup(schemaFields);
-    const { resolvedFormula, unknownRef } = this.replaceBracedReferencesWithIds(normalizedFormula, fieldLookup);
-
-    if (unknownRef) {
-      const suggestion = this.findClosestFieldName(unknownRef, schemaFields);
-      return {
-        success: false,
-        error: {
-          code: 'UNKNOWN_FIELD',
-          message: suggestion
-            ? `Unknown field "${unknownRef}". Did you mean "${suggestion}"?`
-            : `Unknown field "${unknownRef}".`
-        },
-        warnings: [],
-        normalizedFormula
-      };
-    }
-
-    const warnings = this.collectOperatorWarnings(resolvedFormula);
-    const missingFields = this.validateFields(resolvedFormula, normalizedRecord);
-
-    if (missingFields.length) {
-      return {
-        success: false,
-        error: {
-          code: 'MISSING_FIELD',
-          message: `Missing field values: ${missingFields.join(', ')}`,
-          fields: missingFields
-        },
-        warnings,
-        normalizedFormula
-      };
-    }
-
-    this.engine.setFields(normalizedRecord);
 
     try {
-      const result = this.engine.evaluate(resolvedFormula);
-      const returnType = this.inferReturnType(resolvedFormula);
+      // Build a map of all possible field name variations to their canonical IDs
+      const fieldMap = this.buildFieldMap(schema, record);
+
+      // Prepare field values for the engine
+      // The engine expects field names as keys, so we map record values to those names
+      const fieldValues = this.prepareFieldValues(record, fieldMap);
+
+      // Set the field values in the engine
+      this.engine.setFields(fieldValues);
+
+      // Get field references from the formula
+      const refs = this.engine.getFieldReferences(formula);
+
+      // Validate all referenced fields exist
+      const missingFields = refs.filter(ref => !(ref in fieldValues));
+      if (missingFields.length > 0) {
+        return {
+          success: false,
+          error: `Missing fields: ${missingFields.join(', ')}`,
+          missingFields
+        };
+      }
+
+      // Evaluate the formula
+      const result = this.engine.evaluate(formula);
+
       return {
         success: true,
-        result,
-        preview: this.formatPreview(result, returnType),
-        returnType,
-        warnings,
-        normalizedFormula: resolvedFormula
+        value: result,
+        formula: formula
       };
+
     } catch (error) {
       return {
         success: false,
-        error: {
-          code: 'EVALUATION_ERROR',
-          message: error.message
-        },
-        warnings,
-        normalizedFormula
+        error: error.message
       };
     }
   }
 
-  getFieldSuggestions(schemaFields = [], filterText = '') {
-    const normalizedFilter = filterText.toLowerCase();
+  /**
+   * Build a map of field names to their values
+   * Handles different field name formats (id, name, displayName, etc.)
+   */
+  buildFieldMap(schema = [], record = {}) {
+    const map = new Map();
 
-    return schemaFields.filter((field) => {
-      if (!field?.name) return false;
-      const isVirtual = field.virtual || field.isVirtual || field.type === 'VIRTUAL';
-      const isHidden = field.hidden || field.isHidden || field.visibility === 'hidden';
-      const isFormula = field.type === 'FORMULA';
+    // Map schema field names to record keys
+    for (const field of schema) {
+      if (!field) continue;
 
-      if (isVirtual || isHidden || isFormula) return false;
+      const fieldId = field.id;
+      const recordValue = record[fieldId];
 
-      if (!normalizedFilter) return true;
-      return field.name.toLowerCase().includes(normalizedFilter);
-    });
+      // Add all possible field name variations pointing to the same value
+      if (field.name) {
+        map.set(field.name, { id: fieldId, value: recordValue });
+      }
+      if (field.displayName && field.displayName !== field.name) {
+        map.set(field.displayName, { id: fieldId, value: recordValue });
+      }
+      if (field.display_name && field.display_name !== field.name) {
+        map.set(field.display_name, { id: fieldId, value: recordValue });
+      }
+      if (field.label && field.label !== field.name) {
+        map.set(field.label, { id: fieldId, value: recordValue });
+      }
+      // Also map by ID
+      if (fieldId) {
+        map.set(fieldId, { id: fieldId, value: recordValue });
+      }
+    }
+
+    // Also add any record keys that weren't in the schema
+    for (const [key, value] of Object.entries(record)) {
+      if (!map.has(key)) {
+        map.set(key, { id: key, value: value });
+      }
+    }
+
+    return map;
   }
 
-  getAutocompleteEntries() {
+  /**
+   * Prepare field values for the formula engine
+   */
+  prepareFieldValues(record, fieldMap) {
+    const values = {};
+
+    // Add all field names from the map
+    for (const [fieldName, fieldInfo] of fieldMap.entries()) {
+      values[fieldName] = fieldInfo.value;
+    }
+
+    return values;
+  }
+
+  /**
+   * Validate a formula without evaluating it
+   */
+  validateFormula(formula, schema = []) {
+    if (!formula || typeof formula !== 'string') {
+      return {
+        valid: false,
+        errors: ['Formula is required and must be a string']
+      };
+    }
+
+    const errors = [];
+
+    try {
+      // Get field references
+      const refs = this.engine.getFieldReferences(formula);
+
+      // Check if all fields exist in schema
+      const schemaFieldNames = new Set();
+      for (const field of schema) {
+        if (field.name) schemaFieldNames.add(field.name);
+        if (field.displayName) schemaFieldNames.add(field.displayName);
+        if (field.id) schemaFieldNames.add(field.id);
+      }
+
+      const unknownFields = refs.filter(ref => !schemaFieldNames.has(ref));
+      if (unknownFields.length > 0) {
+        errors.push(`Unknown fields: ${unknownFields.join(', ')}`);
+      }
+
+      // Try to parse the formula (but don't evaluate)
+      // We'll do a simple syntax check
+      const cleaned = formula.trim().replace(/^=/, '');
+      if (!cleaned) {
+        errors.push('Formula is empty');
+      }
+
+    } catch (error) {
+      errors.push(error.message);
+    }
+
     return {
-      referenceSyntax: this.spec.field_reference_syntax,
-      operators: this.spec.operators,
-      functions: this.spec.functions
+      valid: errors.length === 0,
+      errors
     };
   }
 
-  registerHelper(name, implementation, specEntry) {
-    this.engine.functions[name] = implementation;
-    if (specEntry) {
-      const category = specEntry.category || 'custom';
-      if (!this.spec.functions[category]) {
-        this.spec.functions[category] = [];
+  /**
+   * Get list of available functions
+   */
+  getAvailableFunctions() {
+    return Object.keys(this.engine.functions).sort();
+  }
+
+  /**
+   * Get help for a specific function
+   */
+  getFunctionHelp(functionName) {
+    const funcMap = {
+      SUM: { description: 'Sum all arguments', syntax: 'SUM(number1, number2, ...)' },
+      AVERAGE: { description: 'Average of all arguments', syntax: 'AVERAGE(number1, number2, ...)' },
+      MIN: { description: 'Minimum value', syntax: 'MIN(number1, number2, ...)' },
+      MAX: { description: 'Maximum value', syntax: 'MAX(number1, number2, ...)' },
+      ROUND: { description: 'Round to decimal places', syntax: 'ROUND(number, decimals)' },
+      ABS: { description: 'Absolute value', syntax: 'ABS(number)' },
+      POWER: { description: 'Raise to power', syntax: 'POWER(base, exponent)' },
+      SQRT: { description: 'Square root', syntax: 'SQRT(number)' },
+      CONCATENATE: { description: 'Join text strings', syntax: 'CONCATENATE(text1, text2, ...)' },
+      UPPER: { description: 'Convert to uppercase', syntax: 'UPPER(text)' },
+      LOWER: { description: 'Convert to lowercase', syntax: 'LOWER(text)' },
+      TRIM: { description: 'Remove whitespace', syntax: 'TRIM(text)' },
+      LEFT: { description: 'Left substring', syntax: 'LEFT(text, count)' },
+      RIGHT: { description: 'Right substring', syntax: 'RIGHT(text, count)' },
+      MID: { description: 'Middle substring', syntax: 'MID(text, start, count)' },
+      LEN: { description: 'Length of text', syntax: 'LEN(text)' },
+      IF: { description: 'Conditional value', syntax: 'IF(condition, trueValue, falseValue)' },
+      AND: { description: 'All conditions true', syntax: 'AND(condition1, condition2, ...)' },
+      OR: { description: 'Any condition true', syntax: 'OR(condition1, condition2, ...)' },
+      NOT: { description: 'Logical negation', syntax: 'NOT(value)' },
+      NOW: { description: 'Current date and time', syntax: 'NOW()' },
+      TODAY: { description: 'Current date', syntax: 'TODAY()' },
+      YEAR: { description: 'Year from date', syntax: 'YEAR(date)' },
+      MONTH: { description: 'Month from date', syntax: 'MONTH(date)' },
+      DAY: { description: 'Day from date', syntax: 'DAY(date)' },
+      COUNT: { description: 'Count numeric values', syntax: 'COUNT(value1, value2, ...)' },
+      COUNTA: { description: 'Count non-empty values', syntax: 'COUNTA(value1, value2, ...)' }
+    };
+
+    return funcMap[functionName.toUpperCase()] || { description: 'Unknown function', syntax: '' };
+  }
+
+  /**
+   * Get suggestions for field names (for autocomplete)
+   */
+  getFieldSuggestions(schema = [], filter = '') {
+    const suggestions = [];
+    const filterLower = filter.toLowerCase();
+
+    for (const field of schema) {
+      if (!field) continue;
+
+      // Don't suggest formula fields themselves
+      if (field.type === 'FORMULA') continue;
+
+      const name = field.displayName || field.name || field.id;
+      if (!name) continue;
+
+      if (!filter || name.toLowerCase().includes(filterLower)) {
+        suggestions.push({
+          name: name,
+          type: field.type || 'TEXT',
+          id: field.id
+        });
       }
-      this.spec.functions[category].push({ ...specEntry, name });
-      this.functionSpecMap.set(name.toUpperCase(), { ...specEntry, name });
     }
+
+    return suggestions;
   }
 }
 
-if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+// Export for Node.js and browser
+if (typeof module !== 'undefined' && module.exports) {
   module.exports = FormulaFieldService;
 }
 
