@@ -37,6 +37,22 @@ class FormulaFieldService {
     return formula.trim().replace(/^=/, '').trim();
   }
 
+  buildFieldLookup(schemaFields = []) {
+    const lookup = {};
+
+    schemaFields.forEach((field) => {
+      if (!field) return;
+      if (field.name) {
+        lookup[field.name.toLowerCase()] = field;
+      }
+      if (field.id) {
+        lookup[String(field.id).toLowerCase()] = field;
+      }
+    });
+
+    return lookup;
+  }
+
   ensureBracedReferences(formula, knownFields = []) {
     let normalized = formula;
     knownFields.forEach((field) => {
@@ -133,6 +149,61 @@ class FormulaFieldService {
     return updated;
   }
 
+  replaceBracedReferencesWithIds(formula, lookup = {}) {
+    let unknownRef = null;
+    const resolvedFormula = formula.replace(/\{([^}]+)\}/g, (match, insideBraces) => {
+      const ref = insideBraces.trim();
+      const normalizedRef = ref.toLowerCase();
+      const field = lookup[normalizedRef];
+
+      if (!field) {
+        unknownRef = ref;
+        return match;
+      }
+
+      return `{${field.id}}`;
+    });
+
+    return { resolvedFormula, unknownRef };
+  }
+
+  levenshteinDistance(a, b) {
+    const matrix = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+
+    for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+    for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + cost
+        );
+      }
+    }
+
+    return matrix[a.length][b.length];
+  }
+
+  findClosestFieldName(ref = '', schemaFields = []) {
+    const normalizedRef = ref.toLowerCase();
+    let closest = null;
+    let bestDistance = Infinity;
+
+    schemaFields.forEach((field) => {
+      if (!field?.name) return;
+      const distance = this.levenshteinDistance(normalizedRef, field.name.toLowerCase());
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        closest = field.name;
+      }
+    });
+
+    return bestDistance <= 3 ? closest : null;
+  }
+
   evaluateForRecord(formula, record = {}, schemaFields = []) {
     const cleanedFormula = this.normalizeFormula(formula);
     if (!cleanedFormula) {
@@ -148,10 +219,31 @@ class FormulaFieldService {
     }
 
     const fieldMap = this.buildFieldReferenceMap(schemaFields, record);
-    const normalizedFormula = this.ensureBracedReferences(cleanedFormula, Array.from(fieldMap.keys()));
-    const translatedFormula = this.replaceFieldNamesWithIds(normalizedFormula, fieldMap);
-    const warnings = this.collectOperatorWarnings(translatedFormula);
-    const missingFields = this.validateFields(translatedFormula, record);
+    const normalizedFormula = this.ensureBracedReferences(
+      cleanedFormula,
+      Array.from(fieldMap.keys())
+    );
+
+    const fieldLookup = this.buildFieldLookup(schemaFields);
+    const { resolvedFormula, unknownRef } = this.replaceBracedReferencesWithIds(normalizedFormula, fieldLookup);
+
+    if (unknownRef) {
+      const suggestion = this.findClosestFieldName(unknownRef, schemaFields);
+      return {
+        success: false,
+        error: {
+          code: 'UNKNOWN_FIELD',
+          message: suggestion
+            ? `Unknown field "${unknownRef}". Did you mean "${suggestion}"?`
+            : `Unknown field "${unknownRef}".`
+        },
+        warnings: [],
+        normalizedFormula
+      };
+    }
+
+    const warnings = this.collectOperatorWarnings(resolvedFormula);
+    const missingFields = this.validateFields(resolvedFormula, record);
 
     if (missingFields.length) {
       return {
@@ -169,15 +261,15 @@ class FormulaFieldService {
     this.engine.setFields(record);
 
     try {
-      const result = this.engine.evaluate(translatedFormula);
-      const returnType = this.inferReturnType(translatedFormula);
+      const result = this.engine.evaluate(resolvedFormula);
+      const returnType = this.inferReturnType(resolvedFormula);
       return {
         success: true,
         result,
         preview: this.formatPreview(result, returnType),
         returnType,
         warnings,
-        normalizedFormula: translatedFormula
+        normalizedFormula: resolvedFormula
       };
     } catch (error) {
       return {
@@ -190,6 +282,22 @@ class FormulaFieldService {
         normalizedFormula
       };
     }
+  }
+
+  getFieldSuggestions(schemaFields = [], filterText = '') {
+    const normalizedFilter = filterText.toLowerCase();
+
+    return schemaFields.filter((field) => {
+      if (!field?.name) return false;
+      const isVirtual = field.virtual || field.isVirtual || field.type === 'VIRTUAL';
+      const isHidden = field.hidden || field.isHidden || field.visibility === 'hidden';
+      const isFormula = field.type === 'FORMULA';
+
+      if (isVirtual || isHidden || isFormula) return false;
+
+      if (!normalizedFilter) return true;
+      return field.name.toLowerCase().includes(normalizedFilter);
+    });
   }
 
   getAutocompleteEntries() {

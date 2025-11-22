@@ -3348,11 +3348,9 @@
 
         function showFieldAutocomplete(filterText) {
             const set = getCurrentSet();
-            if (!set) return;
+            if (!set || !state.formulaFieldService) return;
 
-            const fields = set.schema.filter(field =>
-                field.name.toLowerCase().includes(filterText.toLowerCase())
-            );
+            const fields = state.formulaFieldService.getFieldSuggestions(set.schema, filterText);
 
             state.formulaEditor.autocomplete = {
                 isVisible: fields.length > 0,
@@ -3543,9 +3541,14 @@
             }
 
             const fieldRefs = formula.match(/\{([^}]+)\}/g) || [];
+            const lookup = {};
+            set?.schema?.forEach(field => {
+                if (field?.name) lookup[field.name.toLowerCase()] = true;
+                if (field?.id) lookup[String(field.id).toLowerCase()] = true;
+            });
             fieldRefs.forEach(ref => {
                 const fieldName = ref.slice(1, -1);
-                const exists = set?.schema?.some(f => f.name === fieldName || f.id === fieldName);
+                const exists = lookup[fieldName.toLowerCase()];
                 if (!exists) {
                     errors.push(`Unknown field: ${fieldName}`);
                 }
@@ -3588,8 +3591,11 @@
                 }
                 const sampleRecord = Array.from(set.records.values())[0] || {};
 
-                const engine = new FormulaEngine();
-                const service = new FormulaFieldService({ engine });
+                const service = state.formulaFieldService;
+                if (!service) {
+                    state.formulaEditor.preview = { result: null, error: 'Formula engine unavailable' };
+                    return;
+                }
 
                 const result = service.evaluateForRecord(formula, sampleRecord, set.schema);
 
