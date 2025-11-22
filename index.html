@@ -382,11 +382,24 @@
         }
         .set-header:hover { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); color: #fff; }
         .set-header.active { background: #111827; color: #ffffff; border-color: #111827; box-shadow: none; }
-        .set-icon { font-size: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+        .set-icon, .view-item-icon {
+            font-size: 18px;
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
         .set-icon i, .view-item-icon i { font-size: 18px; }
+        .set-header.active .set-icon { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.18); }
+        .world-badge .set-icon { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.12); }
         .set-name { flex: 1; transition: opacity 0.2s; font-weight: 600; letter-spacing: -0.01em; }
-        .set-expand-icon { 
-            font-size: 12px; 
+        .set-expand-icon {
+            font-size: 12px;
             transition: transform 0.2s;
             opacity: 0.7;
         }
@@ -424,7 +437,7 @@
         }
         .view-item:hover { background: #252931; color: #e5e7eb; }
         .view-item.active { background: #2f343d; color: #ffffff; font-weight: 600; }
-        .view-item-icon { font-size: 16px; opacity: 0.9; }
+        .view-item-icon { font-size: 16px; opacity: 0.9; color: #cbd5e1; }
         
         .add-view-btn {
             padding: 6px 12px;
