@@ -32,6 +32,11 @@ class FormulaFieldService {
     return `{${fieldName}}`;
   }
 
+  normalizeFormula(formula) {
+    if (!formula) return '';
+    return formula.trim().replace(/^=/, '').trim();
+  }
+
   ensureBracedReferences(formula, knownFields = []) {
     let normalized = formula;
     knownFields.forEach((field) => {
@@ -129,8 +134,21 @@ class FormulaFieldService {
   }
 
   evaluateForRecord(formula, record = {}, schemaFields = []) {
+    const cleanedFormula = this.normalizeFormula(formula);
+    if (!cleanedFormula) {
+      return {
+        success: false,
+        error: {
+          code: 'EMPTY_FORMULA',
+          message: 'Formula is empty'
+        },
+        warnings: [],
+        normalizedFormula: ''
+      };
+    }
+
     const fieldMap = this.buildFieldReferenceMap(schemaFields, record);
-    const normalizedFormula = this.ensureBracedReferences(formula, Array.from(fieldMap.keys()));
+    const normalizedFormula = this.ensureBracedReferences(cleanedFormula, Array.from(fieldMap.keys()));
     const translatedFormula = this.replaceFieldNamesWithIds(normalizedFormula, fieldMap);
     const warnings = this.collectOperatorWarnings(translatedFormula);
     const missingFields = this.validateFields(translatedFormula, record);
