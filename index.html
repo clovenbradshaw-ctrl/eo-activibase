@@ -678,10 +678,15 @@
             text-transform: uppercase;
             color: #666;
             border-bottom: 1px solid var(--border);
-            cursor: pointer;
-            transition: background 0.15s;
+            cursor: grab;
+            transition: background 0.15s, box-shadow 0.15s;
             user-select: none;
             position: relative;
+        }
+        .column-header.column-grab-ready {
+            cursor: grabbing;
+            background: var(--muted-surface);
+            box-shadow: inset 0 0 0 1px var(--border);
         }
         .column-resizer {
             position: absolute;
@@ -697,6 +702,7 @@
         }
         .column-header:hover { background: var(--muted-surface); }
 
+        body.column-grab-ready { cursor: grab; }
         body.column-dragging { cursor: grabbing; }
         .column-being-dragged { opacity: 0.5; }
 
@@ -2832,6 +2838,8 @@
 
         const columnDragState = {
             timer: null,
+            holdTimer: null,
+            holdReady: false,
             draggedFieldId: null,
             dropFieldId: null,
             dropPosition: null,
@@ -7500,6 +7508,7 @@
         }
 
         function endColumnDrag() {
+            resetColumnGrabState(columnDragState.sourceElement);
             document.body.classList.remove('column-dragging');
             document.removeEventListener('mousemove', handleColumnDragMove);
             document.removeEventListener('touchmove', handleColumnDragMove);
@@ -7536,6 +7545,7 @@
 
         function startColumnDrag(startPosition, element, field) {
             columnDragState.timer = null;
+            columnDragState.holdReady = false;
             columnDragState.draggedFieldId = field.id;
             columnDragState.sourceElement = element;
             columnDragState.preventClick = true;
@@ -7555,6 +7565,16 @@
             document.addEventListener('touchcancel', endColumnDrag);
         }
 
+        function resetColumnGrabState(element) {
+            if (columnDragState.holdTimer) {
+                clearTimeout(columnDragState.holdTimer);
+                columnDragState.holdTimer = null;
+            }
+            columnDragState.holdReady = false;
+            if (element) element.classList.remove('column-grab-ready');
+            document.body.classList.remove('column-grab-ready');
+        }
+
         function setupColumnDragInteractions(element, field) {
             let pointerActive = false;
             let dragStarted = false;
@@ -7566,6 +7586,13 @@
                 pointerActive = true;
                 dragStarted = false;
                 startPosition = getPointerPosition(event);
+                resetColumnGrabState(element);
+                columnDragState.holdTimer = setTimeout(() => {
+                    if (!pointerActive || dragStarted) return;
+                    columnDragState.holdReady = true;
+                    element.classList.add('column-grab-ready');
+                    document.body.classList.add('column-grab-ready');
+                }, 180);
             };
 
             const handlePointerMove = (event) => {
@@ -7573,8 +7600,13 @@
                 const position = getPointerPosition(event);
                 const deltaX = Math.abs(position.clientX - startPosition.clientX);
                 const deltaY = Math.abs(position.clientY - startPosition.clientY);
+                if (!columnDragState.holdReady) {
+                    if (deltaX > 6 || deltaY > 6) resetColumnGrabState(element);
+                    return;
+                }
                 if (deltaX > 6 || deltaY > 6) {
                     dragStarted = true;
+                    resetColumnGrabState(element);
                     startColumnDrag(position, element, field);
                 }
             };
@@ -7582,6 +7614,7 @@
             const resetPointerState = () => {
                 pointerActive = false;
                 dragStarted = false;
+                resetColumnGrabState(element);
                 startPosition = null;
             };
 
