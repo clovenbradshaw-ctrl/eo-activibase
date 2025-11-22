@@ -190,7 +190,8 @@
             transition: all 0.2s;
         }
         .sidebar-toggle:hover { background: rgba(255,255,255,0.05); color: #fff; border-color: #fff; }
-        .sidebar-section { padding: 16px 12px 12px 12px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .sidebar-section { padding: 16px 12px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+        .sets-section { flex: 1; overflow-y: auto; }
         .sidebar-section-title {
             font-size: 11px;
             font-weight: 700;
@@ -1749,7 +1750,7 @@
                     </button>
                 </div>
             </div>
-            <div class="sidebar-section">
+            <div class="sidebar-section sets-section">
                 <div class="sidebar-section-title">Sets</div>
                 <div id="setsList"></div>
                 <button onclick="openAddSetModal()" class="new-set-btn">
@@ -4625,77 +4626,156 @@
             return typeof filterFn === 'function' ? conns.filter(filterFn) : conns;
         }
 
-        function getDemoDefinitions() {
-            return [
-                {
-                    id: 'def_demo_1',
-                    entity: { type: 'Record', id: 'sample_rec_1' },
-                    term: 'Sample Record A',
-                    definition: 'A sample entity used for demonstration.',
-                    notes: 'Auto-created on world initialization.',
-                    tags: ['demo', 'entity']
-                },
-                {
-                    id: 'def_demo_2',
-                    entity: { type: 'Field', id: 'sample_field_1' },
-                    term: 'Sentiment Score',
-                    definition: 'A numeric score representing sentiment.',
-                    tags: ['demo', 'field']
-                },
-                {
-                    id: 'def_demo_3',
-                    entity: { type: 'Connection', id: 'demo_conn_1' },
-                    term: 'Primary Link',
-                    definition: 'An example connection linking two records.',
-                    tags: ['demo', 'connection']
-                }
-            ];
+        function getDemoDefinitions(worldId = state.currentWorldId) {
+            const refs = state.demoRefs || {};
+            const defs = [];
+
+            const websiteProjectId = refs.projects?.records?.websiteRedesign;
+            if (websiteProjectId) {
+                defs.push({
+                    id: `def_project_scope_${worldId}`,
+                    entity: { type: 'Record', id: websiteProjectId },
+                    term: 'Website redesign scope',
+                    definition: 'The Acme website modernization initiative that anchors the demo project data.',
+                    notes: 'Maps a real record in the Projects set to a definition entry.',
+                    tags: ['demo', 'project']
+                });
+            }
+
+            const conversionRecordId = refs.conversions?.records?.fahrenheitToCelsius;
+            if (conversionRecordId) {
+                defs.push({
+                    id: `def_conversion_${worldId}`,
+                    entity: { type: 'Record', id: conversionRecordId },
+                    term: 'Fahrenheit → Celsius conversion',
+                    definition: 'Conversion record describing how Fahrenheit values are normalized into Celsius.',
+                    notes: 'Connects the conversion definition to the temperature reading demo data.',
+                    tags: ['demo', 'conversion']
+                });
+            }
+
+            const observationSetId = refs.temperature?.observationSetId;
+            if (observationSetId) {
+                defs.push({
+                    id: `def_avg_temp_${worldId}`,
+                    entity: { type: 'Field', id: 'avg_temp_c', setId: observationSetId },
+                    term: 'Average Temperature (°C)',
+                    definition: 'Formula field that averages paired Fahrenheit and Celsius readings into a single Celsius value.',
+                    tags: ['demo', 'formula']
+                });
+            }
+
+            return defs.map(def => ({ ...def, worldId }));
         }
 
         function initializeDemoDefinitions(worldId = state.currentWorldId) {
-            getDemoDefinitions().forEach(def => {
+            getDemoDefinitions(worldId).forEach(def => {
                 if (state.definitions.has(def.id)) return;
-                addDefinition({ ...def, worldId });
+                addDefinition(def);
             });
         }
 
-        function getDemoConnections() {
-            return [
-                {
-                    id: 'demo_conn_1',
-                    subject: { type: 'Record', id: 'sample_rec_1' },
+        function getDemoConnections(worldId = state.currentWorldId) {
+            const refs = state.demoRefs || {};
+            const conns = [];
+
+            const mobileProjectId = refs.projects?.records?.mobileApp;
+            const harborClientId = refs.contacts?.records?.harborRetail;
+            if (mobileProjectId && harborClientId) {
+                conns.push({
+                    id: `demo_conn_mobile_client_${worldId}`,
+                    subject: { type: 'Record', id: mobileProjectId },
                     operator: 'CON',
-                    mode: 'is linked to',
-                    operand: { type: 'Record', id: 'sample_rec_2' },
-                    description: 'Default demonstration connection',
-                    params: {}
-                },
-                {
-                    id: 'demo_conn_2',
-                    subject: { type: 'Record', id: 'sample_rec_2' },
-                    operator: 'SEG',
-                    mode: 'filters by',
-                    operand: { type: 'Field', id: 'sample_field_1' },
-                    description: 'A filter connection',
-                    params: {}
-                },
-                {
-                    id: 'demo_conn_3',
-                    subject: { type: 'Connection', id: 'demo_conn_1' },
-                    operator: 'SYN',
-                    mode: 'integrates with',
-                    operand: { type: 'Connection', id: 'demo_conn_2' },
-                    description: 'A compound demo connection',
-                    params: {}
-                }
-            ];
+                    mode: 'delivers for',
+                    operand: { type: 'Record', id: harborClientId },
+                    description: 'Mobile app initiative tied to Harbor Retail as the client',
+                    params: { relationship: 'client_project' }
+                });
+            }
+
+            const harborObservationId = refs.temperature?.observations?.harborWharf;
+            const conversionRecordId = refs.conversions?.records?.fahrenheitToCelsius;
+            if (harborObservationId && conversionRecordId) {
+                conns.push({
+                    id: `demo_conn_observation_conversion_${worldId}`,
+                    subject: { type: 'Record', id: harborObservationId },
+                    operator: 'CON',
+                    mode: 'normalizes with',
+                    operand: { type: 'Record', id: conversionRecordId },
+                    description: 'Observation data normalized through the Fahrenheit → Celsius definition',
+                    params: { relationship: 'conversion_context' }
+                });
+            }
+
+            const averageField = refs.temperature?.observationSetId ? { type: 'Field', id: 'avg_temp_c', setId: refs.temperature.observationSetId } : null;
+            const celsiusReadingId = refs.temperature?.readings?.harborCelsius;
+            if (averageField && celsiusReadingId) {
+                conns.push({
+                    id: `demo_conn_average_source_${worldId}`,
+                    subject: averageField,
+                    operator: 'CON',
+                    mode: 'rolls up',
+                    operand: { type: 'Record', id: celsiusReadingId },
+                    description: 'Average temperature formula rolls up linked Celsius readings',
+                    params: { relationship: 'formula_input' }
+                });
+            }
+
+            return conns.map(conn => ({ ...conn, worldId }));
         }
 
         function initializeDemoConnections(worldId = state.currentWorldId) {
-            getDemoConnections().forEach(conn => {
+            getDemoConnections(worldId).forEach(conn => {
                 if (state.connections.has(conn.id)) return;
-                addConnection({ ...conn, worldId });
+                addConnection(conn);
             });
+        }
+
+        function applyStateFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+
+            const worldId = params.get('world');
+            if (worldId && state.worlds.has(worldId)) {
+                state.currentWorldId = worldId;
+            }
+
+            const page = params.get('page');
+            if (page === 'definitions' || page === 'connections') {
+                state.currentSpecialView = page;
+                state.currentSetId = null;
+                state.currentViewId = null;
+                return;
+            }
+
+            const setId = params.get('set');
+            if (setId && state.sets.has(setId)) {
+                const set = state.sets.get(setId);
+                const viewId = params.get('view');
+                if (set?.worldId) state.currentWorldId = set.worldId;
+                state.currentSetId = setId;
+                state.currentViewId = (viewId && set.views.has(viewId))
+                    ? viewId
+                    : Array.from(set.views.keys())[0] || null;
+            }
+        }
+
+        function syncUrlWithState() {
+            const url = new URL(window.location);
+
+            if (state.currentWorldId) url.searchParams.set('world', state.currentWorldId);
+            else url.searchParams.delete('world');
+
+            if (state.currentSpecialView) {
+                url.searchParams.set('page', state.currentSpecialView);
+                url.searchParams.delete('set');
+                url.searchParams.delete('view');
+            } else {
+                url.searchParams.delete('page');
+                if (state.currentSetId) url.searchParams.set('set', state.currentSetId); else url.searchParams.delete('set');
+                if (state.currentViewId) url.searchParams.set('view', state.currentViewId); else url.searchParams.delete('view');
+            }
+
+            window.history.replaceState({}, '', url);
         }
 
         // INITIALIZATION
@@ -4710,10 +4790,19 @@
 
             initializeOperatorRules();
             createSampleData();
+            applyStateFromUrl();
             loadConnectionModes();
             initializeFormulaSupport();
             renderSidebar();
-            if (state.currentSetId) switchSet(state.currentSetId, state.currentViewId);
+            if (state.currentSpecialView) {
+                renderCurrentView();
+                syncUrlWithState();
+            } else if (state.currentSetId) {
+                switchSet(state.currentSetId, state.currentViewId);
+            } else {
+                renderCurrentView();
+                syncUrlWithState();
+            }
             setupEventListeners();
             setupKeyboardShortcuts();
             applyResponsiveLayout();
@@ -5070,7 +5159,8 @@
             const harborId = addRecord(contactsId, { name: 'Harbor Retail', industry: 'Retail', website: 'https://harborretail.example.com' });
             const northbankId = addRecord(contactsId, { name: 'Northbank Finance', industry: 'Finance', website: 'https://northbank.example.com' });
 
-            createView(contactsId, 'All Clients', { type: 'grid' });
+            createView(contactsId, 'All Clients', { type: 'grid', sorts: [{ fieldId: 'name', direction: 'asc' }] });
+            createView(contactsId, 'By Industry', { type: 'kanban', kanbanGroupField: 'industry', icon: 'ph-buildings' });
 
             temperatureUnitsSet.schema = [
                 { id: 'name', name: 'Unit Name', type: 'TEXT', width: '180px' },
@@ -5228,7 +5318,8 @@
                 unit: celsiusUnitId
             });
 
-            createView(temperatureReadingsId, 'Readings', { type: 'grid' });
+            createView(temperatureReadingsId, 'Readings', { type: 'grid', sorts: [{ fieldId: 'collected_at', direction: 'desc' }] });
+            createView(temperatureReadingsId, 'By Source', { type: 'kanban', kanbanGroupField: 'source_tool', icon: 'ph-gauge' });
 
             projectsSet.schema = [
                 { id: 'name', name: 'Project Name', type: 'TEXT', width: '200px' },
@@ -5250,7 +5341,7 @@
                 ['default', { id: 'default', name: 'All Fields', visibleFields: [] }]
             ]);
 
-            addRecord(projectsId, {
+            const websiteRedesignId = addRecord(projectsId, {
                 name: 'Website Redesign',
                 client: acmeId,
                 status: 'In Progress',
@@ -5260,7 +5351,7 @@
                 notes: 'Complete overhaul of company website'
             });
 
-            addRecord(projectsId, {
+            const mobileAppId = addRecord(projectsId, {
                 name: 'Mobile App',
                 client: harborId,
                 status: 'Planning',
@@ -5270,7 +5361,7 @@
                 notes: 'iOS and Android native apps'
             });
 
-            addRecord(projectsId, {
+            const databaseMigrationId = addRecord(projectsId, {
                 name: 'Database Migration',
                 client: northbankId,
                 status: 'Completed',
@@ -5280,9 +5371,9 @@
                 notes: 'Migrate to new cloud infrastructure'
             });
 
-            createView(projectsId, 'All Projects', { type: 'grid' });
-            createView(projectsId, 'By Status', { type: 'kanban' });
-            createView(projectsId, 'Card View', { type: 'card' });
+            createView(projectsId, 'All Projects', { type: 'grid', sorts: [{ fieldId: 'start_date', direction: 'desc' }] });
+            createView(projectsId, 'By Status', { type: 'kanban', kanbanGroupField: 'status', icon: 'ph-flag' });
+            createView(projectsId, 'Card View', { type: 'card', sorts: [{ fieldId: 'priority', direction: 'desc' }], icon: 'ph-cards' });
 
             temperatureObservationsSet.schema = [
                 { id: 'name', name: 'Observation Name', type: 'TEXT', width: '220px' },
@@ -5309,33 +5400,71 @@
                 }
             ];
 
-            addRecord(temperatureObservationsId, {
+            const acmeObservationId = addRecord(temperatureObservationsId, {
                 name: 'Acme Township',
                 fahrenheit_observation: acmeFahrenheitId,
                 celsius_observation: acmeCelsiusId
             });
 
-            addRecord(temperatureObservationsId, {
+            const harborObservationId = addRecord(temperatureObservationsId, {
                 name: 'Harbor Wharf',
                 fahrenheit_observation: harborFahrenheitId,
                 celsius_observation: harborCelsiusId
             });
 
-            addRecord(temperatureObservationsId, {
+            const northbankObservationId = addRecord(temperatureObservationsId, {
                 name: 'Northbank Plaza',
                 fahrenheit_observation: northbankFahrenheitId,
                 celsius_observation: northbankCelsiusId
             });
 
-            createView(temperatureObservationsId, 'Observations', { type: 'grid' });
+            createView(temperatureObservationsId, 'Observations', { type: 'grid', sorts: [{ fieldId: 'name', direction: 'asc' }] });
 
-            state.demoRefs.temperature = {
-                unitSetId: temperatureUnitsId,
-                readingSetId: temperatureReadingsId,
-                observationSetId: temperatureObservationsId,
-                conversionSetId: conversionDefinitionsId,
-                fahrenheitUnitId,
-                celsiusUnitId
+            state.demoRefs = {
+                temperature: {
+                    unitSetId: temperatureUnitsId,
+                    readingSetId: temperatureReadingsId,
+                    observationSetId: temperatureObservationsId,
+                    conversionSetId: conversionDefinitionsId,
+                    fahrenheitUnitId,
+                    celsiusUnitId,
+                    readings: {
+                        acmeFahrenheit: acmeFahrenheitId,
+                        acmeCelsius: acmeCelsiusId,
+                        harborFahrenheit: harborFahrenheitId,
+                        harborCelsius: harborCelsiusId,
+                        northbankFahrenheit: northbankFahrenheitId,
+                        northbankCelsius: northbankCelsiusId
+                    },
+                    observations: {
+                        acmeTownship: acmeObservationId,
+                        harborWharf: harborObservationId,
+                        northbankPlaza: northbankObservationId
+                    }
+                },
+                contacts: {
+                    setId: contactsId,
+                    records: {
+                        acmeCorp: acmeId,
+                        harborRetail: harborId,
+                        northbankFinance: northbankId
+                    }
+                },
+                projects: {
+                    setId: projectsId,
+                    records: {
+                        websiteRedesign: websiteRedesignId,
+                        mobileApp: mobileAppId,
+                        databaseMigration: databaseMigrationId
+                    }
+                },
+                conversions: {
+                    setId: conversionDefinitionsId,
+                    records: {
+                        fahrenheitToCelsius: fToCDefinitionId,
+                        celsiusToFahrenheit: cToFDefinitionId
+                    }
+                }
             };
 
             state.currentSetId = projectsId;
@@ -5356,8 +5485,6 @@
                 setIds: new Set(),
                 createdAt: new Date().toISOString()
             });
-            initializeDemoDefinitions(worldId);
-            initializeDemoConnections(worldId);
             return worldId;
         }
 
@@ -6539,6 +6666,7 @@
             if (state.currentSetId) {
                 switchSet(state.currentSetId, state.currentViewId);
             }
+            syncUrlWithState();
         }
 
         function openAddWorldModal() {
@@ -6566,6 +6694,7 @@
             closeMobileSidebar();
             renderSidebar();
             renderCurrentView();
+            syncUrlWithState();
             updateMobileChrome();
         }
 
@@ -6576,6 +6705,7 @@
             closeMobileSidebar();
             renderSidebar();
             renderCurrentView();
+            syncUrlWithState();
             updateMobileChrome();
         }
 
@@ -6949,6 +7079,7 @@
             renderSidebar();
             renderViewTabs();
             renderCurrentView();
+            syncUrlWithState();
             updateMobileChrome();
         }
 
