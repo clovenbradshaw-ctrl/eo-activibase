@@ -2735,7 +2735,7 @@
             demoRefs: {},
             connectionBuilder: { targetSetId: null, targetRecordId: '', metadataJson: '', searchQuery: '' },
             currentSpecialView: null,
-            definitionFormState: { editingId: null },
+            definitionFormState: { editingId: null, activeFilter: 'all', showImportPanel: false },
             connectionFormState: { editingId: null },
             sidebarCollapsed: false,
             sidebarOpenMobile: false,
@@ -8394,6 +8394,90 @@
                 .filter(Boolean);
         }
 
+        function parseDefinitionGridRows(text) {
+            const lines = (text || '').split('\n').map(line => line.trim()).filter(Boolean);
+            if (!lines.length) return [];
+
+            const delimiter = lines.some(line => line.includes('\t')) ? '\t' : ',';
+            const splitLine = (line) => line.split(delimiter).map(cell => cell.trim());
+            const headerCells = splitLine(lines[0]).map(cell => cell.toLowerCase());
+            const headerKeywords = ['entity type', 'entity id', 'term', 'definition'];
+            const hasHeader = headerKeywords.some(keyword => headerCells.some(cell => cell.includes(keyword.replace(' ', '_')) || cell.includes(keyword)));
+            const startIndex = hasHeader ? 1 : 0;
+
+            const rows = [];
+            for (let i = startIndex; i < lines.length; i++) {
+                const cells = splitLine(lines[i]);
+                if (!cells.length || cells.every(cell => !cell)) continue;
+                const [entityType, entityId, term, definitionText, notes = '', tags = ''] = cells;
+                rows.push({
+                    entityType: entityType || '',
+                    entityId: entityId || '',
+                    term: term || '',
+                    definition: definitionText || '',
+                    notes: notes || '',
+                    tags: serializeTagsInput(tags)
+                });
+            }
+
+            return rows;
+        }
+
+        function handleDefinitionImportSubmit() {
+            const textarea = document.getElementById('definitionImportText');
+            if (!textarea) return;
+
+            const rows = parseDefinitionGridRows(textarea.value);
+            if (!rows.length) {
+                showToast('Please paste at least one row');
+                return;
+            }
+
+            let added = 0;
+            let updated = 0;
+            let skipped = 0;
+
+            rows.forEach(row => {
+                const entityType = row.entityType?.trim();
+                const entityId = row.entityId?.trim();
+                const term = row.term?.trim();
+                const definitionText = row.definition?.trim();
+
+                if (!entityType || !entityId || !term || !definitionText) {
+                    skipped += 1;
+                    return;
+                }
+
+                const payload = {
+                    entity: { type: entityType, id: entityId },
+                    term,
+                    definition: definitionText,
+                    notes: row.notes?.trim() || '',
+                    tags: row.tags || []
+                };
+
+                const existing = findDefinitionByEntity(payload.entity);
+                if (existing) {
+                    updateDefinition(existing.id, payload);
+                    updated += 1;
+                } else {
+                    addDefinition(payload);
+                    added += 1;
+                }
+            });
+
+            renderDefinitionsPage(state.definitionFormState.activeFilter || 'all');
+            showToast(`✓ Imported ${added + updated} definitions${updated ? ` (${updated} updated)` : ''}${skipped ? ` · ${skipped} skipped` : ''}`);
+        }
+
+        function focusDefinitionForm() {
+            resetDefinitionForm();
+            const formCard = document.getElementById('definitionFormCard');
+            if (formCard) formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const entityTypeSelect = document.getElementById('definitionEntityType');
+            if (entityTypeSelect) entityTypeSelect.focus();
+        }
+
         function resetDefinitionForm() {
             state.definitionFormState.editingId = null;
             const form = document.getElementById('definitionForm');
@@ -8515,11 +8599,33 @@
                     </div>
                 </div>
                 <div class="view-stage-body space-y-4">
-                    <div class="flex flex-wrap gap-2">
-                        ${Object.keys(filters).map(key => `<button class="btn btn-secondary btn-sm ${filterKey === key ? 'btn-primary' : ''}" data-def-filter="${key}">${key === 'all' ? 'All' : key.charAt(0).toUpperCase() + key.slice(1)}</button>`).join('')}
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex flex-wrap gap-2">
+                            ${Object.keys(filters).map(key => `<button class="btn btn-secondary btn-sm ${filterKey === key ? 'btn-primary' : ''}" data-def-filter="${key}">${key === 'all' ? 'All' : key.charAt(0).toUpperCase() + key.slice(1)}</button>`).join('')}
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="btn btn-secondary btn-sm" id="toggleDefinitionImport">${state.definitionFormState.showImportPanel ? 'Hide Import' : 'Import Definitions'}</button>
+                            <button class="btn btn-primary btn-sm" id="jumpToDefinitionForm">Add Definition</button>
+                        </div>
                     </div>
-                    ${renderDefinitionsTable(definitions)}
+                    ${state.definitionFormState.showImportPanel ? `
                     <div class="border border-gray-200 rounded-lg bg-white p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-semibold">Import definitions</div>
+                                <p class="text-sm text-gray-500">Paste tab or comma separated rows: Entity Type, Entity ID, Term, Definition, Notes, Tags.</p>
+                            </div>
+                            <button class="btn btn-secondary btn-sm" id="closeDefinitionImport">Close</button>
+                        </div>
+                        <textarea id="definitionImportText" class="w-full border rounded px-3 py-2 text-sm font-mono" rows="5" placeholder="Record\tobs_123\tSnow depth\tDepth of snow in cm\tMetric reference\twinter, core"></textarea>
+                        <div class="text-xs text-gray-500">Existing rows update matching entities; missing fields are skipped.</div>
+                        <div class="flex justify-end">
+                            <button class="btn btn-primary btn-sm" id="runDefinitionImport">Import pasted rows</button>
+                        </div>
+                    </div>
+                    ` : ''}
+                    ${renderDefinitionsTable(definitions)}
+                    <div class="border border-gray-200 rounded-lg bg-white p-4 space-y-3" id="definitionFormCard">
                         <div class="flex items-center justify-between">
                             <div>
                                 <div class="font-semibold">${state.definitionFormState.editingId ? 'Edit Definition' : 'Add Definition'}</div>
@@ -8582,6 +8688,28 @@
                     showToast('✓ Definition removed');
                 };
             });
+
+            const importToggleBtn = document.getElementById('toggleDefinitionImport');
+            if (importToggleBtn) {
+                importToggleBtn.onclick = () => {
+                    state.definitionFormState.showImportPanel = !state.definitionFormState.showImportPanel;
+                    renderDefinitionsPage(filterKey);
+                };
+            }
+
+            const importCloseBtn = document.getElementById('closeDefinitionImport');
+            if (importCloseBtn) {
+                importCloseBtn.onclick = () => {
+                    state.definitionFormState.showImportPanel = false;
+                    renderDefinitionsPage(filterKey);
+                };
+            }
+
+            const importRunBtn = document.getElementById('runDefinitionImport');
+            if (importRunBtn) importRunBtn.onclick = handleDefinitionImportSubmit;
+
+            const jumpBtn = document.getElementById('jumpToDefinitionForm');
+            if (jumpBtn) jumpBtn.onclick = focusDefinitionForm;
 
             const form = document.getElementById('definitionForm');
             if (form) form.onsubmit = (event) => { event.preventDefault(); handleDefinitionFormSubmit(); };
