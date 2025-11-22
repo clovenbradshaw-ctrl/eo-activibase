@@ -1228,7 +1228,67 @@
         }
         .record-tab:hover { color: #374151; }
         .record-tab.active { color: #2563eb; border-bottom-color: #2563eb; }
-        
+
+        .view-tabs {
+            display: flex;
+            align-items: stretch;
+            gap: 8px;
+            padding: 10px 14px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e5e7eb;
+            overflow-x: auto;
+        }
+
+        .view-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            cursor: pointer;
+            min-width: 180px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: all 0.15s ease;
+        }
+
+        .view-tab:hover { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08); }
+
+        .view-tab.active {
+            border-color: #2563eb;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.18);
+        }
+
+        .view-tab-icon { color: #1f2937; font-size: 16px; }
+
+        .view-tab-text { display: flex; flex-direction: column; gap: 2px; }
+        .view-tab-name { font-weight: 700; font-size: 14px; color: #0f172a; }
+        .view-tab-meta { font-size: 12px; color: #6b7280; }
+
+        .view-tab-actions {
+            display: inline-flex;
+            gap: 6px;
+            margin-left: auto;
+            color: #9ca3af;
+        }
+
+        .view-tab-btn {
+            border: 1px solid #e5e7eb;
+            background: #f8fafc;
+            color: inherit;
+            border-radius: 8px;
+            padding: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .view-tab-btn:hover { color: #111827; background: white; border-color: #d1d5db; }
+        .view-tab-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
         .json-tab {
             padding: 12px 20px;
             font-size: 14px;
@@ -1434,6 +1494,7 @@
 
         <!-- Main Content -->
         <div class="app-main">
+            <div id="viewTabs" class="view-tabs hidden"></div>
             <div id="viewContainer"></div>
         </div>
     </div>
@@ -2158,6 +2219,7 @@
             modalStack: [],
             currentRecordTab: 'history',
             recordHistoryVisible: true,
+            openTabs: [],
             confirmCallback: null,
             selectOptions: [{ value: 'Option 1', color: 'blue' }],
             fieldTypeDropdownOpen: false,
@@ -5406,6 +5468,8 @@
 
                 container.appendChild(setItem);
             });
+
+            renderViewTabs();
         }
 
         function renderViewTree(orderedViews, setId, container, parentId = null, depth = 0) {
@@ -5525,6 +5589,129 @@
             openModal('addViewModal');
         }
 
+        function getTabKey(setId, viewId) {
+            return `${setId || ''}::${viewId || ''}`;
+        }
+
+        function ensureOpenTab(setId, viewId) {
+            const set = state.sets.get(setId);
+            const view = set?.views.get(viewId);
+            if (!set || !view) return;
+            const key = getTabKey(setId, viewId);
+            const exists = state.openTabs.some(tab => getTabKey(tab.setId, tab.viewId) === key);
+            if (!exists) {
+                state.openTabs.push({ setId, viewId });
+            }
+            renderViewTabs();
+        }
+
+        function closeViewTab(setId, viewId) {
+            const key = getTabKey(setId, viewId);
+            const index = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId) === key);
+            if (index === -1) return;
+            const closingActive = state.currentSetId === setId && state.currentViewId === viewId;
+            const fallback = closingActive ? (state.openTabs[index + 1] || state.openTabs[index - 1]) : null;
+            state.openTabs.splice(index, 1);
+            renderViewTabs();
+
+            if (closingActive) {
+                if (fallback) {
+                    switchSet(fallback.setId, fallback.viewId);
+                } else {
+                    state.currentSetId = null;
+                    state.currentViewId = null;
+                    renderSidebar();
+                    renderCurrentView();
+                    updateMobileChrome();
+                }
+            }
+        }
+
+        function moveViewTab(setId, viewId, direction) {
+            const key = getTabKey(setId, viewId);
+            const index = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId) === key);
+            if (index === -1) return;
+            const newIndex = Math.max(0, Math.min(state.openTabs.length - 1, index + direction));
+            if (newIndex === index) return;
+            const [tab] = state.openTabs.splice(index, 1);
+            state.openTabs.splice(newIndex, 0, tab);
+            renderViewTabs();
+        }
+
+        function renderViewTabs() {
+            const container = document.getElementById('viewTabs');
+            if (!container) return;
+
+            const validatedTabs = [];
+            state.openTabs.forEach(tab => {
+                const set = state.sets.get(tab.setId);
+                const view = set?.views.get(tab.viewId);
+                if (set && view) validatedTabs.push(tab);
+            });
+            state.openTabs = validatedTabs;
+
+            if (state.openTabs.length === 0) {
+                container.innerHTML = '';
+                container.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            container.innerHTML = '';
+
+            state.openTabs.forEach((tab, index) => {
+                const set = state.sets.get(tab.setId);
+                const view = set?.views.get(tab.viewId);
+                if (!set || !view) return;
+                const isActive = state.currentSetId === tab.setId && state.currentViewId === tab.viewId;
+
+                const tabEl = document.createElement('div');
+                tabEl.className = `view-tab ${isActive ? 'active' : ''}`;
+                tabEl.onclick = () => switchSet(tab.setId, tab.viewId);
+
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'view-tab-icon';
+                iconSpan.innerHTML = renderIcon(view.icon || VIEW_TYPE_ICONS[view.type]);
+
+                const textWrap = document.createElement('div');
+                textWrap.className = 'view-tab-text';
+                textWrap.innerHTML = `
+                    <span class="view-tab-name">${view.name}</span>
+                    <span class="view-tab-meta">${set.name}</span>
+                `;
+
+                const actions = document.createElement('div');
+                actions.className = 'view-tab-actions';
+
+                const moveLeftBtn = document.createElement('button');
+                moveLeftBtn.className = 'view-tab-btn';
+                moveLeftBtn.innerHTML = '<i class="ph ph-caret-left"></i>';
+                moveLeftBtn.disabled = index === 0;
+                moveLeftBtn.onclick = (e) => { e.stopPropagation(); moveViewTab(tab.setId, tab.viewId, -1); };
+
+                const moveRightBtn = document.createElement('button');
+                moveRightBtn.className = 'view-tab-btn';
+                moveRightBtn.innerHTML = '<i class="ph ph-caret-right"></i>';
+                moveRightBtn.disabled = index === state.openTabs.length - 1;
+                moveRightBtn.onclick = (e) => { e.stopPropagation(); moveViewTab(tab.setId, tab.viewId, 1); };
+
+                const closeBtn = document.createElement('button');
+                closeBtn.className = 'view-tab-btn';
+                closeBtn.innerHTML = '<i class="ph ph-x"></i>';
+                closeBtn.onclick = (e) => { e.stopPropagation(); closeViewTab(tab.setId, tab.viewId); };
+
+                actions.appendChild(moveLeftBtn);
+                actions.appendChild(moveRightBtn);
+                actions.appendChild(closeBtn);
+
+                tabEl.appendChild(iconSpan);
+                tabEl.appendChild(textWrap);
+                tabEl.appendChild(actions);
+
+                container.appendChild(tabEl);
+            });
+        }
+
         function switchSet(setId, viewId) {
             const set = state.sets.get(setId);
             if (!set) return;
@@ -5537,8 +5724,10 @@
             if (!viewId && set.views.size > 0) {
                 state.currentViewId = Array.from(set.views.keys())[0];
             }
+            if (state.currentViewId) ensureOpenTab(state.currentSetId, state.currentViewId);
             closeMobileSidebar();
             renderSidebar();
+            renderViewTabs();
             renderCurrentView();
             updateMobileChrome();
         }
@@ -5565,7 +5754,11 @@
 
         function renderCurrentView() {
             const view = getCurrentView();
-            if (!view) return;
+            const container = document.getElementById('viewContainer');
+            if (!view) {
+                if (container) container.innerHTML = '<div class="p-6 text-sm text-gray-500">Select a view to get started.</div>';
+                return;
+            }
 
             ensureViewDefaults(view);
 
