@@ -25,7 +25,6 @@ Every value in Workbase carries invisible **context**:
     "end": "ISO 8601 timestamp"
   },
   "source": {
-    "system": "csv_import | user_edit | sync | formula | merge",
     "file": "optional filename"
   },
   "agent": {
@@ -148,7 +147,6 @@ Importing `sales_Q4_2025.csv` produces:
 **Inferred from operation type:**
 - Sync → method: "inferred"
 - Duplication → method: "derived"
-- Formula → method: "derived"
 - Merge → method: "aggregated"
 
 ---

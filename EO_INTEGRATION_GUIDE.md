@@ -202,14 +202,9 @@ function renderRow(recordId) {
 }
 ```
 
-### Pattern 5: Formula Fields
 
 ```javascript
-function evaluateFormula(recordId, fieldName, formula) {
-  const result = formulaEngine.evaluate(formula);
 
-  // Track formula-derived values
-  eo.handleFormula(recordId, fieldName, formula, result);
 
   return result;
 }
