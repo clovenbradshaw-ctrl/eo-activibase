@@ -10227,7 +10227,7 @@
 
             const options = Array.from(linkedSet.records.values()).map(rec => ({
                 value: rec.id,
-                label: rec.name || rec.id,
+                label: getRecordDisplayName(rec.id),
                 icon: '🔗',
                 color: '#e0f2fe'
             }));
