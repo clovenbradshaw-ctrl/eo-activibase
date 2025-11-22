@@ -1,6 +1,6 @@
 # EO Legacy Demo Stack
 
-This directory contains the legacy Epistemic Observability (EO) demo and its supporting files. The demo illustrates the original EO framework before the lean context and formula engine work was introduced in the main `index.html` experience.
+This directory contains the legacy Epistemic Observability (EO) demo and its supporting files. The demo illustrates the original EO framework before the lean context work was introduced in the main `index.html` experience.
 
 ## Contents
 - `eo_demo.html` – Standalone demo page that wires together the legacy EO stack.
@@ -13,5 +13,5 @@ This directory contains the legacy Epistemic Observability (EO) demo and its sup
 - `eo_integration.js` – Glue code that integrates the EO stack with the demo table and UI events.
 
 ## Notes
-- The files here are self-contained and loaded directly by `eo_demo.html`. They are not required by the primary `index.html`, which uses the newer lean context stack (`formula_engine.js`, `formula_field_service.js`, and `eo_lean_context.js`).
+- The files here are self-contained and loaded directly by `eo_demo.html`. They are not required by the primary `index.html`, which uses the newer lean context stack (`eo_lean_context.js`).
 - To try the legacy experience, open `demo/eo_demo.html` in a browser.

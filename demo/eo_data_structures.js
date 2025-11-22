@@ -288,7 +288,7 @@ class EODataStructures {
   static inferContextFromLegacy(fieldName, value, record) {
     // Infer method based on field name patterns
     let method = 'declared';
-    if (fieldName.match(/formula|calculated|computed/i)) {
+    if (fieldName.match(/calculated|computed/i)) {
       method = 'derived';
     } else if (fieldName.match(/imported|source/i)) {
       method = 'measured';

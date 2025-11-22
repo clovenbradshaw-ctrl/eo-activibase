@@ -317,7 +317,7 @@ class EOCellModal {
     } else if (ctx.method === 'declared' && agent !== 'system') {
       return `Updated by ${agent}`;
     } else if (ctx.method === 'derived') {
-      return `Calculated via formula`;
+      return `Calculated value`;
     } else {
       return `Value updated`;
     }

@@ -243,8 +243,8 @@ class EOContextEngine {
   inferMethodFromValue(value, columnName) {
     const name = columnName.toLowerCase();
 
-    // Formula/calculated fields
-    if (name.match(/formula|calculated|computed|derived/)) {
+    // Calculated fields
+    if (name.match(/calculated|computed|derived/)) {
       return 'derived';
     }
 
@@ -291,35 +291,6 @@ class EOContextEngine {
         end: new Date().toISOString()
       },
       source: { system: 'user_edit' },
-      agent: this.currentUser || { type: 'system' }
-    });
-  }
-
-  /**
-   * Infer context from formula/derived field
-   */
-  inferFromFormula({
-    columnName = '',
-    formula = '',
-    dependencies = []
-  }) {
-    const scale = this.inferScaleFromColumnName(columnName);
-    const definition = this.inferDefinitionFromColumnName(columnName);
-    
-    return EODataStructures.createContextSchema({
-      method: 'derived',
-      definition,
-      scale,
-      timeframe: {
-        granularity: 'instant',
-        start: new Date().toISOString(),
-        end: new Date().toISOString()
-      },
-      source: {
-        system: 'formula',
-        formula,
-        dependencies
-      },
       agent: this.currentUser || { type: 'system' }
     });
   }

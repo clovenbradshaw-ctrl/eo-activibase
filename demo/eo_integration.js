@@ -225,37 +225,6 @@ class EOIntegration {
   }
 
   /**
-   * Handle formula field
-   */
-  handleFormula(recordId, fieldName, formula, result) {
-    const record = this.records.get(recordId);
-    if (!record) return null;
-
-    const context = this.contextEngine.inferFromFormula({
-      columnName: fieldName,
-      formula,
-      dependencies: []
-    });
-
-    let cell = record.cells.find(c => c.field_name === fieldName);
-    if (!cell) {
-      const cell_id = this.dataStructures.generateCellId(recordId, fieldName);
-      cell = this.dataStructures.createCell({
-        cell_id,
-        record_id,
-        field_name: fieldName,
-        values: []
-      });
-      record.cells.push(cell);
-    }
-
-    this.dataStructures.addValueToCell(cell, result, context);
-    record.fields[fieldName] = result;
-
-    return record;
-  }
-
-  /**
    * Show cell modal
    */
   showCellModal(recordId, fieldName) {

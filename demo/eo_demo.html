@@ -190,8 +190,7 @@
             <h1>🌟 EO Framework Demo</h1>
             <p>
                 Epistemic Observability (EO) brings automatic context tracking, superposition of multiple values,
-                and stability classification to your data. This demo also includes <strong>formula fields</strong> 🧮
-                that automatically calculate values based on other fields (e.g., temperature conversion, battery status).
+                and stability classification to your data.
                 Click any cell to explore its context, history, and perspectives.
             </p>
         </div>
@@ -200,7 +199,6 @@
             <h2>Sample Data Table</h2>
             <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">
                 Click any cell to view its value, context, history, and superposition (if applicable).
-                Columns marked with 🧮 are <strong>formula fields</strong> that automatically calculate values from other fields.
             </p>
 
             <table class="demo-table" id="demoTable">
@@ -209,11 +207,9 @@
                         <th>Subject</th>
                         <th>Observed At</th>
                         <th>Air Temp (°C)</th>
-                        <th>Air Temp (°F) 🧮</th>
                         <th>Wind Speed</th>
                         <th>Power Draw</th>
                         <th>Battery</th>
-                        <th>Battery Status 🧮</th>
                         <th>Stability</th>
                     </tr>
                 </thead>
@@ -261,10 +257,6 @@
     <script src="eo_cell_modal.js"></script>
     <script src="eo_integration.js"></script>
 
-    <!-- Load Formula Engine -->
-    <script src="../formula_engine.js"></script>
-    <script src="../formula_field_service.js"></script>
-
     <script>
         // Demo application
         class EODemo {
@@ -274,10 +266,7 @@
                 this.eo.setCurrentUser('demo_user', 'Demo User');
                 this.eo.enableDebug();
 
-                // Initialize formula field service
-                this.formulaService = new FormulaFieldService();
-
-                // Define schema with formula field
+                // Define schema
                 this.schema = [
                     { id: 'subject_id', name: 'Subject ID', type: 'TEXT' },
                     { id: 'subject_label', name: 'Subject Label', type: 'TEXT' },
@@ -286,21 +275,7 @@
                     { id: 'air_temp_c', name: 'Air Temp (°C)', type: 'NUMBER' },
                     { id: 'wind_speed', name: 'Wind Speed (m/s)', type: 'NUMBER' },
                     { id: 'power_draw', name: 'Power Draw (W)', type: 'NUMBER' },
-                    { id: 'battery', name: 'Battery (%)', type: 'NUMBER' },
-                    // Formula field: Convert Celsius to Fahrenheit
-                    {
-                        id: 'air_temp_f',
-                        name: 'Air Temp (°F)',
-                        type: 'FORMULA',
-                        formula: '{Air Temp (°C)} * 1.8 + 32'
-                    },
-                    // Formula field: Battery status based on level
-                    {
-                        id: 'battery_status',
-                        name: 'Battery Status',
-                        type: 'FORMULA',
-                        formula: 'IF({Battery (%)} >= 90, "Excellent", IF({Battery (%)} >= 70, "Good", IF({Battery (%)} >= 50, "Fair", "Low")))'
-                    }
+                    { id: 'battery', name: 'Battery (%)', type: 'NUMBER' }
                 ];
 
                 this.sampleData = [
@@ -352,40 +327,6 @@
                 ];
 
                 this.logEntries = [];
-            }
-
-            // Evaluate formula field for a record
-            evaluateFormula(formulaField, recordId) {
-                try {
-                    // Get the record data
-                    const record = this.eo.getAllRecords().find(r => r.record_id === recordId);
-                    if (!record) return 'N/A';
-
-                    // Build a simple record object with field values
-                    const recordData = {};
-                    record.cells.forEach(cell => {
-                        const fieldName = cell.field_name;
-                        const value = this.eo.getCellDisplayValue(recordId, fieldName);
-                        recordData[fieldName] = value;
-                    });
-
-                    // Evaluate the formula
-                    const result = this.formulaService.evaluateForRecord(
-                        formulaField.formula,
-                        recordData,
-                        this.schema
-                    );
-
-                    if (result.success) {
-                        return result.value;
-                    } else {
-                        console.error('Formula error:', result.error);
-                        return 'Error';
-                    }
-                } catch (error) {
-                    console.error('Formula evaluation error:', error);
-                    return 'Error';
-                }
             }
 
             init() {
@@ -470,10 +411,6 @@
                 const tbody = document.getElementById('demoTableBody');
                 const records = this.eo.getAllRecords();
 
-                // Get formula fields
-                const tempFormula = this.schema.find(f => f.id === 'air_temp_f');
-                const batteryStatusFormula = this.schema.find(f => f.id === 'battery_status');
-
                 tbody.innerHTML = records.map(record => {
                     const subject = this.eo.getCellDisplayValue(record.record_id, 'Subject Label');
                     const observedAt = this.eo.getCellDisplayValue(record.record_id, 'Observed At');
@@ -482,15 +419,8 @@
                     const powerDraw = this.eo.getCellDisplayValue(record.record_id, 'Power Draw (W)');
                     const battery = this.eo.getCellDisplayValue(record.record_id, 'Battery (%)');
 
-                    // Evaluate formula fields
-                    const airTempF = this.evaluateFormula(tempFormula, record.record_id);
-                    const batteryStatus = this.evaluateFormula(batteryStatusFormula, record.record_id);
-
                     const airTempIndicator = this.eo.getCellSUPIndicator(record.record_id, 'Air Temp (°C)');
                     const stabilityBadge = this.eo.getStabilityBadge(record.record_id);
-
-                    // Format temperature in Fahrenheit
-                    const airTempFFormatted = typeof airTempF === 'number' ? airTempF.toFixed(1) : airTempF;
 
                     return `
                         <tr>
@@ -504,9 +434,6 @@
                                 ${airTemp}°C
                                 ${airTempIndicator}
                             </td>
-                            <td style="background: #f0fdf4; font-style: italic;">
-                                ${airTempFFormatted}°F
-                            </td>
                             <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Wind Speed (m/s)">
                                 ${windSpeed} m/s
                             </td>
@@ -515,9 +442,6 @@
                             </td>
                             <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Battery (%)">
                                 ${battery}%
-                            </td>
-                            <td style="background: #f0fdf4; font-style: italic;">
-                                ${batteryStatus}
                             </td>
                             <td>
                                 ${stabilityBadge}
