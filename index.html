@@ -2718,12 +2718,14 @@
             leanContext: null, // Will be initialized in initializeApp
             interpretationRules: [],
             definitions: new Map(),
+            connectionFormats: new Map(),
             connections: new Map(),
             demoRefs: {},
             connectionBuilder: { targetSetId: null, targetRecordId: '', metadataJson: '', searchQuery: '' },
             currentSpecialView: null,
             definitionFormState: { editingId: null },
-            connectionFormState: { editingId: null },
+            connectionFormatFormState: { editingId: null, activeFilter: 'all' },
+            connectionFormState: { editingId: null, activeFilter: 'all' },
             sidebarCollapsed: false,
             sidebarOpenMobile: false,
             modalStack: [],
@@ -4686,6 +4688,10 @@
                 const existing = state.connections.get(entity.id);
                 if (existing?.worldId) return existing.worldId;
             }
+            if (entity.type === 'ConnectionFormat') {
+                const existing = state.connectionFormats.get(entity.id);
+                if (existing?.worldId) return existing.worldId;
+            }
             return state.currentWorldId;
         }
 
@@ -4712,6 +4718,15 @@
             if (entity.type === 'Connection') {
                 const conn = state.connections.get(entity.id);
                 if (conn) return `${renderEntityLabel(conn.subject)} ${conn.mode || '→'} ${renderEntityLabel(conn.operand)}`;
+            }
+            if (entity.type === 'ConnectionFormat') {
+                const format = state.connectionFormats.get(entity.id);
+                if (format) {
+                    const subject = format.subjectType || 'Entity';
+                    const operand = format.operandType || 'Entity';
+                    const connector = format.mode || format.operator || '↔';
+                    return `${subject} ${connector} ${operand}`;
+                }
             }
             return entity.id;
         }
@@ -4768,6 +4783,93 @@
         function getConnectionView(filterFn) {
             const conns = Array.from(state.connections.values()).filter(conn => !conn.worldId || conn.worldId === state.currentWorldId);
             return typeof filterFn === 'function' ? conns.filter(filterFn) : conns;
+        }
+
+        function validateConnectionFormat(format) {
+            if (!format?.subjectType || !format?.operandType) {
+                throw new Error('Formats require subject and operand types');
+            }
+
+            const worldId = format.worldId || state.currentWorldId;
+            const examples = Array.isArray(format.examples) ? format.examples.filter(Boolean) : serializeTagsInput(format.examples || '');
+
+            return {
+                ...format,
+                operator: (format.operator || 'CON').trim(),
+                mode: (format.mode || 'is linked to').trim(),
+                worldId,
+                examples,
+                tags: format.tags || []
+            };
+        }
+
+        function addConnectionFormat(format) {
+            let normalized;
+            try {
+                normalized = validateConnectionFormat(format);
+            } catch (error) {
+                console.error(error);
+                showToast(`⚠️ ${error.message || 'Unable to create format'}`);
+                return null;
+            }
+
+            const id = format.id || `conn_format_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            const payload = { ...normalized, id, createdAt: normalized.createdAt || new Date().toISOString() };
+
+            state.connectionFormats.set(id, payload);
+            registerEntity({ id, type: 'ConnectionFormat', worldId: payload.worldId });
+
+            createEvent(
+                'Create Connection Format',
+                'DES',
+                { type: 'ConnectionFormat', id },
+                { format: payload, summary: `${payload.mode} (${payload.subjectType} → ${payload.operandType})` },
+                { frame: 'graph', scale: 'relationship' }
+            );
+
+            return id;
+        }
+
+        function updateConnectionFormat(formatId, updates = {}) {
+            const existing = state.connectionFormats.get(formatId);
+            if (!existing) throw new Error(`Connection format ${formatId} not found`);
+
+            const normalized = validateConnectionFormat({ ...existing, ...updates, id: formatId });
+            const payload = { ...existing, ...normalized, updatedAt: new Date().toISOString() };
+
+            state.connectionFormats.set(formatId, payload);
+
+            createEvent(
+                'Update Connection Format',
+                'DES',
+                { type: 'ConnectionFormat', id: formatId },
+                { format: payload, summary: `${payload.mode} (${payload.subjectType} → ${payload.operandType})` },
+                { frame: 'graph', scale: 'relationship' }
+            );
+
+            return payload;
+        }
+
+        function deleteConnectionFormat(formatId) {
+            const existing = state.connectionFormats.get(formatId);
+            if (!existing) throw new Error(`Connection format ${formatId} not found`);
+
+            state.connectionFormats.delete(formatId);
+
+            createEvent(
+                'Delete Connection Format',
+                'NUL',
+                { type: 'ConnectionFormat', id: formatId },
+                { format: existing, summary: `Removed format ${existing.mode} (${existing.subjectType} → ${existing.operandType})`, deleted: true },
+                { frame: 'graph', scale: 'relationship' }
+            );
+
+            return existing;
+        }
+
+        function getConnectionFormats(filterFn) {
+            const formats = Array.from(state.connectionFormats.values()).filter(format => !format.worldId || format.worldId === state.currentWorldId);
+            return typeof filterFn === 'function' ? formats.filter(filterFn) : formats;
         }
 
         function seedWorldDefaults(worldId = state.currentWorldId) {
@@ -5281,6 +5383,19 @@
                 definition: 'Connects each observation to the location where it was made.',
                 notes: 'Maintains spatial context for notes.',
                 tags: ['example', 'connection'],
+                worldId: defaultWorldId
+            });
+
+            addConnectionFormat({
+                id: `${defaultWorldId}_format_observed_at`,
+                name: 'Observation observed at Location',
+                subjectType: 'Record',
+                operator: 'CON',
+                mode: 'observed at',
+                operandType: 'Record',
+                description: 'Template describing how observations relate to locations.',
+                examples: ['observed at', 'recorded at'],
+                tags: ['example', 'observation'],
                 worldId: defaultWorldId
             });
 
@@ -8576,6 +8691,106 @@
             if (resetBtn) resetBtn.onclick = resetDefinitionForm;
         }
 
+        function populateConnectionFormatForm(formatId) {
+            const format = state.connectionFormats.get(formatId);
+            if (!format) return;
+            const form = document.getElementById('connectionFormatForm');
+            if (!form) return;
+            form.querySelector('#connectionFormatName').value = format.name || '';
+            form.querySelector('#connectionFormatSubjectType').value = format.subjectType || '';
+            form.querySelector('#connectionFormatOperator').value = format.operator || '';
+            form.querySelector('#connectionFormatMode').value = format.mode || '';
+            form.querySelector('#connectionFormatOperandType').value = format.operandType || '';
+            form.querySelector('#connectionFormatDescription').value = format.description || '';
+            form.querySelector('#connectionFormatExamples').value = (format.examples || []).join(', ');
+            form.querySelector('#connectionFormatTags').value = (format.tags || []).join(', ');
+            state.connectionFormatFormState.editingId = format.id;
+            const submit = document.getElementById('connectionFormatSubmit');
+            if (submit) submit.textContent = 'Save Format';
+        }
+
+        function resetConnectionFormatForm() {
+            state.connectionFormatFormState.editingId = null;
+            const form = document.getElementById('connectionFormatForm');
+            if (!form) return;
+            form.reset();
+            const submit = document.getElementById('connectionFormatSubmit');
+            if (submit) submit.textContent = 'Add Format';
+        }
+
+        function handleConnectionFormatFormSubmit() {
+            const form = document.getElementById('connectionFormatForm');
+            if (!form) return;
+            const payload = {
+                id: state.connectionFormatFormState.editingId,
+                name: form.querySelector('#connectionFormatName').value.trim(),
+                subjectType: form.querySelector('#connectionFormatSubjectType').value,
+                operator: form.querySelector('#connectionFormatOperator').value.trim() || 'CON',
+                mode: form.querySelector('#connectionFormatMode').value.trim() || 'is linked to',
+                operandType: form.querySelector('#connectionFormatOperandType').value,
+                description: form.querySelector('#connectionFormatDescription').value.trim(),
+                examples: serializeTagsInput(form.querySelector('#connectionFormatExamples').value),
+                tags: serializeTagsInput(form.querySelector('#connectionFormatTags').value)
+            };
+
+            if (!payload.subjectType || !payload.operandType) {
+                showToast('Provide subject and operand types');
+                return;
+            }
+
+            if (state.connectionFormatFormState.editingId) {
+                updateConnectionFormat(payload.id, payload);
+                showToast('✓ Format updated');
+            } else {
+                addConnectionFormat(payload);
+                showToast('✓ Format added');
+            }
+
+            resetConnectionFormatForm();
+            renderConnectionsPage(state.connectionFormatFormState.activeFilter || 'all', state.connectionFormState.activeFilter || 'all');
+        }
+
+        function renderConnectionFormatsTable(formats) {
+            if (!formats.length) return '<p class="text-sm text-gray-500">No connection formats yet.</p>';
+            return `
+                <div class="overflow-auto border border-gray-200 rounded-lg bg-white">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Name</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Subject Type</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Operator</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Mode</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Operand Type</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Description</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Examples</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Tags</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            ${formats.map(format => `
+                                <tr>
+                                    <td class="px-4 py-3 font-semibold text-gray-900">${format.name || format.mode}</td>
+                                    <td class="px-4 py-3 text-gray-700">${format.subjectType}</td>
+                                    <td class="px-4 py-3 text-gray-700">${format.operator}</td>
+                                    <td class="px-4 py-3 text-gray-700">${format.mode}</td>
+                                    <td class="px-4 py-3 text-gray-700">${format.operandType}</td>
+                                    <td class="px-4 py-3 text-gray-500">${format.description || ''}</td>
+                                    <td class="px-4 py-3 text-gray-500">${(format.examples || []).join(', ')}</td>
+                                    <td class="px-4 py-3 text-gray-500">${(format.tags || []).join(', ')}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap space-x-3">
+                                        <button class="text-blue-600" data-format-edit="${format.id}">Edit</button>
+                                        <button class="text-red-500" data-format-delete="${format.id}">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
         function populateConnectionForm(connId) {
             const conn = state.connections.get(connId);
             if (!conn) return;
@@ -8637,7 +8852,7 @@
             }
 
             resetConnectionForm();
-            renderConnectionsPage(state.connectionFormState.activeFilter || 'all');
+            renderConnectionsPage(state.connectionFormatFormState.activeFilter || 'all', state.connectionFormState.activeFilter || 'all');
         }
 
         function renderConnectionsTable(connections) {
@@ -8677,9 +8892,18 @@
             `;
         }
 
-        function renderConnectionsPage(filterKey = 'all') {
-            state.connectionFormState.activeFilter = filterKey;
-            const filters = {
+        function renderConnectionsPage(formatFilterKey = 'all', connectionFilterKey = state.connectionFormState.activeFilter || 'all') {
+            state.connectionFormatFormState.activeFilter = formatFilterKey;
+            state.connectionFormState.activeFilter = connectionFilterKey;
+
+            const formatFilters = {
+                all: () => true,
+                con: fmt => fmt.operator === 'CON',
+                seg: fmt => fmt.operator === 'SEG',
+                tagged: fmt => (fmt.tags || []).length > 0
+            };
+
+            const connectionFilters = {
                 all: () => true,
                 con: conn => conn.operator === 'CON',
                 seg: conn => conn.operator === 'SEG',
@@ -8687,89 +8911,187 @@
                 compound: conn => conn.subject?.type === 'Connection' || conn.operand?.type === 'Connection'
             };
 
-            const connections = getConnectionView(filters[filterKey]);
+            const formats = getConnectionFormats(formatFilters[formatFilterKey]);
+            const connections = getConnectionView(connectionFilters[connectionFilterKey]);
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
                 <div class="view-stage-header">
                     <div class="view-stage-title">
                         <span class="view-stage-pill">${getWorld()?.name || 'World'}</span>
                         <div class="min-w-0">
-                            <div class="view-stage-name">Connections</div>
-                            <div class="view-stage-sub">${connections.length} entries</div>
+                            <div class="view-stage-name">Connection Formats</div>
+                            <div class="view-stage-sub">${formats.length} formats · ${connections.length} concrete links</div>
                         </div>
                     </div>
                 </div>
-                <div class="view-stage-body space-y-4">
-                    <div class="flex flex-wrap gap-2">
-                        ${Object.keys(filters).map(key => `<button class="btn btn-secondary btn-sm ${filterKey === key ? 'btn-primary' : ''}" data-conn-filter="${key}">${key === 'all' ? 'All' : key}</button>`).join('')}
-                    </div>
-                    ${renderConnectionsTable(connections)}
-                    <div class="border border-gray-200 rounded-lg bg-white p-4 space-y-3">
+                <div class="view-stage-body space-y-6">
+                    <div class="border border-gray-200 rounded-lg bg-white p-4 space-y-4">
                         <div class="flex items-center justify-between">
                             <div>
-                                <div class="font-semibold">${state.connectionFormState.editingId ? 'Edit Connection' : 'Add Connection'}</div>
-                                <p class="text-sm text-gray-500">Link any two entities with operator + mode.</p>
+                                <div class="font-semibold">Formats</div>
+                                <p class="text-sm text-gray-500">Design reusable templates for how entities connect.</p>
+                            </div>
+                            ${state.connectionFormatFormState.editingId ? '<button class="btn btn-secondary btn-sm" id="resetConnectionFormatForm">Clear</button>' : ''}
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            ${Object.keys(formatFilters).map(key => `<button class="btn btn-secondary btn-sm ${formatFilterKey === key ? 'btn-primary' : ''}" data-format-filter="${key}">${key === 'all' ? 'All formats' : key}</button>`).join('')}
+                        </div>
+                        ${renderConnectionFormatsTable(formats)}
+                        <div class="border border-gray-100 rounded-lg bg-gray-50 p-4 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-semibold">${state.connectionFormatFormState.editingId ? 'Edit Format' : 'Add Format'}</div>
+                                    <p class="text-sm text-gray-500">Capture the structure of a connection without binding to specific entities.</p>
+                                </div>
+                            </div>
+                            <form id="connectionFormatForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="form-label">Name</label>
+                                    <input id="connectionFormatName" type="text" class="border rounded px-3 py-2 w-full" placeholder="Observation → Location" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Operator</label>
+                                    <input id="connectionFormatOperator" type="text" class="border rounded px-3 py-2 w-full" placeholder="CON" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Mode</label>
+                                    <input id="connectionFormatMode" type="text" class="border rounded px-3 py-2 w-full" placeholder="observed at" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Subject Type</label>
+                                    <select id="connectionFormatSubjectType" class="border rounded px-3 py-2 w-full">
+                                        <option value="">Select type</option>
+                                        <option value="Record">Record</option>
+                                        <option value="Field">Field</option>
+                                        <option value="Set">Set</option>
+                                        <option value="Connection">Connection</option>
+                                        <option value="ViewEntity">ViewEntity</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label">Operand Type</label>
+                                    <select id="connectionFormatOperandType" class="border rounded px-3 py-2 w-full">
+                                        <option value="">Select type</option>
+                                        <option value="Record">Record</option>
+                                        <option value="Field">Field</option>
+                                        <option value="Set">Set</option>
+                                        <option value="Connection">Connection</option>
+                                        <option value="ViewEntity">ViewEntity</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="form-label">Description</label>
+                                    <input id="connectionFormatDescription" type="text" class="border rounded px-3 py-2 w-full" placeholder="How and why this connection is used" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Examples (comma separated)</label>
+                                    <input id="connectionFormatExamples" type="text" class="border rounded px-3 py-2 w-full" placeholder="observed at, recorded at" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Tags</label>
+                                    <input id="connectionFormatTags" type="text" class="border rounded px-3 py-2 w-full" placeholder="example, observation" />
+                                </div>
+                                <div class="md:col-span-2 flex justify-end">
+                                    <button type="submit" id="connectionFormatSubmit" class="btn btn-primary">${state.connectionFormatFormState.editingId ? 'Save Format' : 'Add Format'}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="border border-gray-200 rounded-lg bg-white p-4 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-semibold">Concrete Connections</div>
+                                <p class="text-sm text-gray-500">Track specific edges between entities using the formats above as guidance.</p>
                             </div>
                             ${state.connectionFormState.editingId ? '<button class="btn btn-secondary btn-sm" id="resetConnectionForm">Clear</button>' : ''}
                         </div>
-                        <form id="connectionForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label class="form-label">Subject Type</label>
-                                <select id="connectionSubjectType" class="border rounded px-3 py-2 w-full">
-                                    <option value="">Select type</option>
-                                    <option value="Record">Record</option>
-                                    <option value="Field">Field</option>
-                                    <option value="Set">Set</option>
-                                    <option value="Connection">Connection</option>
-                                    <option value="ViewEntity">ViewEntity</option>
-                                </select>
+                        <div class="flex flex-wrap gap-2">
+                            ${Object.keys(connectionFilters).map(key => `<button class="btn btn-secondary btn-sm ${connectionFilterKey === key ? 'btn-primary' : ''}" data-conn-filter="${key}">${key === 'all' ? 'All connections' : key}</button>`).join('')}
+                        </div>
+                        ${renderConnectionsTable(connections)}
+                        <div class="border border-gray-100 rounded-lg bg-gray-50 p-4 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-semibold">${state.connectionFormState.editingId ? 'Edit Connection' : 'Add Connection'}</div>
+                                    <p class="text-sm text-gray-500">Link any two entities with operator + mode.</p>
+                                </div>
                             </div>
-                            <div>
-                                <label class="form-label">Subject ID</label>
-                                <input id="connectionSubjectId" type="text" class="border rounded px-3 py-2 w-full" />
-                            </div>
-                            <div>
-                                <label class="form-label">Operator</label>
-                                <input id="connectionOperator" type="text" class="border rounded px-3 py-2 w-full" placeholder="CON" />
-                            </div>
-                            <div>
-                                <label class="form-label">Mode</label>
-                                <input id="connectionMode" type="text" class="border rounded px-3 py-2 w-full" placeholder="is linked to" />
-                                <p class="text-xs text-gray-500 mt-1" id="connectionModeHint"></p>
-                            </div>
-                            <div>
-                                <label class="form-label">Operand Type</label>
-                                <select id="connectionOperandType" class="border rounded px-3 py-2 w-full">
-                                    <option value="">Select type</option>
-                                    <option value="Record">Record</option>
-                                    <option value="Field">Field</option>
-                                    <option value="Set">Set</option>
-                                    <option value="Connection">Connection</option>
-                                    <option value="ViewEntity">ViewEntity</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="form-label">Operand ID</label>
-                                <input id="connectionOperandId" type="text" class="border rounded px-3 py-2 w-full" />
-                            </div>
-                            <div>
-                                <label class="form-label">Description</label>
-                                <input id="connectionDescription" type="text" class="border rounded px-3 py-2 w-full" placeholder="Optional" />
-                            </div>
-                            <div>
-                                <label class="form-label">Params (JSON)</label>
-                                <textarea id="connectionParams" class="border rounded px-3 py-2 w-full h-24" placeholder='{"reason": "example"}'></textarea>
-                            </div>
-                            <div class="md:col-span-2 flex justify-end">
-                                <button type="submit" id="connectionSubmit" class="btn btn-primary">${state.connectionFormState.editingId ? 'Save Connection' : 'Add Connection'}</button>
-                            </div>
-                        </form>
+                            <form id="connectionForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="form-label">Subject Type</label>
+                                    <select id="connectionSubjectType" class="border rounded px-3 py-2 w-full">
+                                        <option value="">Select type</option>
+                                        <option value="Record">Record</option>
+                                        <option value="Field">Field</option>
+                                        <option value="Set">Set</option>
+                                        <option value="Connection">Connection</option>
+                                        <option value="ViewEntity">ViewEntity</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label">Subject ID</label>
+                                    <input id="connectionSubjectId" type="text" class="border rounded px-3 py-2 w-full" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Operator</label>
+                                    <input id="connectionOperator" type="text" class="border rounded px-3 py-2 w-full" placeholder="CON" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Mode</label>
+                                    <input id="connectionMode" type="text" class="border rounded px-3 py-2 w-full" placeholder="is linked to" />
+                                    <p class="text-xs text-gray-500 mt-1" id="connectionModeHint"></p>
+                                </div>
+                                <div>
+                                    <label class="form-label">Operand Type</label>
+                                    <select id="connectionOperandType" class="border rounded px-3 py-2 w-full">
+                                        <option value="">Select type</option>
+                                        <option value="Record">Record</option>
+                                        <option value="Field">Field</option>
+                                        <option value="Set">Set</option>
+                                        <option value="Connection">Connection</option>
+                                        <option value="ViewEntity">ViewEntity</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label">Operand ID</label>
+                                    <input id="connectionOperandId" type="text" class="border rounded px-3 py-2 w-full" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Description</label>
+                                    <input id="connectionDescription" type="text" class="border rounded px-3 py-2 w-full" placeholder="Optional" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Params (JSON)</label>
+                                    <textarea id="connectionParams" class="border rounded px-3 py-2 w-full h-24" placeholder='{"reason": "example"}'></textarea>
+                                </div>
+                                <div class="md:col-span-2 flex justify-end">
+                                    <button type="submit" id="connectionSubmit" class="btn btn-primary">${state.connectionFormState.editingId ? 'Save Connection' : 'Add Connection'}</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             `;
 
+            document.querySelectorAll('[data-format-filter]').forEach(btn => {
+                btn.onclick = () => renderConnectionsPage(btn.dataset.formatFilter, connectionFilterKey);
+            });
+
+            document.querySelectorAll('[data-format-edit]').forEach(btn => {
+                btn.onclick = () => populateConnectionFormatForm(btn.dataset.formatEdit);
+            });
+
+            document.querySelectorAll('[data-format-delete]').forEach(btn => {
+                btn.onclick = () => {
+                    deleteConnectionFormat(btn.dataset.formatDelete);
+                    renderConnectionsPage(formatFilterKey, connectionFilterKey);
+                    showToast('✓ Format removed');
+                };
+            });
+
             document.querySelectorAll('[data-conn-filter]').forEach(btn => {
-                btn.onclick = () => renderConnectionsPage(btn.dataset.connFilter);
+                btn.onclick = () => renderConnectionsPage(formatFilterKey, btn.dataset.connFilter);
             });
 
             document.querySelectorAll('[data-conn-edit]').forEach(btn => {
@@ -8779,7 +9101,7 @@
             document.querySelectorAll('[data-conn-delete]').forEach(btn => {
                 btn.onclick = () => {
                     deleteConnection(btn.dataset.connDelete);
-                    renderConnectionsPage(filterKey);
+                    renderConnectionsPage(formatFilterKey, connectionFilterKey);
                     showToast('✓ Connection removed');
                 };
             });
@@ -8799,6 +9121,11 @@
             if (connForm) connForm.onsubmit = (event) => { event.preventDefault(); handleConnectionFormSubmit(); };
             const resetBtn = document.getElementById('resetConnectionForm');
             if (resetBtn) resetBtn.onclick = resetConnectionForm;
+
+            const formatForm = document.getElementById('connectionFormatForm');
+            if (formatForm) formatForm.onsubmit = (event) => { event.preventDefault(); handleConnectionFormatFormSubmit(); };
+            const resetFormatBtn = document.getElementById('resetConnectionFormatForm');
+            if (resetFormatBtn) resetFormatBtn.onclick = resetConnectionFormatForm;
         }
 
         // CELL EDITING
