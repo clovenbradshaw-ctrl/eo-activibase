@@ -19,7 +19,8 @@ class EODataStructures {
     scale = 'individual',
     timeframe = null,
     source = null,
-    agent = null
+    agent = null,
+    subject = null
   } = {}) {
     return {
       method, // measured | declared | aggregated | inferred | derived
@@ -27,7 +28,8 @@ class EODataStructures {
       scale, // individual | team | department | organization
       timeframe: timeframe || this.createTimeframe(),
       source: source || { system: 'user_edit' },
-      agent: agent || { type: 'system' }
+      agent: agent || { type: 'system' },
+      subject
     };
   }
 

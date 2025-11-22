@@ -125,13 +125,18 @@ class EOCellModal {
           </div>
 
           <div class="eo-context-item">
+            <span class="eo-context-label">Subject</span>
+            <span class="eo-context-value">${this.formatSubject(ctx.subject)}</span>
+          </div>
+
+          <div class="eo-context-item">
             <span class="eo-context-label">Method</span>
             <span class="eo-context-value eo-badge eo-badge-${ctx.method}">${ctx.method}</span>
           </div>
 
           <div class="eo-context-item">
             <span class="eo-context-label">Definition</span>
-            <span class="eo-context-value">${this.humanize(ctx.definition)}</span>
+            <span class="eo-context-value">${ctx.definition || 'Unknown'}</span>
           </div>
 
           <div class="eo-context-item">
@@ -377,6 +382,17 @@ class EOCellModal {
     }
 
     return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
+  }
+
+  /**
+   * Format subject information
+   */
+  formatSubject(subject) {
+    if (!subject) return 'Unknown subject';
+    const parts = [];
+    if (subject.label) parts.push(subject.label);
+    if (subject.id) parts.push(`(${subject.id})`);
+    return parts.join(' ') || 'Unknown subject';
   }
 
   /**

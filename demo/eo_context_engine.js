@@ -24,6 +24,13 @@ class EOContextEngine {
   }
 
   /**
+   * Normalize field/column names to a consistent token
+   */
+  normalizeFieldName(name = '') {
+    return name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  }
+
+  /**
    * Set the current user for agent tracking
    */
   setCurrentUser(userId, userName) {
@@ -52,14 +59,16 @@ class EOContextEngine {
   }) {
     const timeframe = this.extractTimeframeFromFilename(filename);
     const scale = this.inferScaleFromColumnName(columnName, rowData);
-    const definition = this.inferDefinitionFromColumnName(columnName);
+    const definition = this.inferDefinitionFromColumnName(columnName, rowData);
     const method = this.inferMethodFromValue(value, columnName);
+    const subject = this.inferSubjectFromRow(rowData);
 
     return EODataStructures.createContextSchema({
       method: method || 'measured',
       definition,
       scale,
       timeframe,
+      subject,
       source: {
         system: 'csv_import',
         file: filename
@@ -170,38 +179,62 @@ class EOContextEngine {
   /**
    * Infer definition from column name
    */
-  inferDefinitionFromColumnName(columnName) {
-    const name = columnName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  inferDefinitionFromColumnName(columnName, rowData = {}) {
+    const normalizedColumn = this.normalizeFieldName(columnName);
+    const definitionFromRow = this.findDefinitionForColumn(normalizedColumn, rowData);
 
-    // Revenue patterns
-    if (name.match(/revenue|sales|income/)) {
-      if (name.match(/gaap/)) return 'revenue_gaap';
-      if (name.match(/arr|recurring/)) return 'revenue_arr';
-      return 'revenue_gaap_auto';
+    if (definitionFromRow) return definitionFromRow;
+
+    // If the column itself is a definition identifier, trust the value
+    if (normalizedColumn.endsWith('_definition') || normalizedColumn.endsWith('_definition_id')) {
+      return rowData[columnName] || normalizedColumn.replace(/_(definition|definition_id)$/i, '');
     }
 
-    // Cost patterns
-    if (name.match(/cost|expense|spend/)) {
-      return 'cost_auto';
+    // Default: sanitized column name to keep identifiers stable in demo
+    return normalizedColumn || 'unknown_definition';
+  }
+
+  /**
+   * Find a subject for the given row data
+   */
+  inferSubjectFromRow(rowData = {}) {
+    const subjectIdKey = Object.keys(rowData).find(key => this.normalizeFieldName(key) === 'subject_id');
+    const subjectLabelKey = Object.keys(rowData).find(key => this.normalizeFieldName(key) === 'subject_label');
+    const subjectTypeKey = Object.keys(rowData).find(key => this.normalizeFieldName(key) === 'subject_type');
+
+    if (!subjectIdKey && !subjectLabelKey) return null;
+
+    return {
+      id: subjectIdKey ? rowData[subjectIdKey] : null,
+      label: subjectLabelKey ? rowData[subjectLabelKey] : null,
+      type: subjectTypeKey ? rowData[subjectTypeKey] : 'entity'
+    };
+  }
+
+  /**
+   * Find semantic definition identifiers embedded in the row data
+   */
+  findDefinitionForColumn(normalizedColumn, rowData = {}) {
+    const normalizedEntries = Object.entries(rowData).map(([key, value]) => ({
+      key,
+      normalizedKey: this.normalizeFieldName(key),
+      value
+    }));
+
+    const match = normalizedEntries.find(entry => (
+      entry.normalizedKey === `${normalizedColumn}_definition` ||
+      entry.normalizedKey === `${normalizedColumn}_definition_id`
+    ));
+
+    if (match) return match.value;
+
+    // Look for a generic mapping object (e.g., definitions: { temperature: 'def:temp' })
+    const semanticMapKey = normalizedEntries.find(entry => entry.normalizedKey === 'definitions');
+    if (semanticMapKey && typeof semanticMapKey.value === 'object') {
+      return semanticMapKey.value[normalizedColumn];
     }
 
-    // Score/Rating patterns
-    if (name.match(/score|rating|grade/)) {
-      return 'score_auto';
-    }
-
-    // Count patterns
-    if (name.match(/count|number|quantity/)) {
-      return 'count_auto';
-    }
-
-    // Date patterns
-    if (name.match(/date|time|when/)) {
-      return 'date_auto';
-    }
-
-    // Default: sanitized column name
-    return name || 'unknown';
+    return null;
   }
 
   /**
@@ -244,12 +277,14 @@ class EOContextEngine {
     recordData = {}
   }) {
     const scale = this.inferScaleFromColumnName(columnName, recordData);
-    const definition = this.inferDefinitionFromColumnName(columnName);
+    const definition = this.inferDefinitionFromColumnName(columnName, recordData);
+    const subject = this.inferSubjectFromRow(recordData);
 
     return EODataStructures.createContextSchema({
       method: 'declared',
       definition,
       scale,
+      subject,
       timeframe: {
         granularity: 'instant',
         start: new Date().toISOString(),
@@ -270,7 +305,7 @@ class EOContextEngine {
   }) {
     const scale = this.inferScaleFromColumnName(columnName);
     const definition = this.inferDefinitionFromColumnName(columnName);
-
+    
     return EODataStructures.createContextSchema({
       method: 'derived',
       definition,
@@ -298,12 +333,14 @@ class EOContextEngine {
     recordData = {}
   }) {
     const scale = this.inferScaleFromColumnName(columnName, recordData);
-    const definition = this.inferDefinitionFromColumnName(columnName);
+    const definition = this.inferDefinitionFromColumnName(columnName, recordData);
+    const subject = this.inferSubjectFromRow(recordData);
 
     return EODataStructures.createContextSchema({
       method: 'inferred',
       definition,
       scale,
+      subject,
       timeframe: {
         granularity: 'instant',
         start: new Date().toISOString(),
