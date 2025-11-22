@@ -4797,27 +4797,99 @@
                 notes: 'C = (F - 32) × 5/9 defined as a record for traversal'
             });
 
+            const cToFDefinitionId = addRecord(conversionDefinitionsId, {
+                name: 'Celsius → Fahrenheit',
+                from_unit: celsiusUnitId,
+                to_unit: fahrenheitUnitId,
+                pre_offset: 0,
+                scale: 9 / 5,
+                post_offset: 32,
+                notes: 'F = C × 9/5 + 32 for bi-directional conversions'
+            });
+
             createConnection(fahrenheitUnitId, fToCDefinitionId, { relationship: 'unit_conversion', role: 'from' });
             createConnection(fToCDefinitionId, celsiusUnitId, { relationship: 'unit_conversion', role: 'to' });
+            createConnection(celsiusUnitId, cToFDefinitionId, { relationship: 'unit_conversion', role: 'from' });
+            createConnection(cToFDefinitionId, fahrenheitUnitId, { relationship: 'unit_conversion', role: 'to' });
 
             createView(temperatureUnitsId, 'Units', { type: 'grid' });
             createView(conversionDefinitionsId, 'Conversions', { type: 'grid' });
 
             temperatureReadingsSet.schema = [
-                { id: 'label', name: 'Reading Label', type: 'TEXT', width: '200px' },
+                { id: 'label', name: 'Reading Label', type: 'TEXT', width: '220px' },
+                { id: 'location', name: 'Location', type: 'TEXT', width: '180px' },
+                {
+                    id: 'source_tool',
+                    name: 'Source Tool',
+                    type: 'SINGLE_SELECT',
+                    width: '170px',
+                    config: {
+                        options: ['Weather API', 'Roof Probe', 'Drone Thermometer', 'Water Buoy', 'HVAC Telemetry'],
+                        colors: {
+                            'Weather API': 'blue',
+                            'Roof Probe': 'green',
+                            'Drone Thermometer': 'purple',
+                            'Water Buoy': 'cyan',
+                            'HVAC Telemetry': 'yellow'
+                        }
+                    }
+                },
+                { id: 'collected_at', name: 'Collected At', type: 'DATE', width: '140px' },
                 { id: 'value', name: 'Value', type: 'NUMBER', width: '120px' },
                 { id: 'unit', name: 'Unit', type: 'LINK_RECORD', width: '160px', config: { linkedSetId: temperatureUnitsId } }
             ];
 
-            const readingFahrenheitId = addRecord(temperatureReadingsId, {
-                label: 'Outdoor Sensor (°F)',
-                value: 77,
+            const acmeFahrenheitId = addRecord(temperatureReadingsId, {
+                label: 'Acme Township Weather API (°F)',
+                location: 'Acme Township',
+                source_tool: 'Weather API',
+                collected_at: '2024-02-05',
+                value: 86,
                 unit: fahrenheitUnitId
             });
 
-            const readingCelsiusId = addRecord(temperatureReadingsId, {
-                label: 'Outdoor Sensor (°C)',
-                value: 25,
+            const acmeCelsiusId = addRecord(temperatureReadingsId, {
+                label: 'Acme Township Drone Sensor (°C)',
+                location: 'Acme Township',
+                source_tool: 'Drone Thermometer',
+                collected_at: '2024-02-05',
+                value: 30,
+                unit: celsiusUnitId
+            });
+
+            const harborFahrenheitId = addRecord(temperatureReadingsId, {
+                label: 'Harbor Wharf Roof Probe (°F)',
+                location: 'Harbor Wharf',
+                source_tool: 'Roof Probe',
+                collected_at: '2024-02-06',
+                value: 64,
+                unit: fahrenheitUnitId
+            });
+
+            const harborCelsiusId = addRecord(temperatureReadingsId, {
+                label: 'Harbor Wharf Buoy Sensor (°C)',
+                location: 'Harbor Wharf',
+                source_tool: 'Water Buoy',
+                collected_at: '2024-02-06',
+                value: 18,
+                unit: celsiusUnitId
+            });
+
+            const northbankFahrenheitId = addRecord(temperatureReadingsId, {
+                label: 'Northbank Plaza HVAC (°F)',
+                location: 'Northbank Plaza',
+                source_tool: 'HVAC Telemetry',
+                collected_at: '2024-02-04',
+                value: 73,
+                unit: fahrenheitUnitId
+            });
+
+            const northbankCelsiusId = addRecord(temperatureReadingsId, {
+                label: 'Northbank Plaza Roof Array (°C)',
+                location: 'Northbank Plaza',
+                source_tool: 'Roof Probe',
+                collected_at: '2024-02-04',
+                value: 22,
                 unit: celsiusUnitId
             });
 
@@ -4903,9 +4975,21 @@
             ];
 
             addRecord(temperatureObservationsId, {
-                name: 'Outdoor Bench Reading',
-                fahrenheit_observation: readingFahrenheitId,
-                celsius_observation: readingCelsiusId
+                name: 'Acme Township',
+                fahrenheit_observation: acmeFahrenheitId,
+                celsius_observation: acmeCelsiusId
+            });
+
+            addRecord(temperatureObservationsId, {
+                name: 'Harbor Wharf',
+                fahrenheit_observation: harborFahrenheitId,
+                celsius_observation: harborCelsiusId
+            });
+
+            addRecord(temperatureObservationsId, {
+                name: 'Northbank Plaza',
+                fahrenheit_observation: northbankFahrenheitId,
+                celsius_observation: northbankCelsiusId
             });
 
             createView(temperatureObservationsId, 'Observations', { type: 'grid' });
