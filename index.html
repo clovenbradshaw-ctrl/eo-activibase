@@ -7898,6 +7898,17 @@
                 tr.dataset.recordId = record.id;
                 tr.ondblclick = () => openExpandedRecord(record.id);
 
+                tr.onclick = (event) => {
+                    if (event.defaultPrevented) return;
+
+                    const interactiveTarget = event.target.closest(
+                        'button, a, input, select, textarea, label, [contenteditable="true"], .cell-editing'
+                    );
+                    if (interactiveTarget) return;
+
+                    handleRecordSelection(record.id, event.shiftKey, records);
+                };
+
                 const selectTd = document.createElement('td');
                 selectTd.className = 'row-select-cell';
                 const checkboxId = `select-${record.id}`;
