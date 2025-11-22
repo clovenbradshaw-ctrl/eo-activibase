@@ -92,3 +92,29 @@ runTest('aliases map pretty names to immutable ids', () => {
   assert.strictEqual(result.result, 'hello');
   assert.strictEqual(result.normalizedFormula, '{stable_id}');
 });
+
+runTest('handles records with display names as keys', () => {
+  const service = createService();
+  const schema = [
+    { id: 'date_field', name: 'DATE', type: 'DATE' },
+    { id: 'name_field', name: 'Name', type: 'TEXT' }
+  ];
+
+  // Record using display names instead of field IDs
+  const record = {
+    'DATE': new Date('2025-01-15'),
+    'Name': 'Test Record'
+  };
+
+  const dateResult = service.evaluateForRecord('{DATE}', record, schema);
+  assert.strictEqual(dateResult.success, true);
+  assert.ok(dateResult.result instanceof Date);
+
+  const formulaResult = service.evaluateForRecord('DATESTR({DATE})', record, schema);
+  assert.strictEqual(formulaResult.success, true);
+  assert.strictEqual(formulaResult.result, '2025-01-15');
+
+  const multiFieldResult = service.evaluateForRecord('{Name} & " - " & DATESTR({DATE})', record, schema);
+  assert.strictEqual(multiFieldResult.success, true);
+  assert.strictEqual(multiFieldResult.result, 'Test Record - 2025-01-15');
+});
