@@ -376,7 +376,12 @@
                         this.schema
                     );
 
-                    return result.result !== undefined ? result.result : 'Error';
+                    if (result.success) {
+                        return result.value;
+                    } else {
+                        console.error('Formula error:', result.error);
+                        return 'Error';
+                    }
                 } catch (error) {
                     console.error('Formula evaluation error:', error);
                     return 'Error';

@@ -61,7 +61,12 @@ evaluateFormula(formulaField, recordId) {
         recordData,
         this.schema
     );
-    return result.result;
+    if (result.success) {
+        return result.value;
+    } else {
+        console.error('Formula error:', result.error);
+        return 'Error';
+    }
 }
 ```
 
