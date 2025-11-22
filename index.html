@@ -1548,7 +1548,13 @@
         .view-stage-name { font-weight: 800; font-size: 16px; letter-spacing: -0.01em; color: #0f172a; }
         .view-stage-sub { color: #64748b; font-size: 13px; font-weight: 600; }
 
-        .view-stage-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+        .view-stage-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: space-between; }
+        .view-stage-actions .primary-actions { flex-wrap: wrap; }
+        .view-stage-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .view-stage-inline-actions { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .selection-indicator { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-weight: 700; font-size: 12px; }
+        .selection-indicator.hidden { display: none; }
+        .selection-indicator i { font-size: 14px; }
 
         .view-stage-body { padding: 14px 16px 18px; background: #ffffff; flex: 1; }
 
@@ -1559,6 +1565,12 @@
             background: #ffffff;
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
         }
+
+        .selection-header { width: 46px; text-align: center; }
+        .row-select-cell { width: 46px; text-align: center; }
+        .row-select-cell input { width: 16px; height: 16px; }
+        .row-selected td { background: #eef2ff; }
+        .row-selected:hover td { background: #e0e7ff; }
 
         .json-tab {
             padding: 12px 20px;
@@ -1722,16 +1734,7 @@
         <div class="app-header">
             <div class="toolbar">
                 <div class="toolbar-left">
-                    <div class="toolbar-inline-actions">
-                        <button id="filterBtn" class="btn btn-secondary btn-sm">
-                            <i class="ph ph-funnel-simple"></i>
-                            Filter
-                        </button>
-                        <button id="sortBtn" class="btn btn-secondary btn-sm">
-                            <i class="ph ph-arrows-down-up"></i>
-                            Sort
-                        </button>
-                    </div>
+                    <div class="text-sm text-gray-500">Manage filters and sorts from the view surface.</div>
                 </div>
             </div>
         </div>
@@ -2574,6 +2577,8 @@
             popupEventStream: [],
             popupDraggedField: null,
             iconPickerPage: 1,
+            selectedRecordIds: new Set(),
+            lastSelectedRecordId: null,
             selectedCell: null,
             lastSelectedCell: null,
             editingCell: null,
@@ -4605,6 +4610,15 @@
             const addFieldBtn = document.getElementById('addFieldBtn');
             if (addFieldBtn) addFieldBtn.onclick = openAddFieldModal;
 
+            const filterBtn = document.getElementById('filterBtn');
+            if (filterBtn) filterBtn.onclick = openFilterModal;
+
+            const sortBtn = document.getElementById('sortBtn');
+            if (sortBtn) sortBtn.onclick = openSortModal;
+
+            const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+            if (deleteSelectedBtn) deleteSelectedBtn.onclick = handleDeleteSelectedRecords;
+
             const toolbarActions = [
                 ['popupSettingsBtn', openPopupSettingsModal],
                 ['historyBtn', () => {
@@ -4627,11 +4641,31 @@
         function renderViewActions(extraControls = '') {
             return `
                 <div class="view-stage-actions">
-                    <div class="primary-actions">
-                        <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
-                        <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
+                    <div class="view-stage-controls">
+                        <div class="primary-actions">
+                            <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
+                            <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
+                        </div>
+                        <div class="view-stage-inline-actions">
+                            <button id="filterBtn" class="btn btn-secondary btn-sm">
+                                <i class="ph ph-funnel-simple"></i>
+                                Filter
+                            </button>
+                            <button id="sortBtn" class="btn btn-secondary btn-sm">
+                                <i class="ph ph-arrows-down-up"></i>
+                                Sort
+                            </button>
+                        </div>
                     </div>
                     <div class="flex items-center gap-2">
+                        <div id="selectionIndicator" class="selection-indicator hidden">
+                            <i class="ph ph-check-square-offset"></i>
+                            <span><span id="selectedCount">0</span> selected</span>
+                        </div>
+                        <button id="deleteSelectedBtn" class="btn btn-danger btn-sm" disabled>
+                            <i class="ph ph-trash"></i>
+                            Delete
+                        </button>
                         ${extraControls}
                         <div class="toolbar-menu">
                             <button id="toolbarMenuToggle" class="btn btn-secondary btn-sm toolbar-menu-toggle">
@@ -6634,6 +6668,100 @@
             if (typeof view.showRecordId === 'undefined') view.showRecordId = false;
         }
 
+        function syncSelectionState(visibleRecords = []) {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            const visibleIds = visibleRecords.map(r => r.id);
+            const validIds = new Set(visibleIds.length ? visibleIds : Array.from(set.records.keys()));
+            state.selectedRecordIds = new Set(
+                [...(state.selectedRecordIds || new Set())].filter(id => validIds.has(id))
+            );
+
+            if (state.selectedRecordIds.size === 0) state.lastSelectedRecordId = null;
+        }
+
+        function handleRecordSelection(recordId, isRange, orderedRecords = []) {
+            const visibleIds = orderedRecords.map(r => r.id);
+            if (!state.selectedRecordIds) state.selectedRecordIds = new Set();
+
+            if (isRange && state.lastSelectedRecordId && visibleIds.includes(state.lastSelectedRecordId)) {
+                const startIndex = visibleIds.indexOf(state.lastSelectedRecordId);
+                const endIndex = visibleIds.indexOf(recordId);
+                if (startIndex >= 0 && endIndex >= 0) {
+                    const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+                    for (let i = from; i <= to; i++) {
+                        state.selectedRecordIds.add(visibleIds[i]);
+                    }
+                }
+            } else {
+                if (state.selectedRecordIds.has(recordId)) state.selectedRecordIds.delete(recordId);
+                else state.selectedRecordIds.add(recordId);
+                state.lastSelectedRecordId = recordId;
+            }
+
+            updateSelectionUI(orderedRecords);
+        }
+
+        function updateSelectionUI(visibleRecords = []) {
+            const rows = document.querySelectorAll('#tableBody tr');
+            rows.forEach(row => {
+                const id = row.dataset.recordId;
+                const isSelected = state.selectedRecordIds?.has(id);
+                row.classList.toggle('row-selected', !!isSelected);
+                const checkbox = row.querySelector('input[data-row-select]');
+                if (checkbox) checkbox.checked = !!isSelected;
+            });
+
+            const visibleIds = visibleRecords.map(r => r.id);
+            const selectedVisibleCount = visibleIds.filter(id => state.selectedRecordIds?.has(id)).length;
+            const selectAllCheckbox = document.getElementById('selectAllRows');
+            if (selectAllCheckbox) {
+                const allSelected = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
+                selectAllCheckbox.checked = allSelected;
+                selectAllCheckbox.indeterminate = selectedVisibleCount > 0 && !allSelected;
+            }
+
+            const indicator = document.getElementById('selectionIndicator');
+            const countEl = document.getElementById('selectedCount');
+            if (indicator && countEl) {
+                const count = state.selectedRecordIds?.size || 0;
+                indicator.classList.toggle('hidden', count === 0);
+                countEl.textContent = count;
+            }
+
+            const deleteBtn = document.getElementById('deleteSelectedBtn');
+            if (deleteBtn) deleteBtn.disabled = !state.selectedRecordIds || state.selectedRecordIds.size === 0;
+        }
+
+        function handleDeleteSelectedRecords() {
+            const set = getCurrentSet();
+            if (!set || !state.selectedRecordIds || state.selectedRecordIds.size === 0) return;
+
+            const ids = [...state.selectedRecordIds].filter(id => set.records.has(id));
+            if (ids.length === 0) return;
+
+            const message = `Are you sure you want to delete ${ids.length} selected record${ids.length === 1 ? '' : 's'}? ` +
+                'All changes are reversible while within your retention window (future thresholds may limit recovery).';
+
+            showConfirm(message, () => {
+                ids.forEach(recordId => {
+                    set.records.delete(recordId);
+                    createEvent(
+                        'Delete Record',
+                        'NUL',
+                        { type: 'Record', id: recordId, setId: set.id },
+                        { setId: set.id, recordId, summary: 'Record deleted' }
+                    );
+                });
+
+                state.selectedRecordIds.clear();
+                state.lastSelectedRecordId = null;
+                renderCurrentView();
+                showToast('✓ Selected records deleted (reversible while within retention)');
+            });
+        }
+
         function getRecordIdFieldDefinition() {
             return { id: '__recordId', name: 'Record ID', type: 'RECORD_ID', width: '200' };
         }
@@ -6876,6 +7004,8 @@
             const recordCount = records.length;
             const recordLabel = recordCount === 1 ? 'record' : 'records';
 
+            syncSelectionState(records);
+
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
                 <div class="view-stage-header">
@@ -6904,6 +7034,11 @@
             `;
 
             const headerRow = document.getElementById('tableHeader');
+            const selectAllHeader = document.createElement('th');
+            selectAllHeader.className = 'column-header selection-header';
+            selectAllHeader.innerHTML = `<input type="checkbox" id="selectAllRows" aria-label="Select all rows">`;
+            headerRow.appendChild(selectAllHeader);
+
             tableSchema.forEach(field => {
                 const th = document.createElement('th');
                 th.className = 'column-header';
@@ -6936,6 +7071,18 @@
                 const tr = document.createElement('tr');
                 tr.dataset.recordId = record.id;
                 tr.ondblclick = () => openExpandedRecord(record.id);
+
+                const selectTd = document.createElement('td');
+                selectTd.className = 'row-select-cell';
+                const checkboxId = `select-${record.id}`;
+                selectTd.innerHTML = `<input type="checkbox" data-row-select id="${checkboxId}" aria-label="Select record ${record.id}">`;
+                const rowCheckbox = selectTd.querySelector('input');
+                rowCheckbox.checked = state.selectedRecordIds?.has(record.id);
+                rowCheckbox.onchange = (event) => {
+                    event.stopPropagation();
+                    handleRecordSelection(record.id, event.shiftKey, records);
+                };
+                tr.appendChild(selectTd);
 
                 tableSchema.forEach(field => {
                     const td = document.createElement('td');
@@ -7062,7 +7209,18 @@
                 tbody.appendChild(tr);
             });
 
+            const selectAllCheckbox = document.getElementById('selectAllRows');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.onchange = (event) => {
+                    if (!state.selectedRecordIds) state.selectedRecordIds = new Set();
+                    if (event.target.checked) records.forEach(r => state.selectedRecordIds.add(r.id));
+                    else records.forEach(r => state.selectedRecordIds.delete(r.id));
+                    updateSelectionUI(records);
+                };
+            }
+
             finalizeViewStage();
+            updateSelectionUI(records);
         }
 
         function renderCellValue(value, field, record) {
@@ -10284,6 +10442,8 @@
         function deleteRecord(recordId) {
             const set = getCurrentSet();
             set.records.delete(recordId);
+            if (state.selectedRecordIds) state.selectedRecordIds.delete(recordId);
+            if (!state.selectedRecordIds || state.selectedRecordIds.size === 0) state.lastSelectedRecordId = null;
             createEvent(
                 'Delete Record',
                 'NUL',
@@ -10529,8 +10689,10 @@
             const changeLinkToSet = document.getElementById('changeLinkToSet');
             if (changeLinkToSet) changeLinkToSet.onchange = (event) => { state.changeLinkedSetId = event.target.value; };
 
-            document.getElementById('filterBtn').onclick = openFilterModal;
-            document.getElementById('sortBtn').onclick = openSortModal;
+            const filterBtn = document.getElementById('filterBtn');
+            if (filterBtn) filterBtn.onclick = openFilterModal;
+            const sortBtn = document.getElementById('sortBtn');
+            if (sortBtn) sortBtn.onclick = openSortModal;
             document.getElementById('parseCsvTextBtn').onclick = previewCsvFromText;
             document.getElementById('csvFileInput').onchange = handleCsvFileSelected;
             document.getElementById('refreshCsvPreviewBtn').onclick = renderCsvPreview;
