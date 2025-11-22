@@ -3804,24 +3804,21 @@
 
         function recalculateFormulaField(fieldId) {
             const set = getCurrentSet();
-            const field = set.schema.find(f => f.id === fieldId);
+            const field = set?.schema?.find(f => f.id === fieldId);
 
-            if (!field || field.type !== 'FORMULA') return;
-
-            const engine = new FormulaEngine();
-            const service = new FormulaFieldService({ engine });
+            if (!set || !field || field.type !== 'FORMULA') return;
+            if (!state.formulaFieldService || !field.config?.formula) return;
 
             set.records.forEach(record => {
-                try {
-                    const result = service.evaluateForRecord(field.config.formula, record, set.schema);
-                    if (result.success) {
-                        record[fieldId] = result.result;
-                    } else {
-                        record[fieldId] = '#ERROR';
-                    }
-                } catch (error) {
-                    record[fieldId] = '#ERROR';
-                }
+                const evaluation = state.formulaFieldService.evaluateForRecord(
+                    field.config.formula,
+                    record,
+                    set.schema
+                );
+
+                record.__formulaMeta = record.__formulaMeta || {};
+                record.__formulaMeta[field.id] = evaluation;
+                record[field.id] = evaluation.success ? evaluation.result : '#ERROR';
             });
         }
 
