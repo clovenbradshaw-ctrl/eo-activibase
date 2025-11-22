@@ -934,7 +934,22 @@
             color: #9ca3af;
             font-size: 14px;
         }
-        
+
+        /* GRAPH VIEW */
+        .graph-container {
+            width: 100%;
+            height: 100%;
+            min-height: 600px;
+            background: #fafbfc;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .graph-node:hover circle {
+            fill: #2563eb;
+            stroke: #1e3a8a;
+        }
+
         /* CONTEXT MENU */
         .context-menu {
             position: fixed;
@@ -1200,6 +1215,29 @@
           }
           input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
           .input-error { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15); }
+
+          .view-type-option { position: relative; cursor: pointer; }
+          .view-type-option input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+          .view-type-option-content {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 8px;
+              padding: 16px;
+              border: 2px solid #e5e7eb;
+              border-radius: 8px;
+              background: white;
+              transition: all 0.15s ease;
+          }
+          .view-type-option-content i { font-size: 24px; color: #6b7280; }
+          .view-type-option-content span { font-size: 13px; font-weight: 500; color: #374151; }
+          .view-type-option:hover .view-type-option-content { border-color: #3b82f6; background: #f0f9ff; }
+          .view-type-option input[type="radio"]:checked + .view-type-option-content {
+              border-color: #3b82f6;
+              background: #eff6ff;
+          }
+          .view-type-option input[type="radio"]:checked + .view-type-option-content i { color: #3b82f6; }
+
           ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #f3f4f6; }
         ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
@@ -1344,103 +1382,62 @@
         .view-tabs {
             display: flex;
             align-items: flex-end;
-            gap: 8px;
-            padding: 6px 10px 0;
+            gap: 2px;
+            padding: 0 16px;
             background: transparent;
             overflow-x: auto;
             position: relative;
-        }
-
-        .view-tabs::after {
-            content: '';
-            position: absolute;
-            left: 8px;
-            right: 8px;
-            bottom: 0;
-            height: 1px;
-            background: #d8dee9;
+            border-bottom: 1px solid #e5e7eb;
         }
 
         .view-tab {
             position: relative;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px 14px 10px 12px;
-            border-radius: 12px 12px 0 0;
-            border: 1px solid #d8dee9;
-            border-bottom: 0;
-            background: linear-gradient(180deg, #ffffff 0%, #f6f8fb 100%);
+            gap: 8px;
+            padding: 10px 16px;
+            border-bottom: 2px solid transparent;
+            background: transparent;
             cursor: pointer;
-            min-width: 140px;
-            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
             transition: all 0.15s ease;
-            color: #0f172a;
-            overflow: visible;
-            isolation: isolate;
-            margin-bottom: -1px;
-        }
-
-        .view-tab::before {
-            content: '';
-            position: absolute;
-            top: -9px;
-            left: 14px;
-            width: 42px;
-            height: 11px;
-            background: #eef1f7;
-            border: 1px solid #d8dee9;
-            border-bottom: none;
-            border-radius: 12px 12px 0 0;
-            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
-            transition: all 0.15s ease;
+            color: #6b7280;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .view-tab:hover {
-            background: #ffffff;
-            border-color: #c7d2fe;
-            box-shadow: 0 12px 26px rgba(59, 130, 246, 0.16);
+            background: #f9fafb;
+            color: #374151;
         }
-
-        .view-tab:hover::before { background: #e5e7ff; border-color: #c7d2fe; box-shadow: 0 10px 22px rgba(59, 130, 246, 0.12); }
 
         .view-tab.active {
-            background: #ffffff;
-            border-color: #cbd5e1;
+            background: transparent;
+            border-bottom-color: #3b82f6;
             color: #111827;
-            box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
-        }
-
-        .view-tab.active::before {
-            background: linear-gradient(135deg, #e0e7ff 0%, #d9e4ff 100%);
-            border-color: #cbd5e1;
-            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
         }
 
         .view-tab-icon {
             color: inherit;
             font-size: 16px;
-            background: #e7ebf5;
-            border-radius: 10px;
-            padding: 7px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            opacity: 0.7;
         }
 
-        .view-tab-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-        .view-tab-name { font-weight: 700; font-size: 14px; color: inherit; white-space: nowrap; }
+        .view-tab.active .view-tab-icon {
+            opacity: 1;
+        }
+
+        .view-tab-text { display: flex; align-items: center; gap: 6px; min-width: 0; }
+        .view-tab-name { font-weight: 500; font-size: 13px; color: inherit; white-space: nowrap; }
         .view-tab-meta {
             font-size: 11px;
-            color: #475569;
-            background: #e2e8f0;
-            padding: 3px 10px 3px;
-            border-radius: 10px;
-            width: fit-content;
+            color: #9ca3af;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: #f3f4f6;
             letter-spacing: 0.01em;
-            text-transform: capitalize;
-            border: 1px solid #cbd5e1;
         }
 
         .view-tab-actions {
@@ -1478,14 +1475,13 @@
 
         .view-surface {
             background: #ffffff;
-            border: 1px solid #d8dee9;
-            border-radius: 14px;
-            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+            border: 1px solid #e5e7eb;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
             overflow: hidden;
             min-height: 420px;
             display: flex;
             flex-direction: column;
-            margin-top: -1px;
         }
 
         .view-stage-header {
@@ -1694,20 +1690,6 @@
         <div class="app-header">
             <div class="toolbar">
                 <div class="toolbar-left">
-                    <div class="view-type-switcher">
-                        <button class="view-type-btn active" data-type="grid" onclick="switchViewType('grid')">
-                            <i class="ph ph-table"></i>
-                            <span>Grid</span>
-                        </button>
-                        <button class="view-type-btn" data-type="card" onclick="switchViewType('card')">
-                            <i class="ph ph-cards-three"></i>
-                            <span>Card</span>
-                        </button>
-                        <button class="view-type-btn" data-type="kanban" onclick="switchViewType('kanban')">
-                            <i class="ph ph-kanban"></i>
-                            <span>Kanban</span>
-                        </button>
-                    </div>
                     <div class="toolbar-inline-actions">
                         <button id="filterBtn" class="btn btn-secondary btn-sm">
                             <i class="ph ph-funnel-simple"></i>
@@ -2178,6 +2160,39 @@
                         <span class="icon-selector-chevron">▼</span>
                     </div>
                     <input type="hidden" id="newViewIcon" value="ph-table">
+                </div>
+                <div>
+                    <label class="form-label">View Type</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="view-type-option">
+                            <input type="radio" name="newViewType" value="grid" checked>
+                            <div class="view-type-option-content">
+                                <i class="ph ph-table"></i>
+                                <span>Table</span>
+                            </div>
+                        </label>
+                        <label class="view-type-option">
+                            <input type="radio" name="newViewType" value="card">
+                            <div class="view-type-option-content">
+                                <i class="ph ph-cards-three"></i>
+                                <span>Cards</span>
+                            </div>
+                        </label>
+                        <label class="view-type-option">
+                            <input type="radio" name="newViewType" value="kanban">
+                            <div class="view-type-option-content">
+                                <i class="ph ph-kanban"></i>
+                                <span>Kanban</span>
+                            </div>
+                        </label>
+                        <label class="view-type-option">
+                            <input type="radio" name="newViewType" value="graph">
+                            <div class="view-type-option-content">
+                                <i class="ph ph-graph"></i>
+                                <span>Graph</span>
+                            </div>
+                        </label>
+                    </div>
                 </div>
                 <div>
                     <label class="form-label">Nest Under</label>
@@ -3824,7 +3839,7 @@
             FORMULA: { id: 'FORMULA', name: 'Formula', description: 'Calculated values using the repo\'s JavaScript formula rules', defaultValue: '', icon: 'ph-equals', needsConfig: true }
         };
 
-        const VIEW_TYPE_ICONS = { grid: 'ph-table', card: 'ph-cards-three', kanban: 'ph-kanban', KEY_DERIVED: 'ph-key' };
+        const VIEW_TYPE_ICONS = { grid: 'ph-table', card: 'ph-cards-three', kanban: 'ph-kanban', graph: 'ph-graph', KEY_DERIVED: 'ph-key' };
 
         const ICON_OPTIONS = [
             // Organization & Layout
@@ -6051,12 +6066,6 @@
             const view = getCurrentView();
             if (!view) return;
             view.type = type;
-            
-            // Update button states
-            document.querySelectorAll('.view-type-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.type === type) btn.classList.add('active');
-            });
 
             renderCurrentView();
             updateMobileChrome();
@@ -6072,12 +6081,6 @@
 
             ensureViewDefaults(view);
 
-            // Update view type buttons
-            document.querySelectorAll('.view-type-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.type === view.type) btn.classList.add('active');
-            });
-
             updateMobileChrome();
 
             switch(view.type) {
@@ -6089,6 +6092,9 @@
                     break;
                 case 'kanban':
                     renderKanbanView();
+                    break;
+                case 'graph':
+                    renderGraphView();
                     break;
                 case 'KEY_DERIVED':
                     renderKeyDerivedView();
@@ -6955,13 +6961,199 @@
                 showConfirm('Please select a field to group by', () => {});
                 return;
             }
-            
+
             const view = getCurrentView();
             view.kanbanGroupField = fieldId;
-            
+
             closeModal('kanbanConfigModal');
             renderKanbanView();
             showToast('✓ Kanban configured');
+        }
+
+        // GRAPH VIEW
+        function renderGraphView() {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+
+            let records = Array.from(set.records.values());
+            if (view.filters.length > 0) records = applyFilterGroups(records, view.filters, set.schema);
+
+            const recordCount = records.length;
+            const recordLabel = recordCount === 1 ? 'record' : 'records';
+
+            const container = document.getElementById('viewContainer');
+            container.innerHTML = `
+                <div class="view-stage-header">
+                    <div class="view-stage-title">
+                        <span class="view-stage-pill">${set.name}</span>
+                        <div class="min-w-0">
+                            <div class="view-stage-name">${view.name}</div>
+                            <div class="view-stage-sub">Graph view · ${recordCount} ${recordLabel}</div>
+                        </div>
+                    </div>
+                    <div class="view-stage-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">Column Rules</button>
+                    </div>
+                </div>
+                <div class="view-stage-body">
+                    <div class="graph-container" id="graphContainer">
+                        <svg id="graphSvg" width="100%" height="100%"></svg>
+                    </div>
+                </div>
+            `;
+
+            renderGraph(records, set);
+        }
+
+        function renderGraph(records, set) {
+            const container = document.getElementById('graphContainer');
+            const svg = document.getElementById('graphSvg');
+            const width = container.clientWidth;
+            const height = container.clientHeight || 600;
+
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+            svg.innerHTML = '';
+
+            if (records.length === 0) {
+                svg.innerHTML = `<text x="${width/2}" y="${height/2}" text-anchor="middle" fill="#9ca3af" font-size="14">No records to display</text>`;
+                return;
+            }
+
+            // Build nodes and links
+            const nodes = records.map((record, i) => {
+                const primaryField = set.schema[0];
+                const label = record[primaryField?.id] || 'Untitled';
+                return {
+                    id: record.id,
+                    label: String(label).substring(0, 20),
+                    record: record,
+                    x: Math.random() * (width - 100) + 50,
+                    y: Math.random() * (height - 100) + 50,
+                    vx: 0,
+                    vy: 0
+                };
+            });
+
+            const links = [];
+            const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+            // Find relationship fields and create links
+            set.schema.forEach(field => {
+                if (field.type === 'RELATIONSHIP') {
+                    records.forEach(record => {
+                        const value = record[field.id];
+                        if (Array.isArray(value)) {
+                            value.forEach(targetId => {
+                                if (nodeMap.has(targetId)) {
+                                    links.push({
+                                        source: nodeMap.get(record.id),
+                                        target: nodeMap.get(targetId)
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Simple force-directed layout simulation
+            const iterations = 50;
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            for (let i = 0; i < iterations; i++) {
+                // Apply forces
+                nodes.forEach(node => {
+                    // Center gravity
+                    const dx = centerX - node.x;
+                    const dy = centerY - node.y;
+                    node.vx += dx * 0.01;
+                    node.vy += dy * 0.01;
+
+                    // Repulsion from other nodes
+                    nodes.forEach(other => {
+                        if (node === other) return;
+                        const dx = node.x - other.x;
+                        const dy = node.y - other.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                        const force = 1000 / (dist * dist);
+                        node.vx += (dx / dist) * force;
+                        node.vy += (dy / dist) * force;
+                    });
+                });
+
+                // Link attraction
+                links.forEach(link => {
+                    const dx = link.target.x - link.source.x;
+                    const dy = link.target.y - link.source.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const force = dist * 0.01;
+                    link.source.vx += (dx / dist) * force;
+                    link.source.vy += (dy / dist) * force;
+                    link.target.vx -= (dx / dist) * force;
+                    link.target.vy -= (dy / dist) * force;
+                });
+
+                // Update positions with damping
+                nodes.forEach(node => {
+                    node.x += node.vx;
+                    node.y += node.vy;
+                    node.vx *= 0.8;
+                    node.vy *= 0.8;
+
+                    // Keep nodes in bounds
+                    node.x = Math.max(40, Math.min(width - 40, node.x));
+                    node.y = Math.max(40, Math.min(height - 40, node.y));
+                });
+            }
+
+            // Render links
+            const linkGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            linkGroup.setAttribute('class', 'links');
+            links.forEach(link => {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', link.source.x);
+                line.setAttribute('y1', link.source.y);
+                line.setAttribute('x2', link.target.x);
+                line.setAttribute('y2', link.target.y);
+                line.setAttribute('stroke', '#cbd5e1');
+                line.setAttribute('stroke-width', '2');
+                linkGroup.appendChild(line);
+            });
+            svg.appendChild(linkGroup);
+
+            // Render nodes
+            const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            nodeGroup.setAttribute('class', 'nodes');
+            nodes.forEach(node => {
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('class', 'graph-node');
+                g.setAttribute('transform', `translate(${node.x},${node.y})`);
+                g.style.cursor = 'pointer';
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('r', '30');
+                circle.setAttribute('fill', '#3b82f6');
+                circle.setAttribute('stroke', '#1e40af');
+                circle.setAttribute('stroke-width', '2');
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('dy', '0.3em');
+                text.setAttribute('fill', 'white');
+                text.setAttribute('font-size', '11');
+                text.setAttribute('font-weight', '600');
+                text.textContent = node.label;
+
+                g.appendChild(circle);
+                g.appendChild(text);
+                g.onclick = () => openExpandedRecord(node.id);
+
+                nodeGroup.appendChild(g);
+            });
+            svg.appendChild(nodeGroup);
         }
 
         // CELL EDITING
@@ -9707,6 +9899,7 @@
                 const icon = extractIconToken(document.getElementById('newViewIcon').value.trim() || 'ph-table');
                 const parentId = document.getElementById('newViewParent').value || null;
                 const creationMode = document.querySelector('input[name="viewCreationMode"]:checked')?.value || 'blank';
+                const viewType = document.querySelector('input[name="newViewType"]:checked')?.value || 'grid';
                 const keyCandidate = document.getElementById('keyCandidateSelect')?.value || '';
                 if (!name) { showConfirm('Please enter a view name', () => {}); return; }
                 const set = state.sets.get(state.viewEditorContext?.setId || state.currentSetId);
@@ -9760,7 +9953,7 @@
                         switchSet(keySetId, viewId);
                         showToast('✓ Generated view from key');
                     } else {
-                        const viewId = createView(setId, name, { type: 'grid', icon, parentId });
+                        const viewId = createView(setId, name, { type: viewType, icon, parentId });
                         closeModal('addViewModal');
                         document.getElementById('newViewName').value = '';
                         document.getElementById('newViewIcon').value = 'ph-table';
