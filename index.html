@@ -697,6 +697,22 @@
         }
         .column-header:hover { background: var(--muted-surface); }
 
+        .name-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+            padding: 4px 6px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #312e81;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            border: 1px solid #c7d2fe;
+        }
+
         body.column-dragging { cursor: grabbing; }
         .column-being-dragged { opacity: 0.5; }
 
@@ -6326,7 +6342,8 @@
             const mappedTextField = Object.entries(state.csvImportState.mappings)
                 .map(([, fieldId]) => set.schema.find(f => f.id === fieldId))
                 .find(f => f && ['TEXT', 'LONG_TEXT'].includes(f.type));
-            return mappedTextField?.id || textFields[0]?.id || set.schema[0]?.id;
+            const nameFieldId = getNameFieldId(set);
+            return mappedTextField?.id || textFields[0]?.id || nameFieldId;
         }
 
         function renderCsvMatches() {
@@ -6500,7 +6517,10 @@
             if (!set) return [];
             const candidates = Array.from(set.records.values());
             const textFields = set.schema.filter(f => ['TEXT', 'LONG_TEXT'].includes(f.type));
-            const fieldId = textFields[0]?.id || set.schema[0]?.id;
+            const nameField = getNameField(set);
+            const fieldId = ['TEXT', 'LONG_TEXT'].includes(nameField?.type)
+                ? nameField.id
+                : (textFields[0]?.id || set.schema[0]?.id);
             const matches = [];
             for (let i = 0; i < candidates.length; i++) {
                 for (let j = i + 1; j < candidates.length; j++) {
@@ -7232,6 +7252,20 @@
         function getCurrentView() { const set = getCurrentSet(); return set?.views.get(state.currentViewId); }
         function getCurrentProfile() { const set = getCurrentSet(); return set?.profiles.get(state.currentProfileId); }
 
+        function getHiddenFieldIds(view = getCurrentView()) {
+            return new Set(view?.hiddenFields || []);
+        }
+
+        function getVisibleSchema(set = getCurrentSet(), view = getCurrentView(), profile = getCurrentProfile()) {
+            if (!set) return [];
+            const hiddenFields = getHiddenFieldIds(view);
+
+            return set.schema.filter(f => {
+                const profileVisible = !profile || profile.visibleFields.length === 0 || profile.visibleFields.includes(f.id);
+                return profileVisible && !hiddenFields.has(f.id);
+            });
+        }
+
         // VIEW SWITCHING
         function switchViewType(type) {
             const view = getCurrentView();
@@ -7286,10 +7320,14 @@
         }
 
         function ensureViewDefaults(view) {
+            const set = getCurrentSet();
             if (!view.icon) view.icon = VIEW_TYPE_ICONS[view.type] || 'ph-note';
             if (!view.sorts) view.sorts = [];
             if (!view.columnRules) view.columnRules = {};
+            if (!view.hiddenFields) view.hiddenFields = [];
             if (typeof view.showRecordId === 'undefined') view.showRecordId = false;
+            if (typeof view.recordIdPosition !== 'number') view.recordIdPosition = 0;
+            if (!view.identifierField && set?.schema?.[0]) view.identifierField = set.schema[0].id;
         }
 
         function syncSelectionState(visibleRecords = []) {
@@ -7388,6 +7426,26 @@
 
         function getRecordIdFieldDefinition() {
             return { id: '__recordId', name: 'Record ID', type: 'RECORD_ID', width: '200' };
+        }
+
+        function clampRecordIdPosition(position, maxLength) {
+            return Math.max(0, Math.min(position, Math.max(0, maxLength)));
+        }
+
+        function getNameFieldId(set = getCurrentSet(), view = getCurrentView()) {
+            if (!set) return null;
+            if (view?.identifierField) return view.identifierField;
+
+            const inferred = getIdentifierFieldForSet(set, null);
+            if (inferred) return inferred;
+
+            return set.schema[0]?.id || null;
+        }
+
+        function getNameField(set = getCurrentSet(), view = getCurrentView()) {
+            if (!set) return null;
+            const fieldId = getNameFieldId(set, view);
+            return set.schema.find(f => f.id === fieldId) || null;
         }
 
         function applyColumnWidth(fieldId, width) {
@@ -7493,16 +7551,44 @@
 
         function reorderSchemaField(draggedFieldId, targetFieldId, position) {
             const set = getCurrentSet();
-            if (!set) return;
+            const view = getCurrentView();
+            if (!set || !view) return;
 
-            const fromIndex = set.schema.findIndex(f => f.id === draggedFieldId);
-            let targetIndex = set.schema.findIndex(f => f.id === targetFieldId);
+            const visibleSchema = getVisibleSchema(set, view, getCurrentProfile());
+            const orderedIds = visibleSchema.map(f => f.id);
+
+            if (view.showRecordId) {
+                const recordPosition = clampRecordIdPosition(view.recordIdPosition ?? 0, orderedIds.length);
+                orderedIds.splice(recordPosition, 0, '__recordId');
+            }
+
+            const fromIndex = orderedIds.indexOf(draggedFieldId);
+            let targetIndex = orderedIds.indexOf(targetFieldId);
             if (fromIndex === -1 || targetIndex === -1) return;
 
-            const [field] = set.schema.splice(fromIndex, 1);
+            orderedIds.splice(fromIndex, 1);
             if (fromIndex < targetIndex) targetIndex -= 1;
             const insertIndex = position === 'after' ? targetIndex + 1 : targetIndex;
-            set.schema.splice(insertIndex, 0, field);
+            orderedIds.splice(insertIndex, 0, draggedFieldId);
+
+            if (view.showRecordId) {
+                view.recordIdPosition = clampRecordIdPosition(orderedIds.indexOf('__recordId'), visibleSchema.length);
+            }
+
+            const desiredOrder = orderedIds.filter(id => id !== '__recordId');
+            const existingSchema = set.schema.slice();
+            const reordered = [];
+
+            desiredOrder.forEach(id => {
+                const match = existingSchema.find(f => f.id === id);
+                if (match) reordered.push(match);
+            });
+
+            existingSchema.forEach(field => {
+                if (!reordered.includes(field)) reordered.push(field);
+            });
+
+            set.schema = reordered;
         }
 
         function endColumnDrag() {
@@ -7614,12 +7700,17 @@
 
             const view = getCurrentView();
             const profile = getCurrentProfile();
-            const schema = set.schema.filter(f =>
-                !profile || profile.visibleFields.length === 0 || profile.visibleFields.includes(f.id)
-            );
+            if (view.hiddenFields.includes('__recordId')) {
+                view.hiddenFields = view.hiddenFields.filter(id => id !== '__recordId');
+                view.showRecordId = false;
+            }
+            const schema = getVisibleSchema(set, view, profile);
 
             const recordIdField = view.showRecordId ? getRecordIdFieldDefinition() : null;
-            const tableSchema = recordIdField ? [recordIdField, ...schema] : schema;
+            const recordIdPosition = clampRecordIdPosition(view.recordIdPosition ?? 0, schema.length);
+            const tableSchema = recordIdField
+                ? [...schema.slice(0, recordIdPosition), recordIdField, ...schema.slice(recordIdPosition)]
+                : schema;
 
             let records = Array.from(set.records.values());
             if (view && view.filters.length > 0) records = applyFilterGroups(records, view.filters, schema);
@@ -7675,7 +7766,9 @@
                 const directionIcon = sortConfig ? (sortConfig.direction === 'desc' ? '▼' : '▲') : '⇅';
                 const indicatorClass = sortConfig ? 'sort-indicator' : 'sort-indicator muted';
                 const orderBadge = sortConfig ? `<span class="order-badge">${sortIndex + 1}</span>` : '';
-                th.innerHTML = `<span>${field.name}</span><span class="${indicatorClass}"><span class="direction-icon">${directionIcon}</span>${orderBadge}</span>`;
+                const isNameField = field.id === getNameFieldId(set, view);
+                const nameBadge = isNameField ? '<span class="name-badge">Name</span>' : '';
+                th.innerHTML = `<span class="flex items-center gap-1">${field.name}${nameBadge}</span><span class="${indicatorClass}"><span class="direction-icon">${directionIcon}</span>${orderBadge}</span>`;
                 th.onclick = () => {
                     if (columnDragState.preventClick) return;
                     toggleColumnSort(field.id);
@@ -7933,6 +8026,11 @@
             if (!view) return;
 
             view.showRecordId = isVisible;
+            if (isVisible) {
+                view.hiddenFields = (view.hiddenFields || []).filter(id => id !== '__recordId');
+                const visibleSchema = getVisibleSchema();
+                view.recordIdPosition = clampRecordIdPosition(view.recordIdPosition ?? 0, visibleSchema.length);
+            }
             createEvent(
                 'View Schema Update',
                 'SEG',
@@ -8085,8 +8183,8 @@
                 card.className = 'card';
                 card.onclick = () => openExpandedRecord(record.id);
 
-                const primaryField = set.schema[0];
-                const displayFields = set.schema.slice(1, 6);
+                const primaryField = getNameField(set, view) || set.schema[0];
+                const displayFields = set.schema.filter(f => f.id !== primaryField?.id).slice(0, 5);
 
                 card.innerHTML = `
                     <div class="flex items-start justify-between mb-2">
@@ -8261,9 +8359,10 @@
             card.className = 'kanban-card';
             card.draggable = true;
             card.dataset.recordId = record.id;
-            
-            const primaryField = set.schema[0];
-            const displayFields = set.schema.slice(1, 4);
+
+            const view = getCurrentView();
+            const primaryField = getNameField(set, view) || set.schema[0];
+            const displayFields = set.schema.filter(f => f.id !== primaryField?.id).slice(0, 4);
             
             card.innerHTML = `
                 <div class="font-semibold mb-2">${record[primaryField.id] || 'Untitled'}</div>
@@ -10543,7 +10642,7 @@
             const view = getCurrentView();
             if (!set || !view) return;
 
-            const defaultField = set.schema[0]?.id || '';
+            const defaultField = getNameFieldId(set, view) || '';
             view.sorts.push({ fieldId: defaultField, direction: 'asc' });
             renderSortBuilder();
         }
@@ -11983,6 +12082,14 @@
 
         function hideField(fieldId) {
             const view = getCurrentView();
+            if (fieldId === '__recordId') {
+                view.showRecordId = false;
+                view.recordIdPosition = 0;
+                renderCurrentView();
+                showToast('✓ Record ID hidden');
+                return;
+            }
+
             if (!view.hiddenFields.includes(fieldId)) view.hiddenFields.push(fieldId);
             renderCurrentView();
             showToast('✓ Field hidden');
