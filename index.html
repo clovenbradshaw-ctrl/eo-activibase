@@ -2087,6 +2087,39 @@
                     </div>
                     <input type="hidden" id="changeFieldTypeInput" value="TEXT">
                 </div>
+                <div id="changeSingleSelectConfig" class="config-section">
+                    <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                        <label class="form-label">Options</label>
+                        <div id="changeSelectOptionsList" class="space-y-2 mb-3"></div>
+                        <button onclick="changeAddSelectOption()" class="btn btn-secondary btn-sm">+ Add Option</button>
+                    </div>
+                </div>
+                <div id="changeLinkToRecordConfig" class="config-section">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <label class="form-label">Link to Set</label>
+                        <select id="changeLinkToSet"></select>
+                        <p class="form-hint">Select which set to link to</p>
+                    </div>
+                </div>
+                <div id="changeFormulaFieldConfig" class="config-section">
+                    <div class="bg-sky-50 border border-sky-200 rounded-lg p-4">
+                        <label class="form-label">Formula</label>
+                        <div class="space-y-2">
+                            <div class="formula-bar">
+                                <span class="formula-bar-prefix">=</span>
+                                <textarea id="changeFormulaExpression" class="formula-bar-input" rows="3" placeholder="Type formulas like {Client Name} or =SUM({Budget})"></textarea>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="launchFormulaEditorFromConfig('changeFormulaExpression')">
+                                    <i class="ph ph-magic-wand"></i>
+                                    Open Formula Editor
+                                </button>
+                                <span class="text-xs text-gray-600">Autocomplete, validation, and preview included.</span>
+                            </div>
+                        </div>
+                        <p class="form-hint">Compose expressions using the JavaScript-style formula rules defined in the repo's formula engine.</p>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer flex justify-end gap-2">
                 <button id="cancelChangeFieldTypeBtn" class="btn btn-secondary">Cancel</button>
@@ -2525,6 +2558,9 @@
             openTabs: [],
             confirmCallback: null,
             selectOptions: [{ value: 'Option 1', color: 'blue' }],
+            changeSelectOptions: [{ value: 'Option 1', color: 'blue' }],
+            changeFormulaBlocks: [],
+            changeLinkedSetId: '',
             fieldTypeDropdownOpen: false,
             changeFieldTypeDropdownOpen: false,
             changeFieldContext: null,
@@ -3834,8 +3870,8 @@
             showToast('Coming soon: curated formula examples');
         }
 
-        function launchFormulaEditorFromConfig() {
-            const textarea = document.getElementById('formulaExpression');
+        function launchFormulaEditorFromConfig(targetId = 'formulaExpression') {
+            const textarea = document.getElementById(targetId);
             const existingFormula = textarea?.value || '';
 
             openFormulaEditor(null, (formula, blocks = []) => {
@@ -7786,6 +7822,11 @@
             const input = document.getElementById('changeFieldTypeInput');
             if (input) input.value = typeId;
             renderChangeFieldTypeGrid(typeId);
+            resetChangeFieldConfig(typeId);
+            renderChangeFieldConfig(typeId);
+            if (typeId === 'LINK_RECORD') {
+                renderChangeLinkSelect();
+            }
             closeChangeFieldTypeDropdown();
         }
 
@@ -7847,29 +7888,58 @@
             return Array.isArray(stack) && stack.length > 0;
         }
 
-        function changeFieldType(fieldId, newType) {
+        function buildChangeFieldConfig(typeId) {
+            if (typeId === 'SINGLE_SELECT') {
+                return {
+                    options: state.changeSelectOptions.map(o => o.value),
+                    colors: Object.fromEntries(state.changeSelectOptions.map(o => [o.value, o.color]))
+                };
+            }
+            if (typeId === 'LINK_RECORD') {
+                return { linkedSetId: state.changeLinkedSetId || state.currentSetId };
+            }
+            if (typeId === 'FORMULA') {
+                const textarea = document.getElementById('changeFormulaExpression');
+                let visualBlocks = [];
+                if (textarea?.dataset?.visualBlocks) {
+                    try { visualBlocks = JSON.parse(textarea.dataset.visualBlocks); } catch (error) { visualBlocks = []; }
+                }
+                return { formula: textarea?.value?.trim() || '', visualBlocks };
+            }
+            return null;
+        }
+
+        function changeFieldType(fieldId, newType, newConfig = null) {
             const set = getCurrentSet();
             const field = set.schema.find(f => f.id === fieldId);
             if (!field || !FIELD_TYPES[newType]) return;
 
             const previousType = field.type;
-            if (previousType === newType) return;
+            const previousConfig = cloneConfig(field.config);
+            const targetConfig = cloneConfig(newConfig ?? buildDefaultConfigForType(newType));
+            const typeChanged = previousType !== newType;
+            const configChanged = JSON.stringify(previousConfig || null) !== JSON.stringify(targetConfig || null);
+
+            if (!typeChanged && !configChanged) return;
 
             const historyKey = `${set.id}:${fieldId}`;
             const historyStack = state.fieldTypeHistory.get(historyKey) || [];
-            historyStack.push({
+            const historyEntry = {
                 type: previousType,
-                config: cloneConfig(field.config),
-                values: snapshotFieldValues(set, fieldId)
-            });
+                config: cloneConfig(field.config)
+            };
+            if (typeChanged) {
+                historyEntry.values = snapshotFieldValues(set, fieldId);
+            }
+            historyStack.push(historyEntry);
             state.fieldTypeHistory.set(historyKey, historyStack);
 
-            const targetConfig = cloneConfig(buildDefaultConfigForType(newType));
-
-            set.records.forEach((record, recordId) => {
-                const oldValue = record[fieldId];
-                record[fieldId] = convertValueForType(oldValue, previousType, newType, targetConfig || {});
-            });
+            if (typeChanged) {
+                set.records.forEach((record, recordId) => {
+                    const oldValue = record[fieldId];
+                    record[fieldId] = convertValueForType(oldValue, previousType, newType, targetConfig || {});
+                });
+            }
 
             field.type = newType;
             field.config = targetConfig;
@@ -7878,12 +7948,12 @@
                 'Change Field Type',
                 'SEG',
                 { type: 'Field', id: fieldId, setId: set.id },
-                { previousType, newType, fieldId, fieldName: field.name, setId: set.id, summary: `Changed ${field.name} to ${FIELD_TYPES[newType].name}` }
+                { previousType, newType, fieldId, fieldName: field.name, setId: set.id, summary: typeChanged ? `Changed ${field.name} to ${FIELD_TYPES[newType].name}` : `Updated ${field.name}` }
             );
 
             recomputeFormulasForSet(set);
             renderCurrentView();
-            showToast(`✓ ${field.name} is now ${FIELD_TYPES[newType].name}`);
+            showToast(typeChanged ? `✓ ${field.name} is now ${FIELD_TYPES[newType].name}` : `✓ ${field.name} updated`);
         }
 
         function saveChangeFieldType() {
@@ -7891,7 +7961,8 @@
             const input = document.getElementById('changeFieldTypeInput');
             const newType = input?.value;
             if (!context || !newType) return;
-            changeFieldType(context.id, newType);
+            const newConfig = buildChangeFieldConfig(newType);
+            changeFieldType(context.id, newType, newConfig);
             state.changeFieldContext = null;
             closeModal('changeFieldTypeModal');
         }
@@ -7912,7 +7983,9 @@
 
             field.type = last.type;
             field.config = cloneConfig(last.config);
-            restoreFieldValues(set, fieldId, last.values);
+            if (last.values) {
+                restoreFieldValues(set, fieldId, last.values);
+            }
             if (historyStack.length === 0) {
                 state.fieldTypeHistory.delete(historyKey);
             } else {
@@ -7942,6 +8015,106 @@
                 document.getElementById('linkToRecordConfig').classList.add('visible');
             } else if (typeId === 'FORMULA') {
                 document.getElementById('formulaFieldConfig').classList.add('visible');
+            }
+        }
+
+        function renderChangeFieldConfig(typeId) {
+            document.getElementById('changeSingleSelectConfig').classList.remove('visible');
+            document.getElementById('changeLinkToRecordConfig').classList.remove('visible');
+            document.getElementById('changeFormulaFieldConfig').classList.remove('visible');
+
+            if (typeId === 'SINGLE_SELECT') {
+                document.getElementById('changeSingleSelectConfig').classList.add('visible');
+                renderChangeSelectOptions();
+            } else if (typeId === 'LINK_RECORD') {
+                document.getElementById('changeLinkToRecordConfig').classList.add('visible');
+            } else if (typeId === 'FORMULA') {
+                document.getElementById('changeFormulaFieldConfig').classList.add('visible');
+            }
+        }
+
+        function renderChangeSelectOptions() {
+            const container = document.getElementById('changeSelectOptionsList');
+            container.innerHTML = state.changeSelectOptions.map((opt, i) => `
+                <div class="option-row">
+                    <input type="text" value="${opt.value}" onchange="changeUpdateSelectOption(${i}, this.value, '${opt.color}')" placeholder="Option ${i + 1}">
+                    <div class="color-picker">
+                        ${['blue', 'green', 'yellow', 'red', 'purple', 'gray'].map(c => `
+                            <div class="color-option badge-${c} ${opt.color === c ? 'selected' : ''}"
+                                 onclick="changeUpdateSelectOption(${i}, '${opt.value}', '${c}')"></div>
+                        `).join('')}
+                    </div>
+                    ${state.changeSelectOptions.length > 1 ? `<button onclick="changeRemoveSelectOption(${i})" class="btn btn-secondary btn-sm">✕</button>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function changeAddSelectOption() {
+            state.changeSelectOptions.push({ value: `Option ${state.changeSelectOptions.length + 1}`, color: 'blue' });
+            renderChangeSelectOptions();
+        }
+
+        function changeUpdateSelectOption(index, value, color) {
+            state.changeSelectOptions[index] = { value, color };
+            renderChangeSelectOptions();
+        }
+
+        function changeRemoveSelectOption(index) {
+            state.changeSelectOptions.splice(index, 1);
+            renderChangeSelectOptions();
+        }
+
+        function resetChangeFieldConfig(typeId, field = null) {
+            if (typeId === 'SINGLE_SELECT') {
+                if (field?.config?.options) {
+                    state.changeSelectOptions = field.config.options.map(opt => ({
+                        value: typeof opt === 'string' ? opt : opt.value,
+                        color: field.config.colors?.[typeof opt === 'string' ? opt : opt.value] || opt.color || 'blue'
+                    }));
+                } else {
+                    state.changeSelectOptions = [{ value: 'Option 1', color: 'blue' }];
+                }
+            } else if (typeId === 'LINK_RECORD') {
+                state.changeLinkedSetId = field?.config?.linkedSetId || state.currentSetId;
+            } else if (typeId === 'FORMULA') {
+                const textarea = document.getElementById('changeFormulaExpression');
+                const formula = field?.config?.formula || '';
+                if (textarea) {
+                    textarea.value = formula;
+                    if (field?.config?.visualBlocks) {
+                        textarea.dataset.visualBlocks = JSON.stringify(field.config.visualBlocks);
+                        state.changeFormulaBlocks = field.config.visualBlocks;
+                    } else {
+                        delete textarea.dataset.visualBlocks;
+                        state.changeFormulaBlocks = [];
+                    }
+                }
+            } else {
+                const textarea = document.getElementById('changeFormulaExpression');
+                if (textarea) { textarea.value = ''; delete textarea.dataset.visualBlocks; }
+                state.changeFormulaBlocks = [];
+            }
+        }
+
+        function renderChangeLinkSelect() {
+            const linkSelect = document.getElementById('changeLinkToSet');
+            if (!linkSelect) return;
+
+            linkSelect.innerHTML = '';
+            getSetsForWorld(state.currentWorldId).forEach(set => {
+                const label = set.id === state.currentSetId ? `${set.name} (this set)` : set.name;
+                linkSelect.innerHTML += `<option value="${set.id}">${label}</option>`;
+            });
+
+            if (linkSelect.options.length === 0) {
+                linkSelect.innerHTML = '<option value="">No sets available</option>';
+                linkSelect.disabled = true;
+                state.changeLinkedSetId = '';
+            } else {
+                linkSelect.disabled = false;
+                const defaultValue = state.changeLinkedSetId || (state.sets.has(state.currentSetId) ? state.currentSetId : linkSelect.options[0].value);
+                linkSelect.value = defaultValue;
+                state.changeLinkedSetId = defaultValue;
             }
         }
 
@@ -9419,6 +9592,9 @@
             if (nameTarget) nameTarget.textContent = field.name;
             if (input) input.value = field.type;
             renderChangeFieldTypeGrid(field.type);
+            resetChangeFieldConfig(field.type, field);
+            renderChangeFieldConfig(field.type);
+            renderChangeLinkSelect();
             closeChangeFieldTypeDropdown();
             openModal('changeFieldTypeModal');
         }
@@ -9795,6 +9971,8 @@
             document.getElementById('saveChangeFieldTypeBtn').onclick = saveChangeFieldType;
             document.getElementById('cancelChangeFieldTypeBtn').onclick = () => { state.changeFieldContext = null; closeModal('changeFieldTypeModal'); };
             document.getElementById('closeChangeFieldTypeBtn').onclick = () => { state.changeFieldContext = null; closeModal('changeFieldTypeModal'); };
+            const changeLinkToSet = document.getElementById('changeLinkToSet');
+            if (changeLinkToSet) changeLinkToSet.onchange = (event) => { state.changeLinkedSetId = event.target.value; };
 
             document.getElementById('addRecordBtn').onclick = () => {
                 const set = getCurrentSet();
