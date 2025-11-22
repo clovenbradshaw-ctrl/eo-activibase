@@ -8271,7 +8271,7 @@
                         <tbody class="divide-y divide-gray-200">
                             ${definitions.map(def => `
                                 <tr>
-                                    <td class="px-4 py-3 whitespace-nowrap text-gray-800">${def.entity.type}: ${def.entity.id}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-gray-800">${def.entity.type}: ${renderEntityLabel(def.entity)}</td>
                                     <td class="px-4 py-3 font-semibold text-gray-900">${def.term}</td>
                                     <td class="px-4 py-3 text-gray-700">${def.definition}</td>
                                     <td class="px-4 py-3 text-gray-500">${def.notes || ''}</td>
