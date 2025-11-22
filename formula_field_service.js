@@ -94,10 +94,46 @@ class FormulaFieldService {
     return missing;
   }
 
-  evaluateForRecord(formula, record = {}) {
-    const normalizedFormula = this.ensureBracedReferences(formula, Object.keys(record));
-    const warnings = this.collectOperatorWarnings(normalizedFormula);
-    const missingFields = this.validateFields(normalizedFormula, record);
+  buildFieldReferenceMap(schemaFields = [], record = {}) {
+    const map = new Map();
+
+    schemaFields.forEach((field) => {
+      if (field?.name) {
+        map.set(field.name, field.id);
+      }
+      if (field?.id) {
+        map.set(field.id, field.id);
+      }
+    });
+
+    Object.keys(record).forEach((key) => {
+      if (!map.has(key)) {
+        map.set(key, key);
+      }
+    });
+
+    return map;
+  }
+
+  replaceFieldNamesWithIds(formula, fieldMap = new Map()) {
+    let updated = formula;
+
+    fieldMap.forEach((targetId, sourceKey) => {
+      if (!sourceKey || sourceKey === targetId) return;
+      const escaped = sourceKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(`\\{${escaped}\\}`, 'g');
+      updated = updated.replace(pattern, `{${targetId}}`);
+    });
+
+    return updated;
+  }
+
+  evaluateForRecord(formula, record = {}, schemaFields = []) {
+    const fieldMap = this.buildFieldReferenceMap(schemaFields, record);
+    const normalizedFormula = this.ensureBracedReferences(formula, Array.from(fieldMap.keys()));
+    const translatedFormula = this.replaceFieldNamesWithIds(normalizedFormula, fieldMap);
+    const warnings = this.collectOperatorWarnings(translatedFormula);
+    const missingFields = this.validateFields(translatedFormula, record);
 
     if (missingFields.length) {
       return {
@@ -115,15 +151,15 @@ class FormulaFieldService {
     this.engine.setFields(record);
 
     try {
-      const result = this.engine.evaluate(normalizedFormula);
-      const returnType = this.inferReturnType(normalizedFormula);
+      const result = this.engine.evaluate(translatedFormula);
+      const returnType = this.inferReturnType(translatedFormula);
       return {
         success: true,
         result,
         preview: this.formatPreview(result, returnType),
         returnType,
         warnings,
-        normalizedFormula
+        normalizedFormula: translatedFormula
       };
     } catch (error) {
       return {
