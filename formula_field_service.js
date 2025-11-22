@@ -229,6 +229,27 @@ class FormulaFieldService {
     return bestDistance <= 3 ? closest : null;
   }
 
+  normalizeRecordKeys(record = {}, schemaFields = []) {
+    const normalized = {};
+    const fieldLookup = this.buildFieldLookup(schemaFields);
+
+    // First pass: copy values using field IDs
+    Object.keys(record).forEach((key) => {
+      const lowerKey = key.toLowerCase();
+      const field = fieldLookup[lowerKey];
+
+      if (field && field.id) {
+        // Map display name/alias to field ID
+        normalized[field.id] = record[key];
+      } else {
+        // Keep original key if no field mapping found
+        normalized[key] = record[key];
+      }
+    });
+
+    return normalized;
+  }
+
   evaluateForRecord(formula, record = {}, schemaFields = []) {
     const cleanedFormula = this.normalizeFormula(formula);
     if (!cleanedFormula) {
@@ -243,7 +264,10 @@ class FormulaFieldService {
       };
     }
 
-    const fieldMap = this.buildFieldReferenceMap(schemaFields, record);
+    // Normalize record keys to use field IDs instead of display names
+    const normalizedRecord = this.normalizeRecordKeys(record, schemaFields);
+
+    const fieldMap = this.buildFieldReferenceMap(schemaFields, normalizedRecord);
     const normalizedFormula = this.ensureBracedReferences(
       cleanedFormula,
       Array.from(fieldMap.keys())
@@ -268,7 +292,7 @@ class FormulaFieldService {
     }
 
     const warnings = this.collectOperatorWarnings(resolvedFormula);
-    const missingFields = this.validateFields(resolvedFormula, record);
+    const missingFields = this.validateFields(resolvedFormula, normalizedRecord);
 
     if (missingFields.length) {
       return {
@@ -283,7 +307,7 @@ class FormulaFieldService {
       };
     }
 
-    this.engine.setFields(record);
+    this.engine.setFields(normalizedRecord);
 
     try {
       const result = this.engine.evaluate(resolvedFormula);
