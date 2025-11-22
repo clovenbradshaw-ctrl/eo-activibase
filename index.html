@@ -6351,9 +6351,19 @@
             }
         }
 
+        function pruneTabsForWorld(worldId) {
+            if (!worldId) return;
+
+            state.openTabs = state.openTabs.filter(tab => {
+                const set = state.sets.get(tab.setId);
+                return set?.worldId === worldId;
+            });
+        }
+
         function switchWorld(worldId) {
             if (!worldId || !state.worlds.has(worldId)) return;
             state.currentWorldId = worldId;
+            pruneTabsForWorld(worldId);
             const sets = getSetsForWorld(worldId);
             if (!sets.some(set => set.id === state.currentSetId)) {
                 state.currentSetId = sets[0]?.id || null;
@@ -6361,6 +6371,7 @@
             }
             renderWorldSelector();
             renderSidebar();
+            renderViewTabs();
             if (state.currentSetId) {
                 switchSet(state.currentSetId, state.currentViewId);
             }
