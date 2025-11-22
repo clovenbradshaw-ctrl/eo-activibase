@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="formula_engine.js"></script>
     <script src="formula_field_service.js"></script>
+    <script src="eo_lean_context.js"></script>
     <style>
         :root {
             --primary: #111827;
@@ -2148,6 +2149,7 @@
             eventIdCounter: 1,
             currentUser: { type: 'Person', id: 'user_1', name: 'User' },
             operatorSet: {},
+            leanContext: null, // Will be initialized in initializeApp
             interpretationRules: [],
             connections: new Map(),
             connectionBuilder: { targetSetId: null, targetRecordId: '', metadataJson: '', searchQuery: '' },
@@ -3956,6 +3958,13 @@
         // INITIALIZATION
         function initializeApp() {
             state.operatorSet = EO_OPERATOR_SET;
+
+            // Initialize lean context system
+            if (typeof EOLeanContext !== 'undefined') {
+                state.leanContext = new EOLeanContext();
+                console.log('✓ Lean Context System initialized');
+            }
+
             initializeOperatorRules();
             createSampleData();
             initializeFormulaSupport();
@@ -4991,6 +5000,20 @@
 
             const finalizedMappings = Object.entries(state.csvImportState.mappings).filter(([, fieldId]) => fieldId);
 
+            // Create ONE context template for the entire import (lean approach)
+            let importTemplateId = null;
+            if (state.leanContext) {
+                const importFilename = state.csvImportState.filename || 'import.csv';
+                importTemplateId = state.leanContext.registerContextTemplate({
+                    method: 'declared',
+                    source: 'csv_import',
+                    agent: state.currentUser.id,
+                    timeframe: {
+                        start: new Date().toISOString().split('T')[0]
+                    }
+                });
+            }
+
             state.csvImportState.rows.forEach(row => {
                 const recordData = {};
                 finalizedMappings.forEach(([header, fieldId]) => {
@@ -5002,8 +5025,35 @@
                     }
                     recordData[fieldId] = value;
                 });
-                addRecord(set.id, recordData);
+
+                // Use lean record creation if available
+                if (state.leanContext && importTemplateId) {
+                    const leanRecord = state.leanContext.createLeanRecord(set.id, recordData, importTemplateId);
+                    set.records.set(leanRecord.id, leanRecord);
+                    createEvent(
+                        'Create Record',
+                        'INS',
+                        { type: 'Record', id: leanRecord.id, setId: set.id },
+                        { setId: set.id, recordId: leanRecord.id, data: recordData, summary: 'Created record via import' }
+                    );
+                } else {
+                    addRecord(set.id, recordData);
+                }
             });
+
+            // Create batch import event (compact)
+            if (state.leanContext && importTemplateId) {
+                createEvent(
+                    'Batch Import',
+                    'INS',
+                    { type: 'Set', id: set.id },
+                    {
+                        count: state.csvImportState.rows.length,
+                        templateId: importTemplateId,
+                        summary: `Imported ${state.csvImportState.rows.length} records`
+                    }
+                );
+            }
 
             switchSet(set.id, null);
             showToast(`✓ Imported ${state.csvImportState.rows.length} records`);
@@ -6066,11 +6116,65 @@
             return `<span class="sup-chip" title="${tooltip}">${compact}</span>`;
         }
 
+        // LEAN CONTEXT COMPARISON (Phase 2)
+        function showQuickDiff(recordId, fieldId, event) {
+            event?.stopPropagation();
+
+            const set = getCurrentSet();
+            if (!set || !state.leanContext) return;
+
+            const record = set.records.get(recordId);
+            const value = record?.[fieldId];
+
+            if (!value?._sup || !value.value || value.value.length < 2) return;
+
+            // Get contexts for comparison
+            const contexts = value.value.slice(0, 2).map(() => state.leanContext.getFieldContext(record, fieldId));
+            const diff = state.leanContext.explainContextDifference(contexts[0], contexts[1]);
+
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50';
+            modal.onclick = (e) => e.target === modal && modal.remove();
+
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-xl max-w-md p-4" onclick="event.stopPropagation()">
+                    <div class="flex justify-between items-start mb-3">
+                        <h4 class="font-semibold">Why Different?</h4>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">✕</button>
+                    </div>
+                    ${diff.diffs.length === 0 ? '<p class="text-gray-600">No significant differences found.</p>' : ''}
+                    ${diff.diffs.map(d => `
+                        <div class="text-sm mb-2">
+                            <span class="font-medium">${d.label}:</span>
+                            <div class="ml-4">
+                                <div class="text-red-600">${d.a || '(not set)'}</div>
+                                <div class="text-green-600">${d.b || '(not set)'}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                    <div class="mt-3 text-xs text-gray-600 border-t pt-2">
+                        ${diff.compatible ? '✓ Can compare with caution' : '⚠ Should not compare'}
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+        }
+
+        function getStabilityColor(tag) {
+            const colors = {
+                'emerging': 'yellow',
+                'forming': 'gray',
+                'stable': 'green'
+            };
+            return colors[tag] || 'gray';
+        }
+
         // CARD VIEW
         function renderCardView() {
             const set = getCurrentSet();
             if (!set) return;
-            
+
             const view = getCurrentView();
             let records = Array.from(set.records.values());
             if (view && view.filters.length > 0) records = applyFilterGroups(records, view.filters, set.schema);
@@ -6079,22 +6183,38 @@
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
                 <div class="flex items-center justify-between px-6 pt-6">
-                    <div class="text-sm text-gray-600">Card layout</div>
+                    <div class="flex items-center gap-4">
+                        <div class="text-sm text-gray-600">Card layout</div>
+                        ${state.leanContext ? `
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" id="showStabilityToggle" ${view?.showStability ? 'checked' : ''}
+                                       onchange="toggleStabilityDisplay()">
+                                <span>Show stability</span>
+                            </label>
+                        ` : ''}
+                    </div>
                     <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">Column Rules</button>
                 </div>
                 <div class="cards-grid" id="cardsGrid"></div>`;
-            
+
             const grid = document.getElementById('cardsGrid');
             records.forEach(record => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.onclick = () => openExpandedRecord(record.id);
-                
+
                 const primaryField = set.schema[0];
                 const displayFields = set.schema.slice(1, 6);
-                
+
                 card.innerHTML = `
-                    <div class="card-title">${record[primaryField.id] || 'Untitled'}</div>
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="card-title">${record[primaryField.id] || 'Untitled'}</div>
+                        ${view?.showStability && state.leanContext ? `
+                            <span class="badge badge-${getStabilityColor(state.leanContext.getRecordStability(record.id))} text-xs">
+                                ${state.leanContext.getRecordStability(record.id)}
+                            </span>
+                        ` : ''}
+                    </div>
                     ${displayFields.map(field => {
                         const value = record[field.id];
                         if (!value && value !== 0 && value !== false) return '';
@@ -6106,9 +6226,16 @@
                         `;
                     }).join('')}
                 `;
-                
+
                 grid.appendChild(card);
             });
+        }
+
+        function toggleStabilityDisplay() {
+            const view = getCurrentView();
+            if (!view) return;
+            view.showStability = document.getElementById('showStabilityToggle')?.checked || false;
+            renderCurrentView();
         }
 
         // KANBAN VIEW
@@ -8661,6 +8788,29 @@
                 eventData.summary = options.summary;
             }
 
+            // Use lean context for compact event creation if available
+            if (state.leanContext && options.useLeanContext !== false) {
+                const compactEvent = state.leanContext.createCompactEvent(verb, op, object, eventData, options);
+                // Add standard fields for backward compatibility
+                compactEvent.frame = options.frame || 'ui';
+                compactEvent.scale = options.scale || 'object';
+                compactEvent.published = new Date(compactEvent.t).toISOString();
+                compactEvent.actor = { type: state.currentUser.type, id: state.currentUser.id };
+                compactEvent.verb = verb; // Keep full verb for compatibility
+                compactEvent.data = eventData; // Keep full data for compatibility
+
+                const interpretedEvent = applyInterpretationRules(compactEvent);
+                state.eventStream.unshift(interpretedEvent);
+
+                // Limit event history to prevent unbounded growth
+                if (state.eventStream.length > 10000) {
+                    state.eventStream = state.eventStream.slice(0, 5000);
+                }
+
+                return interpretedEvent;
+            }
+
+            // Fallback to standard event creation
             const event = {
                 id: `event-${state.eventIdCounter++}`,
                 verb: verb,
@@ -9270,6 +9420,75 @@
             syncIconSelector('newSetIcon');
             openModal('addSetModal');
         }
+
+        // LEAN CONTEXT TESTING
+        function testLeanContextEfficiency() {
+            if (!state.leanContext) {
+                console.warn('Lean context not initialized');
+                return;
+            }
+
+            console.log('=== LEAN CONTEXT EFFICIENCY TEST ===');
+
+            // Get current state size
+            const currentStateSize = JSON.stringify({
+                sets: Array.from(state.sets.entries()),
+                eventStream: state.eventStream
+            }).length;
+
+            // Get lean context overhead
+            const leanContextSize = state.leanContext.estimateStorageSize();
+
+            console.log('\n📊 STORAGE METRICS:');
+            console.log(`Current state size: ${(currentStateSize / 1024).toFixed(2)} KB`);
+            console.log(`\nLean Context Overhead:`);
+            console.log(`  - Templates: ${(leanContextSize.templates / 1024).toFixed(2)} KB (${leanContextSize.templateCount} templates)`);
+            console.log(`  - String table: ${(leanContextSize.strings / 1024).toFixed(2)} KB (${leanContextSize.stringCount} strings)`);
+            console.log(`  - Total overhead: ${(leanContextSize.total / 1024).toFixed(2)} KB`);
+
+            // Calculate overhead percentage
+            const overheadPercent = (leanContextSize.total / currentStateSize * 100).toFixed(2);
+            console.log(`\n✅ Context overhead: ${overheadPercent}% of state size`);
+
+            // Count records with lean context
+            let leanRecordCount = 0;
+            let totalRecordCount = 0;
+
+            state.sets.forEach(set => {
+                set.records.forEach(record => {
+                    totalRecordCount++;
+                    if (record.__ctx) {
+                        leanRecordCount++;
+                    }
+                });
+            });
+
+            console.log(`\n📝 RECORD METRICS:`);
+            console.log(`  - Total records: ${totalRecordCount}`);
+            console.log(`  - Lean records: ${leanRecordCount}`);
+            console.log(`  - Coverage: ${totalRecordCount > 0 ? ((leanRecordCount / totalRecordCount) * 100).toFixed(1) : 0}%`);
+
+            // Event compression stats
+            const compactEventCount = state.eventStream.filter(e => e.v && e.o && e.t && !e.id.startsWith('event-')).length;
+            console.log(`\n📅 EVENT METRICS:`);
+            console.log(`  - Total events: ${state.eventStream.length}`);
+            console.log(`  - Compact events: ${compactEventCount}`);
+            console.log(`  - Compression rate: ${state.eventStream.length > 0 ? ((compactEventCount / state.eventStream.length) * 100).toFixed(1) : 0}%`);
+
+            console.log('\n🎯 GOAL: Keep overhead < 15% for optimal performance');
+            console.log(`${overheadPercent < 15 ? '✅ PASSED' : '⚠️  REVIEW NEEDED'}: Current overhead is ${overheadPercent}%`);
+
+            return {
+                stateSize: currentStateSize,
+                overhead: leanContextSize.total,
+                overheadPercent: parseFloat(overheadPercent),
+                recordCoverage: totalRecordCount > 0 ? (leanRecordCount / totalRecordCount) * 100 : 0,
+                eventCompression: state.eventStream.length > 0 ? (compactEventCount / state.eventStream.length) * 100 : 0
+            };
+        }
+
+        // Export test function to global scope
+        window.testLeanContextEfficiency = testLeanContextEfficiency;
 
         // INITIALIZE
         document.addEventListener('DOMContentLoaded', initializeApp);
