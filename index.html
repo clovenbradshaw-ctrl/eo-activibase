@@ -8749,11 +8749,20 @@
                             <div class="view-stage-sub">${entities.length} tracked · ${grouped.size} types</div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        ${['all','reified','manual','views','records'].map(key => `<button class="btn btn-secondary btn-sm ${filterKey === key ? 'active' : ''}" data-entity-filter="${key}">${key.charAt(0).toUpperCase() + key.slice(1)}</button>`).join('')}
-                    </div>
                 </div>
-                <div class="view-stage-body space-y-4">
+                <div class="view-stage-body space-y-6">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="space-y-1">
+                            <div class="font-semibold text-gray-900">Entity tools</div>
+                            <p class="text-sm text-gray-500">Filter, review, and capture entities connected to your world.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="btn btn-primary btn-sm" id="openEntityFormBtn">${state.entityFormState.editingId ? 'Update Entity' : 'Add Entity'}</button>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        ${['all','reified','manual','views','records'].map(key => `<button class="btn btn-secondary btn-sm ${filterKey === key ? 'btn-primary' : ''}" data-entity-filter="${key}">${key.charAt(0).toUpperCase() + key.slice(1)}</button>`).join('')}
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
                             <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Reified</div>
@@ -8827,6 +8836,15 @@
             if (form) form.onsubmit = (event) => { event.preventDefault(); handleEntityFormSubmit(); };
             const resetBtn = document.getElementById('resetEntityForm');
             if (resetBtn) resetBtn.onclick = resetEntityForm;
+            const openFormBtn = document.getElementById('openEntityFormBtn');
+            if (openFormBtn) {
+                openFormBtn.onclick = () => {
+                    const formCard = document.getElementById('entityFormCard');
+                    formCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    const firstInput = document.getElementById('entityKind');
+                    if (firstInput) firstInput.focus();
+                };
+            }
         }
 
         // GRAPH VIEW
