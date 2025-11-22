@@ -1829,6 +1829,10 @@
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Knowledge</div>
                 <div class="knowledge-nav">
+                    <button class="knowledge-nav-btn" id="entitiesNavBtn" onclick="openEntitiesPage()">
+                        <i class="ph ph-identification-card"></i>
+                        <span>Entities</span>
+                    </button>
                     <button class="knowledge-nav-btn" id="definitionsNavBtn" onclick="openDefinitionsPage()">
                         <i class="ph ph-books"></i>
                         <span>Definitions</span>
@@ -2732,11 +2736,13 @@
             interpretationRules: [],
             definitions: new Map(),
             connections: new Map(),
+            entityCollections: new Map(),
             demoRefs: {},
             connectionBuilder: { targetSetId: null, targetRecordId: '', metadataJson: '', searchQuery: '' },
             currentSpecialView: null,
             definitionFormState: { editingId: null, activeFilter: 'all', showImportPanel: false },
             connectionFormState: { editingId: null },
+            entityFormState: { editingId: null },
             sidebarCollapsed: false,
             sidebarOpenMobile: false,
             modalStack: [],
@@ -2807,6 +2813,92 @@
             const payload = { ...entity };
             state.entities.set(entity.id, payload);
             return payload;
+        }
+
+        function slugifyId(value, fallback = 'entity') {
+            if (!value) return fallback;
+            return value
+                .toString()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/(^-|-$)/g, '')
+                || fallback;
+        }
+
+        function normalizeEntityMembers(members = []) {
+            const unique = new Map();
+            members.forEach(member => {
+                if (!member?.id || !member?.type) return;
+                const key = `${member.type}:${member.id}`;
+                if (!unique.has(key)) unique.set(key, { type: member.type, id: member.id });
+            });
+            return Array.from(unique.values());
+        }
+
+        function upsertEntityCollection(collection) {
+            if (!collection?.id) {
+                const idToken = slugifyId(collection?.label || collection?.name, 'entity-collection');
+                collection.id = `entity_collection_${idToken}_${Date.now()}`;
+            }
+
+            const previous = state.entityCollections.get(collection.id) || null;
+            const worldId = collection.worldId || previous?.worldId || state.currentWorldId;
+            const members = normalizeEntityMembers([...(previous?.members || []), ...(collection.members || [])]);
+
+            const payload = {
+                createdAt: previous?.createdAt || new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                locked: collection.locked ?? previous?.locked ?? false,
+                source: collection.source || previous?.source || { kind: 'manual' },
+                ...previous,
+                ...collection,
+                worldId,
+                members
+            };
+
+            state.entityCollections.set(payload.id, payload);
+            registerEntity({ id: payload.id, type: 'EntityCollection', label: payload.label || payload.name, worldId });
+            return payload;
+        }
+
+        function deriveEntityMembersFromView(view) {
+            if (!view) return [];
+            const setId = view.setId || view.sourceSet || view.sourceSetId || state.currentSetId;
+            const set = state.sets.get(setId);
+            if (!set) return [];
+
+            if (view.type === 'KEY_DERIVED' && view.key) {
+                const items = findAllItemsForKey(view.key.setId || setId, view.key.fieldId);
+                const grouped = groupByKeyValue(items, view.key.fieldId);
+                const rows = buildRowsFromGroups(grouped, view);
+                const ids = new Set();
+                rows.forEach(row => (row.__sourceItems || []).forEach(item => ids.add(item.recordId)));
+                return Array.from(ids).map(id => ({ type: 'Record', id }));
+            }
+
+            let records = Array.from(set.records.values());
+            if (view.filters?.length) records = applyFilterGroups(records, view.filters, set.schema);
+            if (view.sorts?.length) records = applySorts(records, view.sorts, set.schema);
+            return records.map(record => ({ type: 'Record', id: record.id }));
+        }
+
+        function linkEntityCollectionToView(view, viewEntity) {
+            const members = deriveEntityMembersFromView(view);
+            const worldId = deriveWorldIdForEntity({ type: 'Set', id: view.setId || state.currentSetId }) || state.currentWorldId;
+            const existing = Array.from(state.entityCollections.values()).find(col => col.source?.kind === 'view' && col.source?.viewId === view.id);
+            const idSeed = slugifyId(view.id || view.name || 'view');
+
+            const payload = upsertEntityCollection({
+                ...(existing || {}),
+                id: existing?.id || `entity_collection_${idSeed}`,
+                label: view.name || existing?.label || 'Reified View',
+                worldId,
+                source: { kind: 'view', viewId: view.id || existing?.source?.viewId || null, setId: view.setId || view.sourceSet || state.currentSetId },
+                members,
+                locked: true
+            });
+
+            return payload.id;
         }
 
         const columnDragState = {
@@ -4722,11 +4814,284 @@
             if (entity.type === 'Set') {
                 return state.sets.get(entity.id)?.name || entity.id;
             }
+            if (entity.type === 'EntityCollection') {
+                return state.entityCollections.get(entity.id)?.label || entity.id;
+            }
+            if (entity.type === 'ViewEntity') {
+                return state.entities.get(entity.id)?.label || entity.id;
+            }
             if (entity.type === 'Connection') {
                 const conn = state.connections.get(entity.id);
                 if (conn) return `${renderEntityLabel(conn.subject)} ${conn.mode || '→'} ${renderEntityLabel(conn.operand)}`;
             }
             return entity.id;
+        }
+
+        function getEntityCollectionsView(filterFn) {
+            const collections = Array.from(state.entityCollections.values()).filter(col => !col.worldId || col.worldId === state.currentWorldId);
+            return typeof filterFn === 'function' ? collections.filter(filterFn) : collections;
+        }
+
+        function describeCollectionSource(collection) {
+            if (collection.source?.kind === 'view') {
+                const set = state.sets.get(collection.source.setId);
+                const view = set?.views.get(collection.source.viewId);
+                const label = view?.name || collection.source.viewId || 'View';
+                return `Reified from view: ${label}`;
+            }
+            return 'Manually curated';
+        }
+
+        function addMembersToCollection(collectionId, members, options = {}) {
+            const collection = state.entityCollections.get(collectionId);
+            if (!collection) return null;
+            const updated = upsertEntityCollection({ ...collection, members: [...(collection.members || []), ...(members || [])] });
+            if (!options?.skipEvent) {
+                createEvent(
+                    'Update Entities',
+                    'SYN',
+                    { type: 'EntityCollection', id: collectionId },
+                    { summary: `Added ${members.length} entities to ${updated.label}` }
+                );
+            }
+            return updated;
+        }
+
+        function refreshEntityCollectionFromView(collectionId) {
+            const collection = state.entityCollections.get(collectionId);
+            if (!collection?.source?.viewId) {
+                showToast('⚠️ No source view to refresh');
+                return;
+            }
+
+            const set = state.sets.get(collection.source.setId);
+            const view = set?.views.get(collection.source.viewId);
+            if (!view) {
+                showToast('⚠️ Source view missing');
+                return;
+            }
+
+            const members = deriveEntityMembersFromView({ ...view, setId: collection.source.setId });
+            upsertEntityCollection({ ...collection, members });
+            createEvent(
+                'Sync Entities',
+                'SYN',
+                { type: 'EntityCollection', id: collectionId },
+                { summary: `Refreshed ${collection.label} from view`, memberCount: members.length }
+            );
+            renderEntitiesPage();
+            showToast('✓ Synced entities from view');
+        }
+
+        function deleteEntityCollection(collectionId) {
+            const collection = state.entityCollections.get(collectionId);
+            if (!collection) return;
+            if (collection.locked) {
+                showToast('⚠️ Reified entity collections cannot be deleted directly');
+                return;
+            }
+            state.entityCollections.delete(collectionId);
+            showToast('✓ Entity type removed');
+            renderEntitiesPage();
+        }
+
+        function renderEntityCollections(collections) {
+            if (!collections.length) return '<p class="text-sm text-gray-500">No entities yet. Reify a view or add one manually.</p>';
+            const selectedCount = (state.selectedRecordIds && state.selectedRecordIds.size) || 0;
+            return collections.map(col => {
+                const members = normalizeEntityMembers(col.members || []);
+                const memberBadges = members.length
+                    ? members.map(m => `<span class="badge badge-gray">${renderEntityLabel(m)} <span class="text-[10px] text-gray-500 ml-1">${m.type}</span></span>`).join(' ')
+                    : '<span class="text-sm text-gray-500">No entities linked yet.</span>';
+                const source = describeCollectionSource(col);
+                const lockedChip = col.locked ? '<span class="badge badge-blue">Reified</span>' : '';
+
+                return `
+                    <div class="border border-gray-200 rounded-lg bg-white p-4 space-y-3">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <div class="font-semibold">${col.label || col.name}</div>
+                                    ${lockedChip}
+                                </div>
+                                <div class="text-sm text-gray-500">${members.length} entities · ${source}</div>
+                            </div>
+                            <div class="flex items-center gap-2 flex-wrap justify-end">
+                                <button class="btn btn-secondary btn-sm" data-collection-edit="${col.id}">Edit</button>
+                                ${col.source?.kind === 'view' ? `<button class="btn btn-secondary btn-sm" data-collection-refresh="${col.id}">Refresh from view</button>` : ''}
+                                <button class="btn btn-secondary btn-sm" data-collection-add-selected="${col.id}" ${selectedCount ? '' : 'disabled'}>Add selected</button>
+                                <button class="btn btn-danger btn-sm" data-collection-delete="${col.id}" ${col.locked ? 'disabled' : ''}>Delete</button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">${memberBadges}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function handleEntityCollectionSubmit() {
+            const nameInput = document.getElementById('entityCollectionLabel');
+            const memberType = document.getElementById('entityMemberType');
+            const memberId = document.getElementById('entityMemberId');
+            const label = nameInput?.value.trim();
+
+            if (!label) {
+                showToast('Please provide an entity type name');
+                return;
+            }
+
+            const members = [];
+            if (memberType?.value && memberId?.value.trim()) {
+                members.push({ type: memberType.value, id: memberId.value.trim() });
+            }
+
+            const payload = upsertEntityCollection({
+                id: state.entityFormState.editingId,
+                label,
+                members,
+                worldId: state.currentWorldId,
+                source: { kind: 'manual' },
+                locked: false
+            });
+
+            createEvent(
+                state.entityFormState.editingId ? 'Update Entity Type' : 'Create Entity Type',
+                'SYN',
+                { type: 'EntityCollection', id: payload.id },
+                { summary: `${label} saved`, memberCount: members.length }
+            );
+
+            state.entityFormState.editingId = null;
+            renderEntitiesPage();
+            showToast('✓ Entity type saved');
+        }
+
+        function populateEntityForm(collectionId) {
+            const collection = state.entityCollections.get(collectionId);
+            if (!collection) return;
+            state.entityFormState.editingId = collectionId;
+            document.getElementById('entityCollectionLabel').value = collection.label || '';
+            document.getElementById('entityMemberType').value = '';
+            document.getElementById('entityMemberId').value = '';
+        }
+
+        function resetEntityForm() {
+            state.entityFormState.editingId = null;
+            const form = document.getElementById('entityCollectionForm');
+            form?.reset();
+        }
+
+        function renderEntitiesPage() {
+            const collections = getEntityCollectionsView();
+            const container = document.getElementById('viewContainer');
+            const selectedCount = (state.selectedRecordIds && state.selectedRecordIds.size) || 0;
+
+            container.innerHTML = `
+                <div class="view-stage">
+                    <div class="view-stage-header">
+                        <div class="view-stage-title">
+                            <span class="view-stage-pill">Knowledge</span>
+                            <div>
+                                <div class="view-stage-name">Entities</div>
+                                <div class="view-stage-sub">Reify views or curate entity types directly.</div>
+                            </div>
+                        </div>
+                        <div class="view-actions gap-2">
+                            <button class="btn btn-secondary btn-sm" onclick="reifyCurrentView()">Reify active view</button>
+                            <button class="btn btn-secondary btn-sm" onclick="refreshAllReifiedCollections()">Refresh reified</button>
+                        </div>
+                    </div>
+                    <div class="view-stage-body space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="stat-card">
+                                <div class="text-sm text-gray-500">Entity types</div>
+                                <div class="text-2xl font-bold">${collections.length}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="text-sm text-gray-500">Total entities</div>
+                                <div class="text-2xl font-bold">${collections.reduce((sum, col) => sum + (normalizeEntityMembers(col.members || []).length), 0)}</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="text-sm text-gray-500">Selected records available</div>
+                                <div class="text-2xl font-bold">${selectedCount}</div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">${renderEntityCollections(collections)}</div>
+
+                        <div class="border border-gray-200 rounded-lg bg-white p-4 space-y-3" id="entityFormCard">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-semibold">${state.entityFormState.editingId ? 'Edit Entity Type' : 'Add Entity Type'}</div>
+                                    <p class="text-sm text-gray-500">Create a new entity type and optionally attach existing entities.</p>
+                                </div>
+                                ${state.entityFormState.editingId ? '<button class="btn btn-secondary btn-sm" id="resetEntityForm">Clear</button>' : ''}
+                            </div>
+                            <form id="entityCollectionForm" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div class="md:col-span-1">
+                                    <label class="form-label">Entity type name</label>
+                                    <input id="entityCollectionLabel" type="text" class="border rounded px-3 py-2 w-full" placeholder="Questionable observations" />
+                                </div>
+                                <div>
+                                    <label class="form-label">Entity reference type</label>
+                                    <select id="entityMemberType" class="border rounded px-3 py-2 w-full">
+                                        <option value="">Optional starter entity type</option>
+                                        <option value="Record">Record</option>
+                                        <option value="Set">Set</option>
+                                        <option value="Connection">Connection</option>
+                                        <option value="ViewEntity">ViewEntity</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label">Entity reference id</label>
+                                    <input id="entityMemberId" type="text" class="border rounded px-3 py-2 w-full" placeholder="rec_123" />
+                                </div>
+                                <div class="md:col-span-3 flex justify-between items-center">
+                                    <div class="text-sm text-gray-500">Use "Reify active view" to capture all records in the current view as entities without duplicating data.</div>
+                                    <button type="submit" class="btn btn-primary">${state.entityFormState.editingId ? 'Save changes' : 'Add entity type'}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.querySelectorAll('[data-collection-delete]').forEach(btn => {
+                btn.onclick = () => deleteEntityCollection(btn.dataset.collectionDelete);
+            });
+
+            document.querySelectorAll('[data-collection-refresh]').forEach(btn => {
+                btn.onclick = () => refreshEntityCollectionFromView(btn.dataset.collectionRefresh);
+            });
+
+            document.querySelectorAll('[data-collection-add-selected]').forEach(btn => {
+                btn.onclick = () => {
+                    const members = Array.from(state.selectedRecordIds || []).map(id => ({ type: 'Record', id }));
+                    if (!members.length) return;
+                    addMembersToCollection(btn.dataset.collectionAddSelected, members);
+                    renderEntitiesPage();
+                    showToast('✓ Added selected records as entities');
+                };
+            });
+
+            document.querySelectorAll('[data-collection-edit]').forEach(btn => {
+                btn.onclick = () => {
+                    populateEntityForm(btn.dataset.collectionEdit);
+                    document.getElementById('entityFormCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                };
+            });
+
+            const form = document.getElementById('entityCollectionForm');
+            if (form) {
+                form.onsubmit = (e) => { e.preventDefault(); handleEntityCollectionSubmit(); };
+            }
+            const resetBtn = document.getElementById('resetEntityForm');
+            if (resetBtn) resetBtn.onclick = resetEntityForm;
+        }
+
+        function refreshAllReifiedCollections() {
+            const reified = getEntityCollectionsView(col => col.source?.kind === 'view');
+            reified.forEach(col => refreshEntityCollectionFromView(col.id));
         }
 
         function addDefinition(def) {
@@ -4971,7 +5336,8 @@
             const titleEl = document.getElementById('mobileTopbarTitle');
             const set = getCurrentSet();
             const view = getCurrentView();
-            const special = state.currentSpecialView === 'definitions' ? 'Definitions' : state.currentSpecialView === 'connections' ? 'Connections' : null;
+            const specialMap = { entities: 'Entities', definitions: 'Definitions', connections: 'Connections' };
+            const special = specialMap[state.currentSpecialView] || null;
 
             if (titleEl) titleEl.textContent = special || set?.name || 'EO';
 
@@ -5457,30 +5823,41 @@
 
             const randomId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
             const id = `entity_view_${randomId}`;
-            const viewCopy = JSON.parse(JSON.stringify(view));
             const viewEntity = {
                 id,
                 type: 'ViewEntity',
-                viewConfig: viewCopy,
+                viewRef: { id: view.id || null, setId: view.setId || view.sourceSet || null, name: view.name },
                 sourceSet: view.setId || view.sourceSet || null,
+                label: view.name || 'Reified View',
                 createdAt: Date.now()
             };
 
             registerEntity(viewEntity);
+
+            const collectionId = linkEntityCollectionToView(view, viewEntity);
 
             addDefinition({
                 id: `def_${id}`,
                 entity: { type: 'ViewEntity', id },
                 term: view.name || 'Reified View',
                 definition: 'A view created from filters, groups, or aggregates.',
-                notes: JSON.stringify(viewCopy, null, 2),
-                tags: ['reified', 'view']
+                notes: viewEntity.viewRef?.id
+                    ? `Reifies view ${viewEntity.viewRef.id} and tracks its entities without duplicating the view JSON.`
+                    : 'Reified view reference stored as an entity.',
+                tags: ['reified', 'view', 'entity-collection']
             });
 
             const lineage = extractViewLineage(view, id);
             lineage.forEach(conn => addConnection(conn));
 
-            showToast(`✓ View reified as entity: ${id}`);
+            createEvent(
+                'Reify View',
+                'SYN',
+                { type: 'ViewEntity', id },
+                { summary: `Reified view "${view.name || id}"`, collectionId }
+            );
+
+            showToast(`✓ View reified as entity: ${collectionId || id}`);
             return id;
         }
 
@@ -6691,6 +7068,17 @@
             showToast('✓ World created');
         }
 
+        function openEntitiesPage() {
+            state.currentSpecialView = 'entities';
+            state.currentSetId = null;
+            state.currentViewId = null;
+            closeMobileSidebar();
+            renderSidebar();
+            renderCurrentView();
+            updateMobileChrome();
+            syncUrlState();
+        }
+
         function openDefinitionsPage() {
             state.currentSpecialView = 'definitions';
             state.currentSetId = null;
@@ -6719,8 +7107,10 @@
 
             renderWorldSelector();
 
+            const entitiesBtn = document.getElementById('entitiesNavBtn');
             const definitionsBtn = document.getElementById('definitionsNavBtn');
             const connectionsBtn = document.getElementById('connectionsNavBtn');
+            if (entitiesBtn) entitiesBtn.classList.toggle('active', state.currentSpecialView === 'entities');
             if (definitionsBtn) definitionsBtn.classList.toggle('active', state.currentSpecialView === 'definitions');
             if (connectionsBtn) connectionsBtn.classList.toggle('active', state.currentSpecialView === 'connections');
 
@@ -7103,6 +7493,11 @@
 
         function renderCurrentView() {
             const container = document.getElementById('viewContainer');
+            if (state.currentSpecialView === 'entities') {
+                renderEntitiesPage();
+                updateMobileChrome();
+                return;
+            }
             if (state.currentSpecialView === 'definitions') {
                 renderDefinitionsPage();
                 updateMobileChrome();
@@ -11699,6 +12094,7 @@
             const worldSets = getSetsForWorld(world?.id);
             const connections = getConnectionView();
             const definitions = getDefinitionView();
+            const entityCollections = getEntityCollectionsView();
             const data = {
                 world: world ? { ...world, setIds: Array.from(world.setIds || []) } : null,
                 sets: worldSets.map(s => ({
@@ -11709,6 +12105,7 @@
                     profiles: Array.from(s.profiles.values())
                 })),
                 definitions,
+                entityCollections,
                 connections,
                 eventStream: state.eventStream
             };
@@ -11735,6 +12132,7 @@
                 state.sets = new Map();
                 state.definitions = new Map();
                 state.connections = new Map();
+                state.entityCollections = new Map();
                 state.expandedSets = new Set();
                 state.openTabs = [];
                 state.currentSpecialView = null;
@@ -11792,6 +12190,11 @@
                 (data.connections || []).forEach(conn => {
                     const id = conn.id || `conn_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
                     state.connections.set(id, { ...conn, id });
+                });
+
+                (data.entityCollections || []).forEach(col => {
+                    const id = col.id || `entity_collection_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                    upsertEntityCollection({ ...col, id, worldId: col.worldId || worldId });
                 });
 
                 state.eventStream = Array.isArray(data.eventStream) ? data.eventStream : [];
