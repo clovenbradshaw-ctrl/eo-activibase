@@ -348,9 +348,88 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
             padding: 16px 28px;
             background: var(--surface);
             border-bottom: 1px solid var(--border);
+        }
+
+        .toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 0;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-inline-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .primary-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-menu { position: relative; }
+        .toolbar-menu.open .toolbar-menu-panel { display: flex; }
+
+        .toolbar-menu-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toolbar-menu-panel {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 10px);
+            min-width: 240px;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            box-shadow: 0 12px 40px rgba(15, 23, 42, 0.15);
+            flex-direction: column;
+            gap: 6px;
+            z-index: 15;
+        }
+
+        .toolbar-menu-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 2px 0;
+        }
+
+        .toolbar-menu-item {
+            width: 100%;
+            justify-content: flex-start;
+            gap: 10px;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            background: var(--muted-surface);
+        }
+
+        .toolbar-menu-item:hover {
+            background: var(--surface);
+            color: var(--text);
+            border-color: var(--text);
         }
 
         .toolbar .sort-sequence-badge {
@@ -363,7 +442,7 @@
             color: #4b5563;
             font-size: 13px;
         }
-        
+
         .view-type-switcher {
             display: flex;
             gap: 8px;
@@ -1358,7 +1437,8 @@
         }
 
         @media (max-width: 768px) {
-            .toolbar-actions button { min-height: 44px; }
+            .toolbar-actions button,
+            .toolbar-menu-toggle { min-height: 44px; }
             .grid-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -16px; padding: 0 16px; }
             .grid-table { min-width: 720px; }
             .view-type-btn { padding: 10px 12px; }
@@ -1379,16 +1459,23 @@
             .mobile-layout.sidebar-open-mobile .app-sidebar { transform: translateX(0); box-shadow: 8px 0 24px rgba(0,0,0,0.18); }
             .mobile-layout.sidebar-open-mobile .mobile-sidebar-overlay { display: block; }
             .app-header { position: sticky; top: 0; z-index: 20; }
-            .toolbar { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .toolbar { flex-direction: column; align-items: stretch; gap: 12px; }
             .toolbar .view-type-switcher { width: 100%; overflow-x: auto; padding-bottom: 4px; }
-            .toolbar-actions { width: 100%; flex-wrap: wrap; }
+            .toolbar-left { width: 100%; flex-direction: column; align-items: flex-start; }
+            .toolbar-inline-actions { width: 100%; }
+            .toolbar-actions { width: 100%; justify-content: space-between; }
+            .primary-actions { flex: 1; }
+            .toolbar-actions, .primary-actions { flex-wrap: wrap; }
             .toolbar-actions button { flex: 1 1 calc(50% - 8px); min-width: 140px; }
+            .toolbar-menu { width: 100%; display: flex; justify-content: flex-end; }
+            .toolbar-menu-panel { width: min(100%, 360px); }
             .cards-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
             .kanban-board { min-height: auto; }
         }
 
         @media (max-width: 640px) {
             .toolbar-actions button { flex: 1 1 100%; }
+            .toolbar-menu-toggle { width: 100%; justify-content: center; }
             .cards-grid { grid-template-columns: 1fr; }
             .kanban-column { min-width: 260px; }
         }
@@ -1442,7 +1529,7 @@
         <!-- Header -->
         <div class="app-header">
             <div class="toolbar">
-                <div class="flex items-center gap-3">
+                <div class="toolbar-left">
                     <div class="view-type-switcher">
                         <button class="view-type-btn active" data-type="grid" onclick="switchViewType('grid')">
                             <i class="ph ph-table"></i>
@@ -1457,37 +1544,60 @@
                             <span>Kanban</span>
                         </button>
                     </div>
-                    <button id="filterBtn" class="btn btn-secondary btn-sm">
-                        <i class="ph ph-funnel-simple"></i>
-                        Filter
-                    </button>
-                    <button id="sortBtn" class="btn btn-secondary btn-sm">
-                        <i class="ph ph-arrows-down-up"></i>
-                        Sort
-                    </button>
-                    <button id="popupSettingsBtn" class="btn btn-secondary btn-sm">
-                        <i class="ph ph-gear-six"></i>
-                        Details
-                    </button>
-                    <button id="historyBtn" class="btn btn-secondary btn-sm">
-                        <i class="ph ph-clock-counter-clockwise"></i>
-                        History
-                    </button>
+                    <div class="toolbar-inline-actions">
+                        <button id="filterBtn" class="btn btn-secondary btn-sm">
+                            <i class="ph ph-funnel-simple"></i>
+                            Filter
+                        </button>
+                        <button id="sortBtn" class="btn btn-secondary btn-sm">
+                            <i class="ph ph-arrows-down-up"></i>
+                            Sort
+                        </button>
+                    </div>
                 </div>
-                <div class="flex items-center gap-2 toolbar-actions">
-                    <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
-                    <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
-                    <button id="viewJsonBtn" class="btn btn-secondary btn-sm">View JSON</button>
-                    <button id="importCsvBtn" class="btn btn-secondary btn-sm">
-                        <i class="ph ph-upload-simple"></i>
-                        Import CSV
-                    </button>
-                    <button id="exportBtn" class="btn btn-secondary btn-sm">Export JSON</button>
-                    <button id="exportCsvBtn" class="btn btn-secondary btn-sm">Export CSVs</button>
-                    <button id="fuzzyPanelBtn" class="btn btn-secondary btn-sm">
-                        <i class="ph ph-graph"></i>
-                        Fuzzy Matches
-                    </button>
+                <div class="toolbar-actions">
+                    <div class="primary-actions">
+                        <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
+                        <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
+                    </div>
+                    <div class="toolbar-menu">
+                        <button id="toolbarMenuToggle" class="btn btn-secondary btn-sm toolbar-menu-toggle">
+                            <i class="ph ph-dots-three-outline"></i>
+                            More actions
+                        </button>
+                        <div class="toolbar-menu-panel" id="toolbarMenuPanel">
+                            <button id="popupSettingsBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                <i class="ph ph-gear-six"></i>
+                                Details
+                            </button>
+                            <button id="historyBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                <i class="ph ph-clock-counter-clockwise"></i>
+                                History
+                            </button>
+                            <div class="toolbar-menu-divider"></div>
+                            <button id="viewJsonBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                <i class="ph ph-code"></i>
+                                View JSON
+                            </button>
+                            <button id="importCsvBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                <i class="ph ph-upload-simple"></i>
+                                Import CSV
+                            </button>
+                            <button id="exportBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                <i class="ph ph-download-simple"></i>
+                                Export JSON
+                            </button>
+                            <button id="exportCsvBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                <i class="ph ph-spreadsheet"></i>
+                                Export CSVs
+                            </button>
+                            <div class="toolbar-menu-divider"></div>
+                            <button id="fuzzyPanelBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                <i class="ph ph-graph"></i>
+                                Fuzzy Matches
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -4075,6 +4185,33 @@
                 const type = btn.dataset.mobileNav;
                 if (!type) return;
                 btn.classList.toggle('active', view?.type === type);
+            });
+        }
+
+        function setupToolbarMenu() {
+            const menu = document.querySelector('.toolbar-menu');
+            const toggle = document.getElementById('toolbarMenuToggle');
+            const panel = document.getElementById('toolbarMenuPanel');
+            if (!menu || !toggle || !panel) return;
+
+            const closeMenu = () => menu.classList.remove('open');
+
+            toggle.addEventListener('click', (event) => {
+                event.stopPropagation();
+                menu.classList.toggle('open');
+            });
+
+            panel.addEventListener('click', (event) => {
+                event.stopPropagation();
+                if (event.target.closest('button')) closeMenu();
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!menu.contains(event.target)) closeMenu();
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') closeMenu();
             });
         }
 
@@ -9200,6 +9337,8 @@
 
         // EVENT LISTENERS
         function setupEventListeners() {
+            setupToolbarMenu();
+
             const fieldTypeTrigger = document.getElementById('fieldTypeTrigger');
             if (fieldTypeTrigger) fieldTypeTrigger.onclick = (event) => { event.preventDefault(); toggleFieldTypeDropdown(); };
 
