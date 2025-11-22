@@ -1848,6 +1848,10 @@
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Knowledge</div>
                 <div class="knowledge-nav">
+                    <button class="knowledge-nav-btn" id="entitiesNavBtn" onclick="openEntitiesPage()">
+                        <i class="ph ph-archive"></i>
+                        <span>Entities</span>
+                    </button>
                     <button class="knowledge-nav-btn" id="definitionsNavBtn" onclick="openDefinitionsPage()">
                         <i class="ph ph-books"></i>
                         <span>Definitions</span>
@@ -2751,6 +2755,7 @@
             leanContext: null, // Will be initialized in initializeApp
             interpretationRules: [],
             definitions: new Map(),
+            entityFormState: { activeFilter: 'all', editingId: null },
             connections: new Map(),
             demoRefs: {},
             connectionBuilder: { targetSetId: null, targetRecordId: '', searchQuery: '', formatId: null, params: {} },
@@ -2825,9 +2830,29 @@
                 throw new Error('Entities require an id and type');
             }
             if (!state.entities) state.entities = new Map();
-            const payload = { ...entity };
+            const existing = state.entities.get(entity.id) || {};
+            const worldId = entity.worldId || existing.worldId || deriveWorldIdForEntity(entity);
+            const payload = {
+                ...existing,
+                ...entity,
+                worldId,
+                entityType: entity.entityType || existing.entityType || entity.type,
+                origin: entity.origin || existing.origin || 'system'
+            };
             state.entities.set(entity.id, payload);
             return payload;
+        }
+
+        function deleteEntity(entityId) {
+            if (!state.entities?.has(entityId)) return null;
+            const existing = state.entities.get(entityId);
+            state.entities.delete(entityId);
+            return existing;
+        }
+
+        function getEntityView(filterFn) {
+            const entities = Array.from(state.entities.values()).filter(entity => !entity.worldId || entity.worldId === state.currentWorldId);
+            return typeof filterFn === 'function' ? entities.filter(filterFn) : entities;
         }
 
         const columnDragState = {
@@ -5064,7 +5089,13 @@
             const titleEl = document.getElementById('mobileTopbarTitle');
             const set = getCurrentSet();
             const view = getCurrentView();
-            const special = state.currentSpecialView === 'definitions' ? 'Definitions' : state.currentSpecialView === 'connections' ? 'Connections' : null;
+            const special = state.currentSpecialView === 'definitions'
+                ? 'Definitions'
+                : state.currentSpecialView === 'connections'
+                    ? 'Connections'
+                    : state.currentSpecialView === 'entities'
+                        ? 'Entities'
+                        : null;
 
             if (titleEl) titleEl.textContent = special || set?.name || 'EO';
 
@@ -5568,12 +5599,22 @@
 
             const randomId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
             const id = `entity_view_${randomId}`;
-            const viewCopy = JSON.parse(JSON.stringify(view));
+            const viewRef = {
+                setId: view.setId || view.sourceSet || view.sourceSetId || null,
+                viewId: view.id || view.key || view.name,
+                viewName: view.name
+            };
+            const memberRefs = collectViewMembers(view);
+            const viewWorldId = viewRef.setId ? state.sets.get(viewRef.setId)?.worldId : state.currentWorldId;
             const viewEntity = {
                 id,
                 type: 'ViewEntity',
-                viewConfig: viewCopy,
+                entityType: view.name || 'Reified View',
+                viewRef,
                 sourceSet: view.setId || view.sourceSet || null,
+                memberRefs,
+                origin: 'reified',
+                worldId: viewWorldId,
                 createdAt: Date.now()
             };
 
@@ -5584,8 +5625,9 @@
                 entity: { type: 'ViewEntity', id },
                 term: view.name || 'Reified View',
                 definition: 'A view created from filters, groups, or aggregates.',
-                notes: JSON.stringify(viewCopy, null, 2),
-                tags: ['reified', 'view']
+                notes: `Reified from view ${viewRef.viewName || viewRef.viewId || ''}`.trim(),
+                tags: ['reified', 'view'],
+                worldId: viewWorldId
             });
 
             const lineage = extractViewLineage(view, id);
@@ -5593,6 +5635,19 @@
 
             showToast(`✓ View reified as entity: ${id}`);
             return id;
+        }
+
+        function collectViewMembers(view) {
+            if (!view) return [];
+            const setId = view.setId || view.sourceSet || view.sourceSetId || null;
+            const set = setId ? state.sets.get(setId) : null;
+            if (!set) return [];
+
+            let records = Array.from(set.records.values());
+            if (Array.isArray(view.filters) && view.filters.length > 0) records = applyFilterGroups(records, view.filters, set.schema);
+            if (Array.isArray(view.sorts) && view.sorts.length > 0) records = applySorts(records, view.sorts, set.schema);
+
+            return records.map(record => ({ type: 'Record', id: record.id, setId: set.id }));
         }
 
         function extractViewLineage(view, newEntityId) {
@@ -6822,6 +6877,17 @@
             openModal('addWorldModal');
         }
 
+        function openEntitiesPage() {
+            state.currentSpecialView = 'entities';
+            state.currentSetId = null;
+            state.currentViewId = null;
+            closeMobileSidebar();
+            renderSidebar();
+            renderCurrentView();
+            updateMobileChrome();
+            syncUrlState();
+        }
+
         function saveWorldFromModal() {
             const input = document.getElementById('newWorldName');
             const name = input?.value.trim();
@@ -6862,6 +6928,8 @@
 
             const definitionsBtn = document.getElementById('definitionsNavBtn');
             const connectionsBtn = document.getElementById('connectionsNavBtn');
+            const entitiesBtn = document.getElementById('entitiesNavBtn');
+            if (entitiesBtn) entitiesBtn.classList.toggle('active', state.currentSpecialView === 'entities');
             if (definitionsBtn) definitionsBtn.classList.toggle('active', state.currentSpecialView === 'definitions');
             if (connectionsBtn) connectionsBtn.classList.toggle('active', state.currentSpecialView === 'connections');
 
@@ -7244,6 +7312,11 @@
 
         function renderCurrentView() {
             const container = document.getElementById('viewContainer');
+            if (state.currentSpecialView === 'entities') {
+                renderEntitiesPage();
+                updateMobileChrome();
+                return;
+            }
             if (state.currentSpecialView === 'definitions') {
                 renderDefinitionsPage();
                 updateMobileChrome();
@@ -8324,6 +8397,223 @@
             closeModal('kanbanConfigModal');
             renderKanbanView();
             showToast('✓ Kanban configured');
+        }
+
+        // ENTITIES
+        function groupEntitiesByType(entities = []) {
+            const groups = new Map();
+            entities.forEach(entity => {
+                const key = entity.entityType || entity.type || 'Unknown';
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(entity);
+            });
+            return groups;
+        }
+
+        function renderEntityMembership(entity) {
+            if (!entity?.memberRefs?.length) return '';
+            const preview = entity.memberRefs.slice(0, 3)
+                .map(ref => renderEntityLabel(ref))
+                .join(', ');
+            const remaining = entity.memberRefs.length > 3 ? ` +${entity.memberRefs.length - 3} more` : '';
+            return `
+                <div class="mt-2 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                    <div class="font-semibold text-gray-800 flex items-center gap-1">
+                        <i class="ph ph-tree-structure"></i>
+                        Entity table · ${entity.memberRefs.length} items
+                    </div>
+                    <div class="mt-1 text-gray-500">${preview}${remaining}</div>
+                </div>
+            `;
+        }
+
+        function renderEntityGroups(groupMap) {
+            if (!groupMap?.size) return '<p class="text-sm text-gray-500">No entities yet. Reify a view or add one manually.</p>';
+
+            return Array.from(groupMap.entries()).map(([groupKey, entities]) => {
+                const reifiedCount = entities.filter(e => e.origin === 'reified').length;
+                const manualCount = entities.filter(e => e.origin === 'manual').length;
+                return `
+                    <div class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">${groupKey}</div>
+                                <div class="text-lg font-semibold text-gray-900">${entities.length} entr${entities.length === 1 ? 'y' : 'ies'}</div>
+                                <div class="text-sm text-gray-500">${reifiedCount} reified · ${manualCount} direct</div>
+                            </div>
+                            <div class="text-right text-xs text-gray-500 leading-tight">
+                                <div>Tracked in ${getWorld()?.name || 'world'}</div>
+                                <div>Last updated ${new Date(Math.max(...entities.map(e => e.updatedAt || e.createdAt || Date.now()))).toLocaleString()}</div>
+                            </div>
+                        </div>
+                        <div class="mt-3 space-y-2">
+                            ${entities.map(entity => `
+                                <div class="border border-gray-100 rounded-md p-3 bg-gray-50">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <div class="text-sm font-semibold text-gray-800 truncate">${renderEntityLabel(entity)}</div>
+                                            <div class="text-xs text-gray-500 flex flex-wrap items-center gap-2">
+                                                <span class="inline-flex items-center gap-1"><i class="ph ph-tag"></i>${entity.type}</span>
+                                                ${entity.origin ? `<span class="inline-flex items-center gap-1"><i class="ph ph-compass"></i>${entity.origin}</span>` : ''}
+                                                ${entity.viewRef ? `<span class="inline-flex items-center gap-1 text-blue-600"><i class="ph ph-eye"></i>View: ${entity.viewRef.viewName || entity.viewRef.viewId}</span>` : ''}
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2 text-xs">
+                                            ${entity.origin === 'manual' ? `<button class="text-red-500" data-entity-delete="${entity.id}">Delete</button>` : `<span class="text-gray-400" title="Reified entities are protected">Protected</span>`}
+                                        </div>
+                                    </div>
+                                    ${renderEntityMembership(entity)}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function resetEntityForm() {
+            const form = document.getElementById('entityForm');
+            if (!form) return;
+            form.reset();
+            state.entityFormState.editingId = null;
+        }
+
+        function handleEntityFormSubmit() {
+            const form = document.getElementById('entityForm');
+            if (!form) return;
+
+            const id = form.querySelector('#entityId')?.value.trim();
+            const type = form.querySelector('#entityKind')?.value.trim();
+            const entityType = form.querySelector('#entityType')?.value.trim();
+            const label = form.querySelector('#entityLabel')?.value.trim();
+            const notes = form.querySelector('#entityNotes')?.value.trim();
+
+            if (!id || !type) {
+                showToast('Please provide both an entity id and type');
+                return;
+            }
+
+            registerEntity({
+                id,
+                type,
+                entityType: entityType || type,
+                name: label || undefined,
+                notes,
+                origin: 'manual',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                worldId: state.currentWorldId
+            });
+
+            showToast('✓ Entity captured');
+            resetEntityForm();
+            renderEntitiesPage(state.entityFormState.activeFilter || 'all');
+        }
+
+        function renderEntitiesPage(filterKey = 'all') {
+            state.entityFormState.activeFilter = filterKey;
+
+            const filters = {
+                all: () => true,
+                reified: entity => entity.origin === 'reified',
+                manual: entity => entity.origin === 'manual',
+                views: entity => entity.type === 'ViewEntity',
+                records: entity => entity.type === 'Record'
+            };
+
+            const entities = getEntityView(filters[filterKey]);
+            const grouped = groupEntitiesByType(entities);
+            const container = document.getElementById('viewContainer');
+            const reifiedCount = entities.filter(e => e.origin === 'reified').length;
+            const manualCount = entities.filter(e => e.origin === 'manual').length;
+
+            container.innerHTML = `
+                <div class="view-stage-header">
+                    <div class="view-stage-title">
+                        <span class="view-stage-pill">${getWorld()?.name || 'Entities'}</span>
+                        <div class="min-w-0">
+                            <div class="view-stage-name">Entities</div>
+                            <div class="view-stage-sub">${entities.length} tracked · ${grouped.size} types</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        ${['all','reified','manual','views','records'].map(key => `<button class="btn btn-secondary btn-sm ${filterKey === key ? 'active' : ''}" data-entity-filter="${key}">${key.charAt(0).toUpperCase() + key.slice(1)}</button>`).join('')}
+                    </div>
+                </div>
+                <div class="view-stage-body space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Reified</div>
+                            <div class="text-2xl font-bold text-gray-900">${reifiedCount}</div>
+                            <div class="text-xs text-gray-500">Made persistent from views</div>
+                        </div>
+                        <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Direct</div>
+                            <div class="text-2xl font-bold text-gray-900">${manualCount}</div>
+                            <div class="text-xs text-gray-500">Added manually</div>
+                        </div>
+                        <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Types</div>
+                            <div class="text-2xl font-bold text-gray-900">${grouped.size}</div>
+                            <div class="text-xs text-gray-500">Entity families</div>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        ${renderEntityGroups(grouped)}
+                    </div>
+                    <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm" id="entityFormCard">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Add Entity</div>
+                                <div class="text-sm text-gray-500">Capture a new entity type without duplicating data.</div>
+                            </div>
+                            ${state.entityFormState.editingId ? '<button class="btn btn-secondary btn-sm" id="resetEntityForm">Clear</button>' : ''}
+                        </div>
+                        <form id="entityForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="form-label">Entity Kind *</label>
+                                <input id="entityKind" type="text" class="border rounded px-3 py-2 w-full" placeholder="Record, Observation, etc." />
+                            </div>
+                            <div>
+                                <label class="form-label">Entity ID *</label>
+                                <input id="entityId" type="text" class="border rounded px-3 py-2 w-full" placeholder="Unique identifier" />
+                            </div>
+                            <div>
+                                <label class="form-label">Entity Type / Family</label>
+                                <input id="entityType" type="text" class="border rounded px-3 py-2 w-full" placeholder="Grouping e.g. Questionable Observations" />
+                            </div>
+                            <div>
+                                <label class="form-label">Display Label</label>
+                                <input id="entityLabel" type="text" class="border rounded px-3 py-2 w-full" placeholder="Human readable name" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="form-label">Notes</label>
+                                <textarea id="entityNotes" class="border rounded px-3 py-2 w-full" rows="2" placeholder="Optional context or provenance"></textarea>
+                            </div>
+                            <div class="md:col-span-2 flex justify-end">
+                                <button type="submit" id="entitySubmit" class="btn btn-primary">Capture Entity</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+
+            document.querySelectorAll('[data-entity-filter]').forEach(btn => {
+                btn.onclick = () => renderEntitiesPage(btn.dataset.entityFilter);
+            });
+
+            document.querySelectorAll('[data-entity-delete]').forEach(btn => {
+                btn.onclick = () => {
+                    deleteEntity(btn.dataset.entityDelete);
+                    renderEntitiesPage(filterKey);
+                    showToast('✓ Entity removed');
+                };
+            });
+
+            const form = document.getElementById('entityForm');
+            if (form) form.onsubmit = (event) => { event.preventDefault(); handleEntityFormSubmit(); };
+            const resetBtn = document.getElementById('resetEntityForm');
+            if (resetBtn) resetBtn.onclick = resetEntityForm;
         }
 
         // GRAPH VIEW
