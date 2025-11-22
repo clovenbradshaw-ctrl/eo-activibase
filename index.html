@@ -1915,6 +1915,10 @@
                         <i class="ph ph-link-simple"></i>
                         <span>Connections</span>
                     </button>
+                    <button class="knowledge-nav-btn" id="searchDataNavBtn" onclick="openSearchDataModal()">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <span>Search Data</span>
+                    </button>
                 </div>
             </div>
             <div class="sidebar-section grow">
@@ -2881,6 +2885,59 @@
                     <i class="ph ph-clipboard-text"></i>
                     Copy
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Data Modal -->
+    <div id="searchDataModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header">
+                <h2 class="text-xl font-bold text-gray-900">Search Data</h2>
+                <p class="text-sm text-gray-500 mt-1">Find fields, records, and values to create views</p>
+            </div>
+            <div class="modal-body space-y-4 overflow-y-auto flex-1">
+                <div>
+                    <label class="form-label">Search Query</label>
+                    <input type="text" id="searchDataInput" placeholder="Type to search..." class="w-full">
+                </div>
+                <div>
+                    <label class="form-label">Search Scope</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="view-type-option">
+                            <input type="radio" name="searchScope" value="everything" checked>
+                            <div class="view-type-option-content">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <span>Everything</span>
+                            </div>
+                        </label>
+                        <label class="view-type-option">
+                            <input type="radio" name="searchScope" value="fields">
+                            <div class="view-type-option-content">
+                                <i class="ph ph-columns"></i>
+                                <span>Fields</span>
+                            </div>
+                        </label>
+                        <label class="view-type-option">
+                            <input type="radio" name="searchScope" value="records">
+                            <div class="view-type-option-content">
+                                <i class="ph ph-rows"></i>
+                                <span>Records</span>
+                            </div>
+                        </label>
+                        <label class="view-type-option">
+                            <input type="radio" name="searchScope" value="values">
+                            <div class="view-type-option-content">
+                                <i class="ph ph-text-aa"></i>
+                                <span>Values</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <div id="searchDataResults" class="space-y-4"></div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button id="closeSearchDataBtn" class="btn btn-secondary">Close</button>
             </div>
         </div>
     </div>
@@ -12023,6 +12080,347 @@
             showToast('✓ View created from value');
         }
 
+        // SEARCH DATA FUNCTIONALITY
+        function openSearchDataModal() {
+            openModal('searchDataModal');
+            document.getElementById('searchDataInput').value = '';
+            document.getElementById('searchDataResults').innerHTML = '';
+
+            // Set up event listeners
+            const searchInput = document.getElementById('searchDataInput');
+            const scopeRadios = document.querySelectorAll('input[name="searchScope"]');
+
+            searchInput.oninput = () => performSearch();
+            scopeRadios.forEach(radio => {
+                radio.onchange = () => performSearch();
+            });
+
+            // Focus search input
+            setTimeout(() => searchInput.focus(), 100);
+        }
+
+        function performSearch() {
+            const query = document.getElementById('searchDataInput').value;
+            const scope = document.querySelector('input[name="searchScope"]:checked').value;
+
+            if (!query || query.length < 2) {
+                document.getElementById('searchDataResults').innerHTML = '<p class="text-sm text-gray-400">Type at least 2 characters to search...</p>';
+                return;
+            }
+
+            const results = searchData(query, scope);
+            renderSearchResults(results, query, scope);
+        }
+
+        function searchData(query, scope = 'everything') {
+            const q = query.toLowerCase();
+            const results = {
+                fields: [],
+                records: [],
+                values: []
+            };
+
+            // Get all sets in current world
+            const worldSets = getSetsForWorld();
+
+            worldSets.forEach(set => {
+                // Search fields
+                if (scope === 'everything' || scope === 'fields') {
+                    set.schema.forEach(field => {
+                        if (field.name.toLowerCase().includes(q)) {
+                            results.fields.push({
+                                field,
+                                setId: set.id,
+                                setName: set.name
+                            });
+                        }
+                    });
+                }
+
+                // Search records
+                if (scope === 'everything' || scope === 'records' || scope === 'values') {
+                    set.records.forEach((record, recordId) => {
+                        const recordLabel = getRecordDisplayLabel(record, set);
+
+                        // Check if record label matches
+                        if ((scope === 'everything' || scope === 'records') && recordLabel.toLowerCase().includes(q)) {
+                            results.records.push({
+                                record,
+                                recordId,
+                                setId: set.id,
+                                setName: set.name,
+                                label: recordLabel
+                            });
+                        }
+
+                        // Search cell values
+                        if (scope === 'everything' || scope === 'values') {
+                            set.schema.forEach(field => {
+                                const value = record[field.id];
+                                if (value && String(value).toLowerCase().includes(q)) {
+                                    results.values.push({
+                                        recordId,
+                                        fieldId: field.id,
+                                        fieldName: field.name,
+                                        value,
+                                        setId: set.id,
+                                        setName: set.name,
+                                        recordLabel
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+
+            return results;
+        }
+
+        function renderSearchResults(results, query, scope) {
+            const container = document.getElementById('searchDataResults');
+            const totalResults = results.fields.length + results.records.length + results.values.length;
+
+            if (totalResults === 0) {
+                container.innerHTML = `<p class="text-sm text-gray-400">No results found for "${query}"</p>`;
+                return;
+            }
+
+            let html = `<div class="text-sm text-gray-600 mb-4">Found ${totalResults} result${totalResults !== 1 ? 's' : ''}</div>`;
+
+            // Render Fields
+            if (results.fields.length > 0) {
+                html += `
+                    <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <h3 class="font-bold text-gray-900 mb-2 flex items-center gap-2">
+                            <i class="ph ph-columns"></i>
+                            Fields (${results.fields.length})
+                        </h3>
+                        <div class="space-y-2">
+                `;
+                results.fields.forEach((item, index) => {
+                    if (index < 10) { // Limit display
+                        html += `
+                            <div class="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-blue-400 transition">
+                                <div class="flex-1">
+                                    <div class="font-medium text-gray-900">${item.field.name}</div>
+                                    <div class="text-xs text-gray-500">${item.setName} • ${item.field.type}</div>
+                                </div>
+                                <button class="btn btn-primary btn-sm" onclick="createViewFromSearchField('${item.setId}', '${item.field.id}')">
+                                    Create View
+                                </button>
+                            </div>
+                        `;
+                    }
+                });
+                if (results.fields.length > 10) {
+                    html += `<p class="text-sm text-gray-500">...and ${results.fields.length - 10} more</p>`;
+                }
+                html += `</div></div>`;
+            }
+
+            // Render Records
+            if (results.records.length > 0) {
+                html += `
+                    <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <h3 class="font-bold text-gray-900 mb-2 flex items-center gap-2">
+                            <i class="ph ph-rows"></i>
+                            Records (${results.records.length})
+                        </h3>
+                        <div class="space-y-2">
+                `;
+                results.records.forEach((item, index) => {
+                    if (index < 10) {
+                        html += `
+                            <div class="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-blue-400 transition">
+                                <div class="flex-1">
+                                    <div class="font-medium text-gray-900">${item.label}</div>
+                                    <div class="text-xs text-gray-500">${item.setName}</div>
+                                </div>
+                                <button class="btn btn-primary btn-sm" onclick="createViewFromSearchRecord('${item.setId}', '${item.recordId}')">
+                                    Create View
+                                </button>
+                            </div>
+                        `;
+                    }
+                });
+                if (results.records.length > 10) {
+                    html += `<p class="text-sm text-gray-500">...and ${results.records.length - 10} more</p>`;
+                }
+                html += `</div></div>`;
+            }
+
+            // Render Values
+            if (results.values.length > 0) {
+                html += `
+                    <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <h3 class="font-bold text-gray-900 mb-2 flex items-center gap-2">
+                            <i class="ph ph-text-aa"></i>
+                            Cell Values (${results.values.length})
+                        </h3>
+                        <div class="space-y-2">
+                `;
+
+                // Group values by field
+                const valuesByField = {};
+                results.values.forEach(item => {
+                    const key = `${item.setId}:${item.fieldId}`;
+                    if (!valuesByField[key]) {
+                        valuesByField[key] = {
+                            fieldName: item.fieldName,
+                            setName: item.setName,
+                            setId: item.setId,
+                            fieldId: item.fieldId,
+                            values: []
+                        };
+                    }
+                    valuesByField[key].values.push(item);
+                });
+
+                Object.values(valuesByField).forEach((group, index) => {
+                    if (index < 10) {
+                        const displayValue = String(group.values[0].value).slice(0, 50);
+                        html += `
+                            <div class="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-blue-400 transition">
+                                <div class="flex-1">
+                                    <div class="font-medium text-gray-900">"${displayValue}" in ${group.fieldName}</div>
+                                    <div class="text-xs text-gray-500">${group.setName} • ${group.values.length} match${group.values.length !== 1 ? 'es' : ''}</div>
+                                </div>
+                                <button class="btn btn-primary btn-sm" onclick="createViewFromSearchValue('${group.setId}', '${group.fieldId}', '${encodeURIComponent(JSON.stringify(group.values[0].value))}')">
+                                    Create View
+                                </button>
+                            </div>
+                        `;
+                    }
+                });
+                if (Object.keys(valuesByField).length > 10) {
+                    html += `<p class="text-sm text-gray-500">...and ${Object.keys(valuesByField).length - 10} more</p>`;
+                }
+                html += `</div></div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function expandOneLevel(setId, recordIds) {
+            const linkedRecordIds = new Set();
+            const recordIdArray = Array.isArray(recordIds) ? recordIds : [recordIds];
+
+            // Find all connections involving these records
+            state.connections.forEach(conn => {
+                recordIdArray.forEach(recordId => {
+                    const fullRecordId = `${setId}/${recordId}`;
+
+                    // Check if this record is the subject
+                    if (conn.subject.type === 'Record' && conn.subject.id === fullRecordId) {
+                        if (conn.operand.type === 'Record') {
+                            // Extract setId and recordId from operand
+                            const parts = conn.operand.id.split('/');
+                            if (parts.length === 2) {
+                                linkedRecordIds.add({ setId: parts[0], recordId: parts[1] });
+                            }
+                        }
+                    }
+
+                    // Check if this record is the operand
+                    if (conn.operand.type === 'Record' && conn.operand.id === fullRecordId) {
+                        if (conn.subject.type === 'Record') {
+                            // Extract setId and recordId from subject
+                            const parts = conn.subject.id.split('/');
+                            if (parts.length === 2) {
+                                linkedRecordIds.add({ setId: parts[0], recordId: parts[1] });
+                            }
+                        }
+                    }
+                });
+            });
+
+            return Array.from(linkedRecordIds);
+        }
+
+        function createViewFromSearchField(setId, fieldId) {
+            const set = state.sets.get(setId);
+            if (!set) return;
+
+            const field = set.schema.find(f => f.id === fieldId);
+            if (!field) return;
+
+            // Create a pivot/grouped view by this field
+            const keyRef = { setId, fieldId };
+            const detection = autoDetectSchemaFromKey(keyRef);
+            const viewName = `${field.name} Pivot`;
+            const viewId = createView(set.id, viewName, {
+                type: 'KEY_DERIVED',
+                icon: 'ph-chart-pie',
+                key: keyRef,
+                schema: detection.schema,
+                relationships: detection.relationships
+            });
+
+            closeModal('searchDataModal');
+            renderSidebar();
+            switchSet(set.id, viewId);
+            showToast('✓ View created from field');
+        }
+
+        function createViewFromSearchRecord(setId, recordId) {
+            const set = state.sets.get(setId);
+            const record = set?.records.get(recordId);
+            if (!set || !record) return;
+
+            // Get linked records (1 level deep)
+            const linkedRecords = expandOneLevel(setId, recordId);
+            const recordLabel = getRecordDisplayLabel(record, set);
+
+            // Create a filtered view showing this record and linked records
+            const filters = [[{ field: 'id', operator: 'equals', value: recordId }]];
+
+            // Add linked records to filter if any
+            if (linkedRecords.length > 0) {
+                linkedRecords.forEach(linked => {
+                    if (linked.setId === setId) {
+                        filters.push([{ field: 'id', operator: 'equals', value: linked.recordId }]);
+                    }
+                });
+            }
+
+            const viewName = `Record: ${recordLabel}`;
+            const viewId = createView(set.id, viewName, {
+                type: 'grid',
+                icon: 'ph-file-text',
+                filters
+            });
+
+            closeModal('searchDataModal');
+            renderSidebar();
+            switchSet(set.id, viewId);
+            showToast(`✓ View created with record and ${linkedRecords.length} linked record${linkedRecords.length !== 1 ? 's' : ''}`);
+        }
+
+        function createViewFromSearchValue(setId, fieldId, encodedValue) {
+            const set = state.sets.get(setId);
+            if (!set) return;
+
+            const field = set.schema.find(f => f.id === fieldId);
+            if (!field) return;
+
+            const value = JSON.parse(decodeURIComponent(encodedValue));
+            const filters = [[{ field: fieldId, operator: 'equals', value }]];
+            const displayValue = typeof value === 'object' ? JSON.stringify(value) : (value ?? 'Empty');
+            const viewName = `${field.name}: ${String(displayValue).slice(0, 42)}`;
+
+            const viewId = createView(set.id, viewName, {
+                type: 'grid',
+                icon: 'ph-funnel-simple',
+                filters
+            });
+
+            closeModal('searchDataModal');
+            renderSidebar();
+            switchSet(set.id, viewId);
+            showToast('✓ View created from value');
+        }
+
         function registerInterpretationRule(rule, options = {}) {
             const normalizedRule = {
                 rule_id: rule.rule_id || `rule_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
@@ -12663,6 +13061,7 @@
             document.getElementById('cancelKanbanConfigBtn').onclick = () => closeModal('kanbanConfigModal');
             document.getElementById('closeJsonViewerBtn').onclick = () => closeModal('jsonViewerModal');
             document.getElementById('copyJsonBtn').onclick = copyJsonToClipboard;
+            document.getElementById('closeSearchDataBtn').onclick = () => closeModal('searchDataModal');
         }
 
         document.addEventListener('click', (event) => {
