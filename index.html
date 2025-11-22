@@ -4096,11 +4096,11 @@
             return viewId;
         }
 
-        function scoreFieldAsKey(set, field) {
+        function scoreKeyCandidate(set, fieldId, fieldName, fieldType = 'TEXT') {
             let score = 0;
-            if (field.type === 'LINK_RECORD') score += 0.35;
+            if (fieldType === 'LINK_RECORD') score += 0.35;
 
-            const values = Array.from(set.records.values()).map(r => r[field.id]).filter(v => v !== undefined && v !== null);
+            const values = Array.from(set.records.values()).map(r => r[fieldId]).filter(v => v !== undefined && v !== null);
             if (values.length > 0) {
                 const unique = new Set(values.map(v => JSON.stringify(v))).size;
                 const reuseRatio = 1 - unique / values.length;
@@ -4109,28 +4109,73 @@
 
             for (const [otherSetId, otherSet] of state.sets.entries()) {
                 if (otherSetId === set.id) continue;
-                const overlap = otherSet.schema.some(f => f.id === field.id || f.name === field.name);
-                if (overlap) score += 0.15;
+                const overlap = otherSet.schema.some(f => f.id === fieldId || f.name === fieldName || f.name === fieldId);
+                const dataOverlap = Array.from(otherSet.records.values()).some(r => r[fieldId] !== undefined);
+                if (overlap || dataOverlap) score += 0.15;
             }
 
             score = Math.min(1, score);
             return { score };
         }
 
+        function scoreFieldAsKey(set, field) {
+            return scoreKeyCandidate(set, field.id, field.name, field.type);
+        }
+
+        function findLooseKeyCandidates(set) {
+            const schemaFieldIds = new Set(set.schema.map(f => f.id));
+            const counts = new Map();
+
+            set.records.forEach(record => {
+                Object.keys(record || {}).forEach(fieldId => {
+                    if (fieldId === 'id' || schemaFieldIds.has(fieldId)) return;
+                    counts.set(fieldId, (counts.get(fieldId) || 0) + 1);
+                });
+            });
+
+            const totalRecords = Math.max(set.records.size, 1);
+            return [...counts.entries()]
+                .map(([fieldId, count]) => ({
+                    fieldId,
+                    fieldName: fieldId,
+                    score: Math.min(1, count / totalRecords)
+                }))
+                .filter(candidate => candidate.score > 0.6);
+        }
+
         function findKeyCandidates() {
             const candidates = new Map();
+
+            const addCandidate = (setId, fieldId, fieldName, score) => {
+                if (!fieldId) return;
+                const key = `${setId}:${fieldId}`;
+                const existing = candidates.get(key);
+                if (!existing || score > existing.score) {
+                    candidates.set(key, { setId, fieldId, fieldName, score });
+                }
+            };
 
             state.sets.forEach((set, setId) => {
                 set.schema.forEach(field => {
                     const usage = scoreFieldAsKey(set, field);
                     if (usage.score > 0.6) {
-                        candidates.set(`${setId}:${field.id}`, {
-                            setId,
-                            fieldId: field.id,
-                            fieldName: field.name,
-                            score: usage.score
-                        });
+                        addCandidate(setId, field.id, field.name, usage.score);
                     }
+                });
+
+                set.views.forEach(view => {
+                    if (!Array.isArray(view.schema)) return;
+                    view.schema.forEach(field => {
+                        const sourceFieldId = field.sourceFieldId || field.id;
+                        const usage = scoreKeyCandidate(set, sourceFieldId, field.name || sourceFieldId, field.type);
+                        if (usage.score > 0.6) {
+                            addCandidate(setId, sourceFieldId, field.name || sourceFieldId, usage.score);
+                        }
+                    });
+                });
+
+                findLooseKeyCandidates(set).forEach(candidate => {
+                    addCandidate(setId, candidate.fieldId, candidate.fieldName, candidate.score);
                 });
             });
 
@@ -4139,8 +4184,14 @@
 
         function findFieldAcrossSets(fieldId) {
             for (const [setId, set] of state.sets.entries()) {
-                const field = set.schema.find(f => f.id === fieldId);
-                if (field) return { setId, field };
+                const schemaField = set.schema.find(f => f.id === fieldId);
+                if (schemaField) return { setId, field: schemaField };
+
+                for (const view of set.views.values()) {
+                    if (!Array.isArray(view.schema)) continue;
+                    const viewField = view.schema.find(f => f.id === fieldId || f.sourceFieldId === fieldId);
+                    if (viewField) return { setId, field: viewField };
+                }
             }
             return null;
         }
