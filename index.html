@@ -12337,8 +12337,8 @@
             const query = document.getElementById('searchDataInput').value;
             const scope = document.querySelector('input[name="searchScope"]:checked').value;
 
-            if (!query || query.length < 2) {
-                document.getElementById('searchDataResults').innerHTML = '<p class="text-sm text-gray-400">Type at least 2 characters to search...</p>';
+            if (!query || query.trim().length === 0) {
+                document.getElementById('searchDataResults').innerHTML = '<p class="text-sm text-gray-400">Type to search...</p>';
                 return;
             }
 
@@ -12347,7 +12347,9 @@
         }
 
         function searchData(query, scope = 'everything') {
-            const q = query.toLowerCase();
+            const q = query.trim().toLowerCase();
+            if (!q) return { fields: [], records: [], values: [] };
+
             const results = {
                 fields: [],
                 records: [],
@@ -12358,10 +12360,12 @@
             const worldSets = getSetsForWorld();
 
             worldSets.forEach(set => {
-                // Search fields
+                if (!set || !set.schema) return;
+
+                // Search fields - simple substring match
                 if (scope === 'everything' || scope === 'fields') {
                     set.schema.forEach(field => {
-                        if (field.name.toLowerCase().includes(q)) {
+                        if (field && field.name && field.name.toLowerCase().includes(q)) {
                             results.fields.push({
                                 field,
                                 setId: set.id,
@@ -12371,13 +12375,18 @@
                     });
                 }
 
-                // Search records
+                // Search records and values
                 if (scope === 'everything' || scope === 'records' || scope === 'values') {
+                    if (!set.records) return;
+
                     set.records.forEach((record, recordId) => {
+                        if (!record) return;
+
+                        // Get record label for searching
                         const recordLabel = getRecordDisplayLabel(record, set);
 
-                        // Check if record label matches
-                        if ((scope === 'everything' || scope === 'records') && recordLabel.toLowerCase().includes(q)) {
+                        // Search record labels - simple substring match
+                        if ((scope === 'everything' || scope === 'records') && recordLabel && recordLabel.toLowerCase().includes(q)) {
                             results.records.push({
                                 record,
                                 recordId,
@@ -12387,20 +12396,25 @@
                             });
                         }
 
-                        // Search cell values
+                        // Search cell values - simple substring match
                         if (scope === 'everything' || scope === 'values') {
                             set.schema.forEach(field => {
+                                if (!field) return;
+
                                 const value = record[field.id];
-                                if (value && String(value).toLowerCase().includes(q)) {
-                                    results.values.push({
-                                        recordId,
-                                        fieldId: field.id,
-                                        fieldName: field.name,
-                                        value,
-                                        setId: set.id,
-                                        setName: set.name,
-                                        recordLabel
-                                    });
+                                if (value != null && value !== '') {
+                                    const valueStr = String(value).toLowerCase();
+                                    if (valueStr.includes(q)) {
+                                        results.values.push({
+                                            recordId,
+                                            fieldId: field.id,
+                                            fieldName: field.name,
+                                            value,
+                                            setId: set.id,
+                                            setName: set.name,
+                                            recordLabel
+                                        });
+                                    }
                                 }
                             });
                         }
