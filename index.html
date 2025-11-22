@@ -1902,6 +1902,7 @@
                 </div>
                 <div class="world-actions">
                     <select id="worldSelect" class="world-select"></select>
+                    <button id="loadGraphDemoBtn" class="sidebar-toggle" title="Load Graph Demo" onclick="loadGraphDemo()"><i class="ph ph-graph"></i></button>
                     <button id="addWorldBtn" class="sidebar-toggle" title="Add world"><i class="ph ph-plus"></i></button>
                 </div>
             </div>
@@ -5730,6 +5731,474 @@
             state.expandedSets.add(locationsId);
         }
 
+        function createGraphDemo() {
+            const demoWorldId = createWorld('Graph Demo', 'world_graph_demo');
+            state.currentWorldId = demoWorldId;
+            const worldDefaults = state.worlds.get(demoWorldId)?.defaults || {};
+
+            // Create sets for different entity types
+            const projectsId = createSet('Projects', 'ph-folder', demoWorldId);
+            const peopleId = createSet('People', 'ph-users', demoWorldId);
+            const tasksId = createSet('Tasks', 'ph-list-checks', demoWorldId);
+            const conceptsId = createSet('Concepts', 'ph-lightbulb', demoWorldId);
+
+            // Schema for Projects
+            const projectsSet = state.sets.get(projectsId);
+            projectsSet.schema = [
+                { id: 'name', name: 'Project', type: 'TEXT', width: '200px' },
+                { id: 'status', name: 'Status', type: 'TEXT', width: '120px' },
+                { id: 'description', name: 'Description', type: 'LONG_TEXT', width: '300px' }
+            ];
+
+            // Schema for People
+            const peopleSet = state.sets.get(peopleId);
+            peopleSet.schema = [
+                { id: 'name', name: 'Name', type: 'TEXT', width: '180px' },
+                { id: 'role', name: 'Role', type: 'TEXT', width: '150px' },
+                { id: 'expertise', name: 'Expertise', type: 'TEXT', width: '200px' }
+            ];
+
+            // Schema for Tasks
+            const tasksSet = state.sets.get(tasksId);
+            tasksSet.schema = [
+                { id: 'title', name: 'Task', type: 'TEXT', width: '220px' },
+                { id: 'priority', name: 'Priority', type: 'TEXT', width: '100px' },
+                { id: 'description', name: 'Description', type: 'LONG_TEXT', width: '280px' }
+            ];
+
+            // Schema for Concepts
+            const conceptsSet = state.sets.get(conceptsId);
+            conceptsSet.schema = [
+                { id: 'concept', name: 'Concept', type: 'TEXT', width: '200px' },
+                { id: 'category', name: 'Category', type: 'TEXT', width: '150px' },
+                { id: 'definition', name: 'Definition', type: 'LONG_TEXT', width: '320px' }
+            ];
+
+            // Add project records
+            projectsSet.records.clear();
+            const proj1 = addRecord(projectsId, {
+                name: 'Knowledge Graph',
+                status: 'Active',
+                description: 'Build interactive knowledge graph visualization system'
+            });
+            const proj2 = addRecord(projectsId, {
+                name: 'Context Engine',
+                status: 'Active',
+                description: 'Develop epistemic observability context tracking'
+            });
+            const proj3 = addRecord(projectsId, {
+                name: 'Formula System',
+                status: 'Planning',
+                description: 'Implement reactive formula field calculations'
+            });
+
+            // Add people records
+            peopleSet.records.clear();
+            const person1 = addRecord(peopleId, {
+                name: 'Dr. Sarah Chen',
+                role: 'Technical Lead',
+                expertise: 'Graph Theory, Distributed Systems'
+            });
+            const person2 = addRecord(peopleId, {
+                name: 'Alex Morgan',
+                role: 'Engineer',
+                expertise: 'Frontend, Data Visualization'
+            });
+            const person3 = addRecord(peopleId, {
+                name: 'Jordan Kim',
+                role: 'Researcher',
+                expertise: 'Knowledge Management, Ontologies'
+            });
+
+            // Add task records
+            tasksSet.records.clear();
+            const task1 = addRecord(tasksId, {
+                title: 'Design node layout algorithm',
+                priority: 'High',
+                description: 'Create force-directed graph layout with clustering'
+            });
+            const task2 = addRecord(tasksId, {
+                title: 'Implement edge rendering',
+                priority: 'High',
+                description: 'Add support for curved edges and directional arrows'
+            });
+            const task3 = addRecord(tasksId, {
+                title: 'Build context tracker',
+                priority: 'Medium',
+                description: 'Track provenance and lineage of data values'
+            });
+            const task4 = addRecord(tasksId, {
+                title: 'Add formula parser',
+                priority: 'Medium',
+                description: 'Parse and evaluate spreadsheet-like formulas'
+            });
+            const task5 = addRecord(tasksId, {
+                title: 'Research graph databases',
+                priority: 'Low',
+                description: 'Evaluate Neo4j and other graph database options'
+            });
+
+            // Add concept records
+            conceptsSet.records.clear();
+            const concept1 = addRecord(conceptsId, {
+                concept: 'Epistemic Observability',
+                category: 'Core Concept',
+                definition: 'The ability to trace the origin and context of every data value'
+            });
+            const concept2 = addRecord(conceptsId, {
+                concept: 'Superposition',
+                category: 'Data Pattern',
+                definition: 'Multiple simultaneous values with different contexts'
+            });
+            const concept3 = addRecord(conceptsId, {
+                concept: 'Reactive Formula',
+                category: 'Computation',
+                definition: 'Formula that automatically recalculates when dependencies change'
+            });
+            const concept4 = addRecord(conceptsId, {
+                concept: 'Knowledge Graph',
+                category: 'Data Structure',
+                definition: 'Network of entities and relationships forming a semantic model'
+            });
+
+            // Create views
+            createView(projectsId, 'Projects', { type: 'grid' });
+            createView(peopleId, 'People', { type: 'grid' });
+            createView(tasksId, 'Tasks', { type: 'grid' });
+            createView(conceptsId, 'Concepts', { type: 'grid' });
+
+            // Clear existing definitions and connections for this world
+            Array.from(state.definitions.values())
+                .filter(def => def.worldId === demoWorldId)
+                .forEach(def => state.definitions.delete(def.id));
+            Array.from(state.connectionFormats.values())
+                .filter(fmt => fmt.worldId === demoWorldId)
+                .forEach(fmt => state.connectionFormats.delete(fmt.id));
+
+            // Create connection formats
+            const ownsFormatId = addConnectionFormat({
+                id: `${demoWorldId}_format_owns`,
+                operator: 'OWN',
+                mode: 'owns',
+                description: 'Person owns/leads a project',
+                worldId: demoWorldId
+            });
+
+            const assignedFormatId = addConnectionFormat({
+                id: `${demoWorldId}_format_assigned`,
+                operator: 'ASG',
+                mode: 'assigned to',
+                description: 'Task assigned to person',
+                worldId: demoWorldId
+            });
+
+            const partOfFormatId = addConnectionFormat({
+                id: `${demoWorldId}_format_part_of`,
+                operator: 'SUB',
+                mode: 'part of',
+                description: 'Task is part of project',
+                worldId: demoWorldId
+            });
+
+            const implementsFormatId = addConnectionFormat({
+                id: `${demoWorldId}_format_implements`,
+                operator: 'IMP',
+                mode: 'implements',
+                description: 'Project implements concept',
+                worldId: demoWorldId
+            });
+
+            const dependsFormatId = addConnectionFormat({
+                id: `${demoWorldId}_format_depends`,
+                operator: 'DEP',
+                mode: 'depends on',
+                description: 'Task depends on another task',
+                worldId: demoWorldId
+            });
+
+            const relatesFormatId = addConnectionFormat({
+                id: `${demoWorldId}_format_relates`,
+                operator: 'REL',
+                mode: 'relates to',
+                description: 'Concept relates to concept',
+                worldId: demoWorldId
+            });
+
+            // Add definitions for key entities
+            addDefinition({
+                id: `${demoWorldId}_def_proj1`,
+                entity: { type: 'Record', id: proj1 },
+                term: 'Knowledge Graph Project',
+                definition: 'Primary project for building interactive visualization of entity relationships',
+                tags: ['demo', 'project'],
+                worldId: demoWorldId
+            });
+
+            addDefinition({
+                id: `${demoWorldId}_def_proj2`,
+                entity: { type: 'Record', id: proj2 },
+                term: 'Context Engine',
+                definition: 'Core infrastructure for tracking data provenance and lineage',
+                tags: ['demo', 'project'],
+                worldId: demoWorldId
+            });
+
+            addDefinition({
+                id: `${demoWorldId}_def_proj3`,
+                entity: { type: 'Record', id: proj3 },
+                term: 'Formula System',
+                definition: 'Reactive computation system for derived values',
+                tags: ['demo', 'project'],
+                worldId: demoWorldId
+            });
+
+            addDefinition({
+                id: `${demoWorldId}_def_person1`,
+                entity: { type: 'Record', id: person1 },
+                term: 'Dr. Sarah Chen',
+                definition: 'Technical lead with expertise in graph algorithms and distributed systems',
+                tags: ['demo', 'person'],
+                worldId: demoWorldId
+            });
+
+            addDefinition({
+                id: `${demoWorldId}_def_person2`,
+                entity: { type: 'Record', id: person2 },
+                term: 'Alex Morgan',
+                definition: 'Engineer focused on frontend development and data visualization',
+                tags: ['demo', 'person'],
+                worldId: demoWorldId
+            });
+
+            addDefinition({
+                id: `${demoWorldId}_def_person3`,
+                entity: { type: 'Record', id: person3 },
+                term: 'Jordan Kim',
+                definition: 'Researcher specializing in knowledge management and ontology design',
+                tags: ['demo', 'person'],
+                worldId: demoWorldId
+            });
+
+            addDefinition({
+                id: `${demoWorldId}_def_concept1`,
+                entity: { type: 'Record', id: concept1 },
+                term: 'Epistemic Observability',
+                definition: 'Core principle: every data value should be traceable to its source and context',
+                tags: ['demo', 'concept'],
+                worldId: demoWorldId
+            });
+
+            addDefinition({
+                id: `${demoWorldId}_def_concept4`,
+                entity: { type: 'Record', id: concept4 },
+                term: 'Knowledge Graph',
+                definition: 'Semantic network representing entities and their relationships',
+                tags: ['demo', 'concept'],
+                worldId: demoWorldId
+            });
+
+            // Clear existing connections
+            Array.from(state.connections.values())
+                .filter(conn => conn.worldId === demoWorldId)
+                .forEach(conn => state.connections.delete(conn.id));
+
+            // Add connections: People own projects
+            addConnection({
+                id: `${demoWorldId}_conn_1`,
+                subject: { type: 'Record', id: person1 },
+                formatId: ownsFormatId,
+                operand: { type: 'Record', id: proj1 },
+                description: 'Sarah leads the Knowledge Graph project',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_2`,
+                subject: { type: 'Record', id: person1 },
+                formatId: ownsFormatId,
+                operand: { type: 'Record', id: proj2 },
+                description: 'Sarah oversees Context Engine development',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_3`,
+                subject: { type: 'Record', id: person3 },
+                formatId: ownsFormatId,
+                operand: { type: 'Record', id: proj3 },
+                description: 'Jordan leads Formula System research',
+                worldId: demoWorldId
+            });
+
+            // Add connections: Tasks assigned to people
+            addConnection({
+                id: `${demoWorldId}_conn_4`,
+                subject: { type: 'Record', id: task1 },
+                formatId: assignedFormatId,
+                operand: { type: 'Record', id: person1 },
+                description: 'Node layout assigned to Sarah',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_5`,
+                subject: { type: 'Record', id: task2 },
+                formatId: assignedFormatId,
+                operand: { type: 'Record', id: person2 },
+                description: 'Edge rendering assigned to Alex',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_6`,
+                subject: { type: 'Record', id: task3 },
+                formatId: assignedFormatId,
+                operand: { type: 'Record', id: person2 },
+                description: 'Context tracker assigned to Alex',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_7`,
+                subject: { type: 'Record', id: task4 },
+                formatId: assignedFormatId,
+                operand: { type: 'Record', id: person3 },
+                description: 'Formula parser assigned to Jordan',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_8`,
+                subject: { type: 'Record', id: task5 },
+                formatId: assignedFormatId,
+                operand: { type: 'Record', id: person3 },
+                description: 'Database research assigned to Jordan',
+                worldId: demoWorldId
+            });
+
+            // Add connections: Tasks part of projects
+            addConnection({
+                id: `${demoWorldId}_conn_9`,
+                subject: { type: 'Record', id: task1 },
+                formatId: partOfFormatId,
+                operand: { type: 'Record', id: proj1 },
+                description: 'Layout algorithm is part of Knowledge Graph',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_10`,
+                subject: { type: 'Record', id: task2 },
+                formatId: partOfFormatId,
+                operand: { type: 'Record', id: proj1 },
+                description: 'Edge rendering is part of Knowledge Graph',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_11`,
+                subject: { type: 'Record', id: task3 },
+                formatId: partOfFormatId,
+                operand: { type: 'Record', id: proj2 },
+                description: 'Context tracker is part of Context Engine',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_12`,
+                subject: { type: 'Record', id: task4 },
+                formatId: partOfFormatId,
+                operand: { type: 'Record', id: proj3 },
+                description: 'Formula parser is part of Formula System',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_13`,
+                subject: { type: 'Record', id: task5 },
+                formatId: partOfFormatId,
+                operand: { type: 'Record', id: proj1 },
+                description: 'Graph database research supports Knowledge Graph',
+                worldId: demoWorldId
+            });
+
+            // Add connections: Projects implement concepts
+            addConnection({
+                id: `${demoWorldId}_conn_14`,
+                subject: { type: 'Record', id: proj1 },
+                formatId: implementsFormatId,
+                operand: { type: 'Record', id: concept4 },
+                description: 'Knowledge Graph project implements graph concepts',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_15`,
+                subject: { type: 'Record', id: proj2 },
+                formatId: implementsFormatId,
+                operand: { type: 'Record', id: concept1 },
+                description: 'Context Engine implements epistemic observability',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_16`,
+                subject: { type: 'Record', id: proj3 },
+                formatId: implementsFormatId,
+                operand: { type: 'Record', id: concept3 },
+                description: 'Formula System implements reactive formulas',
+                worldId: demoWorldId
+            });
+
+            // Add connections: Task dependencies
+            addConnection({
+                id: `${demoWorldId}_conn_17`,
+                subject: { type: 'Record', id: task2 },
+                formatId: dependsFormatId,
+                operand: { type: 'Record', id: task1 },
+                description: 'Edge rendering depends on layout algorithm',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_18`,
+                subject: { type: 'Record', id: task5 },
+                formatId: dependsFormatId,
+                operand: { type: 'Record', id: task1 },
+                description: 'Database research depends on layout design',
+                worldId: demoWorldId
+            });
+
+            // Add connections: Concept relationships
+            addConnection({
+                id: `${demoWorldId}_conn_19`,
+                subject: { type: 'Record', id: concept2 },
+                formatId: relatesFormatId,
+                operand: { type: 'Record', id: concept1 },
+                description: 'Superposition requires epistemic observability',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_20`,
+                subject: { type: 'Record', id: concept4 },
+                formatId: relatesFormatId,
+                operand: { type: 'Record', id: concept1 },
+                description: 'Knowledge graphs benefit from context tracking',
+                worldId: demoWorldId
+            });
+
+            // Create a graph view for this demo
+            const graphViewId = createView(projectsId, 'Graph Demo', { type: 'graph' });
+
+            state.currentSetId = projectsId;
+            state.currentViewId = graphViewId;
+            state.expandedSets.add(projectsId);
+            state.expandedSets.add(peopleId);
+            state.expandedSets.add(tasksId);
+            state.expandedSets.add(conceptsId);
+        }
+
         // WORLD & SET MANAGEMENT
         function createWorld(name, worldId = null) {
             const resolvedWorldId = worldId || ('world_' + Date.now());
@@ -7148,6 +7617,18 @@
                 switchSet(state.currentSetId, state.currentViewId);
             }
             syncUrlState();
+        }
+
+        function loadGraphDemo() {
+            createGraphDemo();
+            renderWorldSelector();
+            renderSidebar();
+            renderViewTabs();
+            if (state.currentSetId && state.currentViewId) {
+                switchSet(state.currentSetId, state.currentViewId);
+            }
+            syncUrlState();
+            showToast('Graph demo loaded! Explore the visualization of projects, people, tasks, and concepts.');
         }
 
         function openAddWorldModal() {
@@ -9415,18 +9896,41 @@
                 graphNetwork = null;
             }
 
+            // Define color scheme based on tags
+            const getNodeStyle = (def) => {
+                const tags = def.tags || [];
+                const term = (def.term || '').toLowerCase();
+
+                // Color by tag/entity type
+                if (tags.includes('project') || term.includes('project')) {
+                    return { color: '#4F46E5', shape: 'box', font: { color: '#FFFFFF' } }; // Indigo
+                } else if (tags.includes('person') || term.includes('dr.') || term.includes('alex') || term.includes('jordan')) {
+                    return { color: '#059669', shape: 'dot', size: 25, font: { color: '#000000' } }; // Green
+                } else if (tags.includes('concept') || term.includes('observability') || term.includes('graph')) {
+                    return { color: '#DC2626', shape: 'diamond', font: { color: '#FFFFFF' } }; // Red
+                } else if (term.includes('task') || term.includes('design') || term.includes('implement') || term.includes('build') || term.includes('add') || term.includes('research')) {
+                    return { color: '#EA580C', shape: 'ellipse', font: { color: '#FFFFFF' } }; // Orange
+                } else {
+                    return { color: '#6B7280', shape: 'dot', font: { color: '#000000' } }; // Gray
+                }
+            };
+
             // Build nodes from definitions
             const nodes = [];
             const nodeMap = new Map();
+            const defMap = new Map();
 
             definitions.forEach(def => {
                 const key = `${def.entity?.type}:${def.entity?.id}`;
+                defMap.set(key, def);
                 if (!nodeMap.has(key)) {
                     const label = def.term || `${def.entity?.type} ${def.entity?.id}`;
+                    const style = getNodeStyle(def);
                     nodes.push({
                         id: key,
                         label: label,
-                        title: def.definition || def.notes || label
+                        title: def.definition || def.notes || label,
+                        ...style
                     });
                     nodeMap.set(key, true);
                 }
@@ -9434,26 +9938,51 @@
 
             // Build edges from connections
             const edges = [];
+            const edgeColorMap = {
+                'OWN': '#059669',   // Green for ownership
+                'ASG': '#3B82F6',   // Blue for assignment
+                'SUB': '#8B5CF6',   // Purple for part-of
+                'IMP': '#EC4899',   // Pink for implements
+                'DEP': '#F59E0B',   // Amber for dependencies
+                'REL': '#6B7280'    // Gray for relates
+            };
+
             connections.forEach((conn, idx) => {
                 const fromKey = `${conn.subject?.type}:${conn.subject?.id}`;
                 const toKey = `${conn.operand?.type}:${conn.operand?.id}`;
 
                 // Add nodes if they don't exist
                 if (!nodeMap.has(fromKey)) {
-                    nodes.push({ id: fromKey, label: `${conn.subject?.type} ${conn.subject?.id}` });
+                    const def = defMap.get(fromKey);
+                    const style = def ? getNodeStyle(def) : { color: '#6B7280', shape: 'dot' };
+                    nodes.push({
+                        id: fromKey,
+                        label: `${conn.subject?.type} ${conn.subject?.id}`,
+                        ...style
+                    });
                     nodeMap.set(fromKey, true);
                 }
                 if (!nodeMap.has(toKey)) {
-                    nodes.push({ id: toKey, label: `${conn.operand?.type} ${conn.operand?.id}` });
+                    const def = defMap.get(toKey);
+                    const style = def ? getNodeStyle(def) : { color: '#6B7280', shape: 'dot' };
+                    nodes.push({
+                        id: toKey,
+                        label: `${conn.operand?.type} ${conn.operand?.id}`,
+                        ...style
+                    });
                     nodeMap.set(toKey, true);
                 }
 
+                const edgeColor = edgeColorMap[conn.operator] || '#999999';
                 edges.push({
                     id: `edge-${idx}`,
                     from: fromKey,
                     to: toKey,
-                    label: conn.operator || '',
-                    arrows: 'to'
+                    label: conn.mode || conn.operator || '',
+                    arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+                    color: { color: edgeColor, highlight: edgeColor },
+                    font: { size: 12, align: 'middle', color: '#666666', background: '#FFFFFFCC' },
+                    smooth: { type: 'continuous' }
                 });
             });
 
@@ -9462,7 +9991,7 @@
                 return;
             }
 
-            // Create network with minimal options
+            // Create network with enhanced options
             const data = {
                 nodes: new vis.DataSet(nodes),
                 edges: new vis.DataSet(edges)
@@ -9473,19 +10002,65 @@
                 height: '100%',
                 width: '100%',
                 physics: {
-                    enabled: false
+                    enabled: true,
+                    stabilization: {
+                        enabled: true,
+                        iterations: 200,
+                        updateInterval: 25
+                    },
+                    barnesHut: {
+                        gravitationalConstant: -8000,
+                        centralGravity: 0.3,
+                        springLength: 150,
+                        springConstant: 0.04,
+                        damping: 0.09,
+                        avoidOverlap: 0.5
+                    }
                 },
                 layout: {
+                    improvedLayout: true,
                     hierarchical: false
+                },
+                nodes: {
+                    borderWidth: 2,
+                    borderWidthSelected: 3,
+                    font: {
+                        size: 14,
+                        face: 'system-ui, -apple-system, sans-serif'
+                    },
+                    shadow: {
+                        enabled: true,
+                        color: 'rgba(0,0,0,0.2)',
+                        size: 10,
+                        x: 2,
+                        y: 2
+                    }
+                },
+                edges: {
+                    width: 2,
+                    selectionWidth: 3
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    navigationButtons: true,
+                    keyboard: true
                 }
             };
 
             graphNetwork = new vis.Network(container, data, options);
 
-            // Fit to view immediately
-            setTimeout(() => {
-                graphNetwork.fit({ padding: 50 });
-            }, 100);
+            // Disable physics after stabilization
+            graphNetwork.once('stabilizationIterationsDone', () => {
+                graphNetwork.setOptions({ physics: false });
+            });
+
+            // Fit to view after stabilization
+            graphNetwork.once('stabilizationIterationsDone', () => {
+                setTimeout(() => {
+                    graphNetwork.fit({ padding: 50, animation: { duration: 1000, easingFunction: 'easeInOutQuad' } });
+                }, 100);
+            });
         }
 
         function serializeTagsInput(value) {
