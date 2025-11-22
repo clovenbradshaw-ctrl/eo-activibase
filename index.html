@@ -8820,6 +8820,7 @@
         // CONTEXT MENUS
         function showColumnMenu(e, field) {
             showContextMenu(e, [
+                { label: 'Create View from Column', action: () => createViewFromColumn(field) },
                 { label: 'Change Field Type…', action: () => openChangeFieldTypeModal(field) },
                 hasFieldHistory(getCurrentSet()?.id, field.id) ? { label: 'Revert Last Type Change', action: () => revertFieldType(field.id) } : null,
                 { label: 'Hide Field', action: () => hideField(field.id) },
@@ -8840,6 +8841,7 @@
 
         function showCellMenu(e, recordId, field) {
             showContextMenu(e, [
+                { label: 'Create View from This Value', action: () => createViewFromValue(recordId, field) },
                 { label: 'Open Cell History', action: () => openCellHistory(recordId, field.id) }
             ]);
         }
@@ -8874,6 +8876,45 @@
             document.getElementById('confirmMessage').textContent = message;
             state.confirmCallback = callback;
             openModal('confirmModal');
+        }
+
+        function createViewFromColumn(field) {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            const keyRef = { setId: set.id, fieldId: field.id };
+            const detection = autoDetectSchemaFromKey(keyRef);
+            const viewName = `${field.name} Pivot`;
+            const viewId = createView(set.id, viewName, {
+                type: 'KEY_DERIVED',
+                icon: 'ph-chart-pie',
+                key: keyRef,
+                schema: detection.schema,
+                relationships: detection.relationships,
+                rollups: detection.rollups
+            });
+            renderSidebar();
+            switchSet(set.id, viewId);
+            showToast('✓ View created from column');
+        }
+
+        function createViewFromValue(recordId, field) {
+            const set = getCurrentSet();
+            const record = set?.records.get(recordId);
+            if (!set || !record) return;
+
+            const value = record[field.id];
+            const filters = [[{ field: field.id, operator: 'equals', value }]];
+            const displayValue = typeof value === 'object' ? JSON.stringify(value) : (value ?? 'Empty');
+            const viewName = `${field.name}: ${String(displayValue).slice(0, 42)}`;
+            const viewId = createView(set.id, viewName, {
+                type: 'grid',
+                icon: 'ph-funnel-simple',
+                filters
+            });
+            renderSidebar();
+            switchSet(set.id, viewId);
+            showToast('✓ View created from value');
         }
 
         function registerInterpretationRule(rule, options = {}) {
