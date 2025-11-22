@@ -515,6 +515,15 @@
             cursor: pointer;
             border-left: 2px solid rgba(59, 130, 246, 0.15);
         }
+        .cell-static {
+            min-height: 36px;
+            padding: 12px 16px;
+            border-right: 1px solid #f0f0f0;
+            background: #f9fafb;
+            color: #4b5563;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
         .cell-selected {
             outline: 2px solid #3b82f6 !important;
             outline-offset: -2px;
@@ -2374,6 +2383,19 @@
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto modal-body space-y-4">
+                <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-white/50">
+                    <div class="flex items-center gap-2">
+                        <i class="ph ph-gear-six text-gray-500"></i>
+                        <div>
+                            <div class="text-sm font-semibold text-gray-900">Columns</div>
+                            <div class="text-xs text-gray-500">Toggle view-only columns like the Record ID.</div>
+                        </div>
+                    </div>
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                        <span class="text-sm text-gray-700">Record ID</span>
+                        <input id="recordIdVisibilityToggle" type="checkbox" class="w-4 h-4 border-gray-300 rounded">
+                    </label>
+                </div>
                 <div>
                     <label class="form-label">Property</label>
                     <select id="columnRulesFieldSelect"></select>
@@ -4597,6 +4619,7 @@
                 schema: config.schema || null,
                 relationships: config.relationships || [],
                 rollups: config.rollups || [],
+                showRecordId: config.showRecordId || false,
                 columnRules: config.columnRules || {},
                 createdAt: Date.now(),
                 createdBy: state.currentUser.id
@@ -6108,6 +6131,11 @@
             if (!view.icon) view.icon = VIEW_TYPE_ICONS[view.type] || 'ph-note';
             if (!view.sorts) view.sorts = [];
             if (!view.columnRules) view.columnRules = {};
+            if (typeof view.showRecordId === 'undefined') view.showRecordId = false;
+        }
+
+        function getRecordIdFieldDefinition() {
+            return { id: '__recordId', name: 'Record ID', type: 'RECORD_ID', width: '200' };
         }
 
         function applyColumnWidth(fieldId, width) {
@@ -6320,9 +6348,12 @@
                 !profile || profile.visibleFields.length === 0 || profile.visibleFields.includes(f.id)
             );
 
+            const recordIdField = view.showRecordId ? getRecordIdFieldDefinition() : null;
+            const tableSchema = recordIdField ? [recordIdField, ...schema] : schema;
+
             let records = Array.from(set.records.values());
             if (view && view.filters.length > 0) records = applyFilterGroups(records, view.filters, schema);
-            if (view?.sorts?.length) records = applySorts(records, view.sorts, schema);
+            if (view?.sorts?.length) records = applySorts(records, view.sorts, tableSchema);
 
             const recordCount = records.length;
             const recordLabel = recordCount === 1 ? 'record' : 'records';
@@ -6338,7 +6369,10 @@
                         </div>
                     </div>
                     <div class="view-stage-actions">
-                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">Column Rules</button>
+                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
+                            <i class="ph ph-gear-six text-sm"></i>
+                            <span class="ml-1">Columns</span>
+                        </button>
                     </div>
                 </div>
                 <div class="view-stage-body">
@@ -6357,7 +6391,7 @@
             `;
 
             const headerRow = document.getElementById('tableHeader');
-            schema.forEach(field => {
+            tableSchema.forEach(field => {
                 const th = document.createElement('th');
                 th.className = 'column-header';
                 th.dataset.type = field.type;
@@ -6378,7 +6412,7 @@
             });
 
             const table = document.getElementById('dataTable');
-            const minimumTableWidth = schema.reduce((sum, field) => sum + getFieldWidth(field), 0);
+            const minimumTableWidth = tableSchema.reduce((sum, field) => sum + getFieldWidth(field), 0);
             table.style.minWidth = `${Math.max(minimumTableWidth, 600)}px`;
 
             const tbody = document.getElementById('tableBody');
@@ -6387,16 +6421,20 @@
                 tr.dataset.recordId = record.id;
                 tr.ondblclick = () => openExpandedRecord(record.id);
 
-                schema.forEach(field => {
+                tableSchema.forEach(field => {
                     const td = document.createElement('td');
-                    td.className = 'cell-editable';
+                    const isRecordIdColumn = field.id === '__recordId';
+                    td.className = isRecordIdColumn ? 'cell-static' : 'cell-editable';
                     td.dataset.recordId = record.id;
                     td.dataset.fieldId = field.id;
                     td.style.width = `${getFieldWidth(field)}px`;
                     const value = record[field.id];
                     td.innerHTML = renderCellValue(value, field, record);
                     addColumnResizer(td, field);
-                    if (field.type === 'CHECKBOX') {
+                    if (isRecordIdColumn) {
+                        td.onclick = (e) => { e.stopPropagation(); openExpandedRecord(record.id); };
+                        td.ondblclick = (e) => { e.stopPropagation(); openExpandedRecord(record.id); };
+                    } else if (field.type === 'CHECKBOX') {
                         td.onclick = (e) => {
                             e.stopPropagation();
                             const now = Date.now();
@@ -6418,7 +6456,9 @@
                             openExpandedRecord(record.id);
                         };
                     }
-                    td.oncontextmenu = (e) => { e.preventDefault(); showCellMenu(e, record.id, field); };
+                    if (!isRecordIdColumn) {
+                        td.oncontextmenu = (e) => { e.preventDefault(); showCellMenu(e, record.id, field); };
+                    }
                     tr.appendChild(td);
                 });
 
@@ -6453,7 +6493,10 @@
                         </div>
                     </div>
                     <div class="view-stage-actions">
-                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">Column Rules</button>
+                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
+                            <i class="ph ph-gear-six text-sm"></i>
+                            <span class="ml-1">Columns</span>
+                        </button>
                     </div>
                 </div>
                 <div class="view-stage-body">
@@ -6539,6 +6582,8 @@
                         return `<span class="text-red-600" title="${message}">${message}</span>`;
                     }
                     return value || '';
+                case 'RECORD_ID':
+                    return `<span class="font-mono text-xs text-gray-700">${record?.id || ''}</span>`;
                 default:
                     return value || '';
             }
@@ -6575,6 +6620,9 @@
             preferredSet.value = currentRule.setId || '';
             setPicker.classList.toggle('hidden', ruleSelect.value !== 'prefer_set');
 
+            const recordIdToggle = document.getElementById('recordIdVisibilityToggle');
+            if (recordIdToggle) recordIdToggle.checked = !!view.showRecordId;
+
             updateColumnRulesSummary();
             openModal('columnRulesModal');
         }
@@ -6590,6 +6638,22 @@
             const ruleText = ruleSelect.options[ruleSelect.selectedIndex]?.textContent;
             const setName = preferredSet.value ? state.sets.get(preferredSet.value)?.name : null;
             summary.textContent = `${field?.name || 'Field'} → ${ruleText}${setName ? ` (${setName})` : ''}`;
+        }
+
+        function toggleRecordIdVisibility(isVisible) {
+            const view = getCurrentView();
+            if (!view) return;
+
+            view.showRecordId = isVisible;
+            createEvent(
+                'View Schema Update',
+                'SEG',
+                { type: 'View', id: view.id, setId: view.key?.setId || state.currentSetId },
+                { viewId: view.id, changes: { showRecordId: isVisible }, summary: isVisible ? 'Enabled Record ID column' : 'Hid Record ID column' },
+                { scale: 'collection' }
+            );
+
+            renderCurrentView();
         }
 
         function saveColumnRule() {
@@ -6721,7 +6785,10 @@
                                 <span>Show stability</span>
                             </label>
                         ` : ''}
-                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">Column Rules</button>
+                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
+                            <i class="ph ph-gear-six text-sm"></i>
+                            <span class="ml-1">Columns</span>
+                        </button>
                     </div>
                 </div>
                 <div class="view-stage-body">
@@ -6827,7 +6894,10 @@
                     </div>
                     <div class="view-stage-actions">
                         <button onclick="openKanbanConfig()" class="btn btn-secondary btn-sm">Change grouping</button>
-                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">Column Rules</button>
+                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
+                            <i class="ph ph-gear-six text-sm"></i>
+                            <span class="ml-1">Columns</span>
+                        </button>
                     </div>
                 </div>
                 <div class="view-stage-body">
@@ -6995,7 +7065,10 @@
                         </div>
                     </div>
                     <div class="view-stage-actions">
-                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">Column Rules</button>
+                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
+                            <i class="ph ph-gear-six text-sm"></i>
+                            <span class="ml-1">Columns</span>
+                        </button>
                     </div>
                 </div>
                 <div class="view-stage-body">
@@ -9857,6 +9930,8 @@
           };
           document.getElementById('columnRulesFieldSelect').onchange = updateColumnRulesSummary;
           document.getElementById('columnRulesPreferredSet').onchange = updateColumnRulesSummary;
+          const recordIdVisibilityToggle = document.getElementById('recordIdVisibilityToggle');
+          if (recordIdVisibilityToggle) recordIdVisibilityToggle.onchange = (e) => toggleRecordIdVisibility(e.target.checked);
           document.getElementById('saveColumnRuleBtn').onclick = saveColumnRule;
           document.getElementById('deleteColumnRuleBtn').onclick = deleteColumnRule;
           document.getElementById('addWorldBtn').onclick = openAddWorldModal;
