@@ -1039,6 +1039,7 @@
         .popup-preview-fields.cols-1 { grid-template-columns: 1fr; }
         .popup-preview-fields.cols-2 { grid-template-columns: repeat(2, 1fr); }
         .popup-preview-fields.cols-3 { grid-template-columns: repeat(3, 1fr); }
+        .popup-preview-fields.cols-4 { grid-template-columns: repeat(4, 1fr); }
         .popup-preview-field { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; }
         .popup-preview-field .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
         .popup-preview-field .value { font-size: 13px; color: #0f172a; }
@@ -4429,6 +4430,7 @@
                 sorts: config.sorts || [],
                 hiddenFields: config.hiddenFields || [],
                 popupVisibilityRules: config.popupVisibilityRules || [],
+                popupLayout: config.popupLayout || { size: 'medium', columns: 4, rows: 4 },
                 kanbanGroupField: config.kanbanGroupField || null,
                 cardFields: config.cardFields || [],
                 parentId: config.parentId || null,
@@ -8454,7 +8456,8 @@
         }
 
         function getPopupLayout(view) {
-            view.popupLayout = view.popupLayout || { size: 'medium', columns: 2 };
+            const defaults = { size: 'medium', columns: 4, rows: 4 };
+            view.popupLayout = { ...defaults, ...(view.popupLayout || {}) };
             return view.popupLayout;
         }
 
@@ -8748,12 +8751,14 @@
             if (!preview) return;
 
             const record = Array.from(set.records.values())[0] || {};
-            const fields = getPopupOrderedFields(set, view).filter(field => shouldDisplayFieldInPopup(field, record)).slice(0, 9);
+            const fields = getPopupOrderedFields(set, view)
+                .filter(field => shouldDisplayFieldInPopup(field, record))
+                .slice(0, (layout.rows || 1) * (layout.columns || 1));
 
             preview.innerHTML = `
                 <div class="popup-preview-header">
                     <span>Record Preview</span>
-                    <span class="popup-pill">${layout.size} · ${layout.columns} columns</span>
+                    <span class="popup-pill">${layout.size} · ${layout.columns} cols · ${layout.rows} rows</span>
                 </div>
                 <div class="popup-preview-fields cols-${layout.columns}">
                     ${fields.map(field => `
@@ -8788,10 +8793,10 @@
 
             const columnContainer = document.getElementById('popupColumnOptions');
             if (columnContainer) {
-                columnContainer.innerHTML = [1, 2, 3].map(cols => `
+                columnContainer.innerHTML = [1, 2, 3, 4].map(cols => `
                     <div class="popup-layout-option ${layout.columns === cols ? 'active' : ''}" onclick="updatePopupColumns(${cols})">
                         <div class="font-semibold">${cols} Column${cols > 1 ? 's' : ''}</div>
-                        <div class="text-sm text-gray-600">${cols === 1 ? 'Single stack' : cols === 2 ? 'Split view' : 'Dense grid'}</div>
+                        <div class="text-sm text-gray-600">${cols === 1 ? 'Single stack' : cols === 2 ? 'Split view' : cols === 3 ? 'Dense grid' : 'Quartered grid'}</div>
                     </div>
                 `).join('');
             }
@@ -8916,7 +8921,7 @@
             const set = getCurrentSet();
             const view = getCurrentView();
             if (!set || !view) return;
-            view.popupLayout = { size: 'medium', columns: 2 };
+            view.popupLayout = { size: 'medium', columns: 4, rows: 4 };
             view.popupFieldOrder = set.schema.map(f => f.id);
             view.popupVisibilityRules = [];
             logPopupEvent('reset', {});
