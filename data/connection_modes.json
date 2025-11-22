@@ -1,0 +1,11 @@
+{
+  "CON": ["is linked to", "relates to", "connects to"],
+  "SEG": ["filters by", "segments via"],
+  "SYN": ["integrates with", "synthesizes"],
+  "ALT": ["alternates with"],
+  "REC": ["references", "recurses into"],
+  "DES": ["labels", "defines"],
+  "INS": ["creates", "instantiates"],
+  "SUP": ["superposes"],
+  "NUL": ["nullifies"]
+}
