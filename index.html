@@ -2578,6 +2578,7 @@
             currentUser: { type: 'Person', id: 'user_1', name: 'User' },
             operatorSet: {},
             connectionModes: {},
+            connectionModeDictionary: { hints: {}, primitive_modes: [], compound_metamodes: [] },
             leanContext: null, // Will be initialized in initializeApp
             interpretationRules: [],
             definitions: new Map(),
@@ -4719,11 +4720,56 @@
             window.addEventListener('resize', applyResponsiveLayout);
         }
 
+        function buildConnectionModeHints(modeData) {
+            const hints = {};
+            const addHints = (modes = []) => {
+                modes.forEach(mode => {
+                    if (!mode?.code) return;
+                    const phrases = mode.aliases?.length ? mode.aliases : (mode.examples || []);
+                    if (phrases?.length) hints[mode.code] = phrases;
+                });
+            };
+
+            addHints(modeData?.primitive_modes);
+            addHints(modeData?.compound_metamodes);
+            return hints;
+        }
+
+        function normalizeConnectionModes(data) {
+            const empty = { hints: {}, primitive_modes: [], compound_metamodes: [] };
+            if (!data) return empty;
+
+            if (data.hints || data.primitive_modes || data.compound_metamodes) {
+                const normalized = {
+                    hints: data.hints || {},
+                    primitive_modes: data.primitive_modes || [],
+                    compound_metamodes: data.compound_metamodes || []
+                };
+
+                if (!Object.keys(normalized.hints).length) {
+                    normalized.hints = buildConnectionModeHints(normalized);
+                }
+
+                return normalized;
+            }
+
+            if (typeof data === 'object' && !Array.isArray(data)) {
+                return { ...empty, hints: data };
+            }
+
+            return empty;
+        }
+
         async function loadConnectionModes() {
             try {
                 const response = await fetch('data/connection_modes.json');
                 if (!response.ok) return;
-                state.connectionModes = await response.json();
+
+                const rawModes = await response.json();
+                const normalizedModes = normalizeConnectionModes(rawModes);
+
+                state.connectionModeDictionary = normalizedModes;
+                state.connectionModes = normalizedModes.hints;
             } catch (error) {
                 console.warn('Unable to load connection modes', error);
             }

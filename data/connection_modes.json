@@ -1,11 +1,250 @@
 {
-  "CON": ["is linked to", "relates to", "connects to"],
-  "SEG": ["filters by", "segments via"],
-  "SYN": ["integrates with", "synthesizes"],
-  "ALT": ["alternates with"],
-  "REC": ["references", "recurses into"],
-  "DES": ["labels", "defines"],
-  "INS": ["creates", "instantiates"],
-  "SUP": ["superposes"],
-  "NUL": ["nullifies"]
+  "hints": {
+    "CON": ["is linked to", "relates to", "connects to", "associates with", "bridges to"],
+    "SEG": ["filters by", "segments via", "narrows to", "scopes to"],
+    "SYN": ["integrates with", "synthesizes", "merges with", "harmonizes"],
+    "ALT": ["alternates with", "switches with"],
+    "REC": ["references", "recurses into", "points back to"],
+    "DES": ["labels", "defines", "annotates"],
+    "INS": ["creates", "instantiates", "spawns"],
+    "SUP": ["superposes", "overlays", "composites"],
+    "NUL": ["nullifies", "mutes", "disables"],
+    "MAP": ["maps to", "routes to", "aligns with"],
+    "AGG": ["aggregates", "rolls up", "groups"],
+    "VAL": ["validates", "guards", "checks"],
+    "TRN": ["transforms", "casts", "coerces"],
+    "CON+SEG": ["connects while filtering", "links through a segment"],
+    "CON+SYN": ["connects and synthesizes", "links to combine"],
+    "SEG+SYN": ["filters then synthesizes", "segments before merge"],
+    "REC+SYN": ["recurses and synthesizes", "loops to harmonize"],
+    "INS+DES": ["creates and labels", "instantiates with definition"],
+    "SUP+ALT": ["overlays and alternates", "superposes variants"],
+    "MAP+VAL": ["maps with validation", "routes with guardrails"],
+    "AGG+SYN": ["aggregates and synthesizes", "rolls up into blend"],
+    "TRN+VAL": ["transforms with validation", "casts with checks"],
+    "CON+MAP": ["connects and maps", "bridges with routing"],
+    "CON+TRN": ["connects and transforms", "links then adapts"],
+    "MAP+TRN": ["routes and transforms", "aligns then reshapes"]
+  },
+  "primitive_modes": [
+    {
+      "code": "CON",
+      "name": "Connection",
+      "description": "General linkage between two entities without altering semantics.",
+      "aliases": ["link", "associate", "bridge"],
+      "direction": "bidirectional",
+      "examples": ["Person CON Project", "Table CON Schema"],
+      "metadata": ["strength", "channel", "latency"]
+    },
+    {
+      "code": "SEG",
+      "name": "Segmentation",
+      "description": "Connect while filtering or narrowing scope to a subset.",
+      "aliases": ["filter", "scope", "slice"],
+      "direction": "unidirectional",
+      "examples": ["Dataset SEG cohort", "Orders SEG status=pending"],
+      "metadata": ["criteria", "boundaries"]
+    },
+    {
+      "code": "SYN",
+      "name": "Synthesis",
+      "description": "Integrate multiple sources into a coherent blend.",
+      "aliases": ["integrate", "merge", "harmonize"],
+      "direction": "bidirectional",
+      "examples": ["Profile SYN telemetry", "Model SYN labeled_data"],
+      "metadata": ["precedence", "merge_strategy"]
+    },
+    {
+      "code": "ALT",
+      "name": "Alternation",
+      "description": "Switch between interchangeable options or pathways.",
+      "aliases": ["alternate", "toggle", "swap"],
+      "direction": "bidirectional",
+      "examples": ["Pipeline ALT fallback", "Theme ALT dark_mode"],
+      "metadata": ["fallback_order", "switch_signal"]
+    },
+    {
+      "code": "REC",
+      "name": "Recursion",
+      "description": "Self-referential link that enables repeated traversal.",
+      "aliases": ["recurse", "loop", "self-reference"],
+      "direction": "cyclic",
+      "examples": ["Node REC parent", "Task REC dependency"],
+      "metadata": ["depth", "termination_condition"]
+    },
+    {
+      "code": "DES",
+      "name": "Description",
+      "description": "Attach descriptive or definitional context.",
+      "aliases": ["describe", "annotate", "define"],
+      "direction": "unidirectional",
+      "examples": ["Field DES glossary", "API DES contract"],
+      "metadata": ["namespace", "source"]
+    },
+    {
+      "code": "INS",
+      "name": "Instantiation",
+      "description": "Create or spawn a concrete instance from a template.",
+      "aliases": ["instantiate", "spawn", "materialize"],
+      "direction": "unidirectional",
+      "examples": ["Blueprint INS component", "Class INS object"],
+      "metadata": ["template_version", "parameters"]
+    },
+    {
+      "code": "SUP",
+      "name": "Superposition",
+      "description": "Overlay or layer multiple signals without full merge.",
+      "aliases": ["overlay", "composite", "stack"],
+      "direction": "bidirectional",
+      "examples": ["Feature SUP weighting", "Track SUP remix"],
+      "metadata": ["weight", "blend_mode"]
+    },
+    {
+      "code": "NUL",
+      "name": "Nullification",
+      "description": "Mute, disable, or void an existing link.",
+      "aliases": ["nullify", "mute", "disable"],
+      "direction": "unidirectional",
+      "examples": ["Policy NUL exception", "Rule NUL override"],
+      "metadata": ["reason", "scope", "duration"]
+    },
+    {
+      "code": "MAP",
+      "name": "Mapping",
+      "description": "Align fields or coordinates between domains.",
+      "aliases": ["route", "align", "pair"],
+      "direction": "bidirectional",
+      "examples": ["Schema MAP destination_schema", "Input MAP normalization"],
+      "metadata": ["mapping_table", "directionality"]
+    },
+    {
+      "code": "AGG",
+      "name": "Aggregation",
+      "description": "Combine multiple records into a grouped representation.",
+      "aliases": ["rollup", "group", "cluster"],
+      "direction": "unidirectional",
+      "examples": ["Events AGG session", "Metrics AGG hour"],
+      "metadata": ["granularity", "aggregation_fn"]
+    },
+    {
+      "code": "VAL",
+      "name": "Validation",
+      "description": "Gate or guard a connection with checks and policies.",
+      "aliases": ["validate", "guard", "check"],
+      "direction": "unidirectional",
+      "examples": ["Pipeline VAL schema", "Deployment VAL policy"]
+    },
+    {
+      "code": "TRN",
+      "name": "Transformation",
+      "description": "Adapt or reshape data as it flows across the link.",
+      "aliases": ["transform", "cast", "coerce"],
+      "direction": "unidirectional",
+      "examples": ["Event TRN enrichment", "Payload TRN format"]
+    }
+  ],
+  "compound_metamodes": [
+    {
+      "code": "CON+SEG",
+      "name": "Contextual Connection",
+      "combines": ["CON", "SEG"],
+      "description": "Link two entities while constraining scope to a filtered subset.",
+      "aliases": ["connect through filter", "link scoped segment"],
+      "best_for": "joining datasets with guardrails or feature flags"
+    },
+    {
+      "code": "CON+SYN",
+      "name": "Fusion Bridge",
+      "combines": ["CON", "SYN"],
+      "description": "Connect while actively blending both sides into a shared view.",
+      "aliases": ["connect-to-merge", "bridge and blend"],
+      "best_for": "dashboards that stitch metrics with dimensions"
+    },
+    {
+      "code": "SEG+SYN",
+      "name": "Selective Synthesis",
+      "combines": ["SEG", "SYN"],
+      "description": "Filter inputs before merging them to maintain signal clarity.",
+      "aliases": ["filtered merge", "scoped synthesis"],
+      "best_for": "feature stores that require curated joins"
+    },
+    {
+      "code": "REC+SYN",
+      "name": "Recursive Harmonization",
+      "combines": ["REC", "SYN"],
+      "description": "Iteratively revisit links to keep merged context aligned.",
+      "aliases": ["loop and blend", "feedback synthesis"],
+      "best_for": "systems that self-correct based on prior outputs"
+    },
+    {
+      "code": "INS+DES",
+      "name": "Instantiated Definition",
+      "combines": ["INS", "DES"],
+      "description": "Create a new instance while stamping it with authoritative meaning.",
+      "aliases": ["templated definition", "labeled spawn"],
+      "best_for": "schema-on-write materialization"
+    },
+    {
+      "code": "SUP+ALT",
+      "name": "Layered Alternation",
+      "combines": ["SUP", "ALT"],
+      "description": "Overlay multiple variants and toggle the active one in place.",
+      "aliases": ["stack and switch", "overlayed options"],
+      "best_for": "A/B or multivariate delivery"
+    },
+    {
+      "code": "MAP+VAL",
+      "name": "Guarded Mapping",
+      "combines": ["MAP", "VAL"],
+      "description": "Align schemas or endpoints while enforcing validation gates.",
+      "aliases": ["validated routing", "checked mapping"],
+      "best_for": "API contracts and ETL field mapping"
+    },
+    {
+      "code": "AGG+SYN",
+      "name": "Aggregate Blend",
+      "combines": ["AGG", "SYN"],
+      "description": "Roll multiple inputs up and blend the aggregate into downstream flows.",
+      "aliases": ["rolled-up synthesis", "grouped merge"],
+      "best_for": "metric pipelines combining granular sources"
+    },
+    {
+      "code": "TRN+VAL",
+      "name": "Validated Transformation",
+      "combines": ["TRN", "VAL"],
+      "description": "Adapt data and immediately verify the converted form.",
+      "aliases": ["checked transform", "guarded cast"],
+      "best_for": "type-safe interchange or sanitizer stages"
+    },
+    {
+      "code": "CON+MAP",
+      "name": "Routed Connection",
+      "combines": ["CON", "MAP"],
+      "description": "Bridge entities while explicitly mapping fields or identities.",
+      "aliases": ["mapped link", "routed association"],
+      "best_for": "identity resolution and cross-domain joins"
+    },
+    {
+      "code": "CON+TRN",
+      "name": "Adaptive Connection",
+      "combines": ["CON", "TRN"],
+      "description": "Link entities and transform payloads as they traverse the bridge.",
+      "aliases": ["link-and-transform", "adaptive bridge"],
+      "best_for": "protocol mediation or versioned payloads"
+    },
+    {
+      "code": "MAP+TRN",
+      "name": "Mapped Transformation",
+      "combines": ["MAP", "TRN"],
+      "description": "Route attributes to new shapes and reshape them in one step.",
+      "aliases": ["remap and reshape", "aligned transform"],
+      "best_for": "data migrations and compatibility layers"
+    }
+  ],
+  "usage_notes": [
+    "Compound metamodes describe two compatible modes that connect to each other to form a richer bridge.",
+    "Use the codes directly (e.g., CON+SYN) when you want hints for mixed behavior in the connection form.",
+    "Each primitive mode can still be used independently; compounds simply document intentional combinations.",
+    "Add new compounds by combining existing primitive codes and providing clear guidance on when to use them."
+  ]
 }
