@@ -773,6 +773,25 @@
             font-weight: 700;
         }
 
+        th .column-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        th .column-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #3730a3;
+            font-weight: 700;
+            text-transform: none;
+            font-size: 11px;
+        }
+
         th .sort-indicator .direction-icon { font-size: 10px; }
 
         th .sort-indicator.muted { opacity: 0.5; }
@@ -5719,9 +5738,50 @@
             return setId;
         }
 
+        function inferIdentifierFieldId(set) {
+            if (!set?.schema) return null;
+
+            const explicitName = set.schema.find(f => f.id === 'name' || (f.name || '').toLowerCase() === 'name');
+            if (explicitName) return explicitName.id;
+
+            const textLike = set.schema.find(f => ['TEXT', 'LONG_TEXT'].includes(f.type));
+            if (textLike) return textLike.id;
+
+            return set.schema[0]?.id || null;
+        }
+
+        function ensureViewColumnOrder(view, schema, includeRecordId = false) {
+            if (!view || !schema) return [];
+
+            const existingOrder = Array.isArray(view.columnOrder) ? view.columnOrder : [];
+            const baseOrder = schema.map(f => f.id);
+            const shouldTrackRecordId = includeRecordId || existingOrder.includes('__recordId');
+            if (shouldTrackRecordId && !baseOrder.includes('__recordId')) baseOrder.unshift('__recordId');
+
+            const mergedOrder = [
+                ...existingOrder.filter(id => baseOrder.includes(id)),
+                ...baseOrder.filter(id => !existingOrder.includes(id))
+            ];
+
+            view.columnOrder = mergedOrder;
+            return mergedOrder;
+        }
+
+        function buildTableSchema(view, schema) {
+            const columnOrder = ensureViewColumnOrder(view, schema, view?.showRecordId);
+            const visibilitySet = new Set(view?.hiddenFields || []);
+
+            return columnOrder
+                .filter(id => id !== '__recordId' || view?.showRecordId)
+                .map(id => id === '__recordId' ? getRecordIdFieldDefinition() : schema.find(f => f.id === id))
+                .filter(Boolean)
+                .filter(field => !visibilitySet.has(field.id));
+        }
+
         function createView(setId, name, config = {}) {
             const viewId = 'view_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             const set = state.sets.get(setId);
+            const defaultIdentifier = config.identifierField || inferIdentifierFieldId(set);
             const viewPayload = {
                 id: viewId,
                 setId,
@@ -5741,8 +5801,9 @@
                 relationships: config.relationships || [],
                 rollups: config.rollups || [],
                 showRecordId: config.showRecordId || false,
-                identifierField: config.identifierField || null,
+                identifierField: defaultIdentifier,
                 columnRules: config.columnRules || {},
+                columnOrder: config.columnOrder || null,
                 createdAt: Date.now(),
                 createdBy: state.currentUser.id
             };
@@ -7743,16 +7804,30 @@
 
         function reorderSchemaField(draggedFieldId, targetFieldId, position) {
             const set = getCurrentSet();
-            if (!set) return;
+            const view = getCurrentView();
+            if (!set || !view) return;
 
-            const fromIndex = set.schema.findIndex(f => f.id === draggedFieldId);
-            let targetIndex = set.schema.findIndex(f => f.id === targetFieldId);
+            const columnOrder = ensureViewColumnOrder(view, set.schema, view.showRecordId);
+            const fromIndex = columnOrder.indexOf(draggedFieldId);
+            let targetIndex = columnOrder.indexOf(targetFieldId);
             if (fromIndex === -1 || targetIndex === -1) return;
 
-            const [field] = set.schema.splice(fromIndex, 1);
+            const [moved] = columnOrder.splice(fromIndex, 1);
             if (fromIndex < targetIndex) targetIndex -= 1;
             const insertIndex = position === 'after' ? targetIndex + 1 : targetIndex;
-            set.schema.splice(insertIndex, 0, field);
+            columnOrder.splice(insertIndex, 0, moved);
+            view.columnOrder = columnOrder;
+
+            if (draggedFieldId !== '__recordId' && targetFieldId !== '__recordId') {
+                const schemaFrom = set.schema.findIndex(f => f.id === draggedFieldId);
+                let schemaTarget = set.schema.findIndex(f => f.id === targetFieldId);
+                if (schemaFrom === -1 || schemaTarget === -1) return;
+
+                const [field] = set.schema.splice(schemaFrom, 1);
+                if (schemaFrom < schemaTarget) schemaTarget -= 1;
+                const schemaInsert = position === 'after' ? schemaTarget + 1 : schemaTarget;
+                set.schema.splice(schemaInsert, 0, field);
+            }
         }
 
         function endColumnDrag() {
@@ -7889,12 +7964,12 @@
 
             const view = getCurrentView();
             const profile = getCurrentProfile();
+            if (view && !view.identifierField) view.identifierField = inferIdentifierFieldId(set);
             const schema = set.schema.filter(f =>
                 !profile || profile.visibleFields.length === 0 || profile.visibleFields.includes(f.id)
             );
 
-            const recordIdField = view.showRecordId ? getRecordIdFieldDefinition() : null;
-            const tableSchema = recordIdField ? [recordIdField, ...schema] : schema;
+            const tableSchema = buildTableSchema(view, schema);
 
             let records = Array.from(set.records.values());
             if (view && view.filters.length > 0) records = applyFilterGroups(records, view.filters, schema);
@@ -7950,7 +8025,14 @@
                 const directionIcon = sortConfig ? (sortConfig.direction === 'desc' ? '▼' : '▲') : '⇅';
                 const indicatorClass = sortConfig ? 'sort-indicator' : 'sort-indicator muted';
                 const orderBadge = sortConfig ? `<span class="order-badge">${sortIndex + 1}</span>` : '';
-                th.innerHTML = `<span>${field.name}</span><span class="${indicatorClass}"><span class="direction-icon">${directionIcon}</span>${orderBadge}</span>`;
+                const isNameField = view?.identifierField === field.id;
+                const headerTitle = `
+                    <span class="column-title">
+                        <span>${field.name}</span>
+                        ${isNameField ? '<span class="column-badge">Name</span>' : ''}
+                    </span>
+                `;
+                th.innerHTML = `${headerTitle}<span class="${indicatorClass}"><span class="direction-icon">${directionIcon}</span>${orderBadge}</span>`;
                 th.onclick = () => {
                     if (columnDragState.preventClick) return;
                     toggleColumnSort(field.id);
@@ -8219,6 +8301,13 @@
             if (!view) return;
 
             view.showRecordId = isVisible;
+            if (isVisible) {
+                view.hiddenFields = (view.hiddenFields || []).filter(id => id !== '__recordId');
+            } else {
+                view.hiddenFields = view.hiddenFields || [];
+                if (!view.hiddenFields.includes('__recordId')) view.hiddenFields.push('__recordId');
+            }
+            ensureViewColumnOrder(view, getCurrentSet()?.schema || [], isVisible);
             createEvent(
                 'View Schema Update',
                 'SEG',
@@ -11764,7 +11853,7 @@
                 if (view?.identifierField) return view.identifierField;
             }
 
-            return null;
+            return inferIdentifierFieldId(set);
         }
 
         function openLinkedRecord(recordId) {
@@ -12536,7 +12625,11 @@
 
         function hideField(fieldId) {
             const view = getCurrentView();
+            if (!view) return;
+
+            view.hiddenFields = view.hiddenFields || [];
             if (!view.hiddenFields.includes(fieldId)) view.hiddenFields.push(fieldId);
+            if (fieldId === '__recordId') view.showRecordId = false;
             renderCurrentView();
             showToast('✓ Field hidden');
         }
