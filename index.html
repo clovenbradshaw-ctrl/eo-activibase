@@ -249,7 +249,8 @@
             transition: all 0.2s;
         }
         .sidebar-toggle:hover { background: rgba(255,255,255,0.05); color: #fff; border-color: #fff; }
-        .sidebar-section { padding: 16px 12px 12px 12px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .sidebar-section { padding: 16px 12px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+        .sidebar-section.grow { flex: 1; overflow-y: auto; }
         .sidebar-section-title {
             font-size: 11px;
             font-weight: 700;
@@ -1808,7 +1809,7 @@
                     </button>
                 </div>
             </div>
-            <div class="sidebar-section">
+            <div class="sidebar-section grow">
                 <div class="sidebar-section-title">Sets</div>
                 <div id="setsList"></div>
                 <button onclick="openAddSetModal()" class="new-set-btn">
@@ -4717,12 +4718,6 @@
                 { id: 'notes', name: 'Notes', type: 'LONG_TEXT', width: '260px' }
             ];
 
-            const locationPlaceholders = [
-                addRecord(locationsId, { name: '', area: '', notes: '' }),
-                addRecord(locationsId, { name: '', area: '', notes: '' }),
-                addRecord(locationsId, { name: '', area: '', notes: '' })
-            ];
-
             const observationsId = createSet('Observations', 'ph-binoculars', worldId);
             const observationsSet = state.sets.get(observationsId);
             observationsSet.schema = [
@@ -4731,79 +4726,10 @@
                 { id: 'observation', name: 'Observation', type: 'LONG_TEXT', width: '260px' }
             ];
 
-            const observationPlaceholders = [
-                addRecord(observationsId, { date: '', observer: '', observation: '' }),
-                addRecord(observationsId, { date: '', observer: '', observation: '' }),
-                addRecord(observationsId, { date: '', observer: '', observation: '' })
-            ];
+            createView(locationsId, 'Locations', { type: 'grid', sorts: [{ fieldId: 'name', direction: 'asc' }] });
+            createView(observationsId, 'Observations', { type: 'grid', sorts: [{ fieldId: 'date', direction: 'desc' }] });
 
-            const placeholderDefinitions = [
-                {
-                    id: `${worldId}_def_1`,
-                    entity: { type: 'Record', id: locationPlaceholders[0] },
-                    term: 'Location',
-                    definition: 'Describe a place that observations reference.',
-                    notes: 'Edit to fit your world.',
-                    tags: ['starter', 'location']
-                },
-                {
-                    id: `${worldId}_def_2`,
-                    entity: { type: 'Record', id: observationPlaceholders[0] },
-                    term: 'Observation',
-                    definition: 'A single note taken at a time and place.',
-                    notes: 'Starter definition for new worlds.',
-                    tags: ['starter', 'observation']
-                },
-                {
-                    id: `${worldId}_def_3`,
-                    entity: { type: 'Connection', id: `${worldId}_conn_1` },
-                    term: 'Observed At',
-                    definition: 'Links an observation to its location.',
-                    notes: 'Refine as you add context.',
-                    tags: ['starter', 'connection']
-                }
-            ];
-
-            placeholderDefinitions.forEach(def => addDefinition({ ...def, worldId }));
-
-            const placeholderConnections = [
-                {
-                    id: `${worldId}_conn_1`,
-                    subject: { type: 'Record', id: observationPlaceholders[0] },
-                    operator: 'CON',
-                    mode: 'observed at',
-                    operand: { type: 'Record', id: locationPlaceholders[0] },
-                    description: 'Starter link between an observation and a location.',
-                    params: {}
-                },
-                {
-                    id: `${worldId}_conn_2`,
-                    subject: { type: 'Record', id: observationPlaceholders[1] },
-                    operator: 'CON',
-                    mode: 'observed at',
-                    operand: { type: 'Record', id: locationPlaceholders[1] },
-                    description: 'Starter link between an observation and a location.',
-                    params: {}
-                },
-                {
-                    id: `${worldId}_conn_3`,
-                    subject: { type: 'Record', id: observationPlaceholders[2] },
-                    operator: 'CON',
-                    mode: 'observed at',
-                    operand: { type: 'Record', id: locationPlaceholders[2] },
-                    description: 'Starter link between an observation and a location.',
-                    params: {}
-                }
-            ];
-
-            placeholderConnections.forEach(conn => addConnection({ ...conn, worldId }));
-
-            return {
-                locationsId,
-                observationsId,
-                locationPlaceholders,
-                observationPlaceholders
-            };
+            return { locationsId, observationsId };
         }
 
         // INITIALIZATION
@@ -4818,14 +4744,22 @@
 
             initializeOperatorRules();
             createSampleData();
+            applyRouteParams();
             loadConnectionModes();
             initializeFormulaSupport();
             renderSidebar();
-            if (state.currentSetId) switchSet(state.currentSetId, state.currentViewId);
+            if (state.currentSpecialView) {
+                renderCurrentView();
+            } else if (state.currentSetId) {
+                switchSet(state.currentSetId, state.currentViewId);
+            } else {
+                renderCurrentView();
+            }
             setupEventListeners();
             setupKeyboardShortcuts();
             applyResponsiveLayout();
             window.addEventListener('resize', applyResponsiveLayout);
+            syncUrlState();
         }
 
         function buildConnectionModeHints(modeData) {
@@ -4881,6 +4815,56 @@
             } catch (error) {
                 console.warn('Unable to load connection modes', error);
             }
+        }
+
+        function readRouteParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                worldId: params.get('world'),
+                setId: params.get('set'),
+                viewId: params.get('view'),
+                special: params.get('special')
+            };
+        }
+
+        function applyRouteParams() {
+            const route = readRouteParams();
+            if (route.worldId && state.worlds.has(route.worldId)) {
+                state.currentWorldId = route.worldId;
+            }
+
+            if (route.special) {
+                state.currentSpecialView = route.special;
+                state.currentSetId = null;
+                state.currentViewId = null;
+                return;
+            }
+
+            if (route.setId && state.sets.has(route.setId)) {
+                state.currentSetId = route.setId;
+                const set = state.sets.get(route.setId);
+                if (route.viewId && set.views.has(route.viewId)) {
+                    state.currentViewId = route.viewId;
+                } else if (set.views.size > 0) {
+                    state.currentViewId = Array.from(set.views.keys())[0];
+                }
+            }
+        }
+
+        function syncUrlState() {
+            const params = new URLSearchParams();
+            if (state.currentWorldId) params.set('world', state.currentWorldId);
+
+            if (state.currentSpecialView) {
+                params.set('special', state.currentSpecialView);
+            } else {
+                if (state.currentSetId) params.set('set', state.currentSetId);
+                if (state.currentViewId) params.set('view', state.currentViewId);
+            }
+
+            const query = params.toString();
+            const nextUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+            window.history.replaceState({}, '', nextUrl);
         }
 
         function applyResponsiveLayout() {
@@ -5116,7 +5100,7 @@
         }
 
         function createSampleData() {
-            const defaultWorldId = createWorld('Example World');
+            const defaultWorldId = createWorld('Example World', 'world_example');
             state.currentWorldId = defaultWorldId;
             const worldDefaults = state.worlds.get(defaultWorldId)?.defaults || {};
 
@@ -5131,25 +5115,74 @@
             ];
 
             locationsSet.records.clear();
+            locationsSet.views.clear();
             const ridgeId = addRecord(locationsId, { name: 'Summit Ridge', area: 'Highlands', notes: 'Windy lookout with clean sight lines.' });
             const marshId = addRecord(locationsId, { name: 'Quiet Marsh', area: 'Wetlands', notes: 'Shallow water and dense reeds.' });
             const groveId = addRecord(locationsId, { name: 'North Grove', area: 'Forest Edge', notes: 'Shaded trail with frequent wildlife activity.' });
 
-            createView(locationsId, 'Locations', { type: 'grid' });
+            createView(locationsId, 'Locations', { type: 'grid', sorts: [{ fieldId: 'name', direction: 'asc' }] });
+            createView(locationsId, 'By Area', {
+                type: 'KEY_DERIVED',
+                key: { setId: locationsId, fieldId: 'area' },
+                schema: [
+                    { id: 'locationNames', name: 'Locations', type: 'TEXT', sourceFieldId: 'name' },
+                    { id: 'notesSummary', name: 'Notes', type: 'LONG_TEXT', sourceFieldId: 'notes' }
+                ],
+                columnRules: {
+                    locationNames: { rule: 'sup_all' },
+                    notesSummary: { rule: 'sup_all' }
+                }
+            });
 
             const observationsSet = state.sets.get(observationsId);
             observationsSet.schema = [
                 { id: 'date', name: 'Date', type: 'DATE', width: '140px' },
+                { id: 'location', name: 'Location', type: 'TEXT', width: '200px' },
                 { id: 'observer', name: 'Observer', type: 'TEXT', width: '180px' },
                 { id: 'observation', name: 'Observation', type: 'LONG_TEXT', width: '260px' }
             ];
 
             observationsSet.records.clear();
-            const obs1Id = addRecord(observationsId, { date: '2024-04-12', observer: 'M. Ellis', observation: 'Found fresh tracks along the ridge path.' });
-            const obs2Id = addRecord(observationsId, { date: '2024-04-13', observer: 'S. Kaur', observation: 'Low mist over the marsh; water depth at 0.4m.' });
-            const obs3Id = addRecord(observationsId, { date: '2024-04-14', observer: 'J. Rivera', observation: 'Pair of hawks circling above the grove at noon.' });
+            observationsSet.views.clear();
+            const obs1Id = addRecord(observationsId, { date: '2024-04-12', location: 'Summit Ridge', observer: 'M. Ellis', observation: 'Found fresh tracks along the ridge path.' });
+            const obs2Id = addRecord(observationsId, { date: '2024-04-13', location: 'Quiet Marsh', observer: 'S. Kaur', observation: 'Low mist over the marsh; water depth at 0.4m.' });
+            const obs3Id = addRecord(observationsId, { date: '2024-04-14', location: 'North Grove', observer: 'J. Rivera', observation: 'Pair of hawks circling above the grove at noon.' });
+            const obs4Id = addRecord(observationsId, { date: '2024-04-15', location: 'Summit Ridge', observer: 'M. Ellis', observation: 'Clear skies; ridge visibility extends 10km.' });
 
-            createView(observationsId, 'Observations', { type: 'grid' });
+            createView(observationsId, 'Observations', {
+                type: 'grid',
+                sorts: [{ fieldId: 'date', direction: 'desc' }]
+            });
+
+            createView(observationsId, 'By Location', {
+                type: 'KEY_DERIVED',
+                key: { setId: observationsId, fieldId: 'location' },
+                schema: [
+                    { id: 'notes', name: 'Observations', type: 'LONG_TEXT', sourceFieldId: 'observation' },
+                    { id: 'observers', name: 'Observers', type: 'TEXT', sourceFieldId: 'observer' },
+                    { id: 'latestDate', name: 'Most Recent', type: 'DATE', sourceFieldId: 'date' }
+                ],
+                columnRules: {
+                    notes: { rule: 'sup_all' },
+                    observers: { rule: 'sup_all' },
+                    latestDate: { rule: 'prefer_newest' }
+                }
+            });
+
+            createView(observationsId, 'By Observer', {
+                type: 'KEY_DERIVED',
+                key: { setId: observationsId, fieldId: 'observer' },
+                schema: [
+                    { id: 'locations', name: 'Locations', type: 'TEXT', sourceFieldId: 'location' },
+                    { id: 'notes', name: 'Observations', type: 'LONG_TEXT', sourceFieldId: 'observation' },
+                    { id: 'latestDate', name: 'Most Recent', type: 'DATE', sourceFieldId: 'date' }
+                ],
+                columnRules: {
+                    locations: { rule: 'sup_all' },
+                    notes: { rule: 'sup_all' },
+                    latestDate: { rule: 'prefer_newest' }
+                }
+            });
 
             Array.from(state.definitions.values())
                 .filter(def => def.worldId === defaultWorldId)
@@ -5220,6 +5253,17 @@
                 worldId: defaultWorldId
             });
 
+            addConnection({
+                id: `${defaultWorldId}_example_conn_4`,
+                subject: { type: 'Record', id: obs4Id },
+                operator: 'CON',
+                mode: 'observed at',
+                operand: { type: 'Record', id: ridgeId },
+                description: 'Links the second ridge observation to its site.',
+                params: {},
+                worldId: defaultWorldId
+            });
+
             state.currentSetId = observationsId;
             state.currentViewId = Array.from(observationsSet.views.keys())[0];
             state.expandedSets.add(observationsId);
@@ -5227,18 +5271,18 @@
         }
 
         // WORLD & SET MANAGEMENT
-        function createWorld(name) {
-            const worldId = 'world_' + Date.now();
-            const defaults = seedWorldDefaults(worldId);
+        function createWorld(name, worldId = null) {
+            const resolvedWorldId = worldId || ('world_' + Date.now());
+            const defaults = seedWorldDefaults(resolvedWorldId);
 
-            state.worlds.set(worldId, {
-                id: worldId,
+            state.worlds.set(resolvedWorldId, {
+                id: resolvedWorldId,
                 name,
-                setIds: new Set(),
+                setIds: new Set([defaults.locationsId, defaults.observationsId].filter(Boolean)),
                 createdAt: new Date().toISOString(),
                 defaults
             });
-            return worldId;
+            return resolvedWorldId;
         }
 
         function getWorld(worldId = state.currentWorldId) {
@@ -6436,6 +6480,7 @@
             if (state.currentSetId) {
                 switchSet(state.currentSetId, state.currentViewId);
             }
+            syncUrlState();
         }
 
         function openAddWorldModal() {
@@ -6449,10 +6494,8 @@
             const name = input?.value.trim();
             if (!name) { showConfirm('Please enter a world name', () => {}); return; }
             const worldId = createWorld(name);
-            state.currentWorldId = worldId;
+            switchWorld(worldId);
             closeModal('addWorldModal');
-            renderWorldSelector();
-            renderSidebar();
             showToast('✓ World created');
         }
 
@@ -6464,6 +6507,7 @@
             renderSidebar();
             renderCurrentView();
             updateMobileChrome();
+            syncUrlState();
         }
 
         function openConnectionsPage() {
@@ -6474,6 +6518,7 @@
             renderSidebar();
             renderCurrentView();
             updateMobileChrome();
+            syncUrlState();
         }
 
         function renderSidebar() {
@@ -6847,6 +6892,7 @@
             renderViewTabs();
             renderCurrentView();
             updateMobileChrome();
+            syncUrlState();
         }
 
         function getCurrentSet() { return state.sets.get(state.currentSetId); }
@@ -7454,18 +7500,8 @@
                 tbody.appendChild(tr);
             });
 
-            const selectAllCheckbox = document.getElementById('selectAllRows');
-            if (selectAllCheckbox) {
-                selectAllCheckbox.onchange = (event) => {
-                    if (!state.selectedRecordIds) state.selectedRecordIds = new Set();
-                    if (event.target.checked) records.forEach(r => state.selectedRecordIds.add(r.id));
-                    else records.forEach(r => state.selectedRecordIds.delete(r.id));
-                    updateSelectionUI(records);
-                };
-            }
-
             finalizeViewStage();
-            updateSelectionUI(records);
+            updateSelectionUI(rows);
         }
 
         function renderCellValue(value, field, record) {
