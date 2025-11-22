@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EO - Enhanced Database</title>
-    <link rel="icon" type="image/svg+xml" href="assets/eo-icons/eo-light.svg" media="(prefers-color-scheme: light)">
-    <link rel="icon" type="image/svg+xml" href="assets/eo-icons/eo-dark.svg" media="(prefers-color-scheme: dark)">
-    <link rel="apple-touch-icon" href="assets/eo-icons/eo-bracket-light.svg" media="(prefers-color-scheme: light)">
-    <link rel="apple-touch-icon" href="assets/eo-icons/eo-bracket-dark.svg" media="(prefers-color-scheme: dark)">
+    <link id="dynamicFavicon" rel="icon" type="image/svg+xml" href="assets/eo-icons/eo-bracket-light.svg">
+    <link id="dynamicAppleIcon" rel="apple-touch-icon" href="assets/eo-icons/eo-bracket-light.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="formula_engine.js"></script>
@@ -237,8 +235,25 @@
             gap: 10px;
         }
         .sidebar-collapsed .sidebar-header { padding: 18px 10px; justify-content: center; }
-        .sidebar-brand { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; transition: opacity 0.2s; }
-        .sidebar-collapsed .sidebar-brand { opacity: 0; width: 0; overflow: hidden; }
+        .sidebar-brand-logo {
+            width: 44px;
+            height: 44px;
+            padding: 8px;
+            border-radius: 12px;
+            background: #111827;
+            border: 1px solid #1f2937;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+            transition: opacity 0.2s, width 0.2s, padding 0.2s, margin 0.2s;
+        }
+        .sidebar-brand-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .sidebar-collapsed .sidebar-brand-logo { opacity: 0; width: 0; padding: 0; margin: 0; overflow: hidden; }
         .sidebar-toggle {
             background: transparent;
             border: 1px solid #2f343d;
@@ -1778,7 +1793,9 @@
         <!-- Sidebar -->
         <div class="app-sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-brand">EO</div>
+                <div class="sidebar-brand-logo" aria-label="EO bracket logo">
+                    <img id="topCornerLogo" src="assets/eo-icons/eo-bracket-light.svg" alt="EO bracket logo" />
+                </div>
                 <button class="sidebar-toggle" onclick="toggleSidebar()">
                     <i class="ph ph-list text-lg"></i>
                 </button>
@@ -2649,6 +2666,40 @@
     </div>
 
     <script>
+        const BRAND_ASSETS = {
+            light: 'assets/eo-icons/eo-bracket-light.svg',
+            dark: 'assets/eo-icons/eo-bracket-dark.svg'
+        };
+
+        function getTimeOfDayBrandMode() {
+            const hour = new Date().getHours();
+            return hour >= 6 && hour < 18 ? 'light' : 'dark';
+        }
+
+        function applyTimeBasedBranding() {
+            const mode = getTimeOfDayBrandMode();
+            const bracketAsset = BRAND_ASSETS[mode] || BRAND_ASSETS.light;
+
+            const faviconLink = document.querySelector('link#dynamicFavicon');
+            if (faviconLink) {
+                faviconLink.href = bracketAsset;
+            }
+
+            const appleIcon = document.querySelector('link#dynamicAppleIcon');
+            if (appleIcon) {
+                appleIcon.href = bracketAsset;
+            }
+
+            const cornerLogo = document.getElementById('topCornerLogo');
+            if (cornerLogo) {
+                cornerLogo.src = bracketAsset;
+                cornerLogo.alt = `EO bracket logo for ${mode} mode`;
+                cornerLogo.dataset.brandMode = mode;
+            }
+
+            document.documentElement.dataset.brandMode = mode;
+        }
+
         // STATE
         const state = {
             worlds: new Map(),
@@ -12084,7 +12135,11 @@
         window.testLeanContextEfficiency = testLeanContextEfficiency;
 
         // INITIALIZE
-        document.addEventListener('DOMContentLoaded', initializeApp);
+        document.addEventListener('DOMContentLoaded', () => {
+            applyTimeBasedBranding();
+            initializeApp();
+            setInterval(applyTimeBasedBranding, 30 * 60 * 1000);
+        });
     </script>
 </body>
 </html>
