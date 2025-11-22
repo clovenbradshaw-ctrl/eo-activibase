@@ -162,6 +162,61 @@
             border-bottom: 1px solid var(--border);
             z-index: 10;
         }
+
+        .world-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .world-toolbar-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .world-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--muted-surface);
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .world-pill i {
+            color: #2563eb;
+        }
+
+        .world-toolbar-hint {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .world-toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .world-toolbar-actions .btn-sm {
+            min-width: auto;
+        }
+
+        .view-toolbar-note {
+            padding: 10px 18px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+            background: #f9fafb;
+        }
         .app-main {
             grid-area: main;
             overflow: auto;
@@ -1767,11 +1822,35 @@
 
         <!-- Header -->
         <div class="app-header">
-            <div class="toolbar">
-                <div class="toolbar-left">
-                    <div class="text-sm text-gray-500">Manage filters and sorts from the view surface.</div>
+            <div class="world-toolbar">
+                <div class="world-toolbar-info">
+                    <div class="world-pill">
+                        <i class="ph ph-globe-hemisphere-west"></i>
+                        <span id="currentWorldHeaderLabel">Loading world...</span>
+                    </div>
+                    <p class="world-toolbar-hint">World-level settings live here. View settings stay on the workspace surface.</p>
+                </div>
+                <div class="world-toolbar-actions">
+                    <button id="globalHistoryBtn" class="btn btn-secondary btn-sm">
+                        <i class="ph ph-clock-counter-clockwise"></i>
+                        Global changes
+                    </button>
+                    <button id="viewWorldJsonBtn" class="btn btn-secondary btn-sm">
+                        <i class="ph ph-code"></i>
+                        View JSON
+                    </button>
+                    <button id="importWorldBtn" class="btn btn-secondary btn-sm">
+                        <i class="ph ph-upload-simple"></i>
+                        Import world
+                    </button>
+                    <input type="file" id="worldJsonInput" accept="application/json" style="display:none" />
+                    <button id="exportWorldBtn" class="btn btn-primary btn-sm">
+                        <i class="ph ph-download-simple"></i>
+                        Download world
+                    </button>
                 </div>
             </div>
+            <div class="view-toolbar-note">Use the view surface for filters, sorts, and view-specific options within this world.</div>
         </div>
 
         <!-- Main Content -->
@@ -4919,14 +4998,7 @@
 
             const toolbarActions = [
                 ['popupSettingsBtn', openPopupSettingsModal],
-                ['historyBtn', () => {
-                    document.getElementById('historyPanel').classList.add('open');
-                    renderHistory();
-                }],
-                ['viewJsonBtn', openJsonViewer],
                 ['importCsvBtn', openCsvImportModal],
-                ['exportBtn', exportJSON],
-                ['exportCsvBtn', exportWorldCSVs],
                 ['fuzzyPanelBtn', openFuzzyPanel]
             ];
 
@@ -4975,26 +5047,9 @@
                                     <i class="ph ph-gear-six"></i>
                                     Details
                                 </button>
-                                <button id="historyBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                    <i class="ph ph-clock-counter-clockwise"></i>
-                                    History
-                                </button>
-                                <div class="toolbar-menu-divider"></div>
-                                <button id="viewJsonBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                    <i class="ph ph-code"></i>
-                                    View JSON
-                                </button>
                                 <button id="importCsvBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
                                     <i class="ph ph-upload-simple"></i>
                                     Import CSV
-                                </button>
-                                <button id="exportBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                    <i class="ph ph-download-simple"></i>
-                                    Export JSON
-                                </button>
-                                <button id="exportCsvBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                    <i class="ph ph-spreadsheet"></i>
-                                    Export CSVs
                                 </button>
                                 <div class="toolbar-menu-divider"></div>
                                 <button id="fuzzyPanelBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
@@ -6327,6 +6382,7 @@
         function renderWorldSelector() {
             const select = document.getElementById('worldSelect');
             const label = document.getElementById('currentWorldLabel');
+            const headerLabel = document.getElementById('currentWorldHeaderLabel');
             if (!select) return;
 
             select.innerHTML = '';
@@ -6348,6 +6404,11 @@
             if (label) {
                 const world = getWorld();
                 label.textContent = world?.name || 'No world selected';
+            }
+
+            if (headerLabel) {
+                const world = getWorld();
+                headerLabel.textContent = world?.name || 'No world selected';
             }
         }
 
@@ -11249,6 +11310,116 @@
             showToast('✓ Exported data');
         }
 
+        function importWorldFromJson(payload) {
+            if (!payload) return;
+
+            try {
+                const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
+                const world = data.world || null;
+                if (!world) throw new Error('No world data found in file');
+
+                state.worlds = new Map();
+                state.sets = new Map();
+                state.definitions = new Map();
+                state.connections = new Map();
+                state.expandedSets = new Set();
+                state.openTabs = [];
+                state.currentSpecialView = null;
+                state.selectedRecordIds.clear();
+                state.lastSelectedRecordId = null;
+                state.selectedCell = null;
+                state.lastSelectedCell = null;
+                state.editingCell = null;
+                state.csvImportState = { headers: [], rows: [], mappings: {}, previewRows: [], matches: [], targetMode: 'existing', targetSetId: null, newSetName: '' };
+                state.fuzzyPanelState = { threshold: 0.65, matches: [] };
+
+                const worldId = world.id || `world_${Date.now()}`;
+                const normalizedWorld = { ...world, id: worldId, setIds: new Set(world.setIds || []) };
+                state.worlds.set(worldId, normalizedWorld);
+
+                (data.sets || []).forEach(rawSet => {
+                    const setId = rawSet.id || `set_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                    const records = new Map();
+                    (rawSet.records || []).forEach(rec => {
+                        const recId = rec.id || `rec_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                        records.set(recId, { ...rec, id: recId });
+                    });
+
+                    const views = new Map();
+                    (rawSet.views || []).forEach(view => {
+                        const viewId = view.id || `view_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                        views.set(viewId, { ...view, id: viewId });
+                    });
+
+                    const profiles = new Map();
+                    (rawSet.profiles || []).forEach(profile => {
+                        const profileId = profile.id || 'default';
+                        profiles.set(profileId, { ...profile, id: profileId });
+                    });
+
+                    const normalizedSet = {
+                        ...rawSet,
+                        id: setId,
+                        worldId: rawSet.worldId || worldId,
+                        records,
+                        views,
+                        profiles
+                    };
+
+                    state.sets.set(setId, normalizedSet);
+                    normalizedWorld.setIds.add(setId);
+                    state.expandedSets.add(setId);
+                });
+
+                (data.definitions || []).forEach(def => {
+                    const id = def.id || `def_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                    state.definitions.set(id, { ...def, id });
+                });
+
+                (data.connections || []).forEach(conn => {
+                    const id = conn.id || `conn_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                    state.connections.set(id, { ...conn, id });
+                });
+
+                state.eventStream = Array.isArray(data.eventStream) ? data.eventStream : [];
+                const numericIds = state.eventStream
+                    .map(e => typeof e.id === 'string' && e.id.startsWith('event-') ? parseInt(e.id.replace('event-', '')) : null)
+                    .filter(n => Number.isFinite(n));
+                const maxId = numericIds.length ? Math.max(...numericIds) : state.eventStream.length;
+                state.eventIdCounter = (maxId || 0) + 1;
+
+                state.currentWorldId = worldId;
+                state.currentSetId = Array.from(normalizedWorld.setIds)[0] || null;
+                state.currentViewId = state.currentSetId ? Array.from(state.sets.get(state.currentSetId).views.keys())[0] || null : null;
+
+                renderWorldSelector();
+                renderSidebar();
+                if (state.currentSetId) switchSet(state.currentSetId, state.currentViewId);
+                renderHistory();
+                showToast('✓ World imported');
+            } catch (error) {
+                console.error('Failed to import world JSON', error);
+                showToast('⚠️ Could not import world JSON');
+            }
+        }
+
+        function triggerWorldImport() {
+            const input = document.getElementById('worldJsonInput');
+            if (input) {
+                input.value = '';
+                input.click();
+            }
+        }
+
+        function handleWorldFileSelected(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => importWorldFromJson(e.target?.result || '');
+            reader.readAsText(file);
+        }
+
         function convertSetToCsv(set) {
             const headers = ['id', ...set.schema.map(f => f.id)];
             const escapeValue = (value) => {
@@ -11371,11 +11542,11 @@
             document.getElementById('closeSortBtn').onclick = () => closeModal('sortModal');
             const fieldNameInput = document.getElementById('newFieldName');
             if (fieldNameInput) fieldNameInput.addEventListener('input', resetFieldNameValidation);
-            document.getElementById('saveAddFieldBtn').onclick = saveField;
-            document.getElementById('cancelAddFieldBtn').onclick = () => closeModal('addFieldModal');
-            document.getElementById('closeAddFieldBtn').onclick = () => closeModal('addFieldModal');
-            document.getElementById('closeColumnRulesBtn').onclick = () => closeModal('columnRulesModal');
-            document.getElementById('columnRulesRuleSelect').onchange = (e) => {
+          document.getElementById('saveAddFieldBtn').onclick = saveField;
+          document.getElementById('cancelAddFieldBtn').onclick = () => closeModal('addFieldModal');
+          document.getElementById('closeAddFieldBtn').onclick = () => closeModal('addFieldModal');
+          document.getElementById('closeColumnRulesBtn').onclick = () => closeModal('columnRulesModal');
+          document.getElementById('columnRulesRuleSelect').onchange = (e) => {
                 document.getElementById('columnRulesSetPicker').classList.toggle('hidden', e.target.value !== 'prefer_set');
                 updateColumnRulesSummary();
             };
@@ -11389,6 +11560,14 @@
           document.getElementById('saveAddWorldBtn').onclick = saveWorldFromModal;
           document.getElementById('cancelAddWorldBtn').onclick = () => closeModal('addWorldModal');
           document.getElementById('worldSelect').onchange = (e) => switchWorld(e.target.value);
+          document.getElementById('exportWorldBtn').onclick = exportJSON;
+          document.getElementById('viewWorldJsonBtn').onclick = openJsonViewer;
+          document.getElementById('importWorldBtn').onclick = triggerWorldImport;
+          document.getElementById('worldJsonInput').onchange = handleWorldFileSelected;
+          document.getElementById('globalHistoryBtn').onclick = () => {
+                document.getElementById('historyPanel').classList.add('open');
+                renderHistory();
+          };
           document.getElementById('saveAddSetBtn').onclick = () => {
                 const name = document.getElementById('newSetName').value.trim();
                 const icon = extractIconToken(document.getElementById('newSetIcon').value.trim() || 'ph-squares-four');
