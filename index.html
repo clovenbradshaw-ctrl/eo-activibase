@@ -1630,6 +1630,7 @@
             padding: 12px 16px;
             border-bottom: 1px solid #e5e7eb;
             background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            flex-wrap: wrap;
         }
 
         .view-stage-title {
@@ -1654,10 +1655,14 @@
         .view-stage-name { font-weight: 800; font-size: 16px; letter-spacing: -0.01em; color: #0f172a; }
         .view-stage-sub { color: #64748b; font-size: 13px; font-weight: 600; }
 
-        .view-stage-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: space-between; }
+        .view-stage-actions { display: flex; flex-direction: column; gap: 10px; width: 100%; }
         .view-stage-actions .primary-actions { flex-wrap: wrap; }
-        .view-stage-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .view-stage-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
         .view-stage-inline-actions { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .toolbar-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between; width: 100%; }
+        .toolbar-row.scrollable { overflow-x: auto; padding-bottom: 4px; }
+        .toolbar-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+        .selection-group { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .selection-indicator { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-weight: 700; font-size: 12px; }
         .selection-indicator.hidden { display: none; }
         .selection-indicator i { font-size: 14px; }
@@ -1735,6 +1740,18 @@
             inset: 0;
             background: rgba(0, 0, 0, 0.35);
             z-index: 30;
+        }
+
+        @media (min-width: 1100px) {
+            .view-stage-actions { flex-direction: row; align-items: center; }
+            .toolbar-row { flex: 1; }
+            .toolbar-row.secondary { justify-content: flex-end; }
+        }
+
+        @media (max-width: 640px) {
+            .toolbar-row { flex-direction: column; align-items: stretch; }
+            .toolbar-row.secondary { gap: 12px; }
+            .toolbar-row .toolbar-group, .selection-group { width: 100%; justify-content: space-between; }
         }
 
         @media (max-width: 1024px) {
@@ -5145,61 +5162,67 @@
         function renderViewActions(extraControls = '') {
             return `
                 <div class="view-stage-actions">
-                    <div class="view-stage-controls">
-                        <div class="primary-actions">
-                            <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
-                            <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
-                        </div>
-                        <div class="view-stage-inline-actions">
-                            <button id="filterBtn" class="btn btn-secondary btn-sm">
-                                <i class="ph ph-funnel-simple"></i>
-                                Filter
-                            </button>
-                            <button id="sortBtn" class="btn btn-secondary btn-sm">
-                                <i class="ph ph-arrows-down-up"></i>
-                                Sort
-                            </button>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div id="selectionIndicator" class="selection-indicator hidden">
-                            <i class="ph ph-check-square-offset"></i>
-                            <span><span id="selectedCount">0</span> selected</span>
-                        </div>
-                        <button id="deleteSelectedBtn" class="btn btn-danger btn-sm" disabled>
-                            <i class="ph ph-trash"></i>
-                            Delete
-                        </button>
-                        <button id="reifyViewBtn" class="btn btn-secondary btn-sm">
-                            <i class="ph ph-cube-focus"></i>
-                            Reify View
-                        </button>
-                        ${extraControls}
-                        <div class="toolbar-menu">
-                            <button id="toolbarMenuToggle" class="btn btn-secondary btn-sm toolbar-menu-toggle">
-                                <i class="ph ph-dots-three-outline"></i>
-                                Actions
-                            </button>
-                            <div class="toolbar-menu-panel" id="toolbarMenuPanel">
-                                <button id="popupSettingsBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                    <i class="ph ph-gear-six"></i>
-                                    Details
+                    <div class="toolbar-row scrollable">
+                        <div class="toolbar-group">
+                            <div class="primary-actions">
+                                <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
+                                <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
+                            </div>
+                            <div class="view-stage-inline-actions">
+                                <button id="filterBtn" class="btn btn-secondary btn-sm">
+                                    <i class="ph ph-funnel-simple"></i>
+                                    Filter
                                 </button>
-                                <button id="importCsvBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                    <i class="ph ph-upload-simple"></i>
-                                    Import CSV
-                                </button>
-                                <div class="toolbar-menu-divider"></div>
-                                <button id="fuzzyPanelBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                    <i class="ph ph-graph"></i>
-                                    Fuzzy Matches
+                                <button id="sortBtn" class="btn btn-secondary btn-sm">
+                                    <i class="ph ph-arrows-down-up"></i>
+                                    Sort
                                 </button>
                             </div>
+                            ${extraControls ? `<div class="toolbar-group">${extraControls}</div>` : ''}
                         </div>
-                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
-                            <i class="ph ph-gear-six text-sm"></i>
-                            <span class="ml-1">Fields</span>
-                        </button>
+                    </div>
+                    <div class="toolbar-row secondary">
+                        <div class="selection-group">
+                            <div id="selectionIndicator" class="selection-indicator hidden">
+                                <i class="ph ph-check-square-offset"></i>
+                                <span><span id="selectedCount">0</span> selected</span>
+                            </div>
+                            <button id="deleteSelectedBtn" class="btn btn-danger btn-sm" disabled>
+                                <i class="ph ph-trash"></i>
+                                Delete
+                            </button>
+                        </div>
+                        <div class="toolbar-group">
+                            <button id="reifyViewBtn" class="btn btn-secondary btn-sm">
+                                <i class="ph ph-cube-focus"></i>
+                                Reify View
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
+                                <i class="ph ph-gear-six text-sm"></i>
+                                <span class="ml-1">Fields</span>
+                            </button>
+                            <div class="toolbar-menu">
+                                <button id="toolbarMenuToggle" class="btn btn-secondary btn-sm toolbar-menu-toggle">
+                                    <i class="ph ph-dots-three-outline"></i>
+                                    Actions
+                                </button>
+                                <div class="toolbar-menu-panel" id="toolbarMenuPanel">
+                                    <button id="popupSettingsBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                        <i class="ph ph-gear-six"></i>
+                                        Details
+                                    </button>
+                                    <button id="importCsvBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                        <i class="ph ph-upload-simple"></i>
+                                        Import CSV
+                                    </button>
+                                    <div class="toolbar-menu-divider"></div>
+                                    <button id="fuzzyPanelBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                        <i class="ph ph-graph"></i>
+                                        Fuzzy Matches
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
