@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Workbase - Enhanced Database</title>
+    <title>EO - Enhanced Database</title>
+    <link rel="icon" type="image/svg+xml" href="assets/eo-icons/eo-light.svg" media="(prefers-color-scheme: light)">
+    <link rel="icon" type="image/svg+xml" href="assets/eo-icons/eo-dark.svg" media="(prefers-color-scheme: dark)">
+    <link rel="apple-touch-icon" href="assets/eo-icons/eo-bracket-light.svg" media="(prefers-color-scheme: light)">
+    <link rel="apple-touch-icon" href="assets/eo-icons/eo-bracket-dark.svg" media="(prefers-color-scheme: dark)">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="formula_engine.js"></script>
@@ -1708,7 +1712,7 @@
         <button class="mobile-icon-btn" onclick="toggleSidebar()" aria-label="Toggle navigation">
             <i class="ph ph-list"></i>
         </button>
-        <div class="mobile-topbar-title" id="mobileTopbarTitle">Workbase</div>
+        <div class="mobile-topbar-title" id="mobileTopbarTitle">EO</div>
         <button class="mobile-icon-btn" onclick="triggerPrimaryAction()" aria-label="Add record">
             <i class="ph ph-plus"></i>
         </button>
@@ -1718,7 +1722,7 @@
         <!-- Sidebar -->
         <div class="app-sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-brand">Workbase</div>
+                <div class="sidebar-brand">EO</div>
                 <button class="sidebar-toggle" onclick="toggleSidebar()">
                     <i class="ph ph-list text-lg"></i>
                 </button>
@@ -4832,7 +4836,7 @@
             const view = getCurrentView();
             const special = state.currentSpecialView === 'definitions' ? 'Definitions' : state.currentSpecialView === 'connections' ? 'Connections' : null;
 
-            if (titleEl) titleEl.textContent = special || set?.name || 'Workbase';
+            if (titleEl) titleEl.textContent = special || set?.name || 'EO';
 
             document.querySelectorAll('.mobile-bottom-action').forEach(btn => {
                 const type = btn.dataset.mobileNav;
