@@ -376,7 +376,25 @@
             transition: color 0.15s ease;
         }
         .new-set-btn:hover { color: #9ca3af; }
-        
+
+        .knowledge-nav { display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
+        .knowledge-nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .knowledge-nav-btn:hover { background: var(--muted-surface); }
+        .knowledge-nav-btn.active { border-color: #3b82f6; color: #1d4ed8; background: #e0e7ff; }
+        .knowledge-nav-btn i { color: inherit; }
+
         /* TOOLBAR */
         .toolbar {
             display: flex;
@@ -1719,6 +1737,19 @@
                 </div>
             </div>
             <div class="sidebar-section">
+                <div class="sidebar-section-title">Knowledge</div>
+                <div class="knowledge-nav">
+                    <button class="knowledge-nav-btn" id="definitionsNavBtn" onclick="openDefinitionsPage()">
+                        <i class="ph ph-books"></i>
+                        <span>Definitions</span>
+                    </button>
+                    <button class="knowledge-nav-btn" id="connectionsNavBtn" onclick="openConnectionsPage()">
+                        <i class="ph ph-link-simple"></i>
+                        <span>Connections</span>
+                    </button>
+                </div>
+            </div>
+            <div class="sidebar-section">
                 <div class="sidebar-section-title">Sets</div>
                 <div id="setsList"></div>
                 <button onclick="openAddSetModal()" class="new-set-btn">
@@ -2546,11 +2577,16 @@
             eventIdCounter: 1,
             currentUser: { type: 'Person', id: 'user_1', name: 'User' },
             operatorSet: {},
+            connectionModes: {},
             leanContext: null, // Will be initialized in initializeApp
             interpretationRules: [],
+            definitions: new Map(),
             connections: new Map(),
             demoRefs: {},
             connectionBuilder: { targetSetId: null, targetRecordId: '', metadataJson: '', searchQuery: '' },
+            currentSpecialView: null,
+            definitionFormState: { editingId: null },
+            connectionFormState: { editingId: null },
             sidebarCollapsed: false,
             sidebarOpenMobile: false,
             modalStack: [],
@@ -3113,17 +3149,19 @@
 
             const findConversionRecord = (sourceUnitId, targetUnitId) => {
                 if (!sourceUnitId || !targetUnitId) return null;
-                const outbound = Array.from(state.connections.values()).filter(edge =>
-                    edge.sourceId === sourceUnitId && edge.metadata?.relationship === 'unit_conversion'
+                const outbound = getConnectionView(edge =>
+                    edge.subject?.type === 'Record' &&
+                    edge.subject?.id === sourceUnitId &&
+                    edge.params?.relationship === 'unit_conversion'
                 );
 
                 for (const connection of outbound) {
-                    const conversionId = connection.targetId;
-                    const pointsToTarget = Array.from(state.connections.values()).some(edge =>
-                        edge.sourceId === conversionId &&
-                        edge.targetId === targetUnitId &&
-                        edge.metadata?.relationship === 'unit_conversion'
-                    );
+                    const conversionId = connection.operand?.id;
+                    const pointsToTarget = getConnectionView(edge =>
+                        edge.subject?.id === conversionId &&
+                        edge.operand?.id === targetUnitId &&
+                        edge.params?.relationship === 'unit_conversion'
+                    ).length > 0;
 
                     if (pointsToTarget) {
                         const conversionRef = getRecordById(conversionId);
@@ -4486,6 +4524,179 @@
             NUL: { id: 'NUL', name: 'Nullify', description: 'Declare absence, deletion, or erasure.' }
         };
 
+        // DEFINITIONS & CONNECTIONS
+        function deriveWorldIdForEntity(entity) {
+            if (!entity) return state.currentWorldId;
+            if (entity.type === 'Record') {
+                const ref = getRecordById(entity.id);
+                if (ref?.set?.worldId) return ref.set.worldId;
+            }
+            if (entity.type === 'Set') {
+                const set = state.sets.get(entity.id);
+                if (set?.worldId) return set.worldId;
+            }
+            if (entity.type === 'Connection') {
+                const existing = state.connections.get(entity.id);
+                if (existing?.worldId) return existing.worldId;
+            }
+            return state.currentWorldId;
+        }
+
+        function findDefinitionByEntity(entity, worldId = state.currentWorldId) {
+            if (!entity) return null;
+            return Array.from(state.definitions.values()).find(def =>
+                def.entity?.type === entity.type &&
+                def.entity?.id === entity.id &&
+                (!worldId || !def.worldId || def.worldId === worldId)
+            ) || null;
+        }
+
+        function renderEntityLabel(entity) {
+            if (!entity) return '';
+            const def = findDefinitionByEntity(entity);
+            if (def?.term) return def.term;
+
+            if (entity.type === 'Record') {
+                const ref = getRecordById(entity.id);
+                return ref?.record?.name || entity.id;
+            }
+            if (entity.type === 'Set') {
+                return state.sets.get(entity.id)?.name || entity.id;
+            }
+            if (entity.type === 'Connection') {
+                const conn = state.connections.get(entity.id);
+                if (conn) return `${renderEntityLabel(conn.subject)} ${conn.mode || '→'} ${renderEntityLabel(conn.operand)}`;
+            }
+            return entity.id;
+        }
+
+        function addDefinition(def) {
+            if (!def?.entity || !def?.entity?.type || !def?.entity?.id) {
+                throw new Error('Definitions require an entity with type and id');
+            }
+            if (!def.term || !def.definition) {
+                throw new Error('Definitions require both term and definition text');
+            }
+
+            const id = def.id || `def_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            const worldId = def.worldId || deriveWorldIdForEntity(def.entity);
+            const payload = {
+                ...def,
+                id,
+                worldId,
+                tags: def.tags || [],
+                createdAt: def.createdAt || new Date().toISOString()
+            };
+
+            state.definitions.set(id, payload);
+            return payload;
+        }
+
+        function updateDefinition(id, updates = {}) {
+            const existing = state.definitions.get(id);
+            if (!existing) throw new Error(`Definition ${id} not found`);
+
+            const next = {
+                ...existing,
+                ...updates,
+                id,
+                updatedAt: new Date().toISOString()
+            };
+
+            state.definitions.set(id, next);
+            return next;
+        }
+
+        function deleteDefinition(id) {
+            const existing = state.definitions.get(id);
+            if (!existing) throw new Error(`Definition ${id} not found`);
+            state.definitions.delete(id);
+            return existing;
+        }
+
+        function getDefinitionView(filterFn) {
+            const defs = Array.from(state.definitions.values()).filter(def => !def.worldId || def.worldId === state.currentWorldId);
+            return typeof filterFn === 'function' ? defs.filter(filterFn) : defs;
+        }
+
+        function getConnectionView(filterFn) {
+            const conns = Array.from(state.connections.values()).filter(conn => !conn.worldId || conn.worldId === state.currentWorldId);
+            return typeof filterFn === 'function' ? conns.filter(filterFn) : conns;
+        }
+
+        function getDemoDefinitions() {
+            return [
+                {
+                    id: 'def_demo_1',
+                    entity: { type: 'Record', id: 'sample_rec_1' },
+                    term: 'Sample Record A',
+                    definition: 'A sample entity used for demonstration.',
+                    notes: 'Auto-created on world initialization.',
+                    tags: ['demo', 'entity']
+                },
+                {
+                    id: 'def_demo_2',
+                    entity: { type: 'Field', id: 'sample_field_1' },
+                    term: 'Sentiment Score',
+                    definition: 'A numeric score representing sentiment.',
+                    tags: ['demo', 'field']
+                },
+                {
+                    id: 'def_demo_3',
+                    entity: { type: 'Connection', id: 'demo_conn_1' },
+                    term: 'Primary Link',
+                    definition: 'An example connection linking two records.',
+                    tags: ['demo', 'connection']
+                }
+            ];
+        }
+
+        function initializeDemoDefinitions(worldId = state.currentWorldId) {
+            getDemoDefinitions().forEach(def => {
+                if (state.definitions.has(def.id)) return;
+                addDefinition({ ...def, worldId });
+            });
+        }
+
+        function getDemoConnections() {
+            return [
+                {
+                    id: 'demo_conn_1',
+                    subject: { type: 'Record', id: 'sample_rec_1' },
+                    operator: 'CON',
+                    mode: 'is linked to',
+                    operand: { type: 'Record', id: 'sample_rec_2' },
+                    description: 'Default demonstration connection',
+                    params: {}
+                },
+                {
+                    id: 'demo_conn_2',
+                    subject: { type: 'Record', id: 'sample_rec_2' },
+                    operator: 'SEG',
+                    mode: 'filters by',
+                    operand: { type: 'Field', id: 'sample_field_1' },
+                    description: 'A filter connection',
+                    params: {}
+                },
+                {
+                    id: 'demo_conn_3',
+                    subject: { type: 'Connection', id: 'demo_conn_1' },
+                    operator: 'SYN',
+                    mode: 'integrates with',
+                    operand: { type: 'Connection', id: 'demo_conn_2' },
+                    description: 'A compound demo connection',
+                    params: {}
+                }
+            ];
+        }
+
+        function initializeDemoConnections(worldId = state.currentWorldId) {
+            getDemoConnections().forEach(conn => {
+                if (state.connections.has(conn.id)) return;
+                addConnection({ ...conn, worldId });
+            });
+        }
+
         // INITIALIZATION
         function initializeApp() {
             state.operatorSet = EO_OPERATOR_SET;
@@ -4498,6 +4709,7 @@
 
             initializeOperatorRules();
             createSampleData();
+            loadConnectionModes();
             initializeFormulaSupport();
             renderSidebar();
             if (state.currentSetId) switchSet(state.currentSetId, state.currentViewId);
@@ -4505,6 +4717,16 @@
             setupKeyboardShortcuts();
             applyResponsiveLayout();
             window.addEventListener('resize', applyResponsiveLayout);
+        }
+
+        async function loadConnectionModes() {
+            try {
+                const response = await fetch('data/connection_modes.json');
+                if (!response.ok) return;
+                state.connectionModes = await response.json();
+            } catch (error) {
+                console.warn('Unable to load connection modes', error);
+            }
         }
 
         function applyResponsiveLayout() {
@@ -4537,13 +4759,14 @@
             const titleEl = document.getElementById('mobileTopbarTitle');
             const set = getCurrentSet();
             const view = getCurrentView();
+            const special = state.currentSpecialView === 'definitions' ? 'Definitions' : state.currentSpecialView === 'connections' ? 'Connections' : null;
 
-            if (titleEl) titleEl.textContent = set?.name || 'Workbase';
+            if (titleEl) titleEl.textContent = special || set?.name || 'Workbase';
 
             document.querySelectorAll('.mobile-bottom-action').forEach(btn => {
                 const type = btn.dataset.mobileNav;
                 if (!type) return;
-                btn.classList.toggle('active', view?.type === type);
+                btn.classList.toggle('active', !special && view?.type === type);
             });
         }
 
@@ -4841,10 +5064,42 @@
                 notes: 'F = C × 9/5 + 32 for bi-directional conversions'
             });
 
-            createConnection(fahrenheitUnitId, fToCDefinitionId, { relationship: 'unit_conversion', role: 'from' });
-            createConnection(fToCDefinitionId, celsiusUnitId, { relationship: 'unit_conversion', role: 'to' });
-            createConnection(celsiusUnitId, cToFDefinitionId, { relationship: 'unit_conversion', role: 'from' });
-            createConnection(cToFDefinitionId, fahrenheitUnitId, { relationship: 'unit_conversion', role: 'to' });
+            addConnection({
+                subject: { type: 'Record', id: fahrenheitUnitId },
+                operand: { type: 'Record', id: fToCDefinitionId },
+                operator: 'CON',
+                mode: 'relates to',
+                description: 'Conversion from Fahrenheit to Celsius',
+                params: { relationship: 'unit_conversion', role: 'from' },
+                worldId: defaultWorldId
+            });
+            addConnection({
+                subject: { type: 'Record', id: fToCDefinitionId },
+                operand: { type: 'Record', id: celsiusUnitId },
+                operator: 'CON',
+                mode: 'relates to',
+                description: 'Conversion to Celsius',
+                params: { relationship: 'unit_conversion', role: 'to' },
+                worldId: defaultWorldId
+            });
+            addConnection({
+                subject: { type: 'Record', id: celsiusUnitId },
+                operand: { type: 'Record', id: cToFDefinitionId },
+                operator: 'CON',
+                mode: 'relates to',
+                description: 'Conversion from Celsius to Fahrenheit',
+                params: { relationship: 'unit_conversion', role: 'from' },
+                worldId: defaultWorldId
+            });
+            addConnection({
+                subject: { type: 'Record', id: cToFDefinitionId },
+                operand: { type: 'Record', id: fahrenheitUnitId },
+                operator: 'CON',
+                mode: 'relates to',
+                description: 'Conversion to Fahrenheit',
+                params: { relationship: 'unit_conversion', role: 'to' },
+                worldId: defaultWorldId
+            });
 
             createView(temperatureUnitsId, 'Units', { type: 'grid' });
             createView(conversionDefinitionsId, 'Conversions', { type: 'grid' });
@@ -5055,6 +5310,8 @@
                 setIds: new Set(),
                 createdAt: new Date().toISOString()
             });
+            initializeDemoDefinitions(worldId);
+            initializeDemoConnections(worldId);
             return worldId;
         }
 
@@ -6039,57 +6296,64 @@
             document.getElementById('fuzzyMatchPanel').classList.remove('open');
         }
 
-        function validateConnectionPayload(sourceId, targetId, metadata = {}) {
-            if (!sourceId || !targetId) {
-                throw new Error('Connections require both sourceId and targetId');
+        function validateConnectionPayload(connection) {
+            if (!connection?.subject || !connection?.operand) {
+                throw new Error('Connections require both subject and operand');
+            }
+            const { subject, operand } = connection;
+            if (!subject.type || !subject.id || !operand.type || !operand.id) {
+                throw new Error('Connections require typed entity references');
             }
 
-            const sourceRef = getRecordById(sourceId);
-            const targetRef = getRecordById(targetId);
-
-            if (!sourceRef) throw new Error(`Source record ${sourceId} not found`);
-            if (!targetRef) throw new Error(`Target record ${targetId} not found`);
-            if (sourceRef.set.worldId && targetRef.set.worldId && sourceRef.set.worldId !== targetRef.set.worldId) {
+            const subjectWorld = deriveWorldIdForEntity(subject);
+            const operandWorld = deriveWorldIdForEntity(operand);
+            const worldMismatch = subjectWorld && operandWorld && subjectWorld !== operandWorld;
+            if (worldMismatch) {
                 throw new Error('Connections must stay within the same world');
             }
-            if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) {
-                throw new Error('Connection metadata must be an object');
+
+            const params = connection.params || {};
+            if (params === null || typeof params !== 'object' || Array.isArray(params)) {
+                throw new Error('Connection params must be an object');
             }
 
-            return { sourceRef, targetRef, metadata, worldId: sourceRef.set.worldId || targetRef.set.worldId || state.currentWorldId };
+            const worldId = connection.worldId || subjectWorld || operandWorld || state.currentWorldId;
+
+            return {
+                ...connection,
+                params,
+                worldId,
+                operator: connection.operator || 'CON',
+                mode: connection.mode || 'is linked to'
+            };
         }
 
-        function createConnection(sourceId, targetId, metadata = {}) {
-            let payload;
+        function addConnection(conn) {
+            let normalized;
             try {
-                payload = validateConnectionPayload(sourceId, targetId, metadata);
+                normalized = validateConnectionPayload(conn);
             } catch (error) {
                 console.error(error);
                 showToast(`⚠️ ${error.message || 'Unable to create connection'}`);
                 return null;
             }
-            const { sourceRef, targetRef, metadata: normalizedMetadata, worldId } = payload;
-            const connectionId = `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            const connection = {
+
+            const connectionId = conn.id || `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const payload = {
+                ...normalized,
                 id: connectionId,
-                sourceId,
-                targetId,
-                worldId,
-                metadata: normalizedMetadata,
-                createdAt: new Date().toISOString()
+                createdAt: normalized.createdAt || new Date().toISOString()
             };
 
-            state.connections.set(connectionId, connection);
+            state.connections.set(connectionId, payload);
 
-            const summary = `Connected ${sourceRef.record.name || sourceId} → ${targetRef.record.name || targetId}`;
+            const summary = `Connected ${renderEntityLabel(payload.subject)} ${payload.mode || ''} ${renderEntityLabel(payload.operand)}`.trim();
             createEvent(
                 'Create Connection',
                 'CON',
                 { type: 'Connection', id: connectionId },
                 {
-                    edge: connection,
-                    sourceId,
-                    targetId,
+                    edge: payload,
                     summary
                 },
                 { frame: 'graph', scale: 'relationship' }
@@ -6102,38 +6366,27 @@
             const existing = state.connections.get(connectionId);
             if (!existing) throw new Error(`Connection ${connectionId} not found`);
 
-            const nextSourceId = updates.sourceId || existing.sourceId;
-            const nextTargetId = updates.targetId || existing.targetId;
-            const hasMetadataUpdate = Object.prototype.hasOwnProperty.call(updates, 'metadata');
-            const nextMetadata = hasMetadataUpdate ? updates.metadata : existing.metadata;
-            const { sourceRef, targetRef, metadata: normalizedMetadata, worldId } = validateConnectionPayload(nextSourceId, nextTargetId, nextMetadata);
+            const merged = validateConnectionPayload({
+                ...existing,
+                ...updates,
+                id: connectionId
+            });
 
             const updated = {
                 ...existing,
-                sourceId: nextSourceId,
-                targetId: nextTargetId,
-                worldId,
-                metadata: normalizedMetadata,
+                ...merged,
                 updatedAt: new Date().toISOString()
             };
 
-            const changes = {};
-            if (existing.sourceId !== nextSourceId) changes.sourceId = { from: existing.sourceId, to: nextSourceId };
-            if (existing.targetId !== nextTargetId) changes.targetId = { from: existing.targetId, to: nextTargetId };
-            if (JSON.stringify(existing.metadata) !== JSON.stringify(normalizedMetadata)) changes.metadata = { from: existing.metadata, to: normalizedMetadata };
-
             state.connections.set(connectionId, updated);
 
-            const summary = `Updated connection ${connectionId} (${sourceRef.record.name || nextSourceId} → ${targetRef.record.name || nextTargetId})`;
+            const summary = `Updated connection ${connectionId} (${renderEntityLabel(updated.subject)} ${updated.mode || ''} ${renderEntityLabel(updated.operand)})`;
             createEvent(
                 'Update Connection',
                 'CON',
                 { type: 'Connection', id: connectionId },
                 {
                     edge: updated,
-                    sourceId: nextSourceId,
-                    targetId: nextTargetId,
-                    changes: Object.keys(changes).length ? changes : undefined,
                     summary
                 },
                 { frame: 'graph', scale: 'relationship' }
@@ -6146,18 +6399,15 @@
             const existing = state.connections.get(connectionId);
             if (!existing) throw new Error(`Connection ${connectionId} not found`);
 
-            const { sourceRef, targetRef } = validateConnectionPayload(existing.sourceId, existing.targetId, existing.metadata);
             state.connections.delete(connectionId);
 
-            const summary = `Removed connection ${sourceRef.record.name || existing.sourceId} → ${targetRef.record.name || existing.targetId}`;
+            const summary = `Removed connection ${renderEntityLabel(existing.subject)} ${existing.mode || ''} ${renderEntityLabel(existing.operand)}`;
             createEvent(
                 'Delete Connection',
                 'CON',
                 { type: 'Connection', id: connectionId },
                 {
                     edge: existing,
-                    sourceId: existing.sourceId,
-                    targetId: existing.targetId,
                     summary,
                     deleted: true
                 },
@@ -6165,6 +6415,16 @@
             );
 
             return existing;
+        }
+
+        function createConnection(sourceId, targetId, params = {}) {
+            return addConnection({
+                subject: { type: 'Record', id: sourceId },
+                operand: { type: 'Record', id: targetId },
+                operator: 'CON',
+                mode: 'is linked to',
+                params
+            });
         }
 
         // SIDEBAR
@@ -6253,11 +6513,36 @@
             showToast('✓ World created');
         }
 
+        function openDefinitionsPage() {
+            state.currentSpecialView = 'definitions';
+            state.currentSetId = null;
+            state.currentViewId = null;
+            closeMobileSidebar();
+            renderSidebar();
+            renderCurrentView();
+            updateMobileChrome();
+        }
+
+        function openConnectionsPage() {
+            state.currentSpecialView = 'connections';
+            state.currentSetId = null;
+            state.currentViewId = null;
+            closeMobileSidebar();
+            renderSidebar();
+            renderCurrentView();
+            updateMobileChrome();
+        }
+
         function renderSidebar() {
             const container = document.getElementById('setsList');
             container.innerHTML = '';
 
             renderWorldSelector();
+
+            const definitionsBtn = document.getElementById('definitionsNavBtn');
+            const connectionsBtn = document.getElementById('connectionsNavBtn');
+            if (definitionsBtn) definitionsBtn.classList.toggle('active', state.currentSpecialView === 'definitions');
+            if (connectionsBtn) connectionsBtn.classList.toggle('active', state.currentSpecialView === 'connections');
 
             const setsForWorld = getSetsForWorld();
             if (setsForWorld.length === 0) {
@@ -6541,7 +6826,11 @@
             if (state.openTabs.length === 0) {
                 container.innerHTML = '';
                 container.classList.add('hidden');
-                surface?.classList.add('hidden');
+                if (state.currentSpecialView) {
+                    surface?.classList.remove('hidden');
+                } else {
+                    surface?.classList.add('hidden');
+                }
                 return;
             }
 
@@ -6603,6 +6892,7 @@
                 state.currentWorldId = set.worldId;
                 renderWorldSelector();
             }
+            state.currentSpecialView = null;
             state.currentSetId = setId;
             state.currentViewId = viewId;
             if (!viewId && set.views.size > 0) {
@@ -6631,8 +6921,20 @@
         }
 
         function renderCurrentView() {
-            const view = getCurrentView();
             const container = document.getElementById('viewContainer');
+            if (state.currentSpecialView === 'definitions') {
+                renderDefinitionsPage();
+                updateMobileChrome();
+                return;
+            }
+
+            if (state.currentSpecialView === 'connections') {
+                renderConnectionsPage();
+                updateMobileChrome();
+                return;
+            }
+
+            const view = getCurrentView();
             if (!view) {
                 if (container) container.innerHTML = '<div class="p-6 text-sm text-gray-500">Select a view to get started.</div>';
                 return;
@@ -7716,25 +8018,23 @@
         function renderGraphView() {
             const set = getCurrentSet();
             const view = getCurrentView();
-            if (!set || !view) return;
-
-            let records = Array.from(set.records.values());
-            if (view.filters.length > 0) records = applyFilterGroups(records, view.filters, set.schema);
-
-            const recordCount = records.length;
-            const recordLabel = recordCount === 1 ? 'record' : 'records';
+            const definitions = getDefinitionView();
+            const connections = getConnectionView();
 
             const container = document.getElementById('viewContainer');
+            const nodeLabel = definitions.length === 1 ? 'node' : 'nodes';
+            const edgeLabel = connections.length === 1 ? 'edge' : 'edges';
+
             container.innerHTML = `
                 <div class="view-stage-header">
                     <div class="view-stage-title">
-                        <span class="view-stage-pill">${set.name}</span>
+                        <span class="view-stage-pill">${getWorld()?.name || 'Graph'}</span>
                         <div class="min-w-0">
-                            <div class="view-stage-name">${view.name}</div>
-                            <div class="view-stage-sub">Graph view · ${recordCount} ${recordLabel}</div>
+                            <div class="view-stage-name">${view?.name || 'Graph View'}</div>
+                            <div class="view-stage-sub">${definitions.length} ${nodeLabel} · ${connections.length} ${edgeLabel}</div>
                         </div>
                     </div>
-                    ${renderViewActions()}
+                    ${set ? renderViewActions() : ''}
                 </div>
                 <div class="view-stage-body">
                     <div class="graph-container" id="graphContainer">
@@ -7743,115 +8043,110 @@
                 </div>
             `;
 
-            renderGraph(records, set);
+            renderGraph(definitions, connections);
 
             finalizeViewStage();
         }
 
-        function renderGraph(records, set) {
+        function renderGraph(definitions, connections) {
             const container = document.getElementById('graphContainer');
             const svg = document.getElementById('graphSvg');
-            const width = container.clientWidth;
-            const height = container.clientHeight || 600;
+            const width = container?.clientWidth || 800;
+            const height = container?.clientHeight || 600;
 
             svg.setAttribute('width', width);
             svg.setAttribute('height', height);
             svg.innerHTML = '';
 
-            if (records.length === 0) {
-                svg.innerHTML = `<text x="${width/2}" y="${height/2}" text-anchor="middle" fill="#9ca3af" font-size="14">No records to display</text>`;
-                return;
-            }
+            const typeColors = {
+                Record: '#3b82f6',
+                Field: '#10b981',
+                Set: '#f59e0b',
+                Connection: '#8b5cf6'
+            };
 
-            // Build nodes and links
-            const nodes = records.map((record, i) => {
-                const primaryField = set.schema[0];
-                const label = record[primaryField?.id] || 'Untitled';
-                return {
-                    id: record.id,
-                    label: String(label).substring(0, 20),
-                    record: record,
+            const nodes = [];
+            const nodeMap = new Map();
+            const addNode = (entity, definition = null) => {
+                const key = `${entity.type}:${entity.id}`;
+                if (nodeMap.has(key)) return nodeMap.get(key);
+                const node = {
+                    id: key,
+                    entity,
+                    label: definition?.term || renderEntityLabel(entity),
+                    detail: definition?.definition || definition?.notes || '',
+                    color: typeColors[entity.type] || '#0ea5e9',
                     x: Math.random() * (width - 100) + 50,
                     y: Math.random() * (height - 100) + 50,
                     vx: 0,
                     vy: 0
                 };
-            });
+                nodeMap.set(key, node);
+                nodes.push(node);
+                return node;
+            };
+
+            definitions.forEach(def => addNode(def.entity, def));
 
             const links = [];
-            const nodeMap = new Map(nodes.map(n => [n.id, n]));
-
-            // Find relationship fields and create links
-            set.schema.forEach(field => {
-                if (field.type === 'RELATIONSHIP') {
-                    records.forEach(record => {
-                        const value = record[field.id];
-                        if (Array.isArray(value)) {
-                            value.forEach(targetId => {
-                                if (nodeMap.has(targetId)) {
-                                    links.push({
-                                        source: nodeMap.get(record.id),
-                                        target: nodeMap.get(targetId)
-                                    });
-                                }
-                            });
-                        }
-                    });
-                }
+            connections.forEach(conn => {
+                const source = addNode(conn.subject);
+                const target = addNode(conn.operand);
+                links.push({
+                    source,
+                    target,
+                    label: `${conn.operator || ''} ${conn.mode || ''}`.trim() || 'linked'
+                });
             });
 
-            // Simple force-directed layout simulation
-            const iterations = 50;
+            if (nodes.length === 0 && links.length === 0) {
+                svg.innerHTML = `<text x="${width/2}" y="${height/2}" text-anchor="middle" fill="#9ca3af" font-size="14">No graph data available</text>`;
+                return;
+            }
+
+            const iterations = 60;
             const centerX = width / 2;
             const centerY = height / 2;
 
             for (let i = 0; i < iterations; i++) {
-                // Apply forces
                 nodes.forEach(node => {
-                    // Center gravity
                     const dx = centerX - node.x;
                     const dy = centerY - node.y;
                     node.vx += dx * 0.01;
                     node.vy += dy * 0.01;
 
-                    // Repulsion from other nodes
                     nodes.forEach(other => {
                         if (node === other) return;
                         const dx = node.x - other.x;
                         const dy = node.y - other.y;
                         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                        const force = 1000 / (dist * dist);
+                        const force = 900 / (dist * dist);
                         node.vx += (dx / dist) * force;
                         node.vy += (dy / dist) * force;
                     });
                 });
 
-                // Link attraction
                 links.forEach(link => {
                     const dx = link.target.x - link.source.x;
                     const dy = link.target.y - link.source.y;
                     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                    const force = dist * 0.01;
+                    const force = dist * 0.015;
                     link.source.vx += (dx / dist) * force;
                     link.source.vy += (dy / dist) * force;
                     link.target.vx -= (dx / dist) * force;
                     link.target.vy -= (dy / dist) * force;
                 });
 
-                // Update positions with damping
                 nodes.forEach(node => {
                     node.x += node.vx;
                     node.y += node.vy;
                     node.vx *= 0.8;
                     node.vy *= 0.8;
-
-                    // Keep nodes in bounds
-                    node.x = Math.max(40, Math.min(width - 40, node.x));
-                    node.y = Math.max(40, Math.min(height - 40, node.y));
+                    node.x = Math.max(50, Math.min(width - 50, node.x));
+                    node.y = Math.max(50, Math.min(height - 50, node.y));
                 });
             }
 
-            // Render links
             const linkGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             linkGroup.setAttribute('class', 'links');
             links.forEach(link => {
@@ -7863,10 +8158,20 @@
                 line.setAttribute('stroke', '#cbd5e1');
                 line.setAttribute('stroke-width', '2');
                 linkGroup.appendChild(line);
+
+                const midX = (link.source.x + link.target.x) / 2;
+                const midY = (link.source.y + link.target.y) / 2;
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                label.setAttribute('x', midX);
+                label.setAttribute('y', midY - 6);
+                label.setAttribute('text-anchor', 'middle');
+                label.setAttribute('fill', '#6b7280');
+                label.setAttribute('font-size', '10');
+                label.textContent = link.label;
+                linkGroup.appendChild(label);
             });
             svg.appendChild(linkGroup);
 
-            // Render nodes
             const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             nodeGroup.setAttribute('class', 'nodes');
             nodes.forEach(node => {
@@ -7876,26 +8181,452 @@
                 g.style.cursor = 'pointer';
 
                 const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                circle.setAttribute('r', '30');
-                circle.setAttribute('fill', '#3b82f6');
-                circle.setAttribute('stroke', '#1e40af');
+                circle.setAttribute('r', '32');
+                circle.setAttribute('fill', node.color);
+                circle.setAttribute('stroke', '#111827');
                 circle.setAttribute('stroke-width', '2');
 
                 const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 text.setAttribute('text-anchor', 'middle');
-                text.setAttribute('dy', '0.3em');
+                text.setAttribute('dy', '0.35em');
                 text.setAttribute('fill', 'white');
                 text.setAttribute('font-size', '11');
-                text.setAttribute('font-weight', '600');
-                text.textContent = node.label;
+                text.setAttribute('font-weight', '700');
+                text.textContent = node.label?.substring(0, 18) || node.id;
+
+                const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                title.textContent = node.detail || node.label;
 
                 g.appendChild(circle);
                 g.appendChild(text);
-                g.onclick = () => openExpandedRecord(node.id);
+                g.appendChild(title);
 
                 nodeGroup.appendChild(g);
             });
             svg.appendChild(nodeGroup);
+        }
+
+        function serializeTagsInput(value) {
+            return (value || '')
+                .split(',')
+                .map(tag => tag.trim())
+                .filter(Boolean);
+        }
+
+        function resetDefinitionForm() {
+            state.definitionFormState.editingId = null;
+            const form = document.getElementById('definitionForm');
+            if (!form) return;
+            form.reset();
+            const submit = document.getElementById('definitionSubmit');
+            if (submit) submit.textContent = 'Add Definition';
+        }
+
+        function populateDefinitionForm(definitionId) {
+            const def = state.definitions.get(definitionId);
+            if (!def) return;
+            const form = document.getElementById('definitionForm');
+            if (!form) return;
+            form.querySelector('#definitionEntityType').value = def.entity?.type || '';
+            form.querySelector('#definitionEntityId').value = def.entity?.id || '';
+            form.querySelector('#definitionTerm').value = def.term || '';
+            form.querySelector('#definitionDefinition').value = def.definition || '';
+            form.querySelector('#definitionNotes').value = def.notes || '';
+            form.querySelector('#definitionTags').value = (def.tags || []).join(', ');
+            const submit = document.getElementById('definitionSubmit');
+            if (submit) submit.textContent = 'Save Definition';
+            state.definitionFormState.editingId = def.id;
+        }
+
+        function handleDefinitionFormSubmit() {
+            const form = document.getElementById('definitionForm');
+            if (!form) return;
+            const entityType = form.querySelector('#definitionEntityType').value;
+            const entityId = form.querySelector('#definitionEntityId').value.trim();
+            const term = form.querySelector('#definitionTerm').value.trim();
+            const definitionText = form.querySelector('#definitionDefinition').value.trim();
+            const notes = form.querySelector('#definitionNotes').value.trim();
+            const tags = serializeTagsInput(form.querySelector('#definitionTags').value);
+
+            if (!entityType || !entityId || !term || !definitionText) {
+                showToast('Please complete entity, term, and definition');
+                return;
+            }
+
+            const payload = {
+                id: state.definitionFormState.editingId,
+                entity: { type: entityType, id: entityId },
+                term,
+                definition: definitionText,
+                notes,
+                tags
+            };
+
+            if (state.definitionFormState.editingId) {
+                updateDefinition(payload.id, payload);
+                showToast('✓ Definition updated');
+            } else {
+                addDefinition(payload);
+                showToast('✓ Definition added');
+            }
+
+            resetDefinitionForm();
+            renderDefinitionsPage(state.definitionFormState.activeFilter || 'all');
+        }
+
+        function renderDefinitionsTable(definitions) {
+            if (!definitions.length) return '<p class="text-sm text-gray-500">No definitions yet.</p>';
+            return `
+                <div class="overflow-auto border border-gray-200 rounded-lg bg-white">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Entity</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Term</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Definition</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Notes</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Tags</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            ${definitions.map(def => `
+                                <tr>
+                                    <td class="px-4 py-3 whitespace-nowrap text-gray-800">${def.entity.type}: ${def.entity.id}</td>
+                                    <td class="px-4 py-3 font-semibold text-gray-900">${def.term}</td>
+                                    <td class="px-4 py-3 text-gray-700">${def.definition}</td>
+                                    <td class="px-4 py-3 text-gray-500">${def.notes || ''}</td>
+                                    <td class="px-4 py-3 text-gray-500">${(def.tags || []).join(', ')}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap space-x-3">
+                                        <button class="text-blue-600" data-def-edit="${def.id}">Edit</button>
+                                        <button class="text-red-500" data-def-delete="${def.id}">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderDefinitionsPage(filterKey = 'all') {
+            state.definitionFormState.activeFilter = filterKey;
+            const filters = {
+                all: () => true,
+                records: def => def.entity?.type === 'Record',
+                fields: def => def.entity?.type === 'Field',
+                connections: def => def.entity?.type === 'Connection',
+                core: def => (def.tags || []).includes('core'),
+                demo: def => (def.tags || []).includes('demo')
+            };
+
+            const definitions = getDefinitionView(filters[filterKey]);
+            const container = document.getElementById('viewContainer');
+            container.innerHTML = `
+                <div class="view-stage-header">
+                    <div class="view-stage-title">
+                        <span class="view-stage-pill">${getWorld()?.name || 'World'}</span>
+                        <div class="min-w-0">
+                            <div class="view-stage-name">Definitions</div>
+                            <div class="view-stage-sub">${definitions.length} entries</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="view-stage-body space-y-4">
+                    <div class="flex flex-wrap gap-2">
+                        ${Object.keys(filters).map(key => `<button class="btn btn-secondary btn-sm ${filterKey === key ? 'btn-primary' : ''}" data-def-filter="${key}">${key === 'all' ? 'All' : key.charAt(0).toUpperCase() + key.slice(1)}</button>`).join('')}
+                    </div>
+                    ${renderDefinitionsTable(definitions)}
+                    <div class="border border-gray-200 rounded-lg bg-white p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-semibold">${state.definitionFormState.editingId ? 'Edit Definition' : 'Add Definition'}</div>
+                                <p class="text-sm text-gray-500">Provide a definition for any entity type.</p>
+                            </div>
+                            ${state.definitionFormState.editingId ? '<button class="btn btn-secondary btn-sm" id="resetDefinitionForm">Clear</button>' : ''}
+                        </div>
+                        <form id="definitionForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="form-label">Entity Type</label>
+                                <select id="definitionEntityType" class="border rounded px-3 py-2 w-full">
+                                    <option value="">Select type</option>
+                                    <option value="Record">Record</option>
+                                    <option value="Field">Field</option>
+                                    <option value="Set">Set</option>
+                                    <option value="Connection">Connection</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label">Entity ID</label>
+                                <input id="definitionEntityId" type="text" class="border rounded px-3 py-2 w-full" placeholder="entity identifier" />
+                            </div>
+                            <div>
+                                <label class="form-label">Term</label>
+                                <input id="definitionTerm" type="text" class="border rounded px-3 py-2 w-full" placeholder="Human-readable term" />
+                            </div>
+                            <div>
+                                <label class="form-label">Definition</label>
+                                <input id="definitionDefinition" type="text" class="border rounded px-3 py-2 w-full" placeholder="What does this mean?" />
+                            </div>
+                            <div>
+                                <label class="form-label">Notes</label>
+                                <input id="definitionNotes" type="text" class="border rounded px-3 py-2 w-full" placeholder="Optional clarifications" />
+                            </div>
+                            <div>
+                                <label class="form-label">Tags (comma separated)</label>
+                                <input id="definitionTags" type="text" class="border rounded px-3 py-2 w-full" placeholder="demo, core" />
+                            </div>
+                            <div class="md:col-span-2 flex justify-end">
+                                <button type="submit" id="definitionSubmit" class="btn btn-primary">${state.definitionFormState.editingId ? 'Save Definition' : 'Add Definition'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+
+            document.querySelectorAll('[data-def-filter]').forEach(btn => {
+                btn.onclick = () => renderDefinitionsPage(btn.dataset.defFilter);
+            });
+
+            document.querySelectorAll('[data-def-edit]').forEach(btn => {
+                btn.onclick = () => populateDefinitionForm(btn.dataset.defEdit);
+            });
+
+            document.querySelectorAll('[data-def-delete]').forEach(btn => {
+                btn.onclick = () => {
+                    deleteDefinition(btn.dataset.defDelete);
+                    renderDefinitionsPage(filterKey);
+                    showToast('✓ Definition removed');
+                };
+            });
+
+            const form = document.getElementById('definitionForm');
+            if (form) form.onsubmit = (event) => { event.preventDefault(); handleDefinitionFormSubmit(); };
+            const resetBtn = document.getElementById('resetDefinitionForm');
+            if (resetBtn) resetBtn.onclick = resetDefinitionForm;
+        }
+
+        function populateConnectionForm(connId) {
+            const conn = state.connections.get(connId);
+            if (!conn) return;
+            const form = document.getElementById('connectionForm');
+            if (!form) return;
+            form.querySelector('#connectionSubjectType').value = conn.subject?.type || '';
+            form.querySelector('#connectionSubjectId').value = conn.subject?.id || '';
+            form.querySelector('#connectionOperator').value = conn.operator || '';
+            form.querySelector('#connectionMode').value = conn.mode || '';
+            form.querySelector('#connectionOperandType').value = conn.operand?.type || '';
+            form.querySelector('#connectionOperandId').value = conn.operand?.id || '';
+            form.querySelector('#connectionDescription').value = conn.description || '';
+            form.querySelector('#connectionParams').value = JSON.stringify(conn.params || {}, null, 2);
+            state.connectionFormState.editingId = conn.id;
+            const submit = document.getElementById('connectionSubmit');
+            if (submit) submit.textContent = 'Save Connection';
+        }
+
+        function resetConnectionForm() {
+            state.connectionFormState.editingId = null;
+            const form = document.getElementById('connectionForm');
+            if (!form) return;
+            form.reset();
+            const submit = document.getElementById('connectionSubmit');
+            if (submit) submit.textContent = 'Add Connection';
+        }
+
+        function handleConnectionFormSubmit() {
+            const form = document.getElementById('connectionForm');
+            if (!form) return;
+            const payload = {
+                id: state.connectionFormState.editingId,
+                subject: { type: form.querySelector('#connectionSubjectType').value, id: form.querySelector('#connectionSubjectId').value.trim() },
+                operator: form.querySelector('#connectionOperator').value.trim() || 'CON',
+                mode: form.querySelector('#connectionMode').value.trim() || 'is linked to',
+                operand: { type: form.querySelector('#connectionOperandType').value, id: form.querySelector('#connectionOperandId').value.trim() },
+                description: form.querySelector('#connectionDescription').value.trim(),
+                params: {}
+            };
+
+            try {
+                payload.params = parseConnectionParams(form.querySelector('#connectionParams').value);
+            } catch (err) {
+                showToast(err.message);
+                return;
+            }
+
+            if (!payload.subject.type || !payload.subject.id || !payload.operand.type || !payload.operand.id) {
+                showToast('Please provide subject and operand details');
+                return;
+            }
+
+            if (state.connectionFormState.editingId) {
+                updateConnection(payload.id, payload);
+                showToast('✓ Connection updated');
+            } else {
+                addConnection(payload);
+                showToast('✓ Connection added');
+            }
+
+            resetConnectionForm();
+            renderConnectionsPage(state.connectionFormState.activeFilter || 'all');
+        }
+
+        function renderConnectionsTable(connections) {
+            if (!connections.length) return '<p class="text-sm text-gray-500">No connections yet.</p>';
+            return `
+                <div class="overflow-auto border border-gray-200 rounded-lg bg-white">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Subject</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Operator</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Mode</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Operand</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Description</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Params</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            ${connections.map(conn => `
+                                <tr>
+                                    <td class="px-4 py-3 whitespace-nowrap text-gray-800">${conn.subject?.type}: ${renderEntityLabel(conn.subject)}</td>
+                                    <td class="px-4 py-3 text-gray-700">${conn.operator || ''}</td>
+                                    <td class="px-4 py-3 text-gray-700">${conn.mode || ''}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-gray-800">${conn.operand?.type}: ${renderEntityLabel(conn.operand)}</td>
+                                    <td class="px-4 py-3 text-gray-500">${conn.description || ''}</td>
+                                    <td class="px-4 py-3 text-gray-500">${JSON.stringify(conn.params || {})}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap space-x-3">
+                                        <button class="text-blue-600" data-conn-edit="${conn.id}">Edit</button>
+                                        <button class="text-red-500" data-conn-delete="${conn.id}">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderConnectionsPage(filterKey = 'all') {
+            state.connectionFormState.activeFilter = filterKey;
+            const filters = {
+                all: () => true,
+                con: conn => conn.operator === 'CON',
+                seg: conn => conn.operator === 'SEG',
+                withDefinitions: conn => findDefinitionByEntity(conn.subject) || findDefinitionByEntity(conn.operand),
+                compound: conn => conn.subject?.type === 'Connection' || conn.operand?.type === 'Connection'
+            };
+
+            const connections = getConnectionView(filters[filterKey]);
+            const container = document.getElementById('viewContainer');
+            container.innerHTML = `
+                <div class="view-stage-header">
+                    <div class="view-stage-title">
+                        <span class="view-stage-pill">${getWorld()?.name || 'World'}</span>
+                        <div class="min-w-0">
+                            <div class="view-stage-name">Connections</div>
+                            <div class="view-stage-sub">${connections.length} entries</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="view-stage-body space-y-4">
+                    <div class="flex flex-wrap gap-2">
+                        ${Object.keys(filters).map(key => `<button class="btn btn-secondary btn-sm ${filterKey === key ? 'btn-primary' : ''}" data-conn-filter="${key}">${key === 'all' ? 'All' : key}</button>`).join('')}
+                    </div>
+                    ${renderConnectionsTable(connections)}
+                    <div class="border border-gray-200 rounded-lg bg-white p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-semibold">${state.connectionFormState.editingId ? 'Edit Connection' : 'Add Connection'}</div>
+                                <p class="text-sm text-gray-500">Link any two entities with operator + mode.</p>
+                            </div>
+                            ${state.connectionFormState.editingId ? '<button class="btn btn-secondary btn-sm" id="resetConnectionForm">Clear</button>' : ''}
+                        </div>
+                        <form id="connectionForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="form-label">Subject Type</label>
+                                <select id="connectionSubjectType" class="border rounded px-3 py-2 w-full">
+                                    <option value="">Select type</option>
+                                    <option value="Record">Record</option>
+                                    <option value="Field">Field</option>
+                                    <option value="Set">Set</option>
+                                    <option value="Connection">Connection</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label">Subject ID</label>
+                                <input id="connectionSubjectId" type="text" class="border rounded px-3 py-2 w-full" />
+                            </div>
+                            <div>
+                                <label class="form-label">Operator</label>
+                                <input id="connectionOperator" type="text" class="border rounded px-3 py-2 w-full" placeholder="CON" />
+                            </div>
+                            <div>
+                                <label class="form-label">Mode</label>
+                                <input id="connectionMode" type="text" class="border rounded px-3 py-2 w-full" placeholder="is linked to" />
+                                <p class="text-xs text-gray-500 mt-1" id="connectionModeHint"></p>
+                            </div>
+                            <div>
+                                <label class="form-label">Operand Type</label>
+                                <select id="connectionOperandType" class="border rounded px-3 py-2 w-full">
+                                    <option value="">Select type</option>
+                                    <option value="Record">Record</option>
+                                    <option value="Field">Field</option>
+                                    <option value="Set">Set</option>
+                                    <option value="Connection">Connection</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label">Operand ID</label>
+                                <input id="connectionOperandId" type="text" class="border rounded px-3 py-2 w-full" />
+                            </div>
+                            <div>
+                                <label class="form-label">Description</label>
+                                <input id="connectionDescription" type="text" class="border rounded px-3 py-2 w-full" placeholder="Optional" />
+                            </div>
+                            <div>
+                                <label class="form-label">Params (JSON)</label>
+                                <textarea id="connectionParams" class="border rounded px-3 py-2 w-full h-24" placeholder='{"reason": "example"}'></textarea>
+                            </div>
+                            <div class="md:col-span-2 flex justify-end">
+                                <button type="submit" id="connectionSubmit" class="btn btn-primary">${state.connectionFormState.editingId ? 'Save Connection' : 'Add Connection'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+
+            document.querySelectorAll('[data-conn-filter]').forEach(btn => {
+                btn.onclick = () => renderConnectionsPage(btn.dataset.connFilter);
+            });
+
+            document.querySelectorAll('[data-conn-edit]').forEach(btn => {
+                btn.onclick = () => populateConnectionForm(btn.dataset.connEdit);
+            });
+
+            document.querySelectorAll('[data-conn-delete]').forEach(btn => {
+                btn.onclick = () => {
+                    deleteConnection(btn.dataset.connDelete);
+                    renderConnectionsPage(filterKey);
+                    showToast('✓ Connection removed');
+                };
+            });
+
+            const operatorInput = document.getElementById('connectionOperator');
+            const modeHintEl = document.getElementById('connectionModeHint');
+            const syncModeHint = () => {
+                const modes = state.connectionModes?.[(operatorInput?.value || '').trim()] || [];
+                if (modeHintEl) modeHintEl.textContent = modes.length ? `Suggested modes: ${modes.join(', ')}` : '';
+            };
+            if (operatorInput) {
+                operatorInput.oninput = syncModeHint;
+                syncModeHint();
+            }
+
+            const connForm = document.getElementById('connectionForm');
+            if (connForm) connForm.onsubmit = (event) => { event.preventDefault(); handleConnectionFormSubmit(); };
+            const resetBtn = document.getElementById('resetConnectionForm');
+            if (resetBtn) resetBtn.onclick = resetConnectionForm;
         }
 
         // CELL EDITING
@@ -9531,7 +10262,10 @@
             if (builder.targetRecordId !== selectedRecordId) builder.targetRecordId = selectedRecordId;
 
             const metadataText = builder.metadataJson || '';
-            const connections = Array.from(state.connections.values()).filter(edge => edge.worldId === state.currentWorldId && (edge.sourceId === recordId || edge.targetId === recordId));
+            const connections = getConnectionView(edge =>
+                (edge.subject?.type === 'Record' && edge.subject?.id === recordId) ||
+                (edge.operand?.type === 'Record' && edge.operand?.id === recordId)
+            );
 
             container.innerHTML = `
                 <div class="space-y-4">
@@ -9601,18 +10335,18 @@
         }
 
         function renderConnectionCard(edge, recordId) {
-            const isSource = edge.sourceId === recordId;
-            const otherId = isSource ? edge.targetId : edge.sourceId;
-            const otherName = getRecordDisplayName(otherId);
-            const direction = isSource ? '→' : '←';
+            const isSubject = edge.subject?.type === 'Record' && edge.subject?.id === recordId;
+            const isOperand = edge.operand?.type === 'Record' && edge.operand?.id === recordId;
+            const otherRef = isSubject ? edge.operand : edge.subject;
+            const direction = isSubject ? '→' : (isOperand ? '←' : '↔');
             const timestamp = edge.updatedAt || edge.createdAt;
 
             return `
                 <div class="border border-gray-200 rounded-lg p-3 bg-white">
                     <div class="flex items-center justify-between gap-3">
                         <div>
-                            <div class="font-semibold">${direction} ${otherName}</div>
-                            <div class="text-xs text-gray-500">${isSource ? 'Source' : 'Target'} · ${timestamp ? getTimeAgo(timestamp) : ''}</div>
+                            <div class="font-semibold">${direction} ${renderEntityLabel(otherRef)}</div>
+                            <div class="text-xs text-gray-500">${edge.operator || 'CON'} • ${edge.mode || 'related to'} · ${timestamp ? getTimeAgo(timestamp) : ''}</div>
                         </div>
                         <div class="flex items-center gap-3">
                             <button class="text-sm text-blue-600" onclick="editConnectionParameters('${edge.id}', '${recordId}')">Edit parameters</button>
@@ -9621,19 +10355,19 @@
                     </div>
                     <div class="mt-2">
                         <div class="text-xs font-semibold text-gray-600 mb-1">Parameters</div>
-                        ${renderConnectionMetadata(edge.metadata)}
+                        ${renderConnectionParams(edge.params)}
                     </div>
                 </div>
             `;
         }
 
-        function renderConnectionMetadata(metadata) {
-            if (!metadata || !Object.keys(metadata).length) {
+        function renderConnectionParams(params) {
+            if (!params || !Object.keys(params).length) {
                 return '<p class="text-xs text-gray-500">No parameters</p>';
             }
 
             return `<dl class="text-xs text-gray-700 space-y-1">
-                ${Object.entries(metadata).map(([key, value]) => `
+                ${Object.entries(params).map(([key, value]) => `
                     <div class="flex justify-between gap-2">
                         <dt class="font-medium text-gray-600">${key}</dt>
                         <dd class="text-right break-all text-gray-800">${typeof value === 'object' ? JSON.stringify(value) : value}</dd>
@@ -9642,7 +10376,7 @@
             </dl>`;
         }
 
-        function parseConnectionMetadata(raw) {
+        function parseConnectionParams(raw) {
             if (!raw || !raw.trim()) return {};
 
             let parsed;
@@ -9666,19 +10400,19 @@
                 return;
             }
 
-            const currentJson = JSON.stringify(existing.metadata || {}, null, 2);
+            const currentJson = JSON.stringify(existing.params || {}, null, 2);
             const input = prompt('Edit connection parameters (JSON object)', currentJson);
             if (input === null) return;
 
             let parsed;
             try {
-                parsed = parseConnectionMetadata(input);
+                parsed = parseConnectionParams(input);
             } catch (err) {
                 showToast(err.message);
                 return;
             }
 
-            updateConnection(connectionId, { metadata: parsed });
+            updateConnection(connectionId, { params: parsed });
             renderRecordSidebar(recordId);
             showToast('✓ Parameters updated');
         }
@@ -9712,16 +10446,22 @@
             }
 
             const rawMetadata = document.getElementById('newConnectionMetadata')?.value || builder.metadataJson || '';
-            let metadata = {};
+            let params = {};
             try {
-                metadata = parseConnectionMetadata(rawMetadata);
+                params = parseConnectionParams(rawMetadata);
             } catch (err) {
                 showToast(err.message);
                 return;
             }
 
             builder.targetRecordId = '';
-            createConnection(recordId, target, metadata);
+            addConnection({
+                subject: { type: 'Record', id: recordId },
+                operand: { type: 'Record', id: target },
+                operator: 'CON',
+                mode: 'is linked to',
+                params
+            });
             renderRecordSidebar(recordId);
             showToast('✓ Connection created');
         }
@@ -10471,7 +11211,7 @@
                         appliedRules.push(rule.rule_id);
                         break;
                     case 'require_connection_endpoints':
-                        if (!event.data?.sourceId || !event.data?.targetId) throw new Error('Connections require both sourceId and targetId');
+                        if (!event.data?.edge?.subject || !event.data?.edge?.operand) throw new Error('Connections require both subject and operand');
                         appliedRules.push(rule.rule_id);
                         break;
                     case 'mark_deleted':
@@ -10601,7 +11341,8 @@
         function exportJSON() {
             const world = getWorld();
             const worldSets = getSetsForWorld(world?.id);
-            const connections = Array.from(state.connections.values()).filter(edge => edge.worldId === state.currentWorldId);
+            const connections = getConnectionView();
+            const definitions = getDefinitionView();
             const data = {
                 world: world ? { ...world, setIds: Array.from(world.setIds || []) } : null,
                 sets: worldSets.map(s => ({
@@ -10611,6 +11352,7 @@
                     views: Array.from(s.views.values()),
                     profiles: Array.from(s.profiles.values())
                 })),
+                definitions,
                 connections,
                 eventStream: state.eventStream
             };
@@ -10916,6 +11658,8 @@
                 case 'all': {
                     const world = getWorld();
                     const worldSets = getSetsForWorld();
+                    const definitions = getDefinitionView();
+                    const connections = getConnectionView();
                     data = {
                         world: world ? { ...world, setIds: Array.from(world.setIds || []) } : null,
                         worlds: Array.from(state.worlds.values()).map(w => ({ ...w, setIds: Array.from(w.setIds || []) })),
@@ -10925,7 +11669,8 @@
                             views: Array.from(s.views.values()),
                             profiles: Array.from(s.profiles.values())
                         })),
-                        connections: Array.from(state.connections.values()).filter(edge => edge.worldId === state.currentWorldId),
+                        definitions,
+                        connections,
                         eventStream: state.eventStream,
                         operatorSet: state.operatorSet,
                         interpretationRules: state.interpretationRules,
@@ -10958,7 +11703,15 @@
                         records: Array.from(set.records.values()),
                         views: Array.from(set.views.values()),
                         profiles: Array.from(set.profiles.values()),
-                        connections: Array.from(state.connections.values()).filter(edge => edge.worldId === state.currentWorldId && (setRecordIds.has(edge.sourceId) || setRecordIds.has(edge.targetId)))
+                        definitions: getDefinitionView(def =>
+                            (def.entity?.type === 'Record' && setRecordIds.has(def.entity?.id)) ||
+                            (def.entity?.type === 'Field' && set.schema.some(f => f.id === def.entity?.id))
+                        ),
+                        connections: getConnectionView(conn => (
+                            conn.subject?.type === 'Record' && setRecordIds.has(conn.subject?.id)
+                        ) || (
+                            conn.operand?.type === 'Record' && setRecordIds.has(conn.operand?.id)
+                        ))
                     } : null;
                     break;
                 }
