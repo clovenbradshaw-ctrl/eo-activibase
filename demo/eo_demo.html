@@ -203,10 +203,12 @@
             <table class="demo-table" id="demoTable">
                 <thead>
                     <tr>
-                        <th>Team</th>
-                        <th>Revenue</th>
-                        <th>Score</th>
-                        <th>Status</th>
+                        <th>Subject</th>
+                        <th>Observed At</th>
+                        <th>Air Temp</th>
+                        <th>Wind Speed</th>
+                        <th>Power Draw</th>
+                        <th>Battery</th>
                         <th>Stability</th>
                     </tr>
                 </thead>
@@ -264,9 +266,51 @@
                 this.eo.enableDebug();
 
                 this.sampleData = [
-                    { id: 'rec_1', Team: 'Sales', Revenue: 420000, Score: 85, Status: 'Active' },
-                    { id: 'rec_2', Team: 'Marketing', Revenue: 280000, Score: 92, Status: 'Active' },
-                    { id: 'rec_3', Team: 'Engineering', Revenue: 650000, Score: 78, Status: 'Active' }
+                    {
+                        id: 'obs_1',
+                        'Subject ID': 'sensor:wx-alpha',
+                        'Subject Label': 'WX Alpha - Rooftop Station',
+                        'Subject Type': 'weather_station',
+                        'Observed At': '2025-11-05T09:00:00Z',
+                        'Air Temp (°C)': 18.6,
+                        'Air Temp (°C) Definition ID': 'def:met.air_temperature',
+                        'Wind Speed (m/s)': 5.2,
+                        'Wind Speed (m/s) Definition ID': 'def:met.wind_speed',
+                        'Power Draw (W)': 12.4,
+                        'Power Draw (W) Definition ID': 'def:device.power_draw',
+                        'Battery (%)': 94,
+                        'Battery (%) Definition ID': 'def:device.battery_level'
+                    },
+                    {
+                        id: 'obs_2',
+                        'Subject ID': 'sensor:wx-bravo',
+                        'Subject Label': 'WX Bravo - Roof Hatch',
+                        'Subject Type': 'weather_station',
+                        'Observed At': '2025-11-05T09:10:00Z',
+                        'Air Temp (°C)': 19.1,
+                        'Air Temp (°C) Definition ID': 'def:met.air_temperature',
+                        'Wind Speed (m/s)': 6.8,
+                        'Wind Speed (m/s) Definition ID': 'def:met.wind_speed',
+                        'Power Draw (W)': 14.2,
+                        'Power Draw (W) Definition ID': 'def:device.power_draw',
+                        'Battery (%)': 90,
+                        'Battery (%) Definition ID': 'def:device.battery_level'
+                    },
+                    {
+                        id: 'obs_3',
+                        'Subject ID': 'sensor:wx-charlie',
+                        'Subject Label': 'WX Charlie - Loading Dock',
+                        'Subject Type': 'weather_station',
+                        'Observed At': '2025-11-05T09:20:00Z',
+                        'Air Temp (°C)': 21.3,
+                        'Air Temp (°C) Definition ID': 'def:met.air_temperature',
+                        'Wind Speed (m/s)': 4.7,
+                        'Wind Speed (m/s) Definition ID': 'def:met.wind_speed',
+                        'Power Draw (W)': 11.8,
+                        'Power Draw (W) Definition ID': 'def:device.power_draw',
+                        'Battery (%)': 88,
+                        'Battery (%) Definition ID': 'def:device.battery_level'
+                    }
                 ];
 
                 this.logEntries = [];
@@ -291,8 +335,8 @@
             }
 
             simulateImport() {
-                this.log('📥 Importing sample data from "sales_Q4_2025.csv"');
-                this.eo.handleImport('sales_Q4_2025.csv', this.sampleData);
+                this.log('📥 Importing sample data from "wx_station_observations.csv"');
+                this.eo.handleImport('wx_station_observations.csv', this.sampleData);
                 this.log(`✓ Imported ${this.sampleData.length} records with automatic context inference`);
                 this.renderTable();
                 this.refreshStats();
@@ -306,9 +350,9 @@
                 }
 
                 const record = records[Math.floor(Math.random() * records.length)];
-                const fieldName = 'Revenue';
+                const fieldName = 'Power Draw (W)';
                 const oldValue = this.eo.getCellDisplayValue(record.record_id, fieldName);
-                const newValue = oldValue + Math.floor(Math.random() * 50000) - 25000;
+                const newValue = Number(Math.max(0, Number(oldValue) + (Math.random() * 2 - 1)).toFixed(1));
 
                 this.log(`✏️ User editing ${record.record_id}.${fieldName}: ${oldValue} → ${newValue}`);
                 this.eo.handleEdit(record.record_id, fieldName, oldValue, newValue);
@@ -326,16 +370,16 @@
                 }
 
                 const record = records[0];
-                const fieldName = 'Revenue';
+                const fieldName = 'Air Temp (°C)';
                 const cell = record.cells.find(c => c.field_name === fieldName);
 
                 if (!cell) return;
 
                 // Add a new value with different context (manual estimate)
-                const newValue = cell.values[0].value * 0.93; // 7% different
+                const newValue = cell.values[0].value + 0.8; // small adjustment from a manual note
                 const context = EODataStructures.createContextSchema({
                     method: 'declared',
-                    definition: 'manual_estimate',
+                    definition: 'def:met.air_temperature',
                     scale: 'individual',
                     source: { system: 'user_edit' },
                     agent: { type: 'person', id: 'analyst', name: 'Business Analyst' }
@@ -355,28 +399,36 @@
                 const records = this.eo.getAllRecords();
 
                 tbody.innerHTML = records.map(record => {
-                    const team = this.eo.getCellDisplayValue(record.record_id, 'Team');
-                    const revenue = this.eo.getCellDisplayValue(record.record_id, 'Revenue');
-                    const score = this.eo.getCellDisplayValue(record.record_id, 'Score');
-                    const status = this.eo.getCellDisplayValue(record.record_id, 'Status');
+                    const subject = this.eo.getCellDisplayValue(record.record_id, 'Subject Label');
+                    const observedAt = this.eo.getCellDisplayValue(record.record_id, 'Observed At');
+                    const airTemp = this.eo.getCellDisplayValue(record.record_id, 'Air Temp (°C)');
+                    const windSpeed = this.eo.getCellDisplayValue(record.record_id, 'Wind Speed (m/s)');
+                    const powerDraw = this.eo.getCellDisplayValue(record.record_id, 'Power Draw (W)');
+                    const battery = this.eo.getCellDisplayValue(record.record_id, 'Battery (%)');
 
-                    const revenueIndicator = this.eo.getCellSUPIndicator(record.record_id, 'Revenue');
+                    const airTempIndicator = this.eo.getCellSUPIndicator(record.record_id, 'Air Temp (°C)');
                     const stabilityBadge = this.eo.getStabilityBadge(record.record_id);
 
                     return `
                         <tr>
-                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Team">
-                                ${team}
+                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Subject Label">
+                                ${subject}
                             </td>
-                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Revenue">
-                                $${Number(revenue).toLocaleString()}
-                                ${revenueIndicator}
+                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Observed At">
+                                ${new Date(observedAt).toLocaleString()}
                             </td>
-                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Score">
-                                ${score}
+                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Air Temp (°C)">
+                                ${airTemp}°C
+                                ${airTempIndicator}
                             </td>
-                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Status">
-                                ${status}
+                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Wind Speed (m/s)">
+                                ${windSpeed} m/s
+                            </td>
+                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Power Draw (W)">
+                                ${powerDraw} W
+                            </td>
+                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Battery (%)">
+                                ${battery}%
                             </td>
                             <td>
                                 ${stabilityBadge}
