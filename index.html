@@ -193,6 +193,67 @@
             transition: opacity 0.2s;
         }
         .sidebar-collapsed .sidebar-section-title { opacity: 0; height: 0; overflow: hidden; margin: 0; }
+
+        .world-switcher {
+            padding: 12px 12px 0 12px;
+            border-bottom: 1px solid #111827;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .world-switcher-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .world-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid #1f2937;
+            border-radius: 10px;
+            color: #e5e7eb;
+            flex: 1;
+        }
+
+        .world-badge small {
+            display: block;
+            color: #9ca3af;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .world-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .world-select {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid #1f2937;
+            background: #0b1221;
+            color: #e5e7eb;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid #1f2937;
+            color: #e5e7eb;
+        }
+
+        .btn-ghost:hover {
+            border-color: #fff;
+            color: #fff;
+        }
         
         .set-item {
             margin-bottom: 4px;
@@ -1283,7 +1344,7 @@
         </button>
     </div>
 
-    <div class="app-container" id="appContainer">
+        <div class="app-container" id="appContainer">
         <!-- Sidebar -->
         <div class="app-sidebar">
             <div class="sidebar-header">
@@ -1291,6 +1352,19 @@
                 <button class="sidebar-toggle" onclick="toggleSidebar()">
                     <i class="ph ph-list text-lg"></i>
                 </button>
+            </div>
+            <div class="world-switcher">
+                <div class="world-badge">
+                    <span class="set-icon"><i class="ph ph-globe-hemisphere-west"></i></span>
+                    <div>
+                        <small>World</small>
+                        <div id="currentWorldLabel">Loading...</div>
+                    </div>
+                </div>
+                <div class="world-actions">
+                    <select id="worldSelect" class="world-select"></select>
+                    <button id="addWorldBtn" class="sidebar-toggle" title="Add world"><i class="ph ph-plus"></i></button>
+                </div>
             </div>
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Sets</div>
@@ -1347,7 +1421,8 @@
                         <i class="ph ph-upload-simple"></i>
                         Import CSV
                     </button>
-                    <button id="exportBtn" class="btn btn-secondary btn-sm">Export</button>
+                    <button id="exportBtn" class="btn btn-secondary btn-sm">Export JSON</button>
+                    <button id="exportCsvBtn" class="btn btn-secondary btn-sm">Export CSVs</button>
                     <button id="fuzzyPanelBtn" class="btn btn-secondary btn-sm">
                         <i class="ph ph-graph"></i>
                         Fuzzy Matches
@@ -1688,12 +1763,34 @@
         </div>
     </div>
 
+    <div id="addWorldModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-md">
+            <div class="modal-header">
+                <h2 class="text-xl font-bold text-gray-900">Create World</h2>
+            </div>
+            <div class="modal-body space-y-4">
+                <div>
+                    <label class="form-label">World Name</label>
+                    <input type="text" id="newWorldName" placeholder="e.g., Workspace Alpha">
+                </div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button id="cancelAddWorldBtn" class="btn btn-secondary">Cancel</button>
+                <button id="saveAddWorldBtn" class="btn btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+
     <div id="addSetModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
         <div class="modal-container bg-white w-full max-w-md">
             <div class="modal-header">
                 <h2 id="addSetModalTitle" class="text-xl font-bold text-gray-900">Create Set</h2>
             </div>
             <div class="modal-body space-y-4">
+                <div>
+                    <label class="form-label">World</label>
+                    <select id="newSetWorld"></select>
+                </div>
                 <div>
                     <label class="form-label">Set Name</label>
                     <input type="text" id="newSetName" placeholder="e.g., Projects, Contacts">
@@ -2041,6 +2138,8 @@
     <script>
         // STATE
         const state = {
+            worlds: new Map(),
+            currentWorldId: null,
             sets: new Map(),
             currentSetId: null,
             currentViewId: null,
@@ -3952,10 +4051,13 @@
         }
 
         function createSampleData() {
-            const projectsId = createSet('Projects', 'ph-kanban');
+            const defaultWorldId = createWorld('Main World');
+            state.currentWorldId = defaultWorldId;
+
+            const projectsId = createSet('Projects', 'ph-kanban', defaultWorldId);
             const projectsSet = state.sets.get(projectsId);
 
-            const contactsId = createSet('Clients', 'ph-users-three');
+            const contactsId = createSet('Clients', 'ph-users-three', defaultWorldId);
             const contactsSet = state.sets.get(contactsId);
 
             contactsSet.schema = [
@@ -4036,23 +4138,46 @@
             state.expandedSets.add(projectsId);
         }
 
-        // SET MANAGEMENT
-        function createSet(name, icon = 'ph-squares-four') {
+        // WORLD & SET MANAGEMENT
+        function createWorld(name) {
+            const worldId = 'world_' + Date.now();
+            state.worlds.set(worldId, {
+                id: worldId,
+                name,
+                setIds: new Set(),
+                createdAt: new Date().toISOString()
+            });
+            return worldId;
+        }
+
+        function getWorld(worldId = state.currentWorldId) {
+            return worldId ? state.worlds.get(worldId) : null;
+        }
+
+        function getSetsForWorld(worldId = state.currentWorldId) {
+            return Array.from(state.sets.values()).filter(set => set.worldId === worldId);
+        }
+
+        function createSet(name, icon = 'ph-squares-four', worldId = state.currentWorldId) {
+            const resolvedWorldId = worldId || state.currentWorldId;
             const setId = 'set_' + Date.now();
             state.sets.set(setId, {
                 id: setId,
                 name: name,
                 icon: icon,
+                worldId: resolvedWorldId,
                 schema: [],
                 records: new Map(),
                 views: new Map(),
                 profiles: new Map([['default', { id: 'default', name: 'All Fields', visibleFields: [] }]])
             });
+            const world = getWorld(resolvedWorldId);
+            world?.setIds?.add(setId);
             createEvent(
                 'Create Set',
                 'INS',
                 { type: 'Set', id: setId },
-                { name },
+                { name, worldId: resolvedWorldId },
                 { summary: `Created set "${name}"`, scale: 'collection' }
             );
             return setId;
@@ -4155,7 +4280,8 @@
                 }
             };
 
-            state.sets.forEach((set, setId) => {
+            getSetsForWorld().forEach(set => {
+                const setId = set.id;
                 set.schema.forEach(field => {
                     const usage = scoreFieldAsKey(set, field);
                     if (usage.score > 0.6) {
@@ -4183,7 +4309,8 @@
         }
 
         function findFieldAcrossSets(fieldId) {
-            for (const [setId, set] of state.sets.entries()) {
+            for (const set of getSetsForWorld()) {
+                const setId = set.id;
                 const schemaField = set.schema.find(f => f.id === fieldId);
                 if (schemaField) return { setId, field: schemaField };
 
@@ -4199,7 +4326,8 @@
         function findAllItemsForKey(setId, fieldId) {
             const results = [];
 
-            state.sets.forEach(set => {
+            const worldId = state.sets.get(setId)?.worldId || state.currentWorldId;
+            getSetsForWorld(worldId).forEach(set => {
                 set.records.forEach((record, id) => {
                     if (record[fieldId] !== null && record[fieldId] !== undefined) {
                         results.push({ setId: set.id, recordId: id, record });
@@ -4243,7 +4371,9 @@
 
         function detectRollups(keyRef) {
             const rollups = [];
-            state.sets.forEach((set, setId) => {
+            const worldId = state.sets.get(keyRef.setId)?.worldId || state.currentWorldId;
+            getSetsForWorld(worldId).forEach(set => {
+                const setId = set.id;
                 const hasReference = set.schema.some(f => f.id === keyRef.fieldId || f.name === keyRef.fieldId || f.config?.linkedSetId === keyRef.setId);
                 if (hasReference) {
                     rollups.push({
@@ -4453,7 +4583,7 @@
         function populateCsvTargetSetOptions() {
             const select = document.getElementById('csvTargetSetSelect');
             if (!select) return;
-            const options = Array.from(state.sets.values()).map(set => `<option value="${set.id}">${set.name}</option>`);
+            const options = getSetsForWorld().map(set => `<option value="${set.id}">${set.name}</option>`);
             if (!options.length) {
                 select.innerHTML = '<option value="" disabled>No sets available</option>';
                 select.value = '';
@@ -4805,7 +4935,7 @@
                     showToast('⚠️ Name your new set before importing');
                     return;
                 }
-                const setId = createSet(name);
+                const setId = createSet(name, 'ph-squares-four', state.currentWorldId);
                 createView(setId, 'All ' + name, { type: 'grid' });
                 state.expandedSets.add(setId);
                 renderSidebar();
@@ -4953,20 +5083,32 @@
 
             if (!sourceRef) throw new Error(`Source record ${sourceId} not found`);
             if (!targetRef) throw new Error(`Target record ${targetId} not found`);
+            if (sourceRef.set.worldId && targetRef.set.worldId && sourceRef.set.worldId !== targetRef.set.worldId) {
+                throw new Error('Connections must stay within the same world');
+            }
             if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) {
                 throw new Error('Connection metadata must be an object');
             }
 
-            return { sourceRef, targetRef, metadata };
+            return { sourceRef, targetRef, metadata, worldId: sourceRef.set.worldId || targetRef.set.worldId || state.currentWorldId };
         }
 
         function createConnection(sourceId, targetId, metadata = {}) {
-            const { sourceRef, targetRef, metadata: normalizedMetadata } = validateConnectionPayload(sourceId, targetId, metadata);
+            let payload;
+            try {
+                payload = validateConnectionPayload(sourceId, targetId, metadata);
+            } catch (error) {
+                console.error(error);
+                showToast(`⚠️ ${error.message || 'Unable to create connection'}`);
+                return null;
+            }
+            const { sourceRef, targetRef, metadata: normalizedMetadata, worldId } = payload;
             const connectionId = `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             const connection = {
                 id: connectionId,
                 sourceId,
                 targetId,
+                worldId,
                 metadata: normalizedMetadata,
                 createdAt: new Date().toISOString()
             };
@@ -4998,12 +5140,13 @@
             const nextTargetId = updates.targetId || existing.targetId;
             const hasMetadataUpdate = Object.prototype.hasOwnProperty.call(updates, 'metadata');
             const nextMetadata = hasMetadataUpdate ? updates.metadata : existing.metadata;
-            const { sourceRef, targetRef, metadata: normalizedMetadata } = validateConnectionPayload(nextSourceId, nextTargetId, nextMetadata);
+            const { sourceRef, targetRef, metadata: normalizedMetadata, worldId } = validateConnectionPayload(nextSourceId, nextTargetId, nextMetadata);
 
             const updated = {
                 ...existing,
                 sourceId: nextSourceId,
                 targetId: nextTargetId,
+                worldId,
                 metadata: normalizedMetadata,
                 updatedAt: new Date().toISOString()
             };
@@ -5084,11 +5227,80 @@
             renderSidebar();
         }
 
+        function renderWorldSelector() {
+            const select = document.getElementById('worldSelect');
+            const label = document.getElementById('currentWorldLabel');
+            if (!select) return;
+
+            select.innerHTML = '';
+            state.worlds.forEach((world, id) => {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = world.name;
+                select.appendChild(opt);
+            });
+
+            if (!state.currentWorldId && select.options.length > 0) {
+                state.currentWorldId = select.options[0].value;
+            }
+
+            if (state.currentWorldId) {
+                select.value = state.currentWorldId;
+            }
+
+            if (label) {
+                const world = getWorld();
+                label.textContent = world?.name || 'No world selected';
+            }
+        }
+
+        function switchWorld(worldId) {
+            if (!worldId || !state.worlds.has(worldId)) return;
+            state.currentWorldId = worldId;
+            const sets = getSetsForWorld(worldId);
+            if (!sets.some(set => set.id === state.currentSetId)) {
+                state.currentSetId = sets[0]?.id || null;
+                state.currentViewId = null;
+            }
+            renderWorldSelector();
+            renderSidebar();
+            if (state.currentSetId) {
+                switchSet(state.currentSetId, state.currentViewId);
+            }
+        }
+
+        function openAddWorldModal() {
+            const input = document.getElementById('newWorldName');
+            if (input) input.value = '';
+            openModal('addWorldModal');
+        }
+
+        function saveWorldFromModal() {
+            const input = document.getElementById('newWorldName');
+            const name = input?.value.trim();
+            if (!name) { showConfirm('Please enter a world name', () => {}); return; }
+            const worldId = createWorld(name);
+            state.currentWorldId = worldId;
+            closeModal('addWorldModal');
+            renderWorldSelector();
+            renderSidebar();
+            showToast('✓ World created');
+        }
+
         function renderSidebar() {
             const container = document.getElementById('setsList');
             container.innerHTML = '';
 
-            state.sets.forEach((set, setId) => {
+            renderWorldSelector();
+
+            const setsForWorld = getSetsForWorld();
+            if (setsForWorld.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-400">No sets in this world yet.</p>';
+                return;
+            }
+
+            setsForWorld.forEach(set => {
+                const setId = set.id;
                 const isExpanded = state.expandedSets.has(setId);
                 const isActive = setId === state.currentSetId;
 
@@ -5249,9 +5461,14 @@
         }
 
         function switchSet(setId, viewId) {
+            const set = state.sets.get(setId);
+            if (!set) return;
+            if (set.worldId && state.currentWorldId !== set.worldId) {
+                state.currentWorldId = set.worldId;
+                renderWorldSelector();
+            }
             state.currentSetId = setId;
             state.currentViewId = viewId;
-            const set = state.sets.get(setId);
             if (!viewId && set.views.size > 0) {
                 state.currentViewId = Array.from(set.views.keys())[0];
             }
@@ -6562,9 +6779,9 @@
 
             const linkSelect = document.getElementById('linkToSet');
             linkSelect.innerHTML = '';
-            state.sets.forEach((set, setId) => {
-                const label = setId === state.currentSetId ? `${set.name} (this set)` : set.name;
-                linkSelect.innerHTML += `<option value="${setId}">${label}</option>`;
+            getSetsForWorld(state.currentWorldId).forEach(set => {
+                const label = set.id === state.currentSetId ? `${set.name} (this set)` : set.name;
+                linkSelect.innerHTML += `<option value="${set.id}">${label}</option>`;
             });
             if (linkSelect.options.length === 0) {
                 linkSelect.innerHTML = '<option value="">No sets available</option>';
@@ -7498,7 +7715,7 @@
 
         function renderConnectionsSidebar(container, recordId) {
             const builder = getConnectionBuilder();
-            const setEntries = Array.from(state.sets.entries());
+            const setEntries = getSetsForWorld().map(set => [set.id, set]);
             const selectedSetId = builder.targetSetId && state.sets.has(builder.targetSetId)
                 ? builder.targetSetId
                 : (setEntries[0]?.[0] || null);
@@ -7514,7 +7731,7 @@
             if (builder.targetRecordId !== selectedRecordId) builder.targetRecordId = selectedRecordId;
 
             const metadataText = builder.metadataJson || '';
-            const connections = Array.from(state.connections.values()).filter(edge => edge.sourceId === recordId || edge.targetId === recordId);
+            const connections = Array.from(state.connections.values()).filter(edge => edge.worldId === state.currentWorldId && (edge.sourceId === recordId || edge.targetId === recordId));
 
             container.innerHTML = `
                 <div class="space-y-4">
@@ -8508,24 +8725,66 @@
         }
 
         function exportJSON() {
+            const world = getWorld();
+            const worldSets = getSetsForWorld(world?.id);
+            const connections = Array.from(state.connections.values()).filter(edge => edge.worldId === state.currentWorldId);
             const data = {
-                sets: Array.from(state.sets.values()).map(s => ({
+                world: world ? { ...world, setIds: Array.from(world.setIds || []) } : null,
+                sets: worldSets.map(s => ({
                     ...s,
+                    setIds: undefined,
                     records: Array.from(s.records.values()),
                     views: Array.from(s.views.values()),
                     profiles: Array.from(s.profiles.values())
                 })),
-                connections: Array.from(state.connections.values()),
+                connections,
                 eventStream: state.eventStream
             };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'workbase-export.json';
+            const nameToken = world?.name ? world.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'workbase';
+            a.download = `${nameToken || 'workbase'}-export.json`;
             a.click();
             URL.revokeObjectURL(url);
             showToast('✓ Exported data');
+        }
+
+        function convertSetToCsv(set) {
+            const headers = ['id', ...set.schema.map(f => f.id)];
+            const escapeValue = (value) => {
+                if (value === null || value === undefined) return '';
+                const str = typeof value === 'object' ? JSON.stringify(value) : String(value);
+                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                    return '"' + str.replace(/"/g, '""') + '"';
+                }
+                return str;
+            };
+            const rows = Array.from(set.records.values()).map(record => headers.map(h => escapeValue(record[h])).join(','));
+            return [headers.join(','), ...rows].join('\n');
+        }
+
+        function exportWorldCSVs() {
+            const world = getWorld();
+            const sets = getSetsForWorld();
+            if (!sets.length) {
+                showToast('⚠️ No sets to export in this world');
+                return;
+            }
+            sets.forEach(set => {
+                const csv = convertSetToCsv(set);
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const prefix = world?.name ? world.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'world';
+                const setToken = set.name ? set.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : set.id;
+                a.href = url;
+                a.download = `${prefix || 'world'}-${setToken || set.id}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+            showToast('✓ Exported CSV files for this world');
         }
 
         function renderHistory() {
@@ -8570,6 +8829,7 @@
             };
             document.getElementById('viewJsonBtn').onclick = openJsonViewer;
             document.getElementById('exportBtn').onclick = exportJSON;
+            document.getElementById('exportCsvBtn').onclick = exportWorldCSVs;
             document.getElementById('importCsvBtn').onclick = openCsvImportModal;
             document.getElementById('parseCsvTextBtn').onclick = previewCsvFromText;
             document.getElementById('csvFileInput').onchange = handleCsvFileSelected;
@@ -8637,27 +8897,40 @@
           document.getElementById('columnRulesPreferredSet').onchange = updateColumnRulesSummary;
           document.getElementById('saveColumnRuleBtn').onclick = saveColumnRule;
           document.getElementById('deleteColumnRuleBtn').onclick = deleteColumnRule;
+          document.getElementById('addWorldBtn').onclick = openAddWorldModal;
+          document.getElementById('saveAddWorldBtn').onclick = saveWorldFromModal;
+          document.getElementById('cancelAddWorldBtn').onclick = () => closeModal('addWorldModal');
+          document.getElementById('worldSelect').onchange = (e) => switchWorld(e.target.value);
           document.getElementById('saveAddSetBtn').onclick = () => {
                 const name = document.getElementById('newSetName').value.trim();
                 const icon = extractIconToken(document.getElementById('newSetIcon').value.trim() || 'ph-squares-four');
+                const worldId = document.getElementById('newSetWorld').value || state.currentWorldId;
                 if (!name) { showConfirm('Please enter a set name', () => {}); return; }
                 if (state.setEditorContext?.setId) {
                     const set = state.sets.get(state.setEditorContext.setId);
+                    const previousWorldId = set.worldId;
                     set.name = name;
                     set.icon = icon;
+                    set.worldId = worldId;
+                    if (previousWorldId && previousWorldId !== worldId) {
+                        getWorld(previousWorldId)?.setIds?.delete(set.id);
+                    }
+                    getWorld(worldId)?.setIds?.add(set.id);
                     closeModal('addSetModal');
                     state.setEditorContext = null;
+                    state.currentWorldId = worldId;
                     renderSidebar();
                     renderCurrentView();
                     showToast('✓ Set updated');
                 } else {
-                    const setId = createSet(name, icon);
+                    const setId = createSet(name, icon, worldId);
                     closeModal('addSetModal');
                     document.getElementById('newSetName').value = '';
                     document.getElementById('newSetIcon').value = 'ph-squares-four';
                     syncIconSelector('newSetIcon');
                     createView(setId, 'All ' + name, { type: 'grid' });
                     state.expandedSets.add(setId);
+                    state.currentWorldId = worldId;
                     renderSidebar();
                     switchSet(setId, null);
                     showToast('✓ Set created');
@@ -8773,17 +9046,21 @@
         
         function renderJsonContent() {
             let data;
-            
+
             switch(currentJsonTab) {
-                case 'all':
+                case 'all': {
+                    const world = getWorld();
+                    const worldSets = getSetsForWorld();
                     data = {
-                        sets: Array.from(state.sets.values()).map(s => ({
+                        world: world ? { ...world, setIds: Array.from(world.setIds || []) } : null,
+                        worlds: Array.from(state.worlds.values()).map(w => ({ ...w, setIds: Array.from(w.setIds || []) })),
+                        sets: worldSets.map(s => ({
                             ...s,
                             records: Array.from(s.records.values()),
                             views: Array.from(s.views.values()),
                             profiles: Array.from(s.profiles.values())
                         })),
-                        connections: Array.from(state.connections.values()),
+                        connections: Array.from(state.connections.values()).filter(edge => edge.worldId === state.currentWorldId),
                         eventStream: state.eventStream,
                         operatorSet: state.operatorSet,
                         interpretationRules: state.interpretationRules,
@@ -8791,8 +9068,9 @@
                         currentViewId: state.currentViewId
                     };
                     break;
-                case 'sets':
-                    data = Array.from(state.sets.values()).map(s => ({
+                }
+                case 'sets': {
+                    data = getSetsForWorld().map(s => ({
                         id: s.id,
                         name: s.name,
                         icon: s.icon,
@@ -8803,7 +9081,8 @@
                         views: Array.from(s.views.values())
                     }));
                     break;
-                case 'current':
+                }
+                case 'current': {
                     const set = getCurrentSet();
                     const setRecordIds = set ? new Set(Array.from(set.records.keys())) : new Set();
                     data = set ? {
@@ -8814,9 +9093,10 @@
                         records: Array.from(set.records.values()),
                         views: Array.from(set.views.values()),
                         profiles: Array.from(set.profiles.values()),
-                        connections: Array.from(state.connections.values()).filter(edge => setRecordIds.has(edge.sourceId) || setRecordIds.has(edge.targetId))
+                        connections: Array.from(state.connections.values()).filter(edge => edge.worldId === state.currentWorldId && (setRecordIds.has(edge.sourceId) || setRecordIds.has(edge.targetId)))
                     } : null;
                     break;
+                }
                 case 'events':
                     data = state.eventStream;
                     break;
@@ -8944,6 +9224,17 @@
             const saveBtn = document.getElementById('saveAddSetBtn');
             const nameInput = document.getElementById('newSetName');
             const iconInput = document.getElementById('newSetIcon');
+            const worldSelect = document.getElementById('newSetWorld');
+
+            if (worldSelect) {
+                worldSelect.innerHTML = '';
+                state.worlds.forEach((world, id) => {
+                    const opt = document.createElement('option');
+                    opt.value = id;
+                    opt.textContent = world.name;
+                    worldSelect.appendChild(opt);
+                });
+            }
 
             if (setId) {
                 const set = state.sets.get(setId);
@@ -8952,12 +9243,14 @@
                 if (saveBtn) saveBtn.textContent = 'Save';
                 if (nameInput) nameInput.value = set?.name || '';
                 if (iconInput) iconInput.value = extractIconToken(set?.icon || 'ph-squares-four');
+                if (worldSelect && set?.worldId) worldSelect.value = set.worldId;
             } else {
                 state.setEditorContext = null;
                 if (titleEl) titleEl.textContent = 'Create Set';
                 if (saveBtn) saveBtn.textContent = 'Create';
                 if (nameInput) nameInput.value = '';
                 if (iconInput) iconInput.value = 'ph-squares-four';
+                if (worldSelect) worldSelect.value = state.currentWorldId || worldSelect.options[0]?.value || '';
             }
             syncIconSelector('newSetIcon');
             openModal('addSetModal');
