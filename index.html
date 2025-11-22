@@ -8,6 +8,8 @@
     <link id="dynamicAppleIcon" rel="apple-touch-icon" href="assets/eo-icons/eo-bracket-light.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
     <script src="formula_engine.js"></script>
     <script src="formula_field_service.js"></script>
     <script src="eo_lean_context.js"></script>
@@ -1085,11 +1087,36 @@
             background: #fafbfc;
             border-radius: 8px;
             overflow: hidden;
+            position: relative;
+            border: 1px solid var(--border);
         }
 
         .graph-node:hover circle {
             fill: #2563eb;
             stroke: #1e3a8a;
+        }
+
+        /* vis-network navigation buttons styling */
+        .graph-container .vis-button {
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 6px !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        }
+
+        .graph-container .vis-button:hover {
+            background: var(--muted-surface) !important;
+            border-color: var(--border-strong) !important;
+        }
+
+        /* Tooltip styling */
+        .vis-tooltip {
+            background: white !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+            padding: 0 !important;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto !important;
         }
 
         /* CONTEXT MENU */
@@ -9342,6 +9369,8 @@
         }
 
         // GRAPH VIEW
+        let graphNetwork = null;
+
         function renderGraphView() {
             const set = getCurrentSet();
             const view = getCurrentView();
@@ -9365,9 +9394,7 @@
                     ${set ? renderViewActions() : ''}
                 </div>
                 <div class="view-stage-body">
-                    <div class="graph-container" id="graphContainer">
-                        <svg id="graphSvg" width="100%" height="100%"></svg>
-                    </div>
+                    <div class="graph-container" id="graphContainer"></div>
                 </div>
             `;
 
@@ -9378,169 +9405,201 @@
 
         function renderGraph(definitions, connections, entities = []) {
             const container = document.getElementById('graphContainer');
-            const svg = document.getElementById('graphSvg');
-            const width = container?.clientWidth || 800;
-            const height = container?.clientHeight || 600;
 
-            svg.setAttribute('width', width);
-            svg.setAttribute('height', height);
-            svg.innerHTML = '';
+            if (!container) return;
+
+            // Clean up previous network instance
+            if (graphNetwork) {
+                graphNetwork.destroy();
+                graphNetwork = null;
+            }
 
             const typeColors = {
-                Record: '#3b82f6',
-                Field: '#10b981',
-                Set: '#f59e0b',
-                Connection: '#8b5cf6',
-                ViewEntity: '#0ea5e9'
+                Record: { background: '#4A90E2', border: '#2E5C8A', highlight: '#5FA3F5' },
+                Field: { background: '#50C878', border: '#2E7D4E', highlight: '#63DB8B' },
+                Set: { background: '#F39C12', border: '#B8730F', highlight: '#F5A623' },
+                Connection: { background: '#9B59B6', border: '#6C3483', highlight: '#AE6CC9' },
+                ViewEntity: { background: '#1ABC9C', border: '#138D75', highlight: '#2DD4AF' }
             };
 
-            const nodes = [];
             const nodeMap = new Map();
             const definitionsByKey = new Map();
+
             definitions.forEach(def => {
                 const key = `${def.entity?.type}:${def.entity?.id}`;
                 if (key) definitionsByKey.set(key, def);
             });
 
+            const visNodes = [];
             const addNode = (entity) => {
                 const key = `${entity.type}:${entity.id}`;
-                if (nodeMap.has(key)) return nodeMap.get(key);
+                if (nodeMap.has(key)) return key;
+
                 const definition = definitionsByKey.get(key);
-                const node = {
+                const colorScheme = typeColors[entity.type] || typeColors.ViewEntity;
+                const label = definition?.term || renderEntityLabel(entity);
+                const tooltip = definition?.definition || definition?.notes || label;
+
+                visNodes.push({
                     id: key,
-                    entity,
-                    label: definition?.term || renderEntityLabel(entity),
-                    detail: definition?.definition || definition?.notes || '',
-                    color: typeColors[entity.type] || '#0ea5e9',
-                    x: Math.random() * (width - 100) + 50,
-                    y: Math.random() * (height - 100) + 50,
-                    vx: 0,
-                    vy: 0
-                };
-                nodeMap.set(key, node);
-                nodes.push(node);
-                return node;
+                    label: label.length > 20 ? label.substring(0, 18) + '...' : label,
+                    title: `<div style="max-width: 300px; padding: 8px;">
+                        <strong style="font-size: 14px;">${label}</strong>
+                        <div style="font-size: 11px; color: #666; margin-top: 4px;">${entity.type}</div>
+                        ${tooltip !== label ? `<div style="margin-top: 8px; font-size: 12px;">${tooltip}</div>` : ''}
+                    </div>`,
+                    color: {
+                        background: colorScheme.background,
+                        border: colorScheme.border,
+                        highlight: {
+                            background: colorScheme.highlight,
+                            border: colorScheme.border
+                        },
+                        hover: {
+                            background: colorScheme.highlight,
+                            border: colorScheme.border
+                        }
+                    },
+                    font: {
+                        color: '#ffffff',
+                        size: 14,
+                        face: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto',
+                        bold: {
+                            color: '#ffffff'
+                        }
+                    },
+                    shape: 'dot',
+                    size: 25,
+                    borderWidth: 3,
+                    shadow: {
+                        enabled: true,
+                        color: 'rgba(0,0,0,0.2)',
+                        size: 10,
+                        x: 2,
+                        y: 2
+                    },
+                    entity: entity
+                });
+
+                nodeMap.set(key, true);
+                return key;
             };
 
+            // Add all entities as nodes
             (entities || []).forEach(entity => addNode(entity));
             definitions.forEach(def => addNode(def.entity));
 
-            const links = [];
-            connections.forEach(conn => {
-                const source = addNode(conn.subject);
-                const target = addNode(conn.operand);
-                links.push({
-                    source,
-                    target,
-                    label: `${conn.operator || ''} ${conn.mode || ''}`.trim() || 'linked'
+            // Create edges from connections
+            const visEdges = [];
+            connections.forEach((conn, idx) => {
+                const sourceKey = addNode(conn.subject);
+                const targetKey = addNode(conn.operand);
+                const edgeLabel = `${conn.operator || ''} ${conn.mode || ''}`.trim() || 'linked';
+
+                visEdges.push({
+                    id: `edge-${idx}`,
+                    from: sourceKey,
+                    to: targetKey,
+                    label: edgeLabel,
+                    arrows: {
+                        to: {
+                            enabled: true,
+                            scaleFactor: 0.8
+                        }
+                    },
+                    color: {
+                        color: '#94a3b8',
+                        highlight: '#475569',
+                        hover: '#475569'
+                    },
+                    font: {
+                        size: 11,
+                        color: '#64748b',
+                        background: 'rgba(255,255,255,0.9)',
+                        strokeWidth: 0,
+                        align: 'middle'
+                    },
+                    smooth: {
+                        type: 'continuous',
+                        roundness: 0.5
+                    },
+                    width: 2
                 });
             });
 
-            if (nodes.length === 0 && links.length === 0) {
-                svg.innerHTML = `<text x="${width/2}" y="${height/2}" text-anchor="middle" fill="#9ca3af" font-size="14">No graph data available</text>`;
+            if (visNodes.length === 0) {
+                container.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; font-size: 14px;">
+                        No graph data available
+                    </div>
+                `;
                 return;
             }
 
-            const iterations = 60;
-            const centerX = width / 2;
-            const centerY = height / 2;
+            // Create the network
+            const data = {
+                nodes: new vis.DataSet(visNodes),
+                edges: new vis.DataSet(visEdges)
+            };
 
-            for (let i = 0; i < iterations; i++) {
-                nodes.forEach(node => {
-                    const dx = centerX - node.x;
-                    const dy = centerY - node.y;
-                    node.vx += dx * 0.01;
-                    node.vy += dy * 0.01;
+            const options = {
+                nodes: {
+                    borderWidthSelected: 4
+                },
+                edges: {
+                    selectionWidth: 3
+                },
+                physics: {
+                    enabled: true,
+                    barnesHut: {
+                        gravitationalConstant: -3000,
+                        centralGravity: 0.3,
+                        springLength: 150,
+                        springConstant: 0.04,
+                        damping: 0.09,
+                        avoidOverlap: 0.5
+                    },
+                    stabilization: {
+                        enabled: true,
+                        iterations: 100,
+                        updateInterval: 25
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 100,
+                    navigationButtons: true,
+                    keyboard: {
+                        enabled: true,
+                        speed: { x: 10, y: 10, zoom: 0.02 }
+                    },
+                    zoomView: true,
+                    dragView: true
+                },
+                layout: {
+                    improvedLayout: true,
+                    randomSeed: 42
+                }
+            };
 
-                    nodes.forEach(other => {
-                        if (node === other) return;
-                        const dx = node.x - other.x;
-                        const dy = node.y - other.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                        const force = 900 / (dist * dist);
-                        node.vx += (dx / dist) * force;
-                        node.vy += (dy / dist) * force;
-                    });
-                });
+            graphNetwork = new vis.Network(container, data, options);
 
-                links.forEach(link => {
-                    const dx = link.target.x - link.source.x;
-                    const dy = link.target.y - link.source.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                    const force = dist * 0.015;
-                    link.source.vx += (dx / dist) * force;
-                    link.source.vy += (dy / dist) * force;
-                    link.target.vx -= (dx / dist) * force;
-                    link.target.vy -= (dy / dist) * force;
-                });
-
-                nodes.forEach(node => {
-                    node.x += node.vx;
-                    node.y += node.vy;
-                    node.vx *= 0.8;
-                    node.vy *= 0.8;
-                    node.x = Math.max(50, Math.min(width - 50, node.x));
-                    node.y = Math.max(50, Math.min(height - 50, node.y));
-                });
-            }
-
-            const linkGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            linkGroup.setAttribute('class', 'links');
-            links.forEach(link => {
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', link.source.x);
-                line.setAttribute('y1', link.source.y);
-                line.setAttribute('x2', link.target.x);
-                line.setAttribute('y2', link.target.y);
-                line.setAttribute('stroke', '#cbd5e1');
-                line.setAttribute('stroke-width', '2');
-                linkGroup.appendChild(line);
-
-                const midX = (link.source.x + link.target.x) / 2;
-                const midY = (link.source.y + link.target.y) / 2;
-                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                label.setAttribute('x', midX);
-                label.setAttribute('y', midY - 6);
-                label.setAttribute('text-anchor', 'middle');
-                label.setAttribute('fill', '#6b7280');
-                label.setAttribute('font-size', '10');
-                label.textContent = link.label;
-                linkGroup.appendChild(label);
+            // Add event listeners
+            graphNetwork.on('click', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const node = visNodes.find(n => n.id === nodeId);
+                    if (node && node.entity) {
+                        console.log('Clicked node:', node.entity);
+                        // You can add custom click handling here
+                        // For example, opening a detail view
+                    }
+                }
             });
-            svg.appendChild(linkGroup);
 
-            const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            nodeGroup.setAttribute('class', 'nodes');
-            nodes.forEach(node => {
-                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                g.setAttribute('class', 'graph-node');
-                g.setAttribute('transform', `translate(${node.x},${node.y})`);
-                g.style.cursor = 'pointer';
-
-                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                circle.setAttribute('r', '32');
-                circle.setAttribute('fill', node.color);
-                circle.setAttribute('stroke', '#111827');
-                circle.setAttribute('stroke-width', '2');
-
-                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                text.setAttribute('text-anchor', 'middle');
-                text.setAttribute('dy', '0.35em');
-                text.setAttribute('fill', 'white');
-                text.setAttribute('font-size', '11');
-                text.setAttribute('font-weight', '700');
-                text.textContent = node.label?.substring(0, 18) || node.id;
-
-                const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                title.textContent = node.detail || node.label;
-
-                g.appendChild(circle);
-                g.appendChild(text);
-                g.appendChild(title);
-
-                nodeGroup.appendChild(g);
+            graphNetwork.on('stabilizationIterationsDone', function() {
+                graphNetwork.setOptions({ physics: { enabled: false } });
             });
-            svg.appendChild(nodeGroup);
         }
 
         function serializeTagsInput(value) {
