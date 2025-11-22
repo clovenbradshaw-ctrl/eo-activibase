@@ -1715,50 +1715,6 @@
                         </button>
                     </div>
                 </div>
-                <div class="toolbar-actions">
-                    <div class="primary-actions">
-                        <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
-                        <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
-                    </div>
-                    <div class="toolbar-menu">
-                        <button id="toolbarMenuToggle" class="btn btn-secondary btn-sm toolbar-menu-toggle">
-                            <i class="ph ph-dots-three-outline"></i>
-                            More actions
-                        </button>
-                        <div class="toolbar-menu-panel" id="toolbarMenuPanel">
-                            <button id="popupSettingsBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                <i class="ph ph-gear-six"></i>
-                                Details
-                            </button>
-                            <button id="historyBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                <i class="ph ph-clock-counter-clockwise"></i>
-                                History
-                            </button>
-                            <div class="toolbar-menu-divider"></div>
-                            <button id="viewJsonBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                <i class="ph ph-code"></i>
-                                View JSON
-                            </button>
-                            <button id="importCsvBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                <i class="ph ph-upload-simple"></i>
-                                Import CSV
-                            </button>
-                            <button id="exportBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                <i class="ph ph-download-simple"></i>
-                                Export JSON
-                            </button>
-                            <button id="exportCsvBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                <i class="ph ph-spreadsheet"></i>
-                                Export CSVs
-                            </button>
-                            <div class="toolbar-menu-divider"></div>
-                            <button id="fuzzyPanelBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                <i class="ph ph-graph"></i>
-                                Fuzzy Matches
-                            </button>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -4454,7 +4410,13 @@
             });
         }
 
+        let toolbarMenuCleanup = null;
         function setupToolbarMenu() {
+            if (typeof toolbarMenuCleanup === 'function') {
+                toolbarMenuCleanup();
+                toolbarMenuCleanup = null;
+            }
+
             const menu = document.querySelector('.toolbar-menu');
             const toggle = document.getElementById('toolbarMenuToggle');
             const panel = document.getElementById('toolbarMenuPanel');
@@ -4462,23 +4424,133 @@
 
             const closeMenu = () => menu.classList.remove('open');
 
-            toggle.addEventListener('click', (event) => {
+            const toggleHandler = (event) => {
                 event.stopPropagation();
                 menu.classList.toggle('open');
-            });
+            };
 
-            panel.addEventListener('click', (event) => {
+            const panelHandler = (event) => {
                 event.stopPropagation();
                 if (event.target.closest('button')) closeMenu();
-            });
+            };
 
-            document.addEventListener('click', (event) => {
+            const clickHandler = (event) => {
                 if (!menu.contains(event.target)) closeMenu();
-            });
+            };
 
-            document.addEventListener('keydown', (event) => {
+            const keydownHandler = (event) => {
                 if (event.key === 'Escape') closeMenu();
+            };
+
+            toggle.addEventListener('click', toggleHandler);
+            panel.addEventListener('click', panelHandler);
+            document.addEventListener('click', clickHandler);
+            document.addEventListener('keydown', keydownHandler);
+
+            toolbarMenuCleanup = () => {
+                toggle.removeEventListener('click', toggleHandler);
+                panel.removeEventListener('click', panelHandler);
+                document.removeEventListener('click', clickHandler);
+                document.removeEventListener('keydown', keydownHandler);
+            };
+        }
+
+        function handleAddRecord() {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            const record = { id: `rec_${Date.now()}` };
+            set.schema.forEach(f => record[f.id] = FIELD_TYPES[f.type].defaultValue);
+            set.records.set(record.id, record);
+            renderCurrentView();
+            showToast('✓ Record added');
+        }
+
+        function wireViewStageActions() {
+            const addRecordBtn = document.getElementById('addRecordBtn');
+            if (addRecordBtn) addRecordBtn.onclick = handleAddRecord;
+
+            const addFieldBtn = document.getElementById('addFieldBtn');
+            if (addFieldBtn) addFieldBtn.onclick = openAddFieldModal;
+
+            const toolbarActions = [
+                ['popupSettingsBtn', openPopupSettingsModal],
+                ['historyBtn', () => {
+                    document.getElementById('historyPanel').classList.add('open');
+                    renderHistory();
+                }],
+                ['viewJsonBtn', openJsonViewer],
+                ['importCsvBtn', openCsvImportModal],
+                ['exportBtn', exportJSON],
+                ['exportCsvBtn', exportWorldCSVs],
+                ['fuzzyPanelBtn', openFuzzyPanel]
+            ];
+
+            toolbarActions.forEach(([id, handler]) => {
+                const el = document.getElementById(id);
+                if (el) el.onclick = handler;
             });
+        }
+
+        function renderViewActions(extraControls = '') {
+            return `
+                <div class="view-stage-actions">
+                    <div class="primary-actions">
+                        <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
+                        <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        ${extraControls}
+                        <div class="toolbar-menu">
+                            <button id="toolbarMenuToggle" class="btn btn-secondary btn-sm toolbar-menu-toggle">
+                                <i class="ph ph-dots-three-outline"></i>
+                                Actions
+                            </button>
+                            <div class="toolbar-menu-panel" id="toolbarMenuPanel">
+                                <button id="popupSettingsBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                    <i class="ph ph-gear-six"></i>
+                                    Details
+                                </button>
+                                <button id="historyBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                    <i class="ph ph-clock-counter-clockwise"></i>
+                                    History
+                                </button>
+                                <div class="toolbar-menu-divider"></div>
+                                <button id="viewJsonBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                    <i class="ph ph-code"></i>
+                                    View JSON
+                                </button>
+                                <button id="importCsvBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                    <i class="ph ph-upload-simple"></i>
+                                    Import CSV
+                                </button>
+                                <button id="exportBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                    <i class="ph ph-download-simple"></i>
+                                    Export JSON
+                                </button>
+                                <button id="exportCsvBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                    <i class="ph ph-spreadsheet"></i>
+                                    Export CSVs
+                                </button>
+                                <div class="toolbar-menu-divider"></div>
+                                <button id="fuzzyPanelBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                    <i class="ph ph-graph"></i>
+                                    Fuzzy Matches
+                                </button>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
+                            <i class="ph ph-gear-six text-sm"></i>
+                            <span class="ml-1">Fields</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function finalizeViewStage() {
+            wireViewStageActions();
+            setupToolbarMenu();
         }
 
         function triggerPrimaryAction() {
@@ -6426,12 +6498,7 @@
                             <div class="view-stage-sub">Grid view · ${recordCount} ${recordLabel}</div>
                         </div>
                     </div>
-                    <div class="view-stage-actions">
-                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
-                            <i class="ph ph-gear-six text-sm"></i>
-                            <span class="ml-1">Columns</span>
-                        </button>
-                    </div>
+                    ${renderViewActions()}
                 </div>
                 <div class="view-stage-body">
                     <div class="view-table-shell">
@@ -6529,6 +6596,9 @@
                     selectCell(match, previousSelection.recordId, previousSelection.fieldId);
                 }
             }
+
+            wireViewStageActions();
+            setupToolbarMenu();
         }
 
         function renderKeyDerivedView() {
@@ -6550,12 +6620,7 @@
                             <div class="view-stage-sub">Generated key view · ${rows.length} collections</div>
                         </div>
                     </div>
-                    <div class="view-stage-actions">
-                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
-                            <i class="ph ph-gear-six text-sm"></i>
-                            <span class="ml-1">Columns</span>
-                        </button>
-                    </div>
+                    ${renderViewActions()}
                 </div>
                 <div class="view-stage-body">
                     <div class="view-table-shell">
@@ -6605,6 +6670,8 @@
 
                 tbody.appendChild(tr);
             });
+
+            finalizeViewStage();
         }
 
         function renderCellValue(value, field, record) {
@@ -6825,6 +6892,14 @@
             if (view && view.filters.length > 0) records = applyFilterGroups(records, view.filters, set.schema);
             if (view?.sorts?.length) records = applySorts(records, view.sorts, set.schema);
 
+            const stabilityToggle = state.leanContext ? `
+                <label class="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 px-3 py-2 rounded-lg">
+                    <input type="checkbox" id="showStabilityToggle" ${view?.showStability ? 'checked' : ''}
+                           onchange="toggleStabilityDisplay()">
+                    <span>Show stability</span>
+                </label>
+            ` : '';
+
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
                 <div class="view-stage-header">
@@ -6835,19 +6910,7 @@
                             <div class="view-stage-sub">Card view · ${records.length} ${records.length === 1 ? 'record' : 'records'}</div>
                         </div>
                     </div>
-                    <div class="view-stage-actions">
-                        ${state.leanContext ? `
-                            <label class="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 px-3 py-2 rounded-lg">
-                                <input type="checkbox" id="showStabilityToggle" ${view?.showStability ? 'checked' : ''}
-                                       onchange="toggleStabilityDisplay()">
-                                <span>Show stability</span>
-                            </label>
-                        ` : ''}
-                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
-                            <i class="ph ph-gear-six text-sm"></i>
-                            <span class="ml-1">Columns</span>
-                        </button>
-                    </div>
+                    ${renderViewActions(stabilityToggle)}
                 </div>
                 <div class="view-stage-body">
                     <div class="cards-grid" id="cardsGrid"></div>
@@ -6885,6 +6948,8 @@
 
                 grid.appendChild(card);
             });
+
+            finalizeViewStage();
         }
 
         function toggleStabilityDisplay() {
@@ -6899,7 +6964,10 @@
             const set = getCurrentSet();
             const view = getCurrentView();
             if (!set || !view) return;
-            
+
+            const pickGroupingAction = `<button onclick="openKanbanConfig()" class="btn btn-secondary btn-sm">Pick grouping</button>`;
+            const changeGroupingAction = `<button onclick="openKanbanConfig()" class="btn btn-secondary btn-sm">Change grouping</button>`;
+
             if (!view.kanbanGroupField) {
                 const container = document.getElementById('viewContainer');
                 container.innerHTML = `
@@ -6911,9 +6979,7 @@
                                 <div class="view-stage-sub">Kanban view · Choose a grouping</div>
                             </div>
                         </div>
-                        <div class="view-stage-actions">
-                            <button onclick="openKanbanConfig()" class="btn btn-secondary btn-sm">Pick grouping</button>
-                        </div>
+                        ${renderViewActions(pickGroupingAction)}
                     </div>
                     <div class="view-stage-body">
                         <div class="kanban-empty-state">
@@ -6924,6 +6990,7 @@
                         </div>
                     </div>
                 `;
+                finalizeViewStage();
                 return;
             }
             
@@ -6950,13 +7017,7 @@
                             <div class="view-stage-sub">Kanban view · ${groupField.name} · ${recordCount} ${recordLabel}</div>
                         </div>
                     </div>
-                    <div class="view-stage-actions">
-                        <button onclick="openKanbanConfig()" class="btn btn-secondary btn-sm">Change grouping</button>
-                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
-                            <i class="ph ph-gear-six text-sm"></i>
-                            <span class="ml-1">Columns</span>
-                        </button>
-                    </div>
+                    ${renderViewActions(changeGroupingAction)}
                 </div>
                 <div class="view-stage-body">
                     <div class="kanban-board" id="kanbanBoard"></div>
@@ -6978,6 +7039,8 @@
                 const column = createKanbanColumn('Uncategorized', uncategorized, groupField);
                 board.appendChild(column);
             }
+
+            finalizeViewStage();
         }
 
         function createKanbanColumn(title, records, groupField) {
@@ -7122,12 +7185,7 @@
                             <div class="view-stage-sub">Graph view · ${recordCount} ${recordLabel}</div>
                         </div>
                     </div>
-                    <div class="view-stage-actions">
-                        <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
-                            <i class="ph ph-gear-six text-sm"></i>
-                            <span class="ml-1">Columns</span>
-                        </button>
-                    </div>
+                    ${renderViewActions()}
                 </div>
                 <div class="view-stage-body">
                     <div class="graph-container" id="graphContainer">
@@ -7137,6 +7195,8 @@
             `;
 
             renderGraph(records, set);
+
+            finalizeViewStage();
         }
 
         function renderGraph(records, set) {
@@ -10078,26 +10138,8 @@
             const changeLinkToSet = document.getElementById('changeLinkToSet');
             if (changeLinkToSet) changeLinkToSet.onchange = (event) => { state.changeLinkedSetId = event.target.value; };
 
-            document.getElementById('addRecordBtn').onclick = () => {
-                const set = getCurrentSet();
-                const record = { id: `rec_${Date.now()}` };
-                set.schema.forEach(f => record[f.id] = FIELD_TYPES[f.type].defaultValue);
-                set.records.set(record.id, record);
-                renderCurrentView();
-                showToast('✓ Record added');
-            };
-            document.getElementById('addFieldBtn').onclick = openAddFieldModal;
             document.getElementById('filterBtn').onclick = openFilterModal;
             document.getElementById('sortBtn').onclick = openSortModal;
-            document.getElementById('popupSettingsBtn').onclick = openPopupSettingsModal;
-            document.getElementById('historyBtn').onclick = () => {
-                document.getElementById('historyPanel').classList.add('open');
-                renderHistory();
-            };
-            document.getElementById('viewJsonBtn').onclick = openJsonViewer;
-            document.getElementById('exportBtn').onclick = exportJSON;
-            document.getElementById('exportCsvBtn').onclick = exportWorldCSVs;
-            document.getElementById('importCsvBtn').onclick = openCsvImportModal;
             document.getElementById('parseCsvTextBtn').onclick = previewCsvFromText;
             document.getElementById('csvFileInput').onchange = handleCsvFileSelected;
             document.getElementById('refreshCsvPreviewBtn').onclick = renderCsvPreview;
@@ -10117,7 +10159,6 @@
             document.getElementById('csvNewSetName').oninput = (event) => {
                 state.csvImportState.newSetName = event.target.value;
             };
-            document.getElementById('fuzzyPanelBtn').onclick = openFuzzyPanel;
             document.getElementById('closeFuzzyPanelBtn').onclick = closeFuzzyPanel;
             document.getElementById('refreshFuzzyMatchesBtn').onclick = renderFuzzyPanel;
             document.getElementById('fuzzyThresholdInput').oninput = renderFuzzyPanel;
@@ -10146,22 +10187,23 @@
                 state.confirmCallback = null;
                 closeModal('confirmModal');
             };
-          document.getElementById('addSortRuleBtn').onclick = addSortRule;
-          document.getElementById('clearSortsBtn').onclick = clearSorts;
-          document.getElementById('applySortsBtn').onclick = applySortsFromModal;
-          document.getElementById('closeSortBtn').onclick = () => closeModal('sortModal');
-          const fieldNameInput = document.getElementById('newFieldName');
-          if (fieldNameInput) fieldNameInput.addEventListener('input', resetFieldNameValidation);
-          document.getElementById('saveAddFieldBtn').onclick = saveField;
-          document.getElementById('cancelAddFieldBtn').onclick = () => closeModal('addFieldModal');
-          document.getElementById('closeAddFieldBtn').onclick = () => closeModal('addFieldModal');
-          document.getElementById('closeColumnRulesBtn').onclick = () => closeModal('columnRulesModal');
-          document.getElementById('columnRulesRuleSelect').onchange = (e) => {
-            document.getElementById('columnRulesSetPicker').classList.toggle('hidden', e.target.value !== 'prefer_set');
-            updateColumnRulesSummary();
-          };
-          document.getElementById('columnRulesFieldSelect').onchange = updateColumnRulesSummary;
-          document.getElementById('columnRulesPreferredSet').onchange = updateColumnRulesSummary;
+            wireViewStageActions();
+            document.getElementById('addSortRuleBtn').onclick = addSortRule;
+            document.getElementById('clearSortsBtn').onclick = clearSorts;
+            document.getElementById('applySortsBtn').onclick = applySortsFromModal;
+            document.getElementById('closeSortBtn').onclick = () => closeModal('sortModal');
+            const fieldNameInput = document.getElementById('newFieldName');
+            if (fieldNameInput) fieldNameInput.addEventListener('input', resetFieldNameValidation);
+            document.getElementById('saveAddFieldBtn').onclick = saveField;
+            document.getElementById('cancelAddFieldBtn').onclick = () => closeModal('addFieldModal');
+            document.getElementById('closeAddFieldBtn').onclick = () => closeModal('addFieldModal');
+            document.getElementById('closeColumnRulesBtn').onclick = () => closeModal('columnRulesModal');
+            document.getElementById('columnRulesRuleSelect').onchange = (e) => {
+                document.getElementById('columnRulesSetPicker').classList.toggle('hidden', e.target.value !== 'prefer_set');
+                updateColumnRulesSummary();
+            };
+            document.getElementById('columnRulesFieldSelect').onchange = updateColumnRulesSummary;
+            document.getElementById('columnRulesPreferredSet').onchange = updateColumnRulesSummary;
           const recordIdVisibilityToggle = document.getElementById('recordIdVisibilityToggle');
           if (recordIdVisibilityToggle) recordIdVisibilityToggle.onchange = (e) => toggleRecordIdVisibility(e.target.checked);
           document.getElementById('saveColumnRuleBtn').onclick = saveColumnRule;
