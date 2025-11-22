@@ -4625,77 +4625,102 @@
             return typeof filterFn === 'function' ? conns.filter(filterFn) : conns;
         }
 
-        function getDemoDefinitions() {
-            return [
+        function seedWorldDefaults(worldId = state.currentWorldId) {
+            const locationsId = createSet('Locations', 'ph-map-pin', worldId);
+            const locationsSet = state.sets.get(locationsId);
+            locationsSet.schema = [
+                { id: 'name', name: 'Location', type: 'TEXT', width: '220px' },
+                { id: 'area', name: 'Area', type: 'TEXT', width: '180px' },
+                { id: 'notes', name: 'Notes', type: 'LONG_TEXT', width: '260px' }
+            ];
+
+            const locationPlaceholders = [
+                addRecord(locationsId, { name: '', area: '', notes: '' }),
+                addRecord(locationsId, { name: '', area: '', notes: '' }),
+                addRecord(locationsId, { name: '', area: '', notes: '' })
+            ];
+
+            const observationsId = createSet('Observations', 'ph-binoculars', worldId);
+            const observationsSet = state.sets.get(observationsId);
+            observationsSet.schema = [
+                { id: 'date', name: 'Date', type: 'DATE', width: '140px' },
+                { id: 'observer', name: 'Observer', type: 'TEXT', width: '180px' },
+                { id: 'observation', name: 'Observation', type: 'LONG_TEXT', width: '260px' }
+            ];
+
+            const observationPlaceholders = [
+                addRecord(observationsId, { date: '', observer: '', observation: '' }),
+                addRecord(observationsId, { date: '', observer: '', observation: '' }),
+                addRecord(observationsId, { date: '', observer: '', observation: '' })
+            ];
+
+            const placeholderDefinitions = [
                 {
-                    id: 'def_demo_1',
-                    entity: { type: 'Record', id: 'sample_rec_1' },
-                    term: 'Sample Record A',
-                    definition: 'A sample entity used for demonstration.',
-                    notes: 'Auto-created on world initialization.',
-                    tags: ['demo', 'entity']
+                    id: `${worldId}_def_1`,
+                    entity: { type: 'Record', id: locationPlaceholders[0] },
+                    term: 'Location',
+                    definition: 'Describe a place that observations reference.',
+                    notes: 'Edit to fit your world.',
+                    tags: ['starter', 'location']
                 },
                 {
-                    id: 'def_demo_2',
-                    entity: { type: 'Field', id: 'sample_field_1' },
-                    term: 'Sentiment Score',
-                    definition: 'A numeric score representing sentiment.',
-                    tags: ['demo', 'field']
+                    id: `${worldId}_def_2`,
+                    entity: { type: 'Record', id: observationPlaceholders[0] },
+                    term: 'Observation',
+                    definition: 'A single note taken at a time and place.',
+                    notes: 'Starter definition for new worlds.',
+                    tags: ['starter', 'observation']
                 },
                 {
-                    id: 'def_demo_3',
-                    entity: { type: 'Connection', id: 'demo_conn_1' },
-                    term: 'Primary Link',
-                    definition: 'An example connection linking two records.',
-                    tags: ['demo', 'connection']
+                    id: `${worldId}_def_3`,
+                    entity: { type: 'Connection', id: `${worldId}_conn_1` },
+                    term: 'Observed At',
+                    definition: 'Links an observation to its location.',
+                    notes: 'Refine as you add context.',
+                    tags: ['starter', 'connection']
                 }
             ];
-        }
 
-        function initializeDemoDefinitions(worldId = state.currentWorldId) {
-            getDemoDefinitions().forEach(def => {
-                if (state.definitions.has(def.id)) return;
-                addDefinition({ ...def, worldId });
-            });
-        }
+            placeholderDefinitions.forEach(def => addDefinition({ ...def, worldId }));
 
-        function getDemoConnections() {
-            return [
+            const placeholderConnections = [
                 {
-                    id: 'demo_conn_1',
-                    subject: { type: 'Record', id: 'sample_rec_1' },
+                    id: `${worldId}_conn_1`,
+                    subject: { type: 'Record', id: observationPlaceholders[0] },
                     operator: 'CON',
-                    mode: 'is linked to',
-                    operand: { type: 'Record', id: 'sample_rec_2' },
-                    description: 'Default demonstration connection',
+                    mode: 'observed at',
+                    operand: { type: 'Record', id: locationPlaceholders[0] },
+                    description: 'Starter link between an observation and a location.',
                     params: {}
                 },
                 {
-                    id: 'demo_conn_2',
-                    subject: { type: 'Record', id: 'sample_rec_2' },
-                    operator: 'SEG',
-                    mode: 'filters by',
-                    operand: { type: 'Field', id: 'sample_field_1' },
-                    description: 'A filter connection',
+                    id: `${worldId}_conn_2`,
+                    subject: { type: 'Record', id: observationPlaceholders[1] },
+                    operator: 'CON',
+                    mode: 'observed at',
+                    operand: { type: 'Record', id: locationPlaceholders[1] },
+                    description: 'Starter link between an observation and a location.',
                     params: {}
                 },
                 {
-                    id: 'demo_conn_3',
-                    subject: { type: 'Connection', id: 'demo_conn_1' },
-                    operator: 'SYN',
-                    mode: 'integrates with',
-                    operand: { type: 'Connection', id: 'demo_conn_2' },
-                    description: 'A compound demo connection',
+                    id: `${worldId}_conn_3`,
+                    subject: { type: 'Record', id: observationPlaceholders[2] },
+                    operator: 'CON',
+                    mode: 'observed at',
+                    operand: { type: 'Record', id: locationPlaceholders[2] },
+                    description: 'Starter link between an observation and a location.',
                     params: {}
                 }
             ];
-        }
 
-        function initializeDemoConnections(worldId = state.currentWorldId) {
-            getDemoConnections().forEach(conn => {
-                if (state.connections.has(conn.id)) return;
-                addConnection({ ...conn, worldId });
-            });
+            placeholderConnections.forEach(conn => addConnection({ ...conn, worldId }));
+
+            return {
+                locationsId,
+                observationsId,
+                locationPlaceholders,
+                observationPlaceholders
+            };
         }
 
         // INITIALIZATION
@@ -5032,332 +5057,128 @@
         }
 
         function createSampleData() {
-            const defaultWorldId = createWorld('Main World');
+            const defaultWorldId = createWorld('Example World');
             state.currentWorldId = defaultWorldId;
+            const worldDefaults = state.worlds.get(defaultWorldId)?.defaults || {};
 
-            const projectsId = createSet('Projects', 'ph-kanban', defaultWorldId);
-            const projectsSet = state.sets.get(projectsId);
+            const locationsId = worldDefaults.locationsId || createSet('Locations', 'ph-map-pin', defaultWorldId);
+            const observationsId = worldDefaults.observationsId || createSet('Observations', 'ph-binoculars', defaultWorldId);
 
-            const contactsId = createSet('Clients', 'ph-users-three', defaultWorldId);
-            const contactsSet = state.sets.get(contactsId);
-
-            const temperatureUnitsId = createSet('Temperature Units', 'ph-thermometer', defaultWorldId);
-            const temperatureUnitsSet = state.sets.get(temperatureUnitsId);
-
-            const conversionDefinitionsId = createSet('Conversion Definitions', 'ph-arrows-left-right', defaultWorldId);
-            const conversionDefinitionsSet = state.sets.get(conversionDefinitionsId);
-
-            const temperatureReadingsId = createSet('Temperature Readings', 'ph-thermometer-simple', defaultWorldId);
-            const temperatureReadingsSet = state.sets.get(temperatureReadingsId);
-
-            const temperatureObservationsId = createSet('Temperature Observations', 'ph-flame', defaultWorldId);
-            const temperatureObservationsSet = state.sets.get(temperatureObservationsId);
-
-            contactsSet.schema = [
-                { id: 'name', name: 'Client Name', type: 'TEXT', width: '200px' },
-                { id: 'industry', name: 'Industry', type: 'SINGLE_SELECT', width: '140px', config: {
-                    options: ['Technology', 'Retail', 'Finance', 'Healthcare'],
-                    colors: { 'Technology': 'blue', 'Retail': 'purple', 'Finance': 'green', 'Healthcare': 'yellow' }
-                }},
-                { id: 'website', name: 'Website', type: 'URL', width: '200px' }
-            ];
-
-            contactsSet.profiles = new Map([
-                ['default', { id: 'default', name: 'All Fields', visibleFields: [] }]
-            ]);
-
-            const acmeId = addRecord(contactsId, { name: 'Acme Corp', industry: 'Technology', website: 'https://acme.example.com' });
-            const harborId = addRecord(contactsId, { name: 'Harbor Retail', industry: 'Retail', website: 'https://harborretail.example.com' });
-            const northbankId = addRecord(contactsId, { name: 'Northbank Finance', industry: 'Finance', website: 'https://northbank.example.com' });
-
-            createView(contactsId, 'All Clients', { type: 'grid' });
-
-            temperatureUnitsSet.schema = [
-                { id: 'name', name: 'Unit Name', type: 'TEXT', width: '180px' },
-                { id: 'symbol', name: 'Symbol', type: 'TEXT', width: '80px' }
-            ];
-
-            const fahrenheitUnitId = addRecord(temperatureUnitsId, { name: 'Fahrenheit', symbol: '°F' });
-            const celsiusUnitId = addRecord(temperatureUnitsId, { name: 'Celsius', symbol: '°C' });
-
-            conversionDefinitionsSet.schema = [
-                { id: 'name', name: 'Definition', type: 'TEXT', width: '220px' },
-                { id: 'from_unit', name: 'From Unit', type: 'LINK_RECORD', width: '160px', config: { linkedSetId: temperatureUnitsId } },
-                { id: 'to_unit', name: 'To Unit', type: 'LINK_RECORD', width: '160px', config: { linkedSetId: temperatureUnitsId } },
-                { id: 'pre_offset', name: 'Pre-Offset', type: 'NUMBER', width: '120px' },
-                { id: 'scale', name: 'Scale', type: 'NUMBER', width: '120px' },
-                { id: 'post_offset', name: 'Post-Offset', type: 'NUMBER', width: '120px' },
+            const locationsSet = state.sets.get(locationsId);
+            locationsSet.schema = [
+                { id: 'name', name: 'Location', type: 'TEXT', width: '220px' },
+                { id: 'area', name: 'Area', type: 'TEXT', width: '180px' },
                 { id: 'notes', name: 'Notes', type: 'LONG_TEXT', width: '260px' }
             ];
 
-            const fToCDefinitionId = addRecord(conversionDefinitionsId, {
-                name: 'Fahrenheit → Celsius',
-                from_unit: fahrenheitUnitId,
-                to_unit: celsiusUnitId,
-                pre_offset: -32,
-                scale: 5 / 9,
-                post_offset: 0,
-                notes: 'C = (F - 32) × 5/9 defined as a record for traversal'
-            });
+            locationsSet.records.clear();
+            const ridgeId = addRecord(locationsId, { name: 'Summit Ridge', area: 'Highlands', notes: 'Windy lookout with clean sight lines.' });
+            const marshId = addRecord(locationsId, { name: 'Quiet Marsh', area: 'Wetlands', notes: 'Shallow water and dense reeds.' });
+            const groveId = addRecord(locationsId, { name: 'North Grove', area: 'Forest Edge', notes: 'Shaded trail with frequent wildlife activity.' });
 
-            const cToFDefinitionId = addRecord(conversionDefinitionsId, {
-                name: 'Celsius → Fahrenheit',
-                from_unit: celsiusUnitId,
-                to_unit: fahrenheitUnitId,
-                pre_offset: 0,
-                scale: 9 / 5,
-                post_offset: 32,
-                notes: 'F = C × 9/5 + 32 for bi-directional conversions'
-            });
+            createView(locationsId, 'Locations', { type: 'grid' });
 
-            addConnection({
-                subject: { type: 'Record', id: fahrenheitUnitId },
-                operand: { type: 'Record', id: fToCDefinitionId },
-                operator: 'CON',
-                mode: 'relates to',
-                description: 'Conversion from Fahrenheit to Celsius',
-                params: { relationship: 'unit_conversion', role: 'from' },
-                worldId: defaultWorldId
-            });
-            addConnection({
-                subject: { type: 'Record', id: fToCDefinitionId },
-                operand: { type: 'Record', id: celsiusUnitId },
-                operator: 'CON',
-                mode: 'relates to',
-                description: 'Conversion to Celsius',
-                params: { relationship: 'unit_conversion', role: 'to' },
-                worldId: defaultWorldId
-            });
-            addConnection({
-                subject: { type: 'Record', id: celsiusUnitId },
-                operand: { type: 'Record', id: cToFDefinitionId },
-                operator: 'CON',
-                mode: 'relates to',
-                description: 'Conversion from Celsius to Fahrenheit',
-                params: { relationship: 'unit_conversion', role: 'from' },
-                worldId: defaultWorldId
-            });
-            addConnection({
-                subject: { type: 'Record', id: cToFDefinitionId },
-                operand: { type: 'Record', id: fahrenheitUnitId },
-                operator: 'CON',
-                mode: 'relates to',
-                description: 'Conversion to Fahrenheit',
-                params: { relationship: 'unit_conversion', role: 'to' },
-                worldId: defaultWorldId
-            });
-
-            createView(temperatureUnitsId, 'Units', { type: 'grid' });
-            createView(conversionDefinitionsId, 'Conversions', { type: 'grid' });
-
-            temperatureReadingsSet.schema = [
-                { id: 'label', name: 'Reading Label', type: 'TEXT', width: '220px' },
-                { id: 'location', name: 'Location', type: 'TEXT', width: '180px' },
-                {
-                    id: 'source_tool',
-                    name: 'Source Tool',
-                    type: 'SINGLE_SELECT',
-                    width: '170px',
-                    config: {
-                        options: ['Weather API', 'Roof Probe', 'Drone Thermometer', 'Water Buoy', 'HVAC Telemetry'],
-                        colors: {
-                            'Weather API': 'blue',
-                            'Roof Probe': 'green',
-                            'Drone Thermometer': 'purple',
-                            'Water Buoy': 'cyan',
-                            'HVAC Telemetry': 'yellow'
-                        }
-                    }
-                },
-                { id: 'collected_at', name: 'Collected At', type: 'DATE', width: '140px' },
-                { id: 'value', name: 'Value', type: 'NUMBER', width: '120px' },
-                { id: 'unit', name: 'Unit', type: 'LINK_RECORD', width: '160px', config: { linkedSetId: temperatureUnitsId } }
+            const observationsSet = state.sets.get(observationsId);
+            observationsSet.schema = [
+                { id: 'date', name: 'Date', type: 'DATE', width: '140px' },
+                { id: 'observer', name: 'Observer', type: 'TEXT', width: '180px' },
+                { id: 'observation', name: 'Observation', type: 'LONG_TEXT', width: '260px' }
             ];
 
-            const acmeFahrenheitId = addRecord(temperatureReadingsId, {
-                label: 'Acme Township Weather API (°F)',
-                location: 'Acme Township',
-                source_tool: 'Weather API',
-                collected_at: '2024-02-05',
-                value: 86,
-                unit: fahrenheitUnitId
+            observationsSet.records.clear();
+            const obs1Id = addRecord(observationsId, { date: '2024-04-12', observer: 'M. Ellis', observation: 'Found fresh tracks along the ridge path.' });
+            const obs2Id = addRecord(observationsId, { date: '2024-04-13', observer: 'S. Kaur', observation: 'Low mist over the marsh; water depth at 0.4m.' });
+            const obs3Id = addRecord(observationsId, { date: '2024-04-14', observer: 'J. Rivera', observation: 'Pair of hawks circling above the grove at noon.' });
+
+            createView(observationsId, 'Observations', { type: 'grid' });
+
+            Array.from(state.definitions.values())
+                .filter(def => def.worldId === defaultWorldId)
+                .forEach(def => state.definitions.delete(def.id));
+
+            addDefinition({
+                id: `${defaultWorldId}_def_location`,
+                entity: { type: 'Record', id: ridgeId },
+                term: 'Field Location',
+                definition: 'A place where observations are collected in the example world.',
+                notes: 'Locations anchor the observation network.',
+                tags: ['example', 'location'],
+                worldId: defaultWorldId
+            });
+            addDefinition({
+                id: `${defaultWorldId}_def_observation`,
+                entity: { type: 'Record', id: obs1Id },
+                term: 'Observation Entry',
+                definition: 'A single sighting or measurement recorded by an observer.',
+                notes: 'Use date and observer to track context.',
+                tags: ['example', 'observation'],
+                worldId: defaultWorldId
+            });
+            addDefinition({
+                id: `${defaultWorldId}_def_link`,
+                entity: { type: 'Connection', id: `${defaultWorldId}_example_conn_1` },
+                term: 'Observed At',
+                definition: 'Connects each observation to the location where it was made.',
+                notes: 'Maintains spatial context for notes.',
+                tags: ['example', 'connection'],
+                worldId: defaultWorldId
             });
 
-            const acmeCelsiusId = addRecord(temperatureReadingsId, {
-                label: 'Acme Township Drone Sensor (°C)',
-                location: 'Acme Township',
-                source_tool: 'Drone Thermometer',
-                collected_at: '2024-02-05',
-                value: 30,
-                unit: celsiusUnitId
+            Array.from(state.connections.values())
+                .filter(conn => conn.worldId === defaultWorldId)
+                .forEach(conn => state.connections.delete(conn.id));
+
+            addConnection({
+                id: `${defaultWorldId}_example_conn_1`,
+                subject: { type: 'Record', id: obs1Id },
+                operator: 'CON',
+                mode: 'observed at',
+                operand: { type: 'Record', id: ridgeId },
+                description: 'Tracks where the ridge observation was made.',
+                params: {},
+                worldId: defaultWorldId
             });
 
-            const harborFahrenheitId = addRecord(temperatureReadingsId, {
-                label: 'Harbor Wharf Roof Probe (°F)',
-                location: 'Harbor Wharf',
-                source_tool: 'Roof Probe',
-                collected_at: '2024-02-06',
-                value: 64,
-                unit: fahrenheitUnitId
+            addConnection({
+                id: `${defaultWorldId}_example_conn_2`,
+                subject: { type: 'Record', id: obs2Id },
+                operator: 'CON',
+                mode: 'observed at',
+                operand: { type: 'Record', id: marshId },
+                description: 'Links marsh observation to its site.',
+                params: {},
+                worldId: defaultWorldId
             });
 
-            const harborCelsiusId = addRecord(temperatureReadingsId, {
-                label: 'Harbor Wharf Buoy Sensor (°C)',
-                location: 'Harbor Wharf',
-                source_tool: 'Water Buoy',
-                collected_at: '2024-02-06',
-                value: 18,
-                unit: celsiusUnitId
+            addConnection({
+                id: `${defaultWorldId}_example_conn_3`,
+                subject: { type: 'Record', id: obs3Id },
+                operator: 'CON',
+                mode: 'observed at',
+                operand: { type: 'Record', id: groveId },
+                description: 'Associates grove observation with location.',
+                params: {},
+                worldId: defaultWorldId
             });
 
-            const northbankFahrenheitId = addRecord(temperatureReadingsId, {
-                label: 'Northbank Plaza HVAC (°F)',
-                location: 'Northbank Plaza',
-                source_tool: 'HVAC Telemetry',
-                collected_at: '2024-02-04',
-                value: 73,
-                unit: fahrenheitUnitId
-            });
-
-            const northbankCelsiusId = addRecord(temperatureReadingsId, {
-                label: 'Northbank Plaza Roof Array (°C)',
-                location: 'Northbank Plaza',
-                source_tool: 'Roof Probe',
-                collected_at: '2024-02-04',
-                value: 22,
-                unit: celsiusUnitId
-            });
-
-            createView(temperatureReadingsId, 'Readings', { type: 'grid' });
-
-            projectsSet.schema = [
-                { id: 'name', name: 'Project Name', type: 'TEXT', width: '200px' },
-                { id: 'client', name: 'Client', type: 'LINK_RECORD', width: '180px', config: { linkedSetId: contactsId } },
-                { id: 'status', name: 'Status', type: 'SINGLE_SELECT', width: '130px', config: {
-                    options: ['Planning', 'In Progress', 'On Hold', 'Completed'],
-                    colors: { 'Planning': 'gray', 'In Progress': 'blue', 'On Hold': 'yellow', 'Completed': 'green' }
-                }},
-                { id: 'budget', name: 'Budget', type: 'CURRENCY', width: '120px' },
-                { id: 'start_date', name: 'Start Date', type: 'DATE', width: '120px' },
-                { id: 'priority', name: 'Priority', type: 'SINGLE_SELECT', width: '100px', config: {
-                    options: ['Low', 'Medium', 'High', 'Critical'],
-                    colors: { 'Low': 'gray', 'Medium': 'blue', 'High': 'yellow', 'Critical': 'red' }
-                }},
-                { id: 'notes', name: 'Notes', type: 'LONG_TEXT', width: '300px' }
-            ];
-
-            projectsSet.profiles = new Map([
-                ['default', { id: 'default', name: 'All Fields', visibleFields: [] }]
-            ]);
-
-            addRecord(projectsId, {
-                name: 'Website Redesign',
-                client: acmeId,
-                status: 'In Progress',
-                budget: 50000,
-                start_date: '2024-01-15',
-                priority: 'High',
-                notes: 'Complete overhaul of company website'
-            });
-
-            addRecord(projectsId, {
-                name: 'Mobile App',
-                client: harborId,
-                status: 'Planning',
-                budget: 120000,
-                start_date: '2024-06-01',
-                priority: 'Critical',
-                notes: 'iOS and Android native apps'
-            });
-
-            addRecord(projectsId, {
-                name: 'Database Migration',
-                client: northbankId,
-                status: 'Completed',
-                budget: 30000,
-                start_date: '2023-11-01',
-                priority: 'High',
-                notes: 'Migrate to new cloud infrastructure'
-            });
-
-            createView(projectsId, 'All Projects', { type: 'grid' });
-            createView(projectsId, 'By Status', { type: 'kanban' });
-            createView(projectsId, 'Card View', { type: 'card' });
-
-            temperatureObservationsSet.schema = [
-                { id: 'name', name: 'Observation Name', type: 'TEXT', width: '220px' },
-                {
-                    id: 'fahrenheit_observation',
-                    name: 'Fahrenheit Observation',
-                    type: 'LINK_RECORD',
-                    width: '200px',
-                    config: { linkedSetId: temperatureReadingsId }
-                },
-                {
-                    id: 'celsius_observation',
-                    name: 'Celsius Observation',
-                    type: 'LINK_RECORD',
-                    width: '200px',
-                    config: { linkedSetId: temperatureReadingsId }
-                },
-                {
-                    id: 'avg_temp_c',
-                    name: 'Average Temp (°C)',
-                    type: 'FORMULA',
-                    width: '180px',
-                    config: { formula: '=AVERAGE_TO_UNIT("Celsius", {Fahrenheit Observation}, {Celsius Observation})' }
-                }
-            ];
-
-            addRecord(temperatureObservationsId, {
-                name: 'Acme Township',
-                fahrenheit_observation: acmeFahrenheitId,
-                celsius_observation: acmeCelsiusId
-            });
-
-            addRecord(temperatureObservationsId, {
-                name: 'Harbor Wharf',
-                fahrenheit_observation: harborFahrenheitId,
-                celsius_observation: harborCelsiusId
-            });
-
-            addRecord(temperatureObservationsId, {
-                name: 'Northbank Plaza',
-                fahrenheit_observation: northbankFahrenheitId,
-                celsius_observation: northbankCelsiusId
-            });
-
-            createView(temperatureObservationsId, 'Observations', { type: 'grid' });
-
-            state.demoRefs.temperature = {
-                unitSetId: temperatureUnitsId,
-                readingSetId: temperatureReadingsId,
-                observationSetId: temperatureObservationsId,
-                conversionSetId: conversionDefinitionsId,
-                fahrenheitUnitId,
-                celsiusUnitId
-            };
-
-            state.currentSetId = projectsId;
-            state.currentViewId = Array.from(projectsSet.views.keys())[0];
-            state.expandedSets.add(projectsId);
-            state.expandedSets.add(temperatureObservationsId);
-            state.expandedSets.add(temperatureReadingsId);
-            state.expandedSets.add(temperatureUnitsId);
-            state.expandedSets.add(conversionDefinitionsId);
+            state.currentSetId = observationsId;
+            state.currentViewId = Array.from(observationsSet.views.keys())[0];
+            state.expandedSets.add(observationsId);
+            state.expandedSets.add(locationsId);
         }
 
         // WORLD & SET MANAGEMENT
         function createWorld(name) {
             const worldId = 'world_' + Date.now();
+            const defaults = seedWorldDefaults(worldId);
+
             state.worlds.set(worldId, {
                 id: worldId,
                 name,
                 setIds: new Set(),
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                defaults
             });
-            initializeDemoDefinitions(worldId);
-            initializeDemoConnections(worldId);
             return worldId;
         }
 
