@@ -236,22 +236,24 @@
         }
         .sidebar-collapsed .sidebar-header { padding: 18px 10px; justify-content: center; }
         .sidebar-brand-logo {
-            width: 44px;
-            height: 44px;
-            padding: 8px;
-            border-radius: 12px;
-            background: #111827;
+            width: 52px;
+            height: 52px;
+            padding: 10px;
+            border-radius: 14px;
+            background: #0b1020;
             border: 1px solid #1f2937;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+            box-shadow: 0 8px 26px rgba(0, 0, 0, 0.2);
             transition: opacity 0.2s, width 0.2s, padding 0.2s, margin 0.2s;
         }
         .sidebar-brand-logo img {
             width: 100%;
             height: 100%;
             object-fit: contain;
+            border-radius: 10px;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.12), rgba(255,255,255,0));
         }
         .sidebar-collapsed .sidebar-brand-logo { opacity: 0; width: 0; padding: 0; margin: 0; overflow: hidden; }
         .sidebar-toggle {
@@ -2722,9 +2724,10 @@
 
             const cornerLogo = document.getElementById('topCornerLogo');
             if (cornerLogo) {
-                cornerLogo.src = bracketAsset;
-                cornerLogo.alt = `EO bracket logo for ${mode} mode`;
-                cornerLogo.dataset.brandMode = mode;
+                const darkAsset = BRAND_ASSETS.dark || bracketAsset;
+                cornerLogo.src = darkAsset;
+                cornerLogo.alt = 'EO bracket logo for dark mode';
+                cornerLogo.dataset.brandMode = 'dark';
             }
 
             document.documentElement.dataset.brandMode = mode;
