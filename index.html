@@ -4271,6 +4271,8 @@
         function findKeyCandidates() {
             const candidates = new Map();
 
+            const isValueField = (field) => (field.id?.toLowerCase() === 'value' || field.name?.toLowerCase() === 'value');
+
             const addCandidate = (setId, fieldId, fieldName, score) => {
                 if (!fieldId) return;
                 const key = `${setId}:${fieldId}`;
@@ -4288,6 +4290,19 @@
                         addCandidate(setId, field.id, field.name, usage.score);
                     }
                 });
+
+                const valueField = set.schema.find(isValueField);
+                if (valueField) {
+                    const values = Array.from(set.records.values())
+                        .map(r => r[valueField.id])
+                        .filter(v => v !== undefined && v !== null && v !== '');
+                    if (values.length > 0) {
+                        const unique = new Set(values.map(v => JSON.stringify(v))).size;
+                        const reuseRatio = 1 - unique / values.length;
+                        const score = Math.min(1, Math.max(0.65, reuseRatio * 0.8 + 0.2));
+                        addCandidate(setId, valueField.id, valueField.name || valueField.id, score);
+                    }
+                }
 
                 set.views.forEach(view => {
                     if (!Array.isArray(view.schema)) return;
