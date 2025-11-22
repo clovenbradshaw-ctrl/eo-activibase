@@ -2949,7 +2949,7 @@
             leanContext: null, // Will be initialized in initializeApp
             interpretationRules: [],
             definitions: new Map(),
-            entityFormState: { activeFilter: 'all', editingId: null },
+            entityFormState: { activeFilter: 'all', editingId: null, selectedType: 'set', expandedEntities: new Set() },
             connections: new Map(),
             demoRefs: {},
             connectionBuilder: { targetSetId: null, targetRecordId: '', searchQuery: '', formatId: null, params: {} },
@@ -5091,6 +5091,18 @@
             };
 
             state.definitions.set(id, payload);
+
+            // Register definition as an entity for tracking
+            registerEntity({
+                id: payload.id,
+                type: 'Definition',
+                entityType: 'Definition',
+                name: payload.term,
+                worldId: payload.worldId,
+                createdAt: payload.createdAt,
+                origin: 'manual'
+            });
+
             return payload;
         }
 
@@ -8702,6 +8714,86 @@
         }
 
         // ENTITIES
+        // Helper functions to get child objects for each entity type
+        function getChildrenForRecord(recordId) {
+            const record = getRecordById(recordId);
+            if (!record) return null;
+
+            const set = record.set;
+            const fields = set?.schema || [];
+            const outgoingConnections = Array.from(state.connections.values()).filter(c => c.subject?.id === recordId);
+            const incomingConnections = Array.from(state.connections.values()).filter(c => c.operand?.id === recordId);
+            const definitions = Array.from(state.definitions.values()).filter(d => d.entity?.type === 'Record' && d.entity?.id === recordId);
+            const derivedViews = Array.from(state.entities.values()).filter(e => e.type === 'ViewEntity' && e.memberRefs?.some(ref => ref.id === recordId));
+
+            return { fields, outgoingConnections, incomingConnections, definitions, derivedViews, record, set };
+        }
+
+        function getChildrenForSet(setId) {
+            const set = state.sets.get(setId);
+            if (!set) return null;
+
+            const records = Array.from(set.records.values()).map(r => ({ ...r, setId, setName: set.name }));
+            const fields = set.schema || [];
+            const views = Array.from(set.views.values());
+            const definitions = Array.from(state.definitions.values()).filter(d => d.entity?.type === 'Set' && d.entity?.id === setId);
+            const connections = Array.from(state.connections.values()).filter(c =>
+                (c.subject?.type === 'Set' && c.subject?.id === setId) ||
+                (c.operand?.type === 'Set' && c.operand?.id === setId)
+            );
+            const viewEntities = Array.from(state.entities.values()).filter(e => e.type === 'ViewEntity' && e.viewRef?.setId === setId);
+
+            return { records, fields, views, definitions, connections, viewEntities, set };
+        }
+
+        function getChildrenForField(fieldId, setId) {
+            const set = state.sets.get(setId);
+            if (!set) return null;
+
+            const field = set.schema.find(f => f.id === fieldId);
+            if (!field) return null;
+
+            const records = Array.from(set.records.values()).map(r => ({ id: r.id, value: r[fieldId] }));
+            const definitions = Array.from(state.definitions.values()).filter(d => d.entity?.type === 'Field' && d.entity?.id === fieldId);
+
+            return { field, records, definitions, set };
+        }
+
+        function getChildrenForConnection(connectionId) {
+            const connection = state.connections.get(connectionId);
+            if (!connection) return null;
+
+            const format = connection.formatId ? state.connectionFormats.get(connection.formatId) : null;
+            const subjectEntity = state.entities.get(connection.subject?.id);
+            const operandEntity = state.entities.get(connection.operand?.id);
+            const definitions = Array.from(state.definitions.values()).filter(d => d.entity?.type === 'Connection' && d.entity?.id === connectionId);
+
+            return { connection, format, subjectEntity, operandEntity, definitions };
+        }
+
+        function getChildrenForViewEntity(viewEntityId) {
+            const viewEntity = state.entities.get(viewEntityId);
+            if (!viewEntity) return null;
+
+            const viewRef = viewEntity.viewRef;
+            const set = viewRef?.setId ? state.sets.get(viewRef.setId) : null;
+            const view = set && viewRef?.viewId ? set.views.get(viewRef.viewId) : null;
+            const memberRefs = viewEntity.memberRefs || [];
+            const lineageConnections = Array.from(state.connections.values()).filter(c => c.operand?.id === viewEntityId);
+            const definitions = Array.from(state.definitions.values()).filter(d => d.entity?.type === 'ViewEntity' && d.entity?.id === viewEntityId);
+
+            return { viewEntity, set, view, memberRefs, lineageConnections, definitions };
+        }
+
+        function getChildrenForDefinition(definitionId) {
+            const definition = state.definitions.get(definitionId);
+            if (!definition) return null;
+
+            const targetEntity = definition.entity ? state.entities.get(definition.entity.id) : null;
+
+            return { definition, targetEntity };
+        }
+
         function groupEntitiesByType(entities = []) {
             const groups = new Map();
             entities.forEach(entity => {
@@ -8727,6 +8819,205 @@
                     <div class="mt-1 text-gray-500">${preview}${remaining}</div>
                 </div>
             `;
+        }
+
+        // Render child tables for expanded entities
+        function renderChildTable(title, icon, items, renderItem) {
+            if (!items || items.length === 0) return '';
+            return `
+                <div class="mt-2 bg-white border border-gray-200 rounded-md overflow-hidden">
+                    <div class="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+                        <i class="ph ${icon} text-gray-600"></i>
+                        <span class="text-xs font-semibold text-gray-700">${title} (${items.length})</span>
+                    </div>
+                    <div class="p-2 space-y-1 max-h-60 overflow-y-auto">
+                        ${items.map(renderItem).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderRecordChildren(recordId) {
+            const children = getChildrenForRecord(recordId);
+            if (!children) return '<p class="text-xs text-gray-500 mt-2">Record not found</p>';
+
+            const { fields, outgoingConnections, incomingConnections, definitions, derivedViews, set } = children;
+
+            return `
+                <div class="mt-3 space-y-2 pl-4 border-l-2 border-blue-200">
+                    ${set ? `<div class="text-xs text-gray-600"><strong>Set:</strong> ${set.name}</div>` : ''}
+                    ${renderChildTable('Fields', 'ph-columns', fields, field => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded flex items-center justify-between">
+                            <span><strong>${field.name}</strong></span>
+                            <span class="text-gray-500">${field.type}</span>
+                        </div>
+                    `)}
+                    ${renderChildTable('Outgoing Connections', 'ph-arrow-right', outgoingConnections, conn => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded">
+                            ${renderEntityLabel(conn.subject)} ${conn.mode || '→'} ${renderEntityLabel(conn.operand)}
+                        </div>
+                    `)}
+                    ${renderChildTable('Incoming Connections', 'ph-arrow-left', incomingConnections, conn => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded">
+                            ${renderEntityLabel(conn.subject)} ${conn.mode || '→'} ${renderEntityLabel(conn.operand)}
+                        </div>
+                    `)}
+                    ${renderChildTable('Definitions', 'ph-book-open', definitions, def => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded">
+                            <strong>${def.term}:</strong> ${def.definition}
+                        </div>
+                    `)}
+                    ${renderChildTable('Derived Views', 'ph-eye', derivedViews, view => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded">
+                            ${renderEntityLabel(view)}
+                        </div>
+                    `)}
+                </div>
+            `;
+        }
+
+        function renderSetChildren(setId) {
+            const children = getChildrenForSet(setId);
+            if (!children) return '<p class="text-xs text-gray-500 mt-2">Set not found</p>';
+
+            const { records, fields, views, definitions, connections, viewEntities } = children;
+
+            return `
+                <div class="mt-3 space-y-2 pl-4 border-l-2 border-green-200">
+                    ${renderChildTable('Records', 'ph-database', records.slice(0, 20), record => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded">
+                            ${getRecordDisplayName(record.id)}
+                        </div>
+                    `)}
+                    ${records.length > 20 ? `<div class="text-xs text-gray-500 px-2">... and ${records.length - 20} more records</div>` : ''}
+                    ${renderChildTable('Fields', 'ph-columns', fields, field => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded flex items-center justify-between">
+                            <span><strong>${field.name}</strong></span>
+                            <span class="text-gray-500">${field.type}</span>
+                        </div>
+                    `)}
+                    ${renderChildTable('Views', 'ph-stack', views, view => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded flex items-center justify-between">
+                            <span>${view.name}</span>
+                            <span class="text-gray-500">${view.type}</span>
+                        </div>
+                    `)}
+                    ${renderChildTable('Connections', 'ph-git-branch', connections, conn => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded">
+                            ${renderEntityLabel(conn.subject)} ${conn.mode || '→'} ${renderEntityLabel(conn.operand)}
+                        </div>
+                    `)}
+                    ${renderChildTable('View Entities', 'ph-eye', viewEntities, ve => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded">
+                            ${renderEntityLabel(ve)}
+                        </div>
+                    `)}
+                    ${renderChildTable('Definitions', 'ph-book-open', definitions, def => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded">
+                            <strong>${def.term}:</strong> ${def.definition}
+                        </div>
+                    `)}
+                </div>
+            `;
+        }
+
+        function renderConnectionChildren(connectionId) {
+            const children = getChildrenForConnection(connectionId);
+            if (!children) return '<p class="text-xs text-gray-500 mt-2">Connection not found</p>';
+
+            const { connection, format, subjectEntity, operandEntity, definitions } = children;
+
+            return `
+                <div class="mt-3 space-y-2 pl-4 border-l-2 border-purple-200">
+                    <div class="text-xs space-y-1">
+                        ${format ? `<div><strong>Format:</strong> ${format.name || format.id}</div>` : ''}
+                        <div><strong>Subject:</strong> ${renderEntityLabel(connection.subject)}</div>
+                        <div><strong>Operator:</strong> ${connection.operator || connection.mode || '→'}</div>
+                        <div><strong>Operand:</strong> ${renderEntityLabel(connection.operand)}</div>
+                        ${connection.params && Object.keys(connection.params).length > 0 ? `
+                            <div class="mt-2">
+                                <strong>Parameters:</strong>
+                                <pre class="mt-1 p-2 bg-gray-50 rounded text-xs overflow-x-auto">${JSON.stringify(connection.params, null, 2)}</pre>
+                            </div>
+                        ` : ''}
+                    </div>
+                    ${renderChildTable('Definitions', 'ph-book-open', definitions, def => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded">
+                            <strong>${def.term}:</strong> ${def.definition}
+                        </div>
+                    `)}
+                </div>
+            `;
+        }
+
+        function renderViewEntityChildren(viewEntityId) {
+            const children = getChildrenForViewEntity(viewEntityId);
+            if (!children) return '<p class="text-xs text-gray-500 mt-2">View entity not found</p>';
+
+            const { viewEntity, set, view, memberRefs, lineageConnections, definitions } = children;
+
+            return `
+                <div class="mt-3 space-y-2 pl-4 border-l-2 border-indigo-200">
+                    <div class="text-xs space-y-1">
+                        ${set ? `<div><strong>Source Set:</strong> ${set.name}</div>` : ''}
+                        ${view ? `<div><strong>Source View:</strong> ${view.name} (${view.type})</div>` : ''}
+                        ${viewEntity.viewRef ? `<div class="text-gray-600">View Ref: ${viewEntity.viewRef.setId} / ${viewEntity.viewRef.viewId}</div>` : ''}
+                    </div>
+                    ${renderChildTable('Members', 'ph-users', memberRefs, ref => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded">
+                            ${renderEntityLabel(ref)}
+                        </div>
+                    `)}
+                    ${renderChildTable('Lineage Connections', 'ph-git-branch', lineageConnections, conn => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded">
+                            ${renderEntityLabel(conn.subject)} ${conn.mode || '→'} ${renderEntityLabel(conn.operand)}
+                        </div>
+                    `)}
+                    ${renderChildTable('Definitions', 'ph-book-open', definitions, def => `
+                        <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded">
+                            <strong>${def.term}:</strong> ${def.definition}
+                        </div>
+                    `)}
+                </div>
+            `;
+        }
+
+        function renderDefinitionChildren(definitionId) {
+            const children = getChildrenForDefinition(definitionId);
+            if (!children) return '<p class="text-xs text-gray-500 mt-2">Definition not found</p>';
+
+            const { definition, targetEntity } = children;
+
+            return `
+                <div class="mt-3 space-y-2 pl-4 border-l-2 border-yellow-200">
+                    <div class="text-xs space-y-1">
+                        <div><strong>Term:</strong> ${definition.term}</div>
+                        <div><strong>Definition:</strong> ${definition.definition}</div>
+                        ${definition.notes ? `<div><strong>Notes:</strong> ${definition.notes}</div>` : ''}
+                        ${definition.tags?.length > 0 ? `<div><strong>Tags:</strong> ${definition.tags.join(', ')}</div>` : ''}
+                        ${targetEntity ? `<div class="mt-2"><strong>Target Entity:</strong> ${renderEntityLabel(targetEntity)}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderChildTables(entity) {
+            const entityType = (entity.type || '').toLowerCase();
+
+            switch (entityType) {
+                case 'record':
+                    return renderRecordChildren(entity.id);
+                case 'set':
+                    return renderSetChildren(entity.id);
+                case 'connection':
+                    return renderConnectionChildren(entity.id);
+                case 'viewentity':
+                    return renderViewEntityChildren(entity.id);
+                case 'definition':
+                    return renderDefinitionChildren(entity.id);
+                default:
+                    return '';
+            }
         }
 
         function renderEntityGroups(groupMap) {
@@ -8812,128 +9103,242 @@
             renderEntitiesPage(state.entityFormState.activeFilter || 'all');
         }
 
-        function renderEntitiesPage(filterKey = 'all') {
-            state.entityFormState.activeFilter = filterKey;
+        function renderEntitiesPage(selectedType = null) {
+            // Tier 1: Entity Type Selection with full class names for Tailwind
+            const entityTypes = [
+                {
+                    key: 'set',
+                    label: 'Sets',
+                    icon: 'ph-squares-four',
+                    iconClass: 'text-green-600',
+                    activeBorder: 'border-green-500',
+                    activeBg: 'bg-green-50',
+                    activeText: 'text-green-900',
+                    activeCount: 'text-green-700'
+                },
+                {
+                    key: 'record',
+                    label: 'Records',
+                    icon: 'ph-database',
+                    iconClass: 'text-blue-600',
+                    activeBorder: 'border-blue-500',
+                    activeBg: 'bg-blue-50',
+                    activeText: 'text-blue-900',
+                    activeCount: 'text-blue-700'
+                },
+                {
+                    key: 'connection',
+                    label: 'Connections',
+                    icon: 'ph-git-branch',
+                    iconClass: 'text-purple-600',
+                    activeBorder: 'border-purple-500',
+                    activeBg: 'bg-purple-50',
+                    activeText: 'text-purple-900',
+                    activeCount: 'text-purple-700'
+                },
+                {
+                    key: 'viewentity',
+                    label: 'Views',
+                    icon: 'ph-eye',
+                    iconClass: 'text-indigo-600',
+                    activeBorder: 'border-indigo-500',
+                    activeBg: 'bg-indigo-50',
+                    activeText: 'text-indigo-900',
+                    activeCount: 'text-indigo-700'
+                },
+                {
+                    key: 'definition',
+                    label: 'Definitions',
+                    icon: 'ph-book-open',
+                    iconClass: 'text-yellow-600',
+                    activeBorder: 'border-yellow-500',
+                    activeBg: 'bg-yellow-50',
+                    activeText: 'text-yellow-900',
+                    activeCount: 'text-yellow-700'
+                }
+            ];
 
-            const filters = {
-                all: () => true,
-                reified: entity => entity.origin === 'reified',
-                manual: entity => entity.origin === 'manual',
-                views: entity => entity.type === 'ViewEntity',
-                records: entity => entity.type === 'Record'
-            };
+            // Set default selected type
+            if (!selectedType) {
+                selectedType = state.entityFormState.selectedType || 'set';
+            }
+            state.entityFormState.selectedType = selectedType;
 
-            const entities = getEntityView(filters[filterKey]);
-            const grouped = groupEntitiesByType(entities);
+            // Get all entities and filter by selected type
+            const allEntities = getEntityView();
+            const filteredEntities = allEntities.filter(e => (e.type || '').toLowerCase() === selectedType.toLowerCase());
+
+            // Stats
+            const totalCount = allEntities.length;
+            const typeCount = filteredEntities.length;
+            const reifiedCount = filteredEntities.filter(e => e.origin === 'reified').length;
+            const manualCount = filteredEntities.filter(e => e.origin === 'manual').length;
+
             const container = document.getElementById('viewContainer');
-            const reifiedCount = entities.filter(e => e.origin === 'reified').length;
-            const manualCount = entities.filter(e => e.origin === 'manual').length;
+
+            // Tier 2 & 3: Render entity list with expandable rows
+            const renderEntityRow = (entity) => {
+                const isExpanded = state.entityFormState.expandedEntities.has(entity.id);
+                const entityTypeInfo = entityTypes.find(t => t.key === selectedType) || entityTypes[0];
+
+                return `
+                    <div class="border border-gray-200 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow">
+                        <div class="p-4 cursor-pointer" data-entity-expand="${entity.id}">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-3 min-w-0 flex-1">
+                                    <div class="flex-shrink-0">
+                                        <i class="ph ${entityTypeInfo.icon} ${entityTypeInfo.iconClass} text-xl"></i>
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="font-semibold text-gray-900 truncate">${renderEntityLabel(entity)}</div>
+                                        <div class="text-xs text-gray-500 flex flex-wrap items-center gap-2 mt-1">
+                                            <span class="inline-flex items-center gap-1">
+                                                <i class="ph ph-fingerprint"></i>${entity.id}
+                                            </span>
+                                            ${entity.origin ? `
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${entity.origin === 'reified' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}">
+                                                    ${entity.origin}
+                                                </span>
+                                            ` : ''}
+                                            ${entity.createdAt ? `
+                                                <span class="inline-flex items-center gap-1">
+                                                    <i class="ph ph-clock"></i>${new Date(entity.createdAt).toLocaleDateString()}
+                                                </span>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 flex-shrink-0">
+                                    ${entity.origin === 'manual' ? `
+                                        <button class="btn btn-secondary btn-sm text-red-600 hover:bg-red-50" data-entity-delete="${entity.id}" onclick="event.stopPropagation()">
+                                            <i class="ph ph-trash"></i>
+                                        </button>
+                                    ` : `
+                                        <span class="text-xs text-gray-400 px-2 py-1 bg-gray-50 rounded" title="Reified entities are protected">
+                                            <i class="ph ph-lock"></i>
+                                        </span>
+                                    `}
+                                    <button class="text-gray-400 hover:text-gray-600 transition-transform ${isExpanded ? 'rotate-180' : ''}" onclick="event.stopPropagation()">
+                                        <i class="ph ph-caret-down text-xl"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        ${isExpanded ? `
+                            <div class="border-t border-gray-200 p-4 bg-gray-50">
+                                ${renderChildTables(entity)}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            };
 
             container.innerHTML = `
                 <div class="view-stage-header">
                     <div class="view-stage-title">
                         <span class="view-stage-pill">${getWorld()?.name || 'Entities'}</span>
                         <div class="min-w-0">
-                            <div class="view-stage-name">Entities</div>
-                            <div class="view-stage-sub">${entities.length} tracked · ${grouped.size} types</div>
+                            <div class="view-stage-name">Entity Navigator</div>
+                            <div class="view-stage-sub">${totalCount} total · ${typeCount} ${selectedType}${typeCount !== 1 ? 's' : ''}</div>
                         </div>
                     </div>
                 </div>
                 <div class="view-stage-body space-y-6">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                        <div class="space-y-1">
-                            <div class="font-semibold text-gray-900">Entity tools</div>
-                            <p class="text-sm text-gray-500">Filter, review, and capture entities connected to your world.</p>
+                    <!-- Tier 1: Entity Type Selector -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="space-y-1">
+                                <div class="font-semibold text-gray-900">Entity Types</div>
+                                <p class="text-sm text-gray-500">Browse entities organized by type</p>
+                            </div>
                         </div>
-                        <div class="flex gap-2">
-                            <button class="btn btn-primary btn-sm" id="openEntityFormBtn">${state.entityFormState.editingId ? 'Update Entity' : 'Add Entity'}</button>
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                            ${entityTypes.map(type => {
+                                const count = allEntities.filter(e => (e.type || '').toLowerCase() === type.key).length;
+                                const isActive = selectedType === type.key;
+                                return `
+                                    <button
+                                        class="p-4 rounded-lg border-2 ${isActive ? `${type.activeBorder} ${type.activeBg}` : 'border-gray-200 bg-white hover:border-gray-300'} transition-all"
+                                        data-entity-type="${type.key}"
+                                    >
+                                        <div class="flex flex-col items-center gap-2">
+                                            <i class="ph ${type.icon} text-2xl ${isActive ? type.iconClass : 'text-gray-600'}"></i>
+                                            <div class="text-sm font-semibold ${isActive ? type.activeText : 'text-gray-900'}">${type.label}</div>
+                                            <div class="text-xl font-bold ${isActive ? type.activeCount : 'text-gray-700'}">${count}</div>
+                                        </div>
+                                    </button>
+                                `;
+                            }).join('')}
                         </div>
                     </div>
-                    <div class="flex flex-wrap gap-2">
-                        ${['all','reified','manual','views','records'].map(key => `<button class="btn btn-secondary btn-sm ${filterKey === key ? 'btn-primary' : ''}" data-entity-filter="${key}">${key.charAt(0).toUpperCase() + key.slice(1)}</button>`).join('')}
-                    </div>
+
+                    <!-- Statistics Cards -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Total</div>
+                            <div class="text-2xl font-bold text-gray-900">${typeCount}</div>
+                            <div class="text-xs text-gray-500">${selectedType}${typeCount !== 1 ? 's' : ''} in this world</div>
+                        </div>
                         <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
                             <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Reified</div>
                             <div class="text-2xl font-bold text-gray-900">${reifiedCount}</div>
                             <div class="text-xs text-gray-500">Made persistent from views</div>
                         </div>
                         <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
-                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Direct</div>
+                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Manual</div>
                             <div class="text-2xl font-bold text-gray-900">${manualCount}</div>
-                            <div class="text-xs text-gray-500">Added manually</div>
-                        </div>
-                        <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
-                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Types</div>
-                            <div class="text-2xl font-bold text-gray-900">${grouped.size}</div>
-                            <div class="text-xs text-gray-500">Entity families</div>
+                            <div class="text-xs text-gray-500">Added directly</div>
                         </div>
                     </div>
-                    <div class="space-y-3">
-                        ${renderEntityGroups(grouped)}
-                    </div>
-                    <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm" id="entityFormCard">
-                        <div class="flex items-center justify-between mb-3">
-                            <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Add Entity</div>
-                                <div class="text-sm text-gray-500">Capture a new entity type without duplicating data.</div>
-                            </div>
-                            ${state.entityFormState.editingId ? '<button class="btn btn-secondary btn-sm" id="resetEntityForm">Clear</button>' : ''}
+
+                    <!-- Tier 2 & 3: Entity List with Expandable Rows -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="font-semibold text-gray-900">${entityTypes.find(t => t.key === selectedType)?.label || 'Entities'}</div>
+                            <div class="text-sm text-gray-500">${typeCount} item${typeCount !== 1 ? 's' : ''}</div>
                         </div>
-                        <form id="entityForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label class="form-label">Entity Kind *</label>
-                                <input id="entityKind" type="text" class="border rounded px-3 py-2 w-full" placeholder="Record, Observation, etc." />
+                        ${filteredEntities.length > 0 ? `
+                            <div class="space-y-2">
+                                ${filteredEntities.map(renderEntityRow).join('')}
                             </div>
-                            <div>
-                                <label class="form-label">Entity ID *</label>
-                                <input id="entityId" type="text" class="border rounded px-3 py-2 w-full" placeholder="Unique identifier" />
+                        ` : `
+                            <div class="p-8 text-center border-2 border-dashed border-gray-300 rounded-lg">
+                                <i class="ph ph-package text-4xl text-gray-400 mb-2"></i>
+                                <p class="text-gray-500">No ${selectedType}s found</p>
+                                <p class="text-sm text-gray-400 mt-1">Create one to get started</p>
                             </div>
-                            <div>
-                                <label class="form-label">Entity Type / Family</label>
-                                <input id="entityType" type="text" class="border rounded px-3 py-2 w-full" placeholder="Grouping e.g. Questionable Observations" />
-                            </div>
-                            <div>
-                                <label class="form-label">Display Label</label>
-                                <input id="entityLabel" type="text" class="border rounded px-3 py-2 w-full" placeholder="Human readable name" />
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="form-label">Notes</label>
-                                <textarea id="entityNotes" class="border rounded px-3 py-2 w-full" rows="2" placeholder="Optional context or provenance"></textarea>
-                            </div>
-                            <div class="md:col-span-2 flex justify-end">
-                                <button type="submit" id="entitySubmit" class="btn btn-primary">Capture Entity</button>
-                            </div>
-                        </form>
+                        `}
                     </div>
                 </div>
             `;
 
-            document.querySelectorAll('[data-entity-filter]').forEach(btn => {
-                btn.onclick = () => renderEntitiesPage(btn.dataset.entityFilter);
+            // Event handlers for type selection
+            document.querySelectorAll('[data-entity-type]').forEach(btn => {
+                btn.onclick = () => renderEntitiesPage(btn.dataset.entityType);
             });
 
+            // Event handlers for expanding/collapsing entities
+            document.querySelectorAll('[data-entity-expand]').forEach(elem => {
+                elem.onclick = () => {
+                    const entityId = elem.dataset.entityExpand;
+                    if (state.entityFormState.expandedEntities.has(entityId)) {
+                        state.entityFormState.expandedEntities.delete(entityId);
+                    } else {
+                        state.entityFormState.expandedEntities.add(entityId);
+                    }
+                    renderEntitiesPage(selectedType);
+                };
+            });
+
+            // Event handlers for deleting entities
             document.querySelectorAll('[data-entity-delete]').forEach(btn => {
-                btn.onclick = () => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
                     deleteEntity(btn.dataset.entityDelete);
-                    renderEntitiesPage(filterKey);
+                    renderEntitiesPage(selectedType);
                     showToast('✓ Entity removed');
                 };
             });
-
-            const form = document.getElementById('entityForm');
-            if (form) form.onsubmit = (event) => { event.preventDefault(); handleEntityFormSubmit(); };
-            const resetBtn = document.getElementById('resetEntityForm');
-            if (resetBtn) resetBtn.onclick = resetEntityForm;
-            const openFormBtn = document.getElementById('openEntityFormBtn');
-            if (openFormBtn) {
-                openFormBtn.onclick = () => {
-                    const formCard = document.getElementById('entityFormCard');
-                    formCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    const firstInput = document.getElementById('entityKind');
-                    if (firstInput) firstInput.focus();
-                };
-            }
         }
 
         // GRAPH VIEW
