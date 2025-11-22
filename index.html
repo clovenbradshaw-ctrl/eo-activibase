@@ -12315,6 +12315,15 @@
         }
 
         // SEARCH DATA FUNCTIONALITY
+        function getRecordDisplayLabel(record, set) {
+            if (!record || !set) return '';
+
+            const identifierFieldId = getIdentifierFieldForSet(set);
+            const identifierValue = identifierFieldId ? record[identifierFieldId] : null;
+
+            return identifierValue || record.name || '';
+        }
+
         function openSearchDataModal() {
             openModal('searchDataModal');
             document.getElementById('searchDataInput').value = '';
