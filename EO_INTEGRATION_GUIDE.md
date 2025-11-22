@@ -18,7 +18,7 @@ The EO framework consists of these files:
 ### Documentation
 - **`EO_FRAMEWORK.md`** - Complete framework documentation
 - **`EO_INTEGRATION_GUIDE.md`** - This file
-- **`eo_demo.html`** - Working demo with examples
+- **`demo/eo_demo.html`** - Working demo with examples
 
 ---
 
@@ -432,7 +432,7 @@ const table = new WorkbaseTable();
 
 ## 🎓 Next Steps
 
-1. **Try the demo**: Open `eo_demo.html` in a browser to see it working
+1. **Try the demo**: Open `demo/eo_demo.html` in a browser to see it working
 2. **Read the framework docs**: See `EO_FRAMEWORK.md` for theory
 3. **Integrate step-by-step**: Start with CSV import, then add edit handling
 4. **Customize**: Adjust styles and configuration to match your needs
@@ -443,7 +443,7 @@ const table = new WorkbaseTable();
 
 - **Start small**: Integrate import first, then edits, then modals
 - **Use debug mode**: `eo.enableDebug()` is your friend
-- **Check the demo**: `eo_demo.html` has working examples of everything
+- **Check the demo**: `demo/eo_demo.html` has working examples of everything
 - **Context is automatic**: Trust the inference engine, it's smarter than manual entry
 - **SUP is a feature**: Multiple values aren't errors, they're different perspectives
 
@@ -452,7 +452,7 @@ const table = new WorkbaseTable();
 ## 🤝 Support
 
 - Check `EO_FRAMEWORK.md` for conceptual documentation
-- Review `eo_demo.html` for working code examples
+- Review `demo/eo_demo.html` for working code examples
 - Use debug mode to inspect internal state
 - All functions are documented with JSDoc comments
 
