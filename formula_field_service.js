@@ -27,6 +27,31 @@ class FormulaFieldService {
     return map;
   }
 
+  getFieldAliases(field = {}) {
+    const aliases = new Set();
+    const aliasKeys = [
+      'name',
+      'displayName',
+      'display_name',
+      'prettyName',
+      'pretty_name',
+      'label'
+    ];
+
+    aliasKeys.forEach((key) => {
+      const value = field[key];
+      if (typeof value === 'string' && value.trim()) {
+        aliases.add(value.trim());
+      }
+    });
+
+    if (typeof field?.config?.label === 'string' && field.config.label.trim()) {
+      aliases.add(field.config.label.trim());
+    }
+
+    return Array.from(aliases);
+  }
+
   normalizeFieldReference(fieldName) {
     if (!fieldName) return '';
     return `{${fieldName}}`;
@@ -42,9 +67,9 @@ class FormulaFieldService {
 
     schemaFields.forEach((field) => {
       if (!field) return;
-      if (field.name) {
-        lookup[field.name.toLowerCase()] = field;
-      }
+      this.getFieldAliases(field).forEach((alias) => {
+        lookup[alias.toLowerCase()] = field;
+      });
       if (field.id) {
         lookup[String(field.id).toLowerCase()] = field;
       }
@@ -119,9 +144,9 @@ class FormulaFieldService {
     const map = new Map();
 
     schemaFields.forEach((field) => {
-      if (field?.name) {
-        map.set(field.name, field.id);
-      }
+      this.getFieldAliases(field).forEach((alias) => {
+        map.set(alias, field.id);
+      });
       if (field?.id) {
         map.set(field.id, field.id);
       }
