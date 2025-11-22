@@ -4642,8 +4642,7 @@
             if (def?.term) return def.term;
 
             if (entity.type === 'Record') {
-                const ref = getRecordById(entity.id);
-                return ref?.record?.name || entity.id;
+                return getRecordDisplayName(entity.id);
             }
             if (entity.type === 'Set') {
                 return state.sets.get(entity.id)?.name || entity.id;
@@ -5339,6 +5338,7 @@
                 relationships: config.relationships || [],
                 rollups: config.rollups || [],
                 showRecordId: config.showRecordId || false,
+                identifierField: config.identifierField || null,
                 columnRules: config.columnRules || {},
                 createdAt: Date.now(),
                 createdBy: state.currentUser.id
@@ -10398,7 +10398,27 @@
 
         function getRecordDisplayName(recordId) {
             const ref = getRecordById(recordId);
-            return ref?.record?.name || recordId;
+            if (!ref) return recordId;
+
+            const identifierFieldId = getIdentifierFieldForSet(ref.set, ref.setId === state.currentSetId ? state.currentViewId : null);
+            const identifierValue = identifierFieldId ? ref.record?.[identifierFieldId] : null;
+
+            return identifierValue || ref.record?.name || recordId;
+        }
+
+        function getIdentifierFieldForSet(set, preferredViewId = null) {
+            if (!set) return null;
+
+            if (preferredViewId && set.views.has(preferredViewId)) {
+                const preferredView = set.views.get(preferredViewId);
+                if (preferredView?.identifierField) return preferredView.identifierField;
+            }
+
+            for (const view of set.views.values()) {
+                if (view?.identifierField) return view.identifierField;
+            }
+
+            return null;
         }
 
         function openLinkedRecord(recordId) {
@@ -11006,13 +11026,36 @@
 
         // CONTEXT MENUS
         function showColumnMenu(e, field) {
+            const currentView = getCurrentView();
+            const isIdentifier = currentView?.identifierField === field.id;
+
             showContextMenu(e, [
                 { label: 'Create View from Column', action: () => createViewFromColumn(field) },
+                { label: isIdentifier ? 'Clear Identifier' : 'Use as Identifier', action: () => setIdentifierField(isIdentifier ? null : field.id) },
                 { label: 'Change Field Type…', action: () => openChangeFieldTypeModal(field) },
                 hasFieldHistory(getCurrentSet()?.id, field.id) ? { label: 'Revert Last Type Change', action: () => revertFieldType(field.id) } : null,
                 { label: 'Hide Field', action: () => hideField(field.id) },
                 { label: 'Delete Field', action: () => confirmDelete('field', field.id), danger: true }
             ].filter(Boolean));
+        }
+
+        function setIdentifierField(fieldId) {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+
+            view.identifierField = fieldId || null;
+
+            createEvent(
+                'View Identifier Update',
+                'UPD',
+                { type: 'View', id: view.id, setId: set.id },
+                { identifierField: view.identifierField, summary: fieldId ? `Set ${fieldId} as identifier for ${view.name}` : `Cleared identifier for ${view.name}` },
+                { scale: 'collection' }
+            );
+
+            renderCurrentView();
+            showToast(fieldId ? '✓ Identifier updated' : 'Identifier cleared');
         }
 
         function openChangeFieldTypeModal(field) {
