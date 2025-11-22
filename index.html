@@ -9602,6 +9602,12 @@
 
             graphNetwork.on('stabilizationIterationsDone', function() {
                 graphNetwork.setOptions({ physics: { enabled: false } });
+                graphNetwork.fit({
+                    animation: {
+                        duration: 500,
+                        easingFunction: 'easeInOutQuad'
+                    }
+                });
             });
         }
 
