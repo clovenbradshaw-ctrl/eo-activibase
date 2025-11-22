@@ -1957,6 +1957,175 @@
         </div>
     </div>
 
+    <div id="definitionModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-2xl">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900" id="definitionModalTitle">Add Definition</h2>
+                    <p class="text-sm text-gray-500">Provide a definition for any entity type.</p>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600 transition" onclick="closeDefinitionModal()" aria-label="Close">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="definitionForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">Entity Type</label>
+                        <select id="definitionEntityType" class="border rounded px-3 py-2 w-full">
+                            <option value="">Select type</option>
+                            <option value="Record">Record</option>
+                            <option value="Field">Field</option>
+                            <option value="Set">Set</option>
+                            <option value="Connection">Connection</option>
+                            <option value="ViewEntity">ViewEntity</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Entity ID</label>
+                        <input id="definitionEntityId" type="text" class="border rounded px-3 py-2 w-full" placeholder="entity identifier" />
+                    </div>
+                    <div>
+                        <label class="form-label">Term</label>
+                        <input id="definitionTerm" type="text" class="border rounded px-3 py-2 w-full" placeholder="Human-readable term" />
+                    </div>
+                    <div>
+                        <label class="form-label">Definition</label>
+                        <input id="definitionDefinition" type="text" class="border rounded px-3 py-2 w-full" placeholder="What does this mean?" />
+                    </div>
+                    <div>
+                        <label class="form-label">Notes</label>
+                        <input id="definitionNotes" type="text" class="border rounded px-3 py-2 w-full" placeholder="Optional clarifications" />
+                    </div>
+                    <div>
+                        <label class="form-label">Tags (comma separated)</label>
+                        <input id="definitionTags" type="text" class="border rounded px-3 py-2 w-full" placeholder="demo, core" />
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button class="btn btn-secondary" type="button" onclick="closeDefinitionModal()">Cancel</button>
+                <button class="btn btn-primary" type="submit" form="definitionForm" id="definitionSubmit">Add Definition</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="connectionFormatModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-2xl">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900" id="connectionFormatModalTitle">Add Connection Format</h2>
+                    <p class="text-sm text-gray-500">Define operator + mode templates using the EO dictionary.</p>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600 transition" onclick="closeModal('connectionFormatModal')" aria-label="Close">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="connectionFormatForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">Operator</label>
+                        <select id="connectionFormatOperator" class="border rounded px-3 py-2 w-full">
+                            <option value="">Select operator</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Mode</label>
+                        <select id="connectionFormatMode" class="border rounded px-3 py-2 w-full"></select>
+                    </div>
+                    <div>
+                        <label class="form-label">Required Params (comma separated)</label>
+                        <input id="connectionFormatRequired" type="text" class="border rounded px-3 py-2 w-full" placeholder="threshold, weight" />
+                    </div>
+                    <div>
+                        <label class="form-label">Optional Params (comma separated)</label>
+                        <input id="connectionFormatOptional" type="text" class="border rounded px-3 py-2 w-full" placeholder="notes" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="form-label">Description</label>
+                        <input id="connectionFormatDescription" type="text" class="border rounded px-3 py-2 w-full" placeholder="Describe how this format should be used" />
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('connectionFormatModal')">Cancel</button>
+                <button class="btn btn-primary" type="submit" form="connectionFormatForm" id="connectionFormatSubmit">Add Format</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="connectionModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-3xl">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900" id="connectionModalTitle">Add Connection</h2>
+                    <p class="text-sm text-gray-500">Choose a format to link specific entities.</p>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600 transition" onclick="closeModal('connectionModal')" aria-label="Close">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="connectionForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">Format</label>
+                        <select id="connectionFormatSelect" class="border rounded px-3 py-2 w-full">
+                            <option value="">Select a format</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end text-sm text-gray-600 gap-2">
+                        <div class="mt-6" id="connectionFormatSummary">No format selected</div>
+                    </div>
+                    <div>
+                        <label class="form-label">Subject Type</label>
+                        <select id="connectionSubjectType" class="border rounded px-3 py-2 w-full">
+                            <option value="">Select type</option>
+                            <option value="Record">Record</option>
+                            <option value="Field">Field</option>
+                            <option value="Set">Set</option>
+                            <option value="Connection">Connection</option>
+                            <option value="ViewEntity">ViewEntity</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Subject ID</label>
+                        <input id="connectionSubjectId" type="text" class="border rounded px-3 py-2 w-full" />
+                    </div>
+                    <div>
+                        <label class="form-label">Operand Type</label>
+                        <select id="connectionOperandType" class="border rounded px-3 py-2 w-full">
+                            <option value="">Select type</option>
+                            <option value="Record">Record</option>
+                            <option value="Field">Field</option>
+                            <option value="Set">Set</option>
+                            <option value="Connection">Connection</option>
+                            <option value="ViewEntity">ViewEntity</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Operand ID</label>
+                        <input id="connectionOperandId" type="text" class="border rounded px-3 py-2 w-full" />
+                    </div>
+                    <div>
+                        <label class="form-label">Description</label>
+                        <input id="connectionDescription" type="text" class="border rounded px-3 py-2 w-full" placeholder="Optional" />
+                    </div>
+                    <div id="connectionParamFields" class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                </form>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('connectionModal')">Cancel</button>
+                <button class="btn btn-primary" type="submit" form="connectionForm" id="connectionSubmit">Add Connection</button>
+            </div>
+        </div>
+    </div>
+
     <div id="expandedRecordModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
         <div class="modal-container bg-white w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
             <div class="modal-header flex items-center justify-between flex-shrink-0">
@@ -8602,12 +8771,16 @@
             showToast(`✓ Imported ${added + updated} definitions${updated ? ` (${updated} updated)` : ''}${skipped ? ` · ${skipped} skipped` : ''}`);
         }
 
-        function focusDefinitionForm() {
+        function openDefinitionModal(definitionId = null) {
             resetDefinitionForm();
-            const formCard = document.getElementById('definitionFormCard');
-            if (formCard) formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (definitionId) populateDefinitionForm(definitionId);
+            openModal('definitionModal');
             const entityTypeSelect = document.getElementById('definitionEntityType');
             if (entityTypeSelect) entityTypeSelect.focus();
+        }
+
+        function closeDefinitionModal() {
+            closeModal('definitionModal');
         }
 
         function resetDefinitionForm() {
@@ -8617,6 +8790,8 @@
             form.reset();
             const submit = document.getElementById('definitionSubmit');
             if (submit) submit.textContent = 'Add Definition';
+            const title = document.getElementById('definitionModalTitle');
+            if (title) title.textContent = 'Add Definition';
         }
 
         function populateDefinitionForm(definitionId) {
@@ -8632,7 +8807,10 @@
             form.querySelector('#definitionTags').value = (def.tags || []).join(', ');
             const submit = document.getElementById('definitionSubmit');
             if (submit) submit.textContent = 'Save Definition';
+            const title = document.getElementById('definitionModalTitle');
+            if (title) title.textContent = 'Edit Definition';
             state.definitionFormState.editingId = def.id;
+            openModal('definitionModal');
         }
 
         function handleDefinitionFormSubmit() {
@@ -8668,7 +8846,43 @@
             }
 
             resetDefinitionForm();
+            closeDefinitionModal();
             renderDefinitionsPage(state.definitionFormState.activeFilter || 'all');
+        }
+
+        function attachDefinitionInlineEditing() {
+            document.querySelectorAll('[data-def-inline]').forEach(cell => {
+                const [field, defId] = (cell.dataset.defInline || '').split(':');
+                if (!field || !defId) return;
+
+                const original = cell.textContent.trim();
+                cell.contentEditable = 'true';
+                cell.onfocus = () => cell.dataset.originalValue = cell.textContent.trim();
+                cell.onkeydown = (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        cell.blur();
+                    }
+                };
+                cell.onblur = () => {
+                    const current = (cell.textContent || '').trim();
+                    const baseline = cell.dataset.originalValue !== undefined ? cell.dataset.originalValue : original;
+                    if (current === baseline) return;
+
+                    const def = state.definitions.get(defId);
+                    if (!def) return;
+                    const updates = { ...def };
+                    if (field === 'tags') {
+                        updates.tags = current ? current.split(',').map(t => t.trim()).filter(Boolean) : [];
+                    } else {
+                        updates[field] = current;
+                    }
+
+                    updateDefinition(defId, updates);
+                    showToast('✓ Definition updated');
+                    renderDefinitionsPage(state.definitionFormState.activeFilter || 'all');
+                };
+            });
         }
 
         function renderDefinitionsTable(definitions) {
@@ -8690,10 +8904,10 @@
                             ${definitions.map(def => `
                                 <tr>
                                     <td class="px-4 py-3 whitespace-nowrap text-gray-800">${def.entity.type}: ${renderEntityLabel(def.entity)}</td>
-                                    <td class="px-4 py-3 font-semibold text-gray-900">${def.term}</td>
-                                    <td class="px-4 py-3 text-gray-700">${def.definition}</td>
-                                    <td class="px-4 py-3 text-gray-500">${def.notes || ''}</td>
-                                    <td class="px-4 py-3 text-gray-500">${(def.tags || []).join(', ')}</td>
+                                    <td class="px-4 py-3 font-semibold text-gray-900" data-def-inline="term:${def.id}">${def.term}</td>
+                                    <td class="px-4 py-3 text-gray-700" data-def-inline="definition:${def.id}">${def.definition}</td>
+                                    <td class="px-4 py-3 text-gray-500" data-def-inline="notes:${def.id}">${def.notes || ''}</td>
+                                    <td class="px-4 py-3 text-gray-500" data-def-inline="tags:${def.id}">${(def.tags || []).join(', ')}</td>
                                     <td class="px-4 py-3 whitespace-nowrap space-x-3">
                                         <button class="text-blue-600" data-def-edit="${def.id}">Edit</button>
                                         <button class="text-red-500" data-def-delete="${def.id}">Delete</button>
@@ -8737,7 +8951,7 @@
                         </div>
                         <div class="flex gap-2">
                             <button class="btn btn-secondary btn-sm" id="toggleDefinitionImport">${state.definitionFormState.showImportPanel ? 'Hide Import' : 'Import Definitions'}</button>
-                            <button class="btn btn-primary btn-sm" id="jumpToDefinitionForm">Add Definition</button>
+                            <button class="btn btn-primary btn-sm" id="openDefinitionModalBtn">Add Definition</button>
                         </div>
                     </div>
                     ${state.definitionFormState.showImportPanel ? `
@@ -8757,51 +8971,6 @@
                     </div>
                     ` : ''}
                     ${renderDefinitionsTable(definitions)}
-                    <div class="border border-gray-200 rounded-lg bg-white p-4 space-y-3" id="definitionFormCard">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <div class="font-semibold">${state.definitionFormState.editingId ? 'Edit Definition' : 'Add Definition'}</div>
-                                <p class="text-sm text-gray-500">Provide a definition for any entity type.</p>
-                            </div>
-                            ${state.definitionFormState.editingId ? '<button class="btn btn-secondary btn-sm" id="resetDefinitionForm">Clear</button>' : ''}
-                        </div>
-                        <form id="definitionForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label class="form-label">Entity Type</label>
-                                <select id="definitionEntityType" class="border rounded px-3 py-2 w-full">
-                                    <option value="">Select type</option>
-                                    <option value="Record">Record</option>
-                                    <option value="Field">Field</option>
-                                    <option value="Set">Set</option>
-                                    <option value="Connection">Connection</option>
-                                    <option value="ViewEntity">ViewEntity</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="form-label">Entity ID</label>
-                                <input id="definitionEntityId" type="text" class="border rounded px-3 py-2 w-full" placeholder="entity identifier" />
-                            </div>
-                            <div>
-                                <label class="form-label">Term</label>
-                                <input id="definitionTerm" type="text" class="border rounded px-3 py-2 w-full" placeholder="Human-readable term" />
-                            </div>
-                            <div>
-                                <label class="form-label">Definition</label>
-                                <input id="definitionDefinition" type="text" class="border rounded px-3 py-2 w-full" placeholder="What does this mean?" />
-                            </div>
-                            <div>
-                                <label class="form-label">Notes</label>
-                                <input id="definitionNotes" type="text" class="border rounded px-3 py-2 w-full" placeholder="Optional clarifications" />
-                            </div>
-                            <div>
-                                <label class="form-label">Tags (comma separated)</label>
-                                <input id="definitionTags" type="text" class="border rounded px-3 py-2 w-full" placeholder="demo, core" />
-                            </div>
-                            <div class="md:col-span-2 flex justify-end">
-                                <button type="submit" id="definitionSubmit" class="btn btn-primary">${state.definitionFormState.editingId ? 'Save Definition' : 'Add Definition'}</button>
-                            </div>
-                        </form>
-                    </div>
                 </div>
             `;
 
@@ -8810,7 +8979,7 @@
             });
 
             document.querySelectorAll('[data-def-edit]').forEach(btn => {
-                btn.onclick = () => populateDefinitionForm(btn.dataset.defEdit);
+                btn.onclick = () => openDefinitionModal(btn.dataset.defEdit);
             });
 
             document.querySelectorAll('[data-def-delete]').forEach(btn => {
@@ -8840,13 +9009,13 @@
             const importRunBtn = document.getElementById('runDefinitionImport');
             if (importRunBtn) importRunBtn.onclick = handleDefinitionImportSubmit;
 
-            const jumpBtn = document.getElementById('jumpToDefinitionForm');
-            if (jumpBtn) jumpBtn.onclick = focusDefinitionForm;
+            const openModalBtn = document.getElementById('openDefinitionModalBtn');
+            if (openModalBtn) openModalBtn.onclick = () => openDefinitionModal();
 
             const form = document.getElementById('definitionForm');
             if (form) form.onsubmit = (event) => { event.preventDefault(); handleDefinitionFormSubmit(); };
-            const resetBtn = document.getElementById('resetDefinitionForm');
-            if (resetBtn) resetBtn.onclick = resetDefinitionForm;
+
+            attachDefinitionInlineEditing();
         }
 
         function renderModeOptions(operator, selectedMode = '') {
@@ -8854,11 +9023,26 @@
             return modes.map(mode => `<option value="${mode}" ${mode === selectedMode ? 'selected' : ''}>${mode}</option>`).join('');
         }
 
+        function populateConnectionFormatOptions(selectedOperator = '') {
+            const operatorSelect = document.getElementById('connectionFormatOperator');
+            if (!operatorSelect) return;
+            const operatorOptions = Object.keys(state.connectionModes || {});
+            operatorSelect.innerHTML = ['<option value="">Select operator</option>', ...operatorOptions.map(op => `<option value="${op}">${op}</option>`)].join('');
+            operatorSelect.value = selectedOperator || operatorOptions[0] || '';
+
+            const modeSelect = document.getElementById('connectionFormatMode');
+            if (modeSelect) {
+                modeSelect.innerHTML = renderModeOptions(operatorSelect.value || selectedOperator, '');
+            }
+        }
+
         function populateConnectionFormatForm(formatId) {
             const format = state.connectionFormats.get(formatId);
             if (!format) return;
             const form = document.getElementById('connectionFormatForm');
             if (!form) return;
+
+            populateConnectionFormatOptions(format.operator);
 
             form.querySelector('#connectionFormatOperator').value = format.operator;
             const modeSelect = form.querySelector('#connectionFormatMode');
@@ -8873,6 +9057,9 @@
 
             const submit = document.getElementById('connectionFormatSubmit');
             if (submit) submit.textContent = 'Save Format';
+            const title = document.getElementById('connectionFormatModalTitle');
+            if (title) title.textContent = 'Edit Connection Format';
+            openModal('connectionFormatModal');
         }
 
         function resetConnectionFormatForm() {
@@ -8880,10 +9067,17 @@
             const form = document.getElementById('connectionFormatForm');
             if (!form) return;
             form.reset();
-            const modeSelect = form.querySelector('#connectionFormatMode');
-            if (modeSelect) modeSelect.innerHTML = '';
+            populateConnectionFormatOptions();
             const submit = document.getElementById('connectionFormatSubmit');
             if (submit) submit.textContent = 'Add Format';
+            const title = document.getElementById('connectionFormatModalTitle');
+            if (title) title.textContent = 'Add Connection Format';
+        }
+
+        function openConnectionFormatModal(formatId = null) {
+            resetConnectionFormatForm();
+            if (formatId) populateConnectionFormatForm(formatId);
+            openModal('connectionFormatModal');
         }
 
         function handleConnectionFormatSubmit() {
@@ -8921,6 +9115,7 @@
             }
 
             resetConnectionFormatForm();
+            closeModal('connectionFormatModal');
             renderConnectionsPage(state.connectionFormState.activeFilter || 'all');
         }
 
@@ -8968,19 +9163,18 @@
             if (!conn) return;
             const form = document.getElementById('connectionForm');
             if (!form) return;
+            populateConnectionSelectOptions(conn.formatId, conn.params || {});
             form.querySelector('#connectionSubjectType').value = conn.subject?.type || '';
             form.querySelector('#connectionSubjectId').value = conn.subject?.id || '';
             form.querySelector('#connectionOperandType').value = conn.operand?.type || '';
             form.querySelector('#connectionOperandId').value = conn.operand?.id || '';
             form.querySelector('#connectionDescription').value = conn.description || '';
-            form.querySelector('#connectionFormatSelect').value = conn.formatId || '';
             state.connectionFormState.editingId = conn.id;
-            state.connectionFormState.selectedFormatId = conn.formatId;
-
-            renderConnectionParamFields('connectionParamFields', conn.formatId, conn.params || {});
 
             const submit = document.getElementById('connectionSubmit');
             if (submit) submit.textContent = 'Save Connection';
+            const title = document.getElementById('connectionModalTitle');
+            if (title) title.textContent = 'Edit Connection';
         }
 
         function resetConnectionForm() {
@@ -8989,13 +9183,38 @@
             if (!form) return;
             form.reset();
             const defaultFormat = getDefaultConnectionFormatId();
-            state.connectionFormState.selectedFormatId = defaultFormat;
-            if (defaultFormat) {
-                form.querySelector('#connectionFormatSelect').value = defaultFormat;
-                renderConnectionParamFields('connectionParamFields', defaultFormat, {});
-            }
+            populateConnectionSelectOptions(defaultFormat, {});
             const submit = document.getElementById('connectionSubmit');
             if (submit) submit.textContent = 'Add Connection';
+            const title = document.getElementById('connectionModalTitle');
+            if (title) title.textContent = 'Add Connection';
+        }
+
+        function populateConnectionSelectOptions(selectedFormatId, params = {}) {
+            const select = document.getElementById('connectionFormatSelect');
+            if (!select) return;
+            const formats = getConnectionFormatView();
+            select.innerHTML = ['<option value="">Select a format</option>', ...formats.map(fmt => `<option value="${fmt.id}">${fmt.id} (${fmt.operator} / ${fmt.mode})</option>`)].join('');
+            const resolved = selectedFormatId || getDefaultConnectionFormatId();
+            state.connectionFormState.selectedFormatId = resolved;
+            if (resolved) select.value = resolved;
+            renderConnectionParamFields('connectionParamFields', resolved, params);
+            updateConnectionFormatSummary(resolved);
+        }
+
+        function updateConnectionFormatSummary(formatId) {
+            const summary = document.getElementById('connectionFormatSummary');
+            const format = formatId ? findConnectionFormat(formatId) : null;
+            if (!summary) return;
+            summary.textContent = format ? `${format.operator} • ${format.mode}` : 'No format selected';
+        }
+
+        function openConnectionModal(connId = null) {
+            resetConnectionForm();
+            if (connId) populateConnectionForm(connId);
+            openModal('connectionModal');
+            const typeSelect = document.getElementById('connectionSubjectType');
+            if (typeSelect) typeSelect.focus();
         }
 
         function collectParamsFromInputs(containerId, format) {
@@ -9070,6 +9289,7 @@
             }
 
             resetConnectionForm();
+            closeModal('connectionModal');
             renderConnectionsPage(state.connectionFormState.activeFilter || 'all');
         }
 
@@ -9095,9 +9315,9 @@
                                     <td class="px-4 py-3 text-gray-800 whitespace-nowrap">${fmt.id}</td>
                                     <td class="px-4 py-3 text-gray-800">${fmt.operator}</td>
                                     <td class="px-4 py-3 text-gray-800">${fmt.mode}</td>
-                                    <td class="px-4 py-3 text-gray-600">${(fmt.requiredParams || []).join(', ') || '—'}</td>
-                                    <td class="px-4 py-3 text-gray-600">${(fmt.optionalParams || []).join(', ') || '—'}</td>
-                                    <td class="px-4 py-3 text-gray-500">${fmt.description || ''}</td>
+                                    <td class="px-4 py-3 text-gray-600" data-format-inline="requiredParams:${fmt.id}">${(fmt.requiredParams || []).join(', ') || '—'}</td>
+                                    <td class="px-4 py-3 text-gray-600" data-format-inline="optionalParams:${fmt.id}">${(fmt.optionalParams || []).join(', ') || '—'}</td>
+                                    <td class="px-4 py-3 text-gray-500" data-format-inline="description:${fmt.id}">${fmt.description || ''}</td>
                                     <td class="px-4 py-3 whitespace-nowrap space-x-3">
                                         <button class="text-blue-600" data-format-edit="${fmt.id}">Edit</button>
                                         <button class="text-red-500" data-format-delete="${fmt.id}">Delete</button>
@@ -9137,8 +9357,8 @@
                                         <td class="px-4 py-3 text-gray-700">${format?.operator || conn.operator || ''}</td>
                                         <td class="px-4 py-3 text-gray-700">${format?.mode || conn.mode || ''}</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-gray-800">${conn.operand?.type}: ${renderEntityLabel(conn.operand)}</td>
-                                        <td class="px-4 py-3 text-gray-500">${conn.description || ''}</td>
-                                        <td class="px-4 py-3 text-gray-500">${JSON.stringify(conn.params || {})}</td>
+                                        <td class="px-4 py-3 text-gray-500" data-conn-inline="description:${conn.id}">${conn.description || ''}</td>
+                                        <td class="px-4 py-3 text-gray-500" data-conn-inline="params:${conn.id}">${JSON.stringify(conn.params || {})}</td>
                                         <td class="px-4 py-3 whitespace-nowrap space-x-3">
                                             <button class="text-blue-600" data-conn-edit="${conn.id}">Edit</button>
                                             <button class="text-red-500" data-conn-delete="${conn.id}">Delete</button>
@@ -9165,13 +9385,6 @@
             const formats = getConnectionFormatView();
             const connections = getConnectionView(filters[filterKey]);
             const container = document.getElementById('viewContainer');
-            const operatorOptions = Object.keys(state.connectionModes || {});
-            if (!state.connectionFormState.selectedFormatId || !findConnectionFormat(state.connectionFormState.selectedFormatId)) {
-                state.connectionFormState.selectedFormatId = getDefaultConnectionFormatId();
-            }
-            const selectedFormatId = state.connectionFormState.selectedFormatId;
-            const selectedFormat = findConnectionFormat(selectedFormatId);
-            const modeOptions = renderModeOptions(operatorOptions[0] || '', '');
 
             container.innerHTML = `
                 <div class="view-stage-header">
@@ -9184,44 +9397,23 @@
                     </div>
                 </div>
                 <div class="view-stage-body space-y-6">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="space-y-1">
+                            <div class="font-semibold text-gray-900">Connection tools</div>
+                            <p class="text-sm text-gray-500">Work with formats and edges using modals and inline edits.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="btn btn-secondary btn-sm" id="openConnectionFormatModalBtn">Add Format</button>
+                            <button class="btn btn-primary btn-sm" id="openConnectionModalBtn">Add Connection</button>
+                        </div>
+                    </div>
                     <div class="border border-gray-200 rounded-lg bg-white p-4 space-y-3">
                         <div class="flex items-center justify-between">
                             <div>
-                                <div class="font-semibold">${state.connectionFormatFormState.editingId ? 'Edit Connection Format' : 'Add Connection Format'}</div>
+                                <div class="font-semibold">Connection Formats</div>
                                 <p class="text-sm text-gray-500">Define operator + mode templates using the EO dictionary.</p>
                             </div>
-                            ${state.connectionFormatFormState.editingId ? '<button class="btn btn-secondary btn-sm" id="resetConnectionFormatForm">Clear</button>' : ''}
                         </div>
-                        <form id="connectionFormatForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label class="form-label">Operator</label>
-                                <select id="connectionFormatOperator" class="border rounded px-3 py-2 w-full">
-                                    <option value="">Select operator</option>
-                                    ${operatorOptions.map(op => `<option value="${op}">${op}</option>`).join('')}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="form-label">Mode</label>
-                                <select id="connectionFormatMode" class="border rounded px-3 py-2 w-full">
-                                    ${modeOptions}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="form-label">Required Params (comma separated)</label>
-                                <input id="connectionFormatRequired" type="text" class="border rounded px-3 py-2 w-full" placeholder="threshold, weight" />
-                            </div>
-                            <div>
-                                <label class="form-label">Optional Params (comma separated)</label>
-                                <input id="connectionFormatOptional" type="text" class="border rounded px-3 py-2 w-full" placeholder="notes" />
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="form-label">Description</label>
-                                <input id="connectionFormatDescription" type="text" class="border rounded px-3 py-2 w-full" placeholder="Describe how this format should be used" />
-                            </div>
-                            <div class="md:col-span-2 flex justify-end">
-                                <button type="submit" id="connectionFormatSubmit" class="btn btn-primary">${state.connectionFormatFormState.editingId ? 'Save Format' : 'Add Format'}</button>
-                            </div>
-                        </form>
                         ${renderConnectionFormatsTable(formats)}
                     </div>
 
@@ -9229,67 +9421,6 @@
                         ${Object.keys(filters).map(key => `<button class="btn btn-secondary btn-sm ${filterKey === key ? 'btn-primary' : ''}" data-conn-filter="${key}">${key === 'all' ? 'All' : key}</button>`).join('')}
                     </div>
                     ${renderConnectionsTable(connections)}
-                    <div class="border border-gray-200 rounded-lg bg-white p-4 space-y-3">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <div class="font-semibold">${state.connectionFormState.editingId ? 'Edit Connection' : 'Add Connection'}</div>
-                                <p class="text-sm text-gray-500">Choose a format to link specific entities.</p>
-                            </div>
-                            ${state.connectionFormState.editingId ? '<button class="btn btn-secondary btn-sm" id="resetConnectionForm">Clear</button>' : ''}
-                        </div>
-                        <form id="connectionForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label class="form-label">Format</label>
-                                <select id="connectionFormatSelect" class="border rounded px-3 py-2 w-full">
-                                    <option value="">Select a format</option>
-                                    ${formats.map(fmt => `<option value="${fmt.id}" ${fmt.id === selectedFormatId ? 'selected' : ''}>${fmt.id} (${fmt.operator} / ${fmt.mode})</option>`).join('')}
-                                </select>
-                            </div>
-                            <div class="flex items-end text-sm text-gray-600 gap-2">
-                                <div class="mt-6">
-                                    ${selectedFormat ? `${selectedFormat.operator} • ${selectedFormat.mode}` : 'No format selected'}
-                                </div>
-                            </div>
-                            <div>
-                                <label class="form-label">Subject Type</label>
-                                <select id="connectionSubjectType" class="border rounded px-3 py-2 w-full">
-                                    <option value="">Select type</option>
-                                    <option value="Record">Record</option>
-                                    <option value="Field">Field</option>
-                                    <option value="Set">Set</option>
-                                    <option value="Connection">Connection</option>
-                                    <option value="ViewEntity">ViewEntity</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="form-label">Subject ID</label>
-                                <input id="connectionSubjectId" type="text" class="border rounded px-3 py-2 w-full" />
-                            </div>
-                            <div>
-                                <label class="form-label">Operand Type</label>
-                                <select id="connectionOperandType" class="border rounded px-3 py-2 w-full">
-                                    <option value="">Select type</option>
-                                    <option value="Record">Record</option>
-                                    <option value="Field">Field</option>
-                                    <option value="Set">Set</option>
-                                    <option value="Connection">Connection</option>
-                                    <option value="ViewEntity">ViewEntity</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="form-label">Operand ID</label>
-                                <input id="connectionOperandId" type="text" class="border rounded px-3 py-2 w-full" />
-                            </div>
-                            <div>
-                                <label class="form-label">Description</label>
-                                <input id="connectionDescription" type="text" class="border rounded px-3 py-2 w-full" placeholder="Optional" />
-                            </div>
-                            <div id="connectionParamFields" class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3"></div>
-                            <div class="md:col-span-2 flex justify-end">
-                                <button type="submit" id="connectionSubmit" class="btn btn-primary">${state.connectionFormState.editingId ? 'Save Connection' : 'Add Connection'}</button>
-                            </div>
-                        </form>
-                    </div>
                 </div>
             `;
 
@@ -9298,7 +9429,7 @@
             });
 
             document.querySelectorAll('[data-conn-edit]').forEach(btn => {
-                btn.onclick = () => populateConnectionForm(btn.dataset.connEdit);
+                btn.onclick = () => openConnectionModal(btn.dataset.connEdit);
             });
 
             document.querySelectorAll('[data-conn-delete]').forEach(btn => {
@@ -9310,7 +9441,7 @@
             });
 
             document.querySelectorAll('[data-format-edit]').forEach(btn => {
-                btn.onclick = () => populateConnectionFormatForm(btn.dataset.formatEdit);
+                btn.onclick = () => openConnectionFormatModal(btn.dataset.formatEdit);
             });
 
             document.querySelectorAll('[data-format-delete]').forEach(btn => {
@@ -9324,6 +9455,12 @@
                     }
                 };
             });
+
+            const openConnectionBtn = document.getElementById('openConnectionModalBtn');
+            if (openConnectionBtn) openConnectionBtn.onclick = () => openConnectionModal();
+
+            const openFormatBtn = document.getElementById('openConnectionFormatModalBtn');
+            if (openFormatBtn) openFormatBtn.onclick = () => openConnectionFormatModal();
 
             const formatOperatorSelect = document.getElementById('connectionFormatOperator');
             if (formatOperatorSelect) {
@@ -9339,20 +9476,84 @@
                 connFormatSelect.onchange = (event) => {
                     state.connectionFormState.selectedFormatId = event.target.value;
                     renderConnectionParamFields('connectionParamFields', event.target.value, {});
+                    updateConnectionFormatSummary(event.target.value);
                 };
             }
 
-            renderConnectionParamFields('connectionParamFields', selectedFormatId, {});
-
             const connForm = document.getElementById('connectionForm');
             if (connForm) connForm.onsubmit = (event) => { event.preventDefault(); handleConnectionFormSubmit(); };
-            const resetBtn = document.getElementById('resetConnectionForm');
-            if (resetBtn) resetBtn.onclick = resetConnectionForm;
 
             const formatForm = document.getElementById('connectionFormatForm');
             if (formatForm) formatForm.onsubmit = (event) => { event.preventDefault(); handleConnectionFormatSubmit(); };
-            const resetFormatBtn = document.getElementById('resetConnectionFormatForm');
-            if (resetFormatBtn) resetFormatBtn.onclick = resetConnectionFormatForm;
+
+            attachConnectionFormatInlineEditing();
+            attachConnectionInlineEditing();
+        }
+
+        function attachConnectionFormatInlineEditing() {
+            document.querySelectorAll('[data-format-inline]').forEach(cell => {
+                const [field, formatId] = (cell.dataset.formatInline || '').split(':');
+                if (!field || !formatId) return;
+                const original = cell.textContent.trim();
+                cell.contentEditable = 'true';
+                cell.onfocus = () => cell.dataset.originalValue = cell.textContent.trim();
+                cell.onkeydown = (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        cell.blur();
+                    }
+                };
+                cell.onblur = () => {
+                    const current = (cell.textContent || '').trim();
+                    const baseline = cell.dataset.originalValue !== undefined ? cell.dataset.originalValue : original;
+                    if (current === baseline) return;
+                    const updates = {};
+                    if (field === 'requiredParams' || field === 'optionalParams') {
+                        updates[field] = current ? current.split(',').map(p => p.trim()).filter(Boolean) : [];
+                    } else {
+                        updates[field] = current;
+                    }
+
+                    updateConnectionFormat(formatId, updates);
+                    showToast('✓ Connection format updated');
+                    renderConnectionsPage(state.connectionFormState.activeFilter || 'all');
+                };
+            });
+        }
+
+        function attachConnectionInlineEditing() {
+            document.querySelectorAll('[data-conn-inline]').forEach(cell => {
+                const [field, connId] = (cell.dataset.connInline || '').split(':');
+                if (!field || !connId) return;
+                const original = cell.textContent.trim();
+                cell.contentEditable = 'true';
+                cell.onfocus = () => cell.dataset.originalValue = cell.textContent.trim();
+                cell.onkeydown = (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        cell.blur();
+                    }
+                };
+                cell.onblur = () => {
+                    const current = (cell.textContent || '').trim();
+                    const baseline = cell.dataset.originalValue !== undefined ? cell.dataset.originalValue : original;
+                    if (current === baseline) return;
+
+                    try {
+                        if (field === 'params') {
+                            const parsed = current ? JSON.parse(current) : {};
+                            updateConnection(connId, { params: parsed });
+                        } else {
+                            updateConnection(connId, { [field]: current });
+                        }
+                        showToast('✓ Connection updated');
+                        renderConnectionsPage(state.connectionFormState.activeFilter || 'all');
+                    } catch (error) {
+                        showToast('Params must be valid JSON');
+                        renderConnectionsPage(state.connectionFormState.activeFilter || 'all');
+                    }
+                };
+            });
         }
 
         // CELL EDITING
