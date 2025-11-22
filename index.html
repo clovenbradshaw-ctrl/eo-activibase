@@ -2071,6 +2071,7 @@
                 <div>
                     <h2 class="text-xl font-bold text-gray-900">Change Field Type</h2>
                     <p class="text-sm text-gray-500 mt-1">Update the type for <span id="changeFieldName" class="font-medium text-gray-900"></span></p>
+                    <p id="changeFieldTypeSummary" class="text-xs text-gray-500 mt-1"></p>
                 </div>
                 <button id="closeChangeFieldTypeBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2583,6 +2584,7 @@
             changeSelectOptions: [{ value: 'Option 1', color: 'blue' }],
             changeFormulaBlocks: [],
             changeLinkedSetId: '',
+            changeFieldOriginalType: null,
             fieldTypeDropdownOpen: false,
             changeFieldTypeDropdownOpen: false,
             changeFieldContext: null,
@@ -7888,6 +7890,30 @@
             });
         }
 
+        function describeFieldType(typeId) {
+            return FIELD_TYPES[typeId]?.name || typeId || '';
+        }
+
+        function updateChangeFieldTypeSummary(selectedType) {
+            const summary = document.getElementById('changeFieldTypeSummary');
+            if (!summary) return;
+
+            const originalType = state.changeFieldOriginalType;
+            const currentLabel = describeFieldType(selectedType);
+
+            if (!originalType) {
+                summary.textContent = currentLabel ? `Type: ${currentLabel}` : '';
+                return;
+            }
+
+            const originalLabel = describeFieldType(originalType);
+            if (selectedType === originalType) {
+                summary.textContent = `Type: ${originalLabel}`;
+            } else {
+                summary.textContent = `Type: ${originalLabel} → ${currentLabel}`;
+            }
+        }
+
         function selectChangeFieldType(typeId) {
             const input = document.getElementById('changeFieldTypeInput');
             if (input) input.value = typeId;
@@ -7897,6 +7923,7 @@
             if (typeId === 'LINK_RECORD') {
                 renderChangeLinkSelect();
             }
+            updateChangeFieldTypeSummary(typeId);
             closeChangeFieldTypeDropdown();
         }
 
@@ -8033,7 +8060,12 @@
             if (!context || !newType) return;
             const newConfig = buildChangeFieldConfig(newType);
             changeFieldType(context.id, newType, newConfig);
+            closeChangeFieldTypeModal();
+        }
+
+        function closeChangeFieldTypeModal() {
             state.changeFieldContext = null;
+            state.changeFieldOriginalType = null;
             closeModal('changeFieldTypeModal');
         }
 
@@ -9657,6 +9689,7 @@
 
         function openChangeFieldTypeModal(field) {
             state.changeFieldContext = field;
+            state.changeFieldOriginalType = field?.type || null;
             const nameTarget = document.getElementById('changeFieldName');
             const input = document.getElementById('changeFieldTypeInput');
             if (nameTarget) nameTarget.textContent = field.name;
@@ -9665,6 +9698,7 @@
             resetChangeFieldConfig(field.type, field);
             renderChangeFieldConfig(field.type);
             renderChangeLinkSelect();
+            updateChangeFieldTypeSummary(field.type);
             closeChangeFieldTypeDropdown();
             openModal('changeFieldTypeModal');
         }
@@ -10039,8 +10073,8 @@
             if (changeFieldTypeTrigger) changeFieldTypeTrigger.onclick = (event) => { event.preventDefault(); toggleChangeFieldTypeDropdown(); };
 
             document.getElementById('saveChangeFieldTypeBtn').onclick = saveChangeFieldType;
-            document.getElementById('cancelChangeFieldTypeBtn').onclick = () => { state.changeFieldContext = null; closeModal('changeFieldTypeModal'); };
-            document.getElementById('closeChangeFieldTypeBtn').onclick = () => { state.changeFieldContext = null; closeModal('changeFieldTypeModal'); };
+            document.getElementById('cancelChangeFieldTypeBtn').onclick = closeChangeFieldTypeModal;
+            document.getElementById('closeChangeFieldTypeBtn').onclick = closeChangeFieldTypeModal;
             const changeLinkToSet = document.getElementById('changeLinkToSet');
             if (changeLinkToSet) changeLinkToSet.onchange = (event) => { state.changeLinkedSetId = event.target.value; };
 
