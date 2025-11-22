@@ -1,11 +1,98 @@
 {
-  "INS": ["creates", "generates", "initializes"],
-  "DES": ["labels", "defines as", "classifies as"],
-  "SEG": ["filters by", "limits to", "extracts subset of"],
-  "CON": ["is linked to", "relates to", "maps onto"],
-  "ALT": ["toggles with", "cycles through", "switches based on"],
-  "SYN": ["integrates", "combines with", "aggregates"],
-  "SUP": ["superposes", "overlays", "holds in parallel"],
-  "REC": ["feeds back into", "iterates with", "updates based on"],
-  "NUL": ["detects absence of", "flags missing value in"]
+  "INS": [
+    "creates",
+    "generates",
+    "instantiates",
+    "spawns",
+    "produces",
+    "originates",
+    "initializes",
+    "seeds",
+    "emits",
+    "constructs",
+    "yields"
+  ],
+  "DES": [
+    "labels",
+    "defines as",
+    "names",
+    "classifies as",
+    "assigns identity",
+    "tags",
+    "indexes",
+    "marks",
+    "annotates"
+  ],
+  "SEG": [
+    "filters by",
+    "limits to",
+    "excludes",
+    "includes",
+    "constrains",
+    "segments by",
+    "partitions into",
+    "sorts by",
+    "extracts subset of",
+    "bounds",
+    "gates through"
+  ],
+  "CON": [
+    "is linked to",
+    "relates to",
+    "connects with",
+    "associates with",
+    "depends on",
+    "references",
+    "maps onto",
+    "joins with",
+    "cross-references",
+    "corresponds to",
+    "aligns with"
+  ],
+  "ALT": [
+    "toggles with",
+    "alternates between",
+    "cycles through",
+    "flips with",
+    "oscillates with",
+    "switches based on",
+    "transitions via"
+  ],
+  "SYN": [
+    "integrates",
+    "combines with",
+    "aggregates",
+    "fuses with",
+    "summarizes from",
+    "harmonizes with",
+    "computes across",
+    "merges into",
+    "derives from"
+  ],
+  "SUP": [
+    "superposes",
+    "overlays",
+    "holds in parallel",
+    "maintains layers of",
+    "captures multi-valued inputs from",
+    "bundles perspectives from",
+    "keeps alternate forms of"
+  ],
+  "REC": [
+    "feeds back into",
+    "iterates with",
+    "recalibrates against",
+    "loops through",
+    "updates based on",
+    "evolves using",
+    "learns from"
+  ],
+  "NUL": [
+    "detects absence of",
+    "flags missing value in",
+    "depends on lack of",
+    "reveals void in",
+    "identifies gap in",
+    "surfaces incomplete state of"
+  ]
 }
