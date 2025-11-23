@@ -694,7 +694,101 @@
             0% { transform: translateX(-100%); }
             100% { transform: translateX(100%); }
         }
-        
+
+        /* ROLLUP/SUPERPOSITION CELL BADGES */
+        .sup-chip-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .sup-value-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            color: #1e40af;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 6px;
+            border: 1px solid #bfdbfe;
+            box-shadow: 0 1px 2px rgba(59, 130, 246, 0.08);
+            white-space: nowrap;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sup-count-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            color: #4b5563;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+            box-shadow: 0 1px 2px rgba(107, 114, 128, 0.08);
+            white-space: nowrap;
+        }
+
+        .sup-value-badge:hover,
+        .sup-count-badge:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
+        }
+
+        /* ROLLUP MODAL CARDS */
+        .sup-modal-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .sup-modal-card:hover {
+            border-color: #bfdbfe;
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .sup-modal-card-index {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            font-size: 13px;
+            font-weight: 700;
+            border-radius: 6px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+        }
+
+        .sup-modal-card-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+
+        .sup-modal-card-source {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
         /* TABLE HEADERS */
         .column-header {
             background: var(--surface);
@@ -8697,9 +8791,29 @@
 
         function renderSuperpositionCell(entries) {
             if (!Array.isArray(entries) || entries.length === 0) return '';
-            const compact = entries.map(e => e?.val ?? '').filter(Boolean).join(' | ');
-            const tooltip = entries.map(e => `${e?.val ?? ''} — ${e?.context?.source || 'observation'}`).join('\n');
-            return `<span class="sup-chip" title="${tooltip}">${compact}</span>`;
+
+            const maxVisible = 3; // Show max 3 values in cell
+            const visibleEntries = entries.slice(0, maxVisible);
+            const hiddenCount = Math.max(0, entries.length - maxVisible);
+
+            // Create badge for each visible entry
+            const badges = visibleEntries
+                .map(e => e?.val ?? '')
+                .filter(Boolean)
+                .map(val => `<span class="sup-value-badge">${val}</span>`)
+                .join('');
+
+            // Add "+N more" badge if there are hidden values
+            const moreBadge = hiddenCount > 0
+                ? `<span class="sup-count-badge">+${hiddenCount} more</span>`
+                : '';
+
+            // Tooltip showing all values
+            const tooltip = entries
+                .map(e => `${e?.val ?? ''} — ${e?.context?.source || 'observation'}`)
+                .join('\n');
+
+            return `<div class="sup-chip-container" title="${tooltip}">${badges}${moreBadge}</div>`;
         }
 
         // LEAN CONTEXT COMPARISON (Phase 2)
@@ -12878,7 +12992,24 @@
             title.textContent = `${ctx.fieldName} observations`;
             subtitle.textContent = ctx.recordName ? `Item: ${ctx.recordName}` : 'Multiple items';
 
-            const supList = (ctx.supValues || []).map(entry => `<div class="flex items-center justify-between border rounded-lg p-2"><span class="font-medium">${entry.val ?? ''}</span><span class="text-xs text-gray-500">${entry.context?.source || 'observation'}</span></div>`).join('');
+            const supList = (ctx.supValues || []).map((entry, index) => `
+                <div class="sup-modal-card">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start gap-3">
+                            <div class="sup-modal-card-index">${index + 1}</div>
+                            <div class="flex-1">
+                                <div class="sup-modal-card-value">${entry.val ?? '—'}</div>
+                                <div class="sup-modal-card-source">
+                                    <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    ${entry.context?.source || 'observation'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
             const timeline = ctx.entries.map((entry, i) => `
                 <div class="border rounded-lg p-3 ${i === ctx.index ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}" onclick="selectCellHistoryEntry(${i})">
                     <div class="flex items-center justify-between">
@@ -12906,7 +13037,24 @@
                 </div>
                 <div class="space-y-4">
                     ${ctx.activePanel === 'latest' ? `<div class="text-lg font-semibold">${renderCellValue(latestValue, { type: ctx.fieldType || 'TEXT' }, {}) || '—'}</div>` : ''}
-                    ${ctx.activePanel === 'observations' ? (supList || '<p class="text-gray-500">No multiple observations yet.</p>') : ''}
+                    ${ctx.activePanel === 'observations' ? `
+                        <div>
+                            ${supList ? `
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                                        </svg>
+                                        <div class="flex-1">
+                                            <div class="font-semibold text-blue-900 text-sm">Multiple Records in This Cell</div>
+                                            <div class="text-xs text-blue-700">This cell contains ${ctx.supValues?.length || 0} aggregated record${(ctx.supValues?.length || 0) === 1 ? '' : 's'} from rollup</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                ${supList}
+                            ` : '<p class="text-gray-500">No multiple observations yet.</p>'}
+                        </div>
+                    ` : ''}
                     ${ctx.activePanel === 'timeline' ? `<div class="flex items-center justify-between mb-2"><div class="text-sm text-gray-600">${ctx.entries.length} change${ctx.entries.length === 1 ? '' : 's'} found</div><div class="flex items-center gap-2"><button class="btn btn-secondary btn-sm" ${ctx.index === 0 ? 'disabled' : ''} onclick="stepCellHistory(-1)">◀ Prev</button><button class="btn btn-secondary btn-sm" ${ctx.index >= ctx.entries.length - 1 ? 'disabled' : ''} onclick="stepCellHistory(1)">Next ▶</button></div></div><div class="space-y-3">${timeline}</div>` : ''}
                     ${ctx.activePanel === 'connections' ? `<div class="text-sm text-gray-600">Source Set: ${ctx.sourceSetName || 'Unknown'}</div>` : ''}
                 </div>
