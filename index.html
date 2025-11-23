@@ -10,6 +10,9 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/recharts@2.10.3/dist/Recharts.js"></script>
     <script src="eo_lean_context.js"></script>
     <style>
         :root {
@@ -484,6 +487,30 @@
         .knowledge-nav-btn:hover { background: var(--muted-surface); }
         .knowledge-nav-btn.active { border-color: #3b82f6; color: #1d4ed8; background: #e0e7ff; }
         .knowledge-nav-btn i { color: inherit; }
+
+        .sidebar-section-title.collapsible {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+        }
+        .sidebar-section-title.collapsible:hover { color: #9ca3af; }
+        .sidebar-section-title .collapse-icon {
+            transition: transform 0.2s ease;
+            font-size: 14px;
+        }
+        .sidebar-section-title.collapsed .collapse-icon { transform: rotate(-90deg); }
+        .sidebar-section .knowledge-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.2s ease;
+            max-height: 500px;
+            opacity: 1;
+        }
+        .sidebar-section .knowledge-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
 
         /* TOOLBAR */
         .toolbar {
@@ -1918,24 +1945,33 @@
                 </div>
             </div>
             <div class="sidebar-section">
-                <div class="sidebar-section-title">Knowledge</div>
-                <div class="knowledge-nav">
-                    <button class="knowledge-nav-btn" id="entitiesNavBtn" onclick="openEntitiesPage()">
-                        <i class="ph ph-archive"></i>
-                        <span>Entities</span>
-                    </button>
-                    <button class="knowledge-nav-btn" id="definitionsNavBtn" onclick="openDefinitionsPage()">
-                        <i class="ph ph-books"></i>
-                        <span>Definitions</span>
-                    </button>
-                    <button class="knowledge-nav-btn" id="connectionsNavBtn" onclick="openConnectionsPage()">
-                        <i class="ph ph-link-simple"></i>
-                        <span>Connections</span>
-                    </button>
-                    <button class="knowledge-nav-btn" id="searchDataNavBtn" onclick="openSearchDataModal()">
-                        <i class="ph ph-magnifying-glass"></i>
-                        <span>Search Data</span>
-                    </button>
+                <div class="sidebar-section-title collapsible" onclick="toggleKnowledgeSection()">
+                    <span>Knowledge</span>
+                    <i class="ph ph-caret-down collapse-icon"></i>
+                </div>
+                <div class="knowledge-content" id="knowledgeContent">
+                    <div class="knowledge-nav">
+                        <button class="knowledge-nav-btn" id="entitiesNavBtn" onclick="openEntitiesPage()">
+                            <i class="ph ph-archive"></i>
+                            <span>Entities</span>
+                        </button>
+                        <button class="knowledge-nav-btn" id="definitionsNavBtn" onclick="openDefinitionsPage()">
+                            <i class="ph ph-books"></i>
+                            <span>Definitions</span>
+                        </button>
+                        <button class="knowledge-nav-btn" id="connectionsNavBtn" onclick="openConnectionsPage()">
+                            <i class="ph ph-link-simple"></i>
+                            <span>Connections</span>
+                        </button>
+                        <button class="knowledge-nav-btn" id="visualizationsNavBtn" onclick="openVisualizationsPage()">
+                            <i class="ph ph-chart-line"></i>
+                            <span>Visualizations</span>
+                        </button>
+                        <button class="knowledge-nav-btn" id="searchDataNavBtn" onclick="openSearchDataModal()">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <span>Search Data</span>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="sidebar-section grow">
@@ -6324,6 +6360,26 @@
             syncUrlState();
         }
 
+        function openVisualizationsPage() {
+            state.currentSpecialView = 'visualizations';
+            state.currentSetId = null;
+            state.currentViewId = null;
+            closeMobileSidebar();
+            renderSidebar();
+            renderCurrentView();
+            updateMobileChrome();
+            syncUrlState();
+        }
+
+        function toggleKnowledgeSection() {
+            const titleEl = document.querySelector('.sidebar-section-title.collapsible');
+            const contentEl = document.getElementById('knowledgeContent');
+            if (titleEl && contentEl) {
+                titleEl.classList.toggle('collapsed');
+                contentEl.classList.toggle('collapsed');
+            }
+        }
+
         function renderSidebar() {
             const container = document.getElementById('setsList');
             container.innerHTML = '';
@@ -6333,9 +6389,11 @@
             const definitionsBtn = document.getElementById('definitionsNavBtn');
             const connectionsBtn = document.getElementById('connectionsNavBtn');
             const entitiesBtn = document.getElementById('entitiesNavBtn');
+            const visualizationsBtn = document.getElementById('visualizationsNavBtn');
             if (entitiesBtn) entitiesBtn.classList.toggle('active', state.currentSpecialView === 'entities');
             if (definitionsBtn) definitionsBtn.classList.toggle('active', state.currentSpecialView === 'definitions');
             if (connectionsBtn) connectionsBtn.classList.toggle('active', state.currentSpecialView === 'connections');
+            if (visualizationsBtn) visualizationsBtn.classList.toggle('active', state.currentSpecialView === 'visualizations');
 
             const setsForWorld = getSetsForWorld();
             if (setsForWorld.length === 0) {
@@ -6729,6 +6787,12 @@
 
             if (state.currentSpecialView === 'connections') {
                 renderConnectionsPage();
+                updateMobileChrome();
+                return;
+            }
+
+            if (state.currentSpecialView === 'visualizations') {
+                renderVisualizationsPage();
                 updateMobileChrome();
                 return;
             }
@@ -9714,6 +9778,226 @@
 
             attachConnectionFormatInlineEditing();
             attachConnectionInlineEditing();
+        }
+
+        function renderVisualizationsPage() {
+            const container = document.getElementById('viewContainer');
+            const setsForWorld = getSetsForWorld();
+
+            container.innerHTML = `
+                <div class="view-stage-header">
+                    <div class="view-stage-title">
+                        <span class="view-stage-pill">${getWorld()?.name || 'World'}</span>
+                        <div class="min-w-0">
+                            <div class="view-stage-name">Visualizations</div>
+                            <div class="view-stage-sub">Interactive charts and data insights</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="view-stage-body space-y-6">
+                    <div class="border border-gray-200 rounded-lg bg-white p-6 space-y-4">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold mb-2">Select Set</label>
+                                <select id="vizSetSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="">Choose a set...</option>
+                                    ${setsForWorld.map(set => `<option value="${set.id}">${set.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div id="vizViewSelectContainer" class="hidden">
+                                <label class="block text-sm font-semibold mb-2">Select View</label>
+                                <select id="vizViewSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="">Choose a view...</option>
+                                </select>
+                            </div>
+                            <div id="vizChartTypeContainer" class="hidden">
+                                <label class="block text-sm font-semibold mb-2">Chart Type</label>
+                                <div class="flex gap-2 flex-wrap">
+                                    <button class="btn btn-secondary btn-sm viz-chart-btn" data-chart-type="bar">Bar Chart</button>
+                                    <button class="btn btn-secondary btn-sm viz-chart-btn" data-chart-type="line">Line Chart</button>
+                                    <button class="btn btn-secondary btn-sm viz-chart-btn" data-chart-type="pie">Pie Chart</button>
+                                    <button class="btn btn-secondary btn-sm viz-chart-btn" data-chart-type="area">Area Chart</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="vizChartContainer" class="border border-gray-200 rounded-lg bg-white p-6">
+                        <div class="text-center text-gray-500 py-12">
+                            Select a set and view to visualize data
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const setSelect = document.getElementById('vizSetSelect');
+            const viewSelect = document.getElementById('vizViewSelect');
+            const viewSelectContainer = document.getElementById('vizViewSelectContainer');
+            const chartTypeContainer = document.getElementById('vizChartTypeContainer');
+
+            if (setSelect) {
+                setSelect.onchange = () => {
+                    const setId = setSelect.value;
+                    if (!setId) {
+                        viewSelectContainer.classList.add('hidden');
+                        chartTypeContainer.classList.add('hidden');
+                        return;
+                    }
+
+                    const set = state.sets.get(setId);
+                    if (set && set.views.size > 0) {
+                        viewSelect.innerHTML = '<option value="">Choose a view...</option>' +
+                            Array.from(set.views.values()).map(view =>
+                                `<option value="${view.id}">${view.name}</option>`
+                            ).join('');
+                        viewSelectContainer.classList.remove('hidden');
+                    }
+                };
+            }
+
+            if (viewSelect) {
+                viewSelect.onchange = () => {
+                    if (viewSelect.value) {
+                        chartTypeContainer.classList.remove('hidden');
+                    } else {
+                        chartTypeContainer.classList.add('hidden');
+                    }
+                };
+            }
+
+            document.querySelectorAll('.viz-chart-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const chartType = btn.dataset.chartType;
+                    const setId = setSelect.value;
+                    const viewId = viewSelect.value;
+
+                    if (setId && viewId) {
+                        renderVisualizationChart(setId, viewId, chartType);
+                    }
+                };
+            });
+        }
+
+        function renderVisualizationChart(setId, viewId, chartType) {
+            const set = state.sets.get(setId);
+            if (!set) return;
+
+            const view = set.views.get(viewId);
+            if (!view) return;
+
+            // Get and filter records
+            let records = Array.from(set.records.values());
+            const schema = Array.from(set.fields.values());
+            if (view && view.filters && view.filters.length > 0) {
+                records = applyFilterGroups(records, view.filters, schema);
+            }
+            if (view?.sorts?.length) {
+                records = applySorts(records, view.sorts, schema);
+            }
+
+            if (records.length === 0) {
+                document.getElementById('vizChartContainer').innerHTML =
+                    '<div class="text-center text-gray-500 py-12">No data available to visualize</div>';
+                return;
+            }
+
+            // Prepare data for charts
+            const fields = Array.from(set.fields.values());
+            const numericFields = fields.filter(f =>
+                f.type === 'number' || f.type === 'currency' || f.type === 'percent'
+            );
+
+            // Use first text field as label, first numeric field as value
+            const labelField = fields.find(f => f.type === 'text' || f.type === 'singleSelect');
+            const valueField = numericFields[0];
+
+            if (!labelField || !valueField) {
+                document.getElementById('vizChartContainer').innerHTML =
+                    '<div class="text-center text-gray-500 py-12">View needs at least one text field and one numeric field for visualization</div>';
+                return;
+            }
+
+            const chartData = records.slice(0, 10).map(record => ({
+                name: String(record.data[labelField.id] || 'Untitled'),
+                value: Number(record.data[valueField.id] || 0)
+            }));
+
+            const chartContainer = document.getElementById('vizChartContainer');
+            chartContainer.innerHTML = '<div id="rechartRoot" style="width: 100%; height: 400px;"></div>';
+
+            renderRechartsVisualization(chartType, chartData);
+        }
+
+        function renderRechartsVisualization(chartType, data) {
+            const { BarChart, LineChart, PieChart, AreaChart, Bar, Line, Pie, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, ResponsiveContainer } = window.Recharts;
+            const React = window.React;
+            const ReactDOM = window.ReactDOM;
+
+            const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#6366f1', '#f97316'];
+
+            let chart;
+            switch(chartType) {
+                case 'bar':
+                    chart = React.createElement(ResponsiveContainer, { width: '100%', height: 400 },
+                        React.createElement(BarChart, { data },
+                            React.createElement(CartesianGrid, { strokeDasharray: '3 3' }),
+                            React.createElement(XAxis, { dataKey: 'name' }),
+                            React.createElement(YAxis, null),
+                            React.createElement(Tooltip, null),
+                            React.createElement(Legend, null),
+                            React.createElement(Bar, { dataKey: 'value', fill: '#3b82f6' })
+                        )
+                    );
+                    break;
+                case 'line':
+                    chart = React.createElement(ResponsiveContainer, { width: '100%', height: 400 },
+                        React.createElement(LineChart, { data },
+                            React.createElement(CartesianGrid, { strokeDasharray: '3 3' }),
+                            React.createElement(XAxis, { dataKey: 'name' }),
+                            React.createElement(YAxis, null),
+                            React.createElement(Tooltip, null),
+                            React.createElement(Legend, null),
+                            React.createElement(Line, { type: 'monotone', dataKey: 'value', stroke: '#3b82f6', strokeWidth: 2 })
+                        )
+                    );
+                    break;
+                case 'pie':
+                    chart = React.createElement(ResponsiveContainer, { width: '100%', height: 400 },
+                        React.createElement(PieChart, null,
+                            React.createElement(Pie, {
+                                data,
+                                dataKey: 'value',
+                                nameKey: 'name',
+                                cx: '50%',
+                                cy: '50%',
+                                outerRadius: 120,
+                                label: true
+                            }, data.map((entry, index) =>
+                                React.createElement(Cell, { key: `cell-${index}`, fill: COLORS[index % COLORS.length] })
+                            )),
+                            React.createElement(Tooltip, null),
+                            React.createElement(Legend, null)
+                        )
+                    );
+                    break;
+                case 'area':
+                    chart = React.createElement(ResponsiveContainer, { width: '100%', height: 400 },
+                        React.createElement(AreaChart, { data },
+                            React.createElement(CartesianGrid, { strokeDasharray: '3 3' }),
+                            React.createElement(XAxis, { dataKey: 'name' }),
+                            React.createElement(YAxis, null),
+                            React.createElement(Tooltip, null),
+                            React.createElement(Legend, null),
+                            React.createElement(Area, { type: 'monotone', dataKey: 'value', stroke: '#3b82f6', fill: '#93c5fd' })
+                        )
+                    );
+                    break;
+            }
+
+            const root = document.getElementById('rechartRoot');
+            if (root && ReactDOM && React) {
+                const container = ReactDOM.createRoot(root);
+                container.render(chart);
+            }
         }
 
         function attachConnectionFormatInlineEditing() {
