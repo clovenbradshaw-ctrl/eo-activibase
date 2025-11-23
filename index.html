@@ -4129,10 +4129,6 @@
                                     <span><span id="selectedCount">0</span> selected</span>
                                 </div>
                             </div>
-                            <div class="primary-actions">
-                                <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
-                                <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
-                            </div>
                             <div class="view-stage-inline-actions">
                                 <button id="filterBtn" class="btn btn-secondary btn-sm">
                                     <i class="ph ph-funnel-simple"></i>
@@ -4146,6 +4142,8 @@
                             ${extraControls ? `<div class="toolbar-group">${extraControls}</div>` : ''}
                         </div>
                         <div class="toolbar-group">
+                            <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
+                            <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
                             <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
                                 <i class="ph ph-gear-six text-sm"></i>
                                 <span class="ml-1">Fields</span>
