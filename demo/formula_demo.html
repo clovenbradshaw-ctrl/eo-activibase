@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EO Formula Fields Demo</title>
+  <link rel="stylesheet" href="eo_formula_styles.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f3f4f6;
+      padding: 40px 20px;
+      color: #111827;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      font-size: 36px;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header p {
+      font-size: 18px;
+      color: #6b7280;
+    }
+
+    .demo-section {
+      background: white;
+      border-radius: 12px;
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .demo-section h2 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #111827;
+    }
+
+    .demo-section h3 {
+      font-size: 18px;
+      margin: 24px 0 12px 0;
+      color: #374151;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .data-table th {
+      background: #f9fafb;
+      font-weight: 600;
+      color: #374151;
+      position: sticky;
+      top: 0;
+    }
+
+    .data-table tr:hover {
+      background: #f9fafb;
+    }
+
+    .formula-tag {
+      background: #dbeafe;
+      color: #1e40af;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-left: 8px;
+    }
+
+    .test-results {
+      margin-top: 20px;
+      padding: 16px;
+      background: #f9fafb;
+      border-radius: 8px;
+      border-left: 4px solid #3b82f6;
+    }
+
+    .test-item {
+      margin: 12px 0;
+      padding: 12px;
+      background: white;
+      border-radius: 6px;
+    }
+
+    .test-item strong {
+      color: #374151;
+    }
+
+    .test-item code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+      font-size: 13px;
+    }
+
+    .success {
+      color: #059669;
+    }
+
+    .error {
+      color: #dc2626;
+    }
+
+    .examples-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .example-card {
+      background: #f9fafb;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .example-card h4 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: #374151;
+    }
+
+    .example-card code {
+      display: block;
+      background: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin: 8px 0;
+      font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+      border: 1px solid #e5e7eb;
+    }
+
+    .example-card .result {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 8px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin: 20px 0;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>EO Formula Fields Demo</h1>
+      <p>Airtable-like formula fields with context awareness</p>
+    </div>
+
+    <!-- Quick Start Section -->
+    <div class="demo-section">
+      <h2>Quick Start</h2>
+      <div class="controls">
+        <button class="btn btn-primary" onclick="showFormulaManager()">Manage Formula Fields</button>
+        <button class="btn btn-primary" onclick="runAllTests()">Run All Tests</button>
+        <button class="btn btn-secondary" onclick="loadSampleFormulas()">Load Sample Formulas</button>
+      </div>
+      <div id="formula-manager-container"></div>
+    </div>
+
+    <!-- Sample Data Section -->
+    <div class="demo-section">
+      <h2>Sample Data</h2>
+      <p style="margin-bottom: 16px; color: #6b7280;">Here's our sample dataset that formulas will use:</p>
+      <table class="data-table" id="sample-data-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Price</th>
+            <th>Quantity</th>
+            <th>Discount</th>
+            <th>Category</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody id="sample-data-body">
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Formula Examples Section -->
+    <div class="demo-section">
+      <h2>Formula Examples</h2>
+
+      <h3>Mathematical Formulas</h3>
+      <div class="examples-grid" id="math-examples"></div>
+
+      <h3>Logical Formulas</h3>
+      <div class="examples-grid" id="logical-examples"></div>
+
+      <h3>Text Formulas</h3>
+      <div class="examples-grid" id="text-examples"></div>
+
+      <h3>Date Formulas</h3>
+      <div class="examples-grid" id="date-examples"></div>
+    </div>
+
+    <!-- Test Results Section -->
+    <div class="demo-section">
+      <h2>Test Results</h2>
+      <div id="test-results" class="test-results">
+        <p style="color: #6b7280;">Click "Run All Tests" to see formula evaluation results</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="eo_formula_engine.js"></script>
+  <script src="eo_formula_field.js"></script>
+  <script src="eo_formula_ui.js"></script>
+
+  <script>
+    // Initialize formula system
+    const formulaEngine = new EOFormulaEngine();
+    const formulaField = new EOFormulaField(formulaEngine);
+    const formulaUI = new EOFormulaUI(formulaField);
+
+    // Sample data
+    const sampleData = [
+      {
+        Product: 'Laptop',
+        Price: 1200,
+        Quantity: 5,
+        Discount: 0.1,
+        Category: 'Electronics',
+        Created: new Date('2025-01-15')
+      },
+      {
+        Product: 'Mouse',
+        Price: 25,
+        Quantity: 50,
+        Discount: 0.05,
+        Category: 'Electronics',
+        Created: new Date('2025-02-01')
+      },
+      {
+        Product: 'Desk',
+        Price: 350,
+        Quantity: 10,
+        Discount: 0.15,
+        Category: 'Furniture',
+        Created: new Date('2025-01-20')
+      },
+      {
+        Product: 'Chair',
+        Price: 150,
+        Quantity: 20,
+        Discount: 0.1,
+        Category: 'Furniture',
+        Created: new Date('2025-02-10')
+      },
+      {
+        Product: 'Monitor',
+        Price: 400,
+        Quantity: 8,
+        Discount: 0.12,
+        Category: 'Electronics',
+        Created: new Date('2025-01-25')
+      }
+    ];
+
+    // Formula examples
+    const examples = {
+      math: [
+        { name: 'Total Revenue', formula: '{Price} * {Quantity}', description: 'Calculate total revenue' },
+        { name: 'Net Price', formula: '{Price} * (1 - {Discount})', description: 'Apply discount to price' },
+        { name: 'Average Value', formula: 'AVG({Price}, {Quantity})', description: 'Average of two fields' },
+        { name: 'Max Value', formula: 'MAX({Price}, {Quantity})', description: 'Maximum value' },
+        { name: 'Rounded Total', formula: 'ROUND({Price} * {Quantity}, 2)', description: 'Round to 2 decimals' }
+      ],
+      logical: [
+        { name: 'High Value', formula: 'IF({Price} > 300, "Premium", "Standard")', description: 'Categorize by price' },
+        { name: 'Bulk Order', formula: 'IF({Quantity} >= 20, "Bulk", "Regular")', description: 'Check quantity threshold' },
+        { name: 'Good Deal', formula: 'IF(AND({Price} < 200, {Discount} > 0.1), "Yes", "No")', description: 'Multiple conditions' },
+        { name: 'Electronics Check', formula: 'IF({Category} = "Electronics", "Tech", "Other")', description: 'String comparison' }
+      ],
+      text: [
+        { name: 'Product Code', formula: 'CONCAT(UPPER(LEFT({Category}, 3)), "-", {Quantity})', description: 'Generate product code' },
+        { name: 'Description', formula: 'CONCAT({Product}, " (", {Category}, ")")', description: 'Combine fields' },
+        { name: 'Uppercase Product', formula: 'UPPER({Product})', description: 'Convert to uppercase' },
+        { name: 'Product Length', formula: 'LEN({Product})', description: 'String length' }
+      ],
+      date: [
+        { name: 'Days Since Created', formula: 'DATEDIFF(TODAY(), {Created}, "days")', description: 'Days since creation' },
+        { name: 'Creation Year', formula: 'YEAR({Created})', description: 'Extract year' },
+        { name: 'Creation Month', formula: 'MONTH({Created})', description: 'Extract month' },
+        { name: 'Age in Weeks', formula: 'DATEDIFF(TODAY(), {Created}, "weeks")', description: 'Weeks old' }
+      ]
+    };
+
+    // Render sample data table
+    function renderSampleData() {
+      const tbody = document.getElementById('sample-data-body');
+      tbody.innerHTML = sampleData.map(row => `
+        <tr>
+          <td>${row.Product}</td>
+          <td>$${row.Price}</td>
+          <td>${row.Quantity}</td>
+          <td>${(row.Discount * 100).toFixed(0)}%</td>
+          <td>${row.Category}</td>
+          <td>${row.Created.toLocaleDateString()}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Render examples
+    function renderExamples() {
+      for (const [category, items] of Object.entries(examples)) {
+        const container = document.getElementById(`${category}-examples`);
+        container.innerHTML = items.map(item => {
+          const testResult = formulaEngine.evaluate(item.formula, sampleData[0]);
+          return `
+            <div class="example-card">
+              <h4>${item.name}</h4>
+              <code>${item.formula}</code>
+              <div class="result">
+                <strong>Example result:</strong> ${testResult.success ? testResult.value : 'Error: ' + testResult.error}
+              </div>
+              <p style="font-size: 12px; color: #6b7280; margin-top: 8px;">${item.description}</p>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // Load sample formulas
+    function loadSampleFormulas() {
+      const sampleFormulas = [
+        { name: 'Total Revenue', formula: '{Price} * {Quantity}', format: 'currency' },
+        { name: 'Net Price', formula: '{Price} * (1 - {Discount})', format: 'currency' },
+        { name: 'High Value Item', formula: 'IF({Price} > 300, "Premium", "Standard")', format: 'text' },
+        { name: 'Days Old', formula: 'DATEDIFF(TODAY(), {Created}, "days")', format: 'number' }
+      ];
+
+      sampleFormulas.forEach(({ name, formula, format }) => {
+        try {
+          formulaField.registerFormulaField(name, {
+            formula,
+            displayFormat: format,
+            decimals: 2
+          });
+        } catch (error) {
+          console.error(`Error loading formula ${name}:`, error);
+        }
+      });
+
+      showFormulaManager();
+      formulaUI.showNotification('Sample formulas loaded successfully', 'success');
+    }
+
+    // Show formula manager
+    function showFormulaManager() {
+      const container = document.getElementById('formula-manager-container');
+      container.innerHTML = '';
+      container.appendChild(formulaUI.renderFormulaFieldsList());
+    }
+
+    // Run all tests
+    function runAllTests() {
+      const resultsDiv = document.getElementById('test-results');
+      const allTests = [];
+
+      // Collect all examples
+      for (const items of Object.values(examples)) {
+        allTests.push(...items);
+      }
+
+      const results = allTests.map(test => {
+        const testResults = sampleData.map((record, idx) => {
+          const result = formulaEngine.evaluate(test.formula, record);
+          return {
+            record: idx + 1,
+            success: result.success,
+            value: result.value,
+            error: result.error
+          };
+        });
+
+        const allSuccess = testResults.every(r => r.success);
+
+        return {
+          name: test.name,
+          formula: test.formula,
+          success: allSuccess,
+          results: testResults
+        };
+      });
+
+      // Render results
+      resultsDiv.innerHTML = `
+        <h3 style="margin-bottom: 16px;">Test Summary: ${results.filter(r => r.success).length}/${results.length} passed</h3>
+        ${results.map(test => `
+          <div class="test-item">
+            <div>
+              <strong class="${test.success ? 'success' : 'error'}">
+                ${test.success ? '✓' : '✗'} ${test.name}
+              </strong>
+            </div>
+            <div style="margin-top: 6px;">
+              <code>${test.formula}</code>
+            </div>
+            ${!test.success ? `
+              <div style="margin-top: 8px; color: #dc2626; font-size: 13px;">
+                Error: ${test.results.find(r => !r.success)?.error}
+              </div>
+            ` : `
+              <div style="margin-top: 8px; font-size: 13px; color: #6b7280;">
+                Sample results: ${test.results.slice(0, 3).map(r => r.value).join(', ')}
+              </div>
+            `}
+          </div>
+        `).join('')}
+      `;
+    }
+
+    // Listen for formula field changes
+    document.addEventListener('formulaFieldChange', (event) => {
+      console.log('Formula field changed:', event.detail);
+      showFormulaManager();
+    });
+
+    // Initialize on load
+    renderSampleData();
+    renderExamples();
+
+    console.log('%c🎉 EO Formula Fields Demo Ready!', 'font-size: 16px; color: #3b82f6; font-weight: bold;');
+    console.log('Available globals: formulaEngine, formulaField, formulaUI, sampleData');
+  </script>
+</body>
+</html>
