@@ -1906,6 +1906,201 @@
             .cards-grid { grid-template-columns: 1fr; }
             .kanban-column { min-width: 260px; }
         }
+
+        /* NEW NAVIGATION STYLES */
+        .nav-item {
+            padding: 0.5rem;
+            cursor: pointer;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            transition: all 0.15s ease;
+            color: #d1d5db;
+        }
+        .nav-item:hover {
+            background-color: #1C253D;
+            color: white;
+        }
+        .nav-item.active {
+            background-color: #1C253D;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-section-title {
+            padding: 0.75rem 1rem 0.5rem 1rem;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            color: #9ca3af;
+            font-weight: 600;
+        }
+
+        .world-nav-parent {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-radius: 0.375rem;
+            margin: 0 0.5rem;
+            transition: background-color 0.15s ease;
+            font-weight: 500;
+        }
+        .world-nav-parent:hover {
+            background-color: #131C30;
+        }
+
+        .world-nav-children {
+            margin-left: 1rem;
+            margin-top: 0.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        /* DASHBOARD/LANDING PAGE STYLES */
+        .card {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            padding: 1rem;
+        }
+
+        .summary-card {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .summary-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+        .summary-card-count {
+            font-size: 1.5rem;
+            font-weight: 600;
+            line-height: 2rem;
+            color: var(--text);
+        }
+        .summary-card-title {
+            color: #6b7280;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .entity-type-card {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+        .entity-type-card:hover {
+            background-color: #f3f4f6;
+        }
+        .entity-type-card-label {
+            font-size: 1.125rem;
+            font-weight: 500;
+            line-height: 1.75rem;
+        }
+        .entity-type-card-count {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+        }
+        .dashboard-header h1 {
+            font-size: 1.875rem;
+            font-weight: 600;
+            line-height: 2.25rem;
+            margin: 0;
+        }
+        .dashboard-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .dashboard-section {
+            margin-bottom: 2.5rem;
+        }
+        .dashboard-section h2 {
+            font-size: 1.125rem;
+            font-weight: 500;
+            line-height: 1.75rem;
+            margin: 0 0 0.75rem 0;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+        }
+
+        .entity-type-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .discovery-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .discovery-card {
+            padding: 1rem;
+            background-color: white;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            border: 1px solid #e5e7eb;
+        }
+        .discovery-card-title {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        .discovery-card-description {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 0.75rem;
+        }
+
+        .recent-changes-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .recent-changes-list li {
+            font-size: 0.875rem;
+            color: #4b5563;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .recent-changes-list li:last-child {
+            border-bottom: none;
+        }
+
+        @media (max-width: 1024px) {
+            .summary-grid { grid-template-columns: repeat(2, 1fr); }
+            .entity-type-grid { grid-template-columns: repeat(2, 1fr); }
+            .discovery-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 640px) {
+            .summary-grid { grid-template-columns: 1fr; }
+            .entity-type-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -1922,65 +2117,44 @@
         <div class="app-container" id="appContainer">
         <!-- Sidebar -->
         <div class="app-sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-brand-logo" aria-label="EO bracket logo">
-                    <img id="topCornerLogo" src="assets/eo-icons/eo-bracket-light.svg" alt="EO bracket logo" />
-                </div>
-                <button class="sidebar-toggle" onclick="toggleSidebar()">
-                    <i class="ph ph-list text-lg"></i>
-                </button>
+            <!-- Brand Logo -->
+            <div class="p-4 font-bold tracking-wide text-lg" style="padding: 1rem; font-weight: 700; letter-spacing: 0.05em; font-size: 1.125rem;">[EO]</div>
+
+            <!-- WORLD Section -->
+            <div class="nav-section-title">World</div>
+            <div class="world-nav-parent" id="worldNavParent" onclick="navigateTo('dashboard')">
+                <span id="worldNavName">Loading...</span>
             </div>
-            <div class="world-switcher">
-                <div class="world-badge">
-                    <span class="set-icon"><i class="ph ph-globe-hemisphere-west"></i></span>
-                    <div>
-                        <small>World</small>
-                        <div id="currentWorldLabel">Loading...</div>
-                    </div>
-                </div>
-                <div class="world-actions">
-                    <select id="worldSelect" class="world-select"></select>
-                    <button id="loadGraphDemoBtn" class="sidebar-toggle" title="Load Graph Demo" onclick="loadGraphDemo()"><i class="ph ph-graph"></i></button>
-                    <button id="addWorldBtn" class="sidebar-toggle" title="Add world"><i class="ph ph-plus"></i></button>
-                </div>
+            <div class="world-nav-children" style="padding: 0 1rem;">
+                <div class="nav-item" id="navDashboard" onclick="navigateTo('dashboard')">Dashboard</div>
+                <div class="nav-item" id="navEntities" onclick="navigateTo('entities')">Entities</div>
+                <div class="nav-item" id="navConnections" onclick="navigateTo('connections')">Connections</div>
+                <div class="nav-item" id="navDefinitions" onclick="navigateTo('definitions')">Definitions</div>
+                <div class="nav-item" id="navViews" onclick="navigateTo('views')">Views</div>
             </div>
-            <div class="sidebar-section">
-                <div class="sidebar-section-title collapsible" onclick="toggleKnowledgeSection()">
-                    <span>Knowledge</span>
-                    <i class="ph ph-caret-down collapse-icon"></i>
-                </div>
-                <div class="knowledge-content" id="knowledgeContent">
-                    <div class="knowledge-nav">
-                        <button class="knowledge-nav-btn" id="entitiesNavBtn" onclick="openEntitiesPage()">
-                            <i class="ph ph-archive"></i>
-                            <span>Entities</span>
-                        </button>
-                        <button class="knowledge-nav-btn" id="definitionsNavBtn" onclick="openDefinitionsPage()">
-                            <i class="ph ph-books"></i>
-                            <span>Definitions</span>
-                        </button>
-                        <button class="knowledge-nav-btn" id="connectionsNavBtn" onclick="openConnectionsPage()">
-                            <i class="ph ph-link-simple"></i>
-                            <span>Connections</span>
-                        </button>
-                        <button class="knowledge-nav-btn" id="visualizationsNavBtn" onclick="openVisualizationsPage()">
-                            <i class="ph ph-chart-line"></i>
-                            <span>Visualizations</span>
-                        </button>
-                        <button class="knowledge-nav-btn" id="searchDataNavBtn" onclick="openSearchDataModal()">
-                            <i class="ph ph-magnifying-glass"></i>
-                            <span>Search Data</span>
-                        </button>
-                    </div>
-                </div>
+
+            <!-- EXPLORE Section -->
+            <div class="nav-section-title" style="margin-top: 1rem;">Explore</div>
+            <div class="world-nav-children" style="padding: 0 1rem;">
+                <div class="nav-item" id="navSearch" onclick="navigateTo('search')">Search & Discover</div>
+                <div class="nav-item" id="navSuggestedViews" onclick="navigateTo('suggestedViews')">Suggested Views</div>
+                <div class="nav-item" id="navSuggestedConcepts" onclick="navigateTo('suggestedConcepts')">Suggested Concepts</div>
             </div>
-            <div class="sidebar-section grow">
-                <div class="sidebar-section-title">Sets</div>
-                <div id="setsList"></div>
-                <button onclick="openAddSetModal()" class="new-set-btn">
-                    <span class="set-icon"><i class="ph ph-plus"></i></span>
-                    <span class="set-name">New Set</span>
-                </button>
+
+            <!-- SETS Section (dynamically populated) -->
+            <div class="nav-section-title" style="margin-top: 1.5rem;">Sets</div>
+            <div id="navSetsContainer" style="padding: 0 1rem; margin-bottom: 0.5rem;"></div>
+            <div class="world-nav-children" style="padding: 0 1rem;">
+                <div class="nav-item" style="color: #6ee7b7;" onclick="handleAddViewClick()">+ Add View</div>
+            </div>
+
+            <!-- ACTIONS Section -->
+            <div class="nav-section-title" style="margin-top: auto; padding-top: 1.5rem;">Actions</div>
+            <div class="world-nav-children" style="padding: 0 1rem; margin-bottom: 1.5rem;">
+                <div class="nav-item" onclick="openAddRecordModal()">+ Add Record</div>
+                <div class="nav-item" onclick="openAddSetModal()">+ Add Set</div>
+                <div class="nav-item" onclick="importWorld()">Import</div>
+                <div class="nav-item" onclick="exportWorld()">Export</div>
             </div>
         </div>
 
@@ -3899,6 +4073,8 @@
             } else if (state.currentSetId) {
                 switchSet(state.currentSetId, state.currentViewId);
             } else {
+                // Default to dashboard if no other view is specified
+                state.currentSpecialView = 'dashboard';
                 renderCurrentView();
             }
             setupEventListeners();
@@ -6371,6 +6547,103 @@
             syncUrlState();
         }
 
+        // NEW NAVIGATION HELPER FUNCTION
+        function navigateTo(page, filterType = null) {
+            closeMobileSidebar();
+
+            switch(page) {
+                case 'dashboard':
+                    state.currentSpecialView = 'dashboard';
+                    state.currentSetId = null;
+                    state.currentViewId = null;
+                    break;
+                case 'entities':
+                    state.currentSpecialView = 'entities';
+                    state.currentSetId = null;
+                    state.currentViewId = null;
+                    if (filterType) {
+                        state.entityFormState = state.entityFormState || {};
+                        state.entityFormState.selectedType = filterType;
+                    }
+                    break;
+                case 'connections':
+                    state.currentSpecialView = 'connections';
+                    state.currentSetId = null;
+                    state.currentViewId = null;
+                    break;
+                case 'definitions':
+                    state.currentSpecialView = 'definitions';
+                    state.currentSetId = null;
+                    state.currentViewId = null;
+                    break;
+                case 'views':
+                    state.currentSpecialView = 'views';
+                    state.currentSetId = null;
+                    state.currentViewId = null;
+                    break;
+                case 'search':
+                    state.currentSpecialView = 'search';
+                    state.currentSetId = null;
+                    state.currentViewId = null;
+                    // Open search modal
+                    openSearchDataModal();
+                    return; // Don't re-render for modal
+                case 'suggestedViews':
+                case 'suggestedConcepts':
+                    state.currentSpecialView = page;
+                    state.currentSetId = null;
+                    state.currentViewId = null;
+                    break;
+                default:
+                    console.warn('Unknown navigation target:', page);
+                    return;
+            }
+
+            renderSidebar();
+            renderCurrentView();
+            updateMobileChrome();
+            syncUrlState();
+        }
+
+        // Helper functions for navigation actions
+        function openAddRecordModal() {
+            if (!state.currentSetId) {
+                // If no set is selected, try to use the first set
+                const setsForWorld = getSetsForWorld();
+                if (setsForWorld.length > 0) {
+                    state.currentSetId = setsForWorld[0].id;
+                } else {
+                    showToast('Please create a set first');
+                    return;
+                }
+            }
+            openModal('addRecordModal');
+        }
+
+        function importWorld() {
+            document.getElementById('worldJsonInput')?.click();
+        }
+
+        function exportWorld() {
+            exportJSON();
+        }
+
+        function handleAddViewClick() {
+            // If a set is currently selected, use that
+            if (state.currentSetId) {
+                openAddViewModal(state.currentSetId);
+                return;
+            }
+
+            // Otherwise, try to use the first available set
+            const setsForWorld = getSetsForWorld();
+            if (setsForWorld.length > 0) {
+                openAddViewModal(setsForWorld[0].id);
+            } else {
+                showToast('Please create a set first');
+            }
+        }
+
         function toggleKnowledgeSection() {
             const titleEl = document.querySelector('.sidebar-section-title.collapsible');
             const contentEl = document.getElementById('knowledgeContent');
@@ -6381,68 +6654,66 @@
         }
 
         function renderSidebar() {
-            const container = document.getElementById('setsList');
-            container.innerHTML = '';
-
-            renderWorldSelector();
-
-            const definitionsBtn = document.getElementById('definitionsNavBtn');
-            const connectionsBtn = document.getElementById('connectionsNavBtn');
-            const entitiesBtn = document.getElementById('entitiesNavBtn');
-            const visualizationsBtn = document.getElementById('visualizationsNavBtn');
-            if (entitiesBtn) entitiesBtn.classList.toggle('active', state.currentSpecialView === 'entities');
-            if (definitionsBtn) definitionsBtn.classList.toggle('active', state.currentSpecialView === 'definitions');
-            if (connectionsBtn) connectionsBtn.classList.toggle('active', state.currentSpecialView === 'connections');
-            if (visualizationsBtn) visualizationsBtn.classList.toggle('active', state.currentSpecialView === 'visualizations');
-
-            const setsForWorld = getSetsForWorld();
-            if (setsForWorld.length === 0) {
-                container.innerHTML = '<p class="text-sm text-gray-400">No sets in this world yet.</p>';
-                return;
+            // Update world name in nav
+            const worldNavName = document.getElementById('worldNavName');
+            const world = getWorld();
+            if (worldNavName && world) {
+                worldNavName.textContent = world.name;
             }
 
-            setsForWorld.forEach(set => {
-                const setId = set.id;
-                const isExpanded = state.expandedSets.has(setId);
-                const isActive = setId === state.currentSetId;
+            // Update active states for nav items
+            const navItems = {
+                'navDashboard': state.currentSpecialView === 'dashboard',
+                'navEntities': state.currentSpecialView === 'entities',
+                'navConnections': state.currentSpecialView === 'connections',
+                'navDefinitions': state.currentSpecialView === 'definitions',
+                'navViews': state.currentSpecialView === 'views',
+                'navSearch': state.currentSpecialView === 'search',
+                'navSuggestedViews': state.currentSpecialView === 'suggestedViews',
+                'navSuggestedConcepts': state.currentSpecialView === 'suggestedConcepts'
+            };
 
-                const setItem = document.createElement('div');
-                setItem.className = `set-item ${isExpanded ? 'expanded' : ''}`;
-
-                const setHeader = document.createElement('div');
-                setHeader.className = `set-header ${isActive && !state.currentViewId ? 'active' : ''}`;
-                setHeader.innerHTML = `
-                    <span class="set-icon">${renderIcon(set.icon)}</span>
-                    <span class="set-name">${set.name}</span>
-                    <span class="set-expand-icon">▶</span>
-                `;
-                setHeader.onclick = (e) => { if (e.detail === 1) toggleSetExpansion(setId); };
-                setHeader.ondblclick = (e) => { e.stopPropagation(); openAddSetModal(setId); };
-                setHeader.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); openAddSetModal(setId); };
-                setItem.appendChild(setHeader);
-
-                if (isExpanded) {
-                    const viewsList = document.createElement('div');
-                    viewsList.className = 'views-list';
-
-                    const orderedViews = Array.from(set.views.entries());
-                    renderViewTree(orderedViews, setId, viewsList);
-
-                    const addViewBtn = document.createElement('div');
-                    addViewBtn.className = 'add-view-btn';
-                    addViewBtn.textContent = '+ Add View';
-                    addViewBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        state.currentSetId = setId;
-                        openAddViewModal(setId);
-                    };
-                    viewsList.appendChild(addViewBtn);
-
-                    setItem.appendChild(viewsList);
+            Object.entries(navItems).forEach(([id, isActive]) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.classList.toggle('active', isActive);
                 }
-
-                container.appendChild(setItem);
             });
+
+            // Populate sets in nav
+            const setsContainer = document.getElementById('navSetsContainer');
+            if (!setsContainer) return;
+
+            setsContainer.innerHTML = '';
+            const setsForWorld = getSetsForWorld();
+
+            if (setsForWorld.length === 0) {
+                setsContainer.innerHTML = '<div style="color: #9ca3af; font-size: 0.875rem; padding: 0.5rem 0;">No sets yet</div>';
+            } else {
+                setsForWorld.forEach(set => {
+                    const setItem = document.createElement('div');
+                    setItem.className = 'nav-item';
+                    setItem.textContent = set.name;
+                    setItem.onclick = () => {
+                        // Navigate to the first view in the set, or just select the set
+                        const firstView = set.views && set.views.size > 0 ? Array.from(set.views.keys())[0] : null;
+                        if (firstView) {
+                            switchSet(set.id, firstView);
+                        } else {
+                            state.currentSetId = set.id;
+                            state.currentSpecialView = null;
+                            renderCurrentView();
+                            renderSidebar();
+                        }
+                    };
+
+                    if (set.id === state.currentSetId && !state.currentSpecialView) {
+                        setItem.classList.add('active');
+                    }
+
+                    setsContainer.appendChild(setItem);
+                });
+            }
 
             renderViewTabs();
         }
@@ -6774,6 +7045,14 @@
 
         function renderCurrentView() {
             const container = document.getElementById('viewContainer');
+
+            // Dashboard (new landing page)
+            if (state.currentSpecialView === 'dashboard') {
+                renderDashboardPage();
+                updateMobileChrome();
+                return;
+            }
+
             if (state.currentSpecialView === 'entities') {
                 renderEntitiesPage();
                 updateMobileChrome();
@@ -6793,6 +7072,25 @@
 
             if (state.currentSpecialView === 'visualizations') {
                 renderVisualizationsPage();
+                updateMobileChrome();
+                return;
+            }
+
+            // Placeholder pages for new routes
+            if (state.currentSpecialView === 'views') {
+                container.innerHTML = '<div class="p-6"><h2 class="text-xl font-bold mb-4">Views</h2><p>View management interface coming soon.</p></div>';
+                updateMobileChrome();
+                return;
+            }
+
+            if (state.currentSpecialView === 'suggestedViews') {
+                container.innerHTML = '<div class="p-6"><h2 class="text-xl font-bold mb-4">Suggested Views</h2><p>AI-powered view suggestions coming soon.</p></div>';
+                updateMobileChrome();
+                return;
+            }
+
+            if (state.currentSpecialView === 'suggestedConcepts') {
+                container.innerHTML = '<div class="p-6"><h2 class="text-xl font-bold mb-4">Suggested Concepts</h2><p>Concept discovery coming soon.</p></div>';
                 updateMobileChrome();
                 return;
             }
@@ -9997,6 +10295,149 @@
             if (root && ReactDOM && React) {
                 ReactDOM.render(chart, root);
             }
+        }
+
+        // NEW COMPONENT FUNCTIONS FOR DASHBOARD
+        function createSummaryCard(title, count, onClick) {
+            return `
+                <div class="summary-card" onclick="${onClick}">
+                    <div class="summary-card-count">${count}</div>
+                    <div class="summary-card-title">${title}</div>
+                </div>
+            `;
+        }
+
+        function createEntityTypeCard(label, count, onClick) {
+            return `
+                <div class="entity-type-card" onclick="${onClick}">
+                    <div class="entity-type-card-label">${label}</div>
+                    <div class="entity-type-card-count">${count} items</div>
+                </div>
+            `;
+        }
+
+        function renderDashboardPage() {
+            const container = document.getElementById('viewContainer');
+            const world = getWorld();
+            const setsForWorld = getSetsForWorld();
+
+            // Calculate counts
+            const entityCount = state.entities.size;
+            const connectionCount = state.connections.size;
+            const definitionCount = state.definitions.size;
+
+            let totalRecords = 0;
+            let totalFields = 0;
+            let totalViews = 0;
+
+            setsForWorld.forEach(set => {
+                totalRecords += set.records ? set.records.size : 0;
+                totalFields += set.fields ? set.fields.size : 0;
+                totalViews += set.views ? set.views.size : 0;
+            });
+
+            const setCount = setsForWorld.length;
+
+            // Get recent changes from event stream (last 10)
+            const recentChanges = (state.eventStream || []).slice(-10).reverse().map(event => {
+                const timestamp = new Date(event.timestamp).toLocaleString();
+                return `${timestamp} - ${event.type || 'Change'} - ${event.description || 'System update'}`;
+            });
+
+            // Suggested views (placeholder for future implementation)
+            const suggestedViews = [
+                {
+                    label: 'Records by Category',
+                    description: 'Group and analyze your records by category or type',
+                    id: 'suggested-category'
+                },
+                {
+                    label: 'Recent Activity Timeline',
+                    description: 'View recently modified or created records in chronological order',
+                    id: 'suggested-timeline'
+                }
+            ];
+
+            container.innerHTML = `
+                <div style="padding: 2rem; display: flex; flex-direction: column; gap: 2.5rem;">
+
+                    <!-- HEADER -->
+                    <div class="dashboard-header">
+                        <h1>${world?.name || 'World'}</h1>
+                        <div class="dashboard-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('historyPanel').classList.add('open'); renderHistory();">
+                                <i class="ph ph-clock-counter-clockwise"></i>
+                                Global Changes
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="openJsonViewer()">
+                                <i class="ph ph-code"></i>
+                                View JSON
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('worldJsonInput').click()">
+                                <i class="ph ph-upload-simple"></i>
+                                Import World
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="exportJSON()">
+                                <i class="ph ph-download-simple"></i>
+                                Download World
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SUMMARY CARDS -->
+                    <div class="summary-grid">
+                        ${createSummaryCard('Entities', entityCount, "navigateTo('entities')")}
+                        ${createSummaryCard('Connections', connectionCount, "navigateTo('connections')")}
+                        ${createSummaryCard('Definitions', definitionCount, "navigateTo('definitions')")}
+                        ${createSummaryCard('Views', totalViews, "navigateTo('views')")}
+                    </div>
+
+                    <!-- ENTITY TYPES -->
+                    <div class="dashboard-section">
+                        <h2>Entity Types</h2>
+                        <div class="entity-type-grid">
+                            ${createEntityTypeCard('Sets', setCount, "navigateTo('entities', 'set')")}
+                            ${createEntityTypeCard('Records', totalRecords, "navigateTo('entities', 'record')")}
+                            ${createEntityTypeCard('Fields', totalFields, "navigateTo('entities', 'field')")}
+                            ${createEntityTypeCard('Connections', connectionCount, "navigateTo('connections')")}
+                            ${createEntityTypeCard('Definitions', definitionCount, "navigateTo('definitions')")}
+                            ${createEntityTypeCard('Views', totalViews, "navigateTo('views')")}
+                        </div>
+                    </div>
+
+                    <!-- DISCOVERY -->
+                    <div class="dashboard-section">
+                        <h2>Discover Potential Views</h2>
+                        <div class="discovery-grid">
+                            ${suggestedViews.map(v => `
+                                <div class="discovery-card">
+                                    <div class="discovery-card-title">${v.label}</div>
+                                    <div class="discovery-card-description">${v.description}</div>
+                                    <button class="btn btn-primary btn-sm" onclick="createSuggestedView('${v.id}')">
+                                        Create View
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- RECENT ACTIVITY -->
+                    ${recentChanges.length > 0 ? `
+                        <div class="dashboard-section">
+                            <h2>Recent Changes</h2>
+                            <ul class="recent-changes-list">
+                                ${recentChanges.map(change => `<li>${change}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+
+                </div>
+            `;
+        }
+
+        function createSuggestedView(suggestionId) {
+            showToast('Suggested view creation coming soon!');
+            console.log('Creating suggested view:', suggestionId);
         }
 
         function attachConnectionFormatInlineEditing() {
