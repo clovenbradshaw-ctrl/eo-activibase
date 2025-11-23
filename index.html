@@ -3108,45 +3108,62 @@
     </div>
 
     <div id="columnRulesModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="modal-container bg-white w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <div class="modal-header flex items-center justify-between">
                 <div>
                     <h2 class="text-xl font-bold text-gray-900">Column Rules</h2>
                     <p class="text-sm text-gray-500 mt-1">Pick how we resolve multiple observations per property.</p>
                 </div>
-                <button id="closeColumnRulesBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                <button id="closeColumnRulesBtn" class="text-gray-400 hover:text-gray-600 transition p-2 rounded-lg hover:bg-gray-50">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            <div class="flex-1 overflow-y-auto modal-body space-y-4">
-                <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-white/50">
-                    <div class="flex items-center gap-2">
-                        <i class="ph ph-gear-six text-gray-500"></i>
-                        <div>
-                            <div class="text-sm font-semibold text-gray-900">Columns</div>
-                            <div class="text-xs text-gray-500">Toggle view-only columns like Row Numbers and Record ID.</div>
+            <div class="flex-1 overflow-y-auto modal-body space-y-6">
+                <!-- Columns Visibility Section -->
+                <div class="border border-gray-200 rounded-xl bg-gradient-to-br from-white to-gray-50/50 p-4 hover:border-gray-300 transition-all">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center">
+                            <i class="ph ph-columns text-blue-600 text-xl"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm font-semibold text-gray-900 mb-1">Columns</div>
+                            <div class="text-xs text-gray-500 mb-3">Toggle view-only columns like Row Numbers and Record ID.</div>
+                            <div class="flex flex-wrap gap-4">
+                                <label class="flex items-center gap-2 cursor-pointer select-none group">
+                                    <span class="text-sm text-gray-700 font-medium">Row #</span>
+                                    <div id="rowNumbersToggle" class="popup-toggle">
+                                        <input id="rowNumbersVisibilityToggle" type="checkbox" class="hidden">
+                                    </div>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer select-none group">
+                                    <span class="text-sm text-gray-700 font-medium">Record ID</span>
+                                    <div id="recordIdToggle" class="popup-toggle">
+                                        <input id="recordIdVisibilityToggle" type="checkbox" class="hidden">
+                                    </div>
+                                </label>
+                            </div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-4">
-                        <label class="flex items-center gap-2 cursor-pointer select-none">
-                            <span class="text-sm text-gray-700">Row #</span>
-                            <input id="rowNumbersVisibilityToggle" type="checkbox" class="w-4 h-4 border-gray-300 rounded">
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer select-none">
-                            <span class="text-sm text-gray-700">Record ID</span>
-                            <input id="recordIdVisibilityToggle" type="checkbox" class="w-4 h-4 border-gray-300 rounded">
-                        </label>
-                    </div>
                 </div>
+
+                <!-- Property Selection Section -->
                 <div>
-                    <label class="form-label">Property</label>
-                    <select id="columnRulesFieldSelect"></select>
+                    <label class="form-label flex items-center gap-2">
+                        <i class="ph ph-tag text-gray-400"></i>
+                        Property
+                    </label>
+                    <select id="columnRulesFieldSelect" class="w-full"></select>
                 </div>
+
+                <!-- Rule Selection Section -->
                 <div>
-                    <label class="form-label">Rule</label>
-                    <select id="columnRulesRuleSelect">
+                    <label class="form-label flex items-center gap-2">
+                        <i class="ph ph-funnel text-gray-400"></i>
+                        Rule
+                    </label>
+                    <select id="columnRulesRuleSelect" class="w-full">
                         <option value="sup_all">Show all (Multiple Observations)</option>
                         <option value="prefer_newest">Prefer newest</option>
                         <option value="prefer_oldest">Prefer oldest</option>
@@ -3156,16 +3173,38 @@
                         <option value="concat_text">Concatenate text</option>
                         <option value="first_non_null">First non-null</option>
                     </select>
+                    <p class="text-xs text-gray-500 mt-2">Choose how to handle multiple values for the same property.</p>
                 </div>
+
+                <!-- Preferred Set Section (conditional) -->
                 <div id="columnRulesSetPicker" class="hidden">
-                    <label class="form-label">Preferred Set</label>
-                    <select id="columnRulesPreferredSet"></select>
+                    <label class="form-label flex items-center gap-2">
+                        <i class="ph ph-stack text-gray-400"></i>
+                        Preferred Set
+                    </label>
+                    <select id="columnRulesPreferredSet" class="w-full"></select>
                 </div>
-                <div class="rounded-lg border border-gray-200 p-3 bg-gray-50" id="columnRulesSummary"></div>
+
+                <!-- Rule Summary -->
+                <div class="rounded-xl border-2 border-blue-100 bg-blue-50/50 p-4 flex items-start gap-3" id="columnRulesSummaryContainer">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center">
+                        <i class="ph ph-check-circle text-blue-600"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-semibold text-blue-900 uppercase tracking-wide mb-1">Current Rule</div>
+                        <div id="columnRulesSummary" class="text-sm font-medium text-gray-900"></div>
+                    </div>
+                </div>
             </div>
-            <div class="modal-footer flex justify-end gap-2">
-                <button id="deleteColumnRuleBtn" class="btn btn-secondary">Clear Rule</button>
-                <button id="saveColumnRuleBtn" class="btn btn-primary">Save Rule</button>
+            <div class="modal-footer flex justify-between items-center gap-3">
+                <button id="deleteColumnRuleBtn" class="btn btn-danger flex items-center gap-2">
+                    <i class="ph ph-trash text-sm"></i>
+                    Clear Rule
+                </button>
+                <button id="saveColumnRuleBtn" class="btn btn-primary flex items-center gap-2">
+                    <i class="ph ph-check text-sm"></i>
+                    Save Rule
+                </button>
             </div>
         </div>
     </div>
@@ -8545,11 +8584,19 @@
             preferredSet.value = currentRule.setId || '';
             setPicker.classList.toggle('hidden', ruleSelect.value !== 'prefer_set');
 
-            const recordIdToggle = document.getElementById('recordIdVisibilityToggle');
-            if (recordIdToggle) recordIdToggle.checked = !!view.showRecordId;
+            const recordIdCheckbox = document.getElementById('recordIdVisibilityToggle');
+            const recordIdToggle = document.getElementById('recordIdToggle');
+            if (recordIdCheckbox) {
+                recordIdCheckbox.checked = !!view.showRecordId;
+                if (recordIdToggle) recordIdToggle.classList.toggle('active', !!view.showRecordId);
+            }
 
-            const rowNumbersToggle = document.getElementById('rowNumbersVisibilityToggle');
-            if (rowNumbersToggle) rowNumbersToggle.checked = !!view.showRowNumbers;
+            const rowNumbersCheckbox = document.getElementById('rowNumbersVisibilityToggle');
+            const rowNumbersToggle = document.getElementById('rowNumbersToggle');
+            if (rowNumbersCheckbox) {
+                rowNumbersCheckbox.checked = !!view.showRowNumbers;
+                if (rowNumbersToggle) rowNumbersToggle.classList.toggle('active', !!view.showRowNumbers);
+            }
 
             updateColumnRulesSummary();
             openModal('columnRulesModal');
@@ -14946,10 +14993,29 @@
             };
             document.getElementById('columnRulesFieldSelect').onchange = updateColumnRulesSummary;
             document.getElementById('columnRulesPreferredSet').onchange = updateColumnRulesSummary;
-          const recordIdVisibilityToggle = document.getElementById('recordIdVisibilityToggle');
-          if (recordIdVisibilityToggle) recordIdVisibilityToggle.onchange = (e) => toggleRecordIdVisibility(e.target.checked);
-          const rowNumbersVisibilityToggle = document.getElementById('rowNumbersVisibilityToggle');
-          if (rowNumbersVisibilityToggle) rowNumbersVisibilityToggle.onchange = (e) => toggleRowNumbers(e.target.checked);
+
+          // Record ID toggle switch
+          const recordIdToggle = document.getElementById('recordIdToggle');
+          const recordIdCheckbox = document.getElementById('recordIdVisibilityToggle');
+          if (recordIdToggle && recordIdCheckbox) {
+            recordIdToggle.onclick = () => {
+              recordIdCheckbox.checked = !recordIdCheckbox.checked;
+              recordIdToggle.classList.toggle('active', recordIdCheckbox.checked);
+              toggleRecordIdVisibility(recordIdCheckbox.checked);
+            };
+          }
+
+          // Row Numbers toggle switch
+          const rowNumbersToggle = document.getElementById('rowNumbersToggle');
+          const rowNumbersCheckbox = document.getElementById('rowNumbersVisibilityToggle');
+          if (rowNumbersToggle && rowNumbersCheckbox) {
+            rowNumbersToggle.onclick = () => {
+              rowNumbersCheckbox.checked = !rowNumbersCheckbox.checked;
+              rowNumbersToggle.classList.toggle('active', rowNumbersCheckbox.checked);
+              toggleRowNumbers(rowNumbersCheckbox.checked);
+            };
+          }
+
           document.getElementById('saveColumnRuleBtn').onclick = saveColumnRule;
           document.getElementById('deleteColumnRuleBtn').onclick = deleteColumnRule;
           document.getElementById('addWorldBtn').onclick = openAddWorldModal;
