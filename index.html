@@ -2123,24 +2123,34 @@
             <div class="p-4 font-bold tracking-wide text-lg" style="padding: 1rem; font-weight: 700; letter-spacing: 0.05em; font-size: 1.125rem;">[EO]</div>
 
             <!-- WORLD Section -->
-            <div class="nav-section-title">World</div>
-            <div class="world-nav-parent" id="worldNavParent" onclick="navigateTo('dashboard')">
-                <span id="worldNavName">Loading...</span>
+            <div class="nav-section-title" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('world')">
+                <span>World</span>
+                <i id="worldSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
             </div>
-            <div class="world-nav-children" style="padding: 0 1rem;">
-                <div class="nav-item" id="navDashboard" onclick="navigateTo('dashboard')">Dashboard</div>
-                <div class="nav-item" id="navEntities" onclick="navigateTo('entities')">Entities</div>
-                <div class="nav-item" id="navConnections" onclick="navigateTo('connections')">Connections</div>
-                <div class="nav-item" id="navDefinitions" onclick="navigateTo('definitions')">Definitions</div>
-                <div class="nav-item" id="navViews" onclick="navigateTo('views')">Views</div>
+            <div id="worldNavContent">
+                <div class="world-nav-parent" id="worldNavParent" onclick="navigateTo('dashboard')">
+                    <span id="worldNavName">Loading...</span>
+                </div>
+                <div class="world-nav-children" style="padding: 0 1rem;">
+                    <div class="nav-item" id="navDashboard" onclick="navigateTo('dashboard')">Dashboard</div>
+                    <div class="nav-item" id="navEntities" onclick="navigateTo('entities')">Entities</div>
+                    <div class="nav-item" id="navConnections" onclick="navigateTo('connections')">Connections</div>
+                    <div class="nav-item" id="navDefinitions" onclick="navigateTo('definitions')">Definitions</div>
+                    <div class="nav-item" id="navViews" onclick="navigateTo('views')">Views</div>
+                </div>
             </div>
 
             <!-- EXPLORE Section -->
-            <div class="nav-section-title" style="margin-top: 1rem;">Explore</div>
-            <div class="world-nav-children" style="padding: 0 1rem;">
-                <div class="nav-item" id="navSearch" onclick="navigateTo('search')">Search & Discover</div>
-                <div class="nav-item" id="navSuggestedViews" onclick="navigateTo('suggestedViews')">Suggested Views</div>
-                <div class="nav-item" id="navSuggestedConcepts" onclick="navigateTo('suggestedConcepts')">Suggested Concepts</div>
+            <div class="nav-section-title" style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('explore')">
+                <span>Explore</span>
+                <i id="exploreSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
+            </div>
+            <div id="exploreNavContent">
+                <div class="world-nav-children" style="padding: 0 1rem;">
+                    <div class="nav-item" id="navSearch" onclick="navigateTo('search')">Search & Discover</div>
+                    <div class="nav-item" id="navSuggestedViews" onclick="navigateTo('suggestedViews')">Suggested Views</div>
+                    <div class="nav-item" id="navSuggestedConcepts" onclick="navigateTo('suggestedConcepts')">Suggested Concepts</div>
+                </div>
             </div>
 
             <!-- SETS Section (dynamically populated) -->
@@ -2151,12 +2161,17 @@
             </div>
 
             <!-- ACTIONS Section -->
-            <div class="nav-section-title" style="margin-top: auto; padding-top: 1.5rem;">Actions</div>
-            <div class="world-nav-children" style="padding: 0 1rem; margin-bottom: 1.5rem;">
-                <div class="nav-item" onclick="openAddRecordModal()">+ Add Record</div>
-                <div class="nav-item" onclick="openAddSetModal()">+ Add Set</div>
-                <div class="nav-item" onclick="importWorld()">Import</div>
-                <div class="nav-item" onclick="exportWorld()">Export</div>
+            <div class="nav-section-title" style="margin-top: auto; padding-top: 1.5rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('actions')">
+                <span>Actions</span>
+                <i id="actionsSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
+            </div>
+            <div id="actionsNavContent">
+                <div class="world-nav-children" style="padding: 0 1rem; margin-bottom: 1.5rem;">
+                    <div class="nav-item" onclick="openAddRecordModal()">+ Add Record</div>
+                    <div class="nav-item" onclick="openAddSetModal()">+ Add Set</div>
+                    <div class="nav-item" onclick="importWorld()">Import</div>
+                    <div class="nav-item" onclick="exportWorld()">Export</div>
+                </div>
             </div>
         </div>
 
@@ -2805,6 +2820,25 @@
         </div>
     </div>
 
+    <div id="addRecordModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-md">
+            <div class="modal-header">
+                <h2 class="text-xl font-bold text-gray-900">Add Record</h2>
+            </div>
+            <div class="modal-body space-y-4">
+                <div>
+                    <label class="form-label">Select View</label>
+                    <select id="addRecordViewSelect" class="w-full"></select>
+                    <p class="form-hint">Choose which view to add the record to. The record will be structured based on the view's fields.</p>
+                </div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button id="cancelAddRecordBtn" class="btn btn-secondary">Cancel</button>
+                <button id="saveAddRecordBtn" class="btn btn-primary">Create Record</button>
+            </div>
+        </div>
+    </div>
+
     <div id="addViewModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
         <div class="modal-container bg-white w-full max-w-xl">
             <div class="modal-header">
@@ -3307,6 +3341,7 @@
             changeFieldTypeDropdownOpen: false,
             changeFieldContext: null,
             expandedSets: new Set(),
+            collapsedNavSections: new Set(), // Track collapsed nav sections: 'world', 'explore', 'actions'
             draggedRecord: null,
             cellHistoryContext: null,
             setEditorContext: null,
@@ -6482,6 +6517,25 @@
             renderSidebar();
         }
 
+        function toggleNavSection(sectionName) {
+            const contentId = sectionName + 'NavContent';
+            const chevronId = sectionName + 'SectionChevron';
+            const content = document.getElementById(contentId);
+            const chevron = document.getElementById(chevronId);
+
+            if (!content || !chevron) return;
+
+            if (state.collapsedNavSections.has(sectionName)) {
+                state.collapsedNavSections.delete(sectionName);
+                content.style.display = 'block';
+                chevron.className = 'ph ph-caret-down';
+            } else {
+                state.collapsedNavSections.add(sectionName);
+                content.style.display = 'none';
+                chevron.className = 'ph ph-caret-right';
+            }
+        }
+
         function renderWorldSelector() {
             const select = document.getElementById('worldSelect');
             const label = document.getElementById('currentWorldLabel');
@@ -6674,16 +6728,50 @@
 
         // Helper functions for navigation actions
         function openAddRecordModal() {
-            if (!state.currentSetId) {
-                // If no set is selected, try to use the first set
-                const setsForWorld = getSetsForWorld();
-                if (setsForWorld.length > 0) {
-                    state.currentSetId = setsForWorld[0].id;
-                } else {
-                    showToast('Please create a set first');
-                    return;
+            const setsForWorld = getSetsForWorld();
+            if (setsForWorld.length === 0) {
+                showToast('Please create a set first');
+                return;
+            }
+
+            const viewSelect = document.getElementById('addRecordViewSelect');
+            if (!viewSelect) return;
+
+            viewSelect.innerHTML = '';
+
+            // Populate with all views from all sets
+            setsForWorld.forEach(set => {
+                if (set.views && set.views.size > 0) {
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = set.name;
+
+                    Array.from(set.views.entries()).forEach(([viewId, view]) => {
+                        const option = document.createElement('option');
+                        option.value = JSON.stringify({ setId: set.id, viewId });
+                        option.textContent = view.name;
+                        optgroup.appendChild(option);
+                    });
+
+                    viewSelect.appendChild(optgroup);
+                }
+            });
+
+            if (viewSelect.options.length === 0) {
+                showToast('Please create a view first');
+                return;
+            }
+
+            // Pre-select current view if available
+            if (state.currentSetId && state.currentViewId) {
+                const currentValue = JSON.stringify({ setId: state.currentSetId, viewId: state.currentViewId });
+                for (let i = 0; i < viewSelect.options.length; i++) {
+                    if (viewSelect.options[i].value === currentValue) {
+                        viewSelect.selectedIndex = i;
+                        break;
+                    }
                 }
             }
+
             openModal('addRecordModal');
         }
 
@@ -6758,27 +6846,63 @@
                 setsContainer.innerHTML = '<div style="color: #9ca3af; font-size: 0.875rem; padding: 0.5rem 0;">No sets yet</div>';
             } else {
                 setsForWorld.forEach(set => {
-                    const setItem = document.createElement('div');
-                    setItem.className = 'nav-item';
-                    setItem.textContent = set.name;
-                    setItem.onclick = () => {
-                        // Navigate to the first view in the set, or just select the set
-                        const firstView = set.views && set.views.size > 0 ? Array.from(set.views.keys())[0] : null;
-                        if (firstView) {
-                            switchSet(set.id, firstView);
+                    const isExpanded = state.expandedSets.has(set.id);
+                    const hasViews = set.views && set.views.size > 0;
+
+                    // Create set header with chevron
+                    const setHeader = document.createElement('div');
+                    setHeader.className = 'nav-item';
+                    setHeader.style.display = 'flex';
+                    setHeader.style.alignItems = 'center';
+                    setHeader.style.justifyContent = 'space-between';
+
+                    const setLabel = document.createElement('span');
+                    setLabel.textContent = set.name;
+                    setLabel.style.flex = '1';
+
+                    const chevron = document.createElement('i');
+                    chevron.className = `ph ${isExpanded ? 'ph-caret-down' : 'ph-caret-right'}`;
+                    chevron.style.fontSize = '12px';
+                    chevron.style.opacity = '0.7';
+                    chevron.style.transition = 'transform 0.15s';
+
+                    if (set.id === state.currentSetId && !state.currentSpecialView && !state.currentViewId) {
+                        setHeader.classList.add('active');
+                    }
+
+                    setHeader.appendChild(setLabel);
+                    if (hasViews) {
+                        setHeader.appendChild(chevron);
+                    }
+
+                    setHeader.onclick = (e) => {
+                        e.stopPropagation();
+                        if (hasViews) {
+                            toggleSetExpansion(set.id);
                         } else {
                             state.currentSetId = set.id;
+                            state.currentViewId = null;
                             state.currentSpecialView = null;
                             renderCurrentView();
                             renderSidebar();
                         }
                     };
 
-                    if (set.id === state.currentSetId && !state.currentSpecialView) {
-                        setItem.classList.add('active');
-                    }
+                    setsContainer.appendChild(setHeader);
 
-                    setsContainer.appendChild(setItem);
+                    // Render views under this set if expanded
+                    if (isExpanded && hasViews) {
+                        const viewsContainer = document.createElement('div');
+                        viewsContainer.style.paddingLeft = '0.5rem';
+                        viewsContainer.style.marginTop = '0.25rem';
+                        viewsContainer.style.marginBottom = '0.5rem';
+
+                        const orderedViews = Array.from(set.views.entries())
+                            .sort(([, a], [, b]) => (a.order || 0) - (b.order || 0));
+
+                        renderViewTree(orderedViews, set.id, viewsContainer);
+                        setsContainer.appendChild(viewsContainer);
+                    }
                 });
             }
 
@@ -14306,6 +14430,39 @@
                 }
             };
             document.getElementById('cancelAddSetBtn').onclick = () => { state.setEditorContext = null; closeModal('addSetModal'); };
+
+            // Add Record modal handlers
+            document.getElementById('cancelAddRecordBtn').onclick = () => { closeModal('addRecordModal'); };
+            document.getElementById('saveAddRecordBtn').onclick = () => {
+                const viewSelect = document.getElementById('addRecordViewSelect');
+                if (!viewSelect || !viewSelect.value) {
+                    showToast('Please select a view');
+                    return;
+                }
+
+                try {
+                    const { setId, viewId } = JSON.parse(viewSelect.value);
+                    const set = state.sets.get(setId);
+                    if (!set) {
+                        showToast('Set not found');
+                        return;
+                    }
+
+                    // Create a new record with default values based on schema
+                    const record = { id: `rec_${Date.now()}` };
+                    set.schema.forEach(f => record[f.id] = FIELD_TYPES[f.type].defaultValue);
+                    set.records.set(record.id, record);
+
+                    // Switch to the selected view and show the new record
+                    switchSet(setId, viewId);
+                    closeModal('addRecordModal');
+                    showToast('✓ Record added');
+                } catch (e) {
+                    console.error('Error adding record:', e);
+                    showToast('Error adding record');
+                }
+            };
+
             document.getElementById('saveAddViewBtn').onclick = () => {
                 const name = document.getElementById('newViewName').value.trim();
                 const icon = extractIconToken(document.getElementById('newViewIcon').value.trim() || 'ph-table');
