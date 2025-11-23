@@ -7667,17 +7667,33 @@
                 if (nameInput) nameInput.value = '';
                 if (iconInput) iconInput.value = 'ph-table';
                 populateViewParentOptions(setId);
-                const candidates = findKeyCandidates();
+
+                // Show modal immediately with loading state for key candidates
                 if (keySelect) {
-                    keySelect.disabled = candidates.length === 0;
-                    keySelect.innerHTML = candidates.length === 0
-                        ? '<option value="">No stable identity properties detected yet</option>'
-                        : candidates.map(c => `<option value="${c.setId}:${c.fieldId}">${c.fieldName} (${state.sets.get(c.setId)?.name || 'Set'})</option>`).join('');
+                    keySelect.disabled = true;
+                    keySelect.innerHTML = '<option value="">Scanning for identity properties…</option>';
                 }
                 if (radioBlank && radioKey) {
                     radioBlank.checked = true;
                     radioKey.checked = false;
                 }
+
+                // Find key candidates asynchronously to avoid blocking UI
+                setTimeout(() => {
+                    const candidates = findKeyCandidates();
+                    if (keySelect) {
+                        keySelect.disabled = candidates.length === 0;
+                        keySelect.innerHTML = candidates.length === 0
+                            ? '<option value="">No stable identity properties detected yet</option>'
+                            : candidates.map(c => `<option value="${c.setId}:${c.fieldId}">${c.fieldName} (${state.sets.get(c.setId)?.name || 'Set'})</option>`).join('');
+
+                        // Re-check if key mode is selected and update disabled state
+                        const selectedMode = document.querySelector('input[name="viewCreationMode"]:checked')?.value;
+                        if (selectedMode === 'key') {
+                            keySelect.disabled = candidates.length === 0;
+                        }
+                    }
+                }, 0);
             }
 
             syncIconSelector('newViewIcon');
@@ -15343,6 +15359,19 @@
             const selector = document.querySelector('.field-type-select');
             if (!selector) return;
             if (!selector.contains(event.target)) closeFieldTypeDropdown();
+        });
+
+        // Close modals when clicking outside (on overlay)
+        document.addEventListener('click', (event) => {
+            if (event.target.classList.contains('modal-overlay')) {
+                const modalId = event.target.id;
+                if (modalId) {
+                    // Clear any editor context when closing modals
+                    if (modalId === 'addViewModal') state.viewEditorContext = null;
+                    if (modalId === 'addSetModal') state.setEditorContext = null;
+                    closeModal(modalId);
+                }
+            }
         });
 
         // JSON VIEWER
