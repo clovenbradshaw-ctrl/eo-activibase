@@ -2515,6 +2515,30 @@
                         <p class="form-hint">Select which set to link to</p>
                     </div>
                 </div>
+                <div id="formulaConfig" class="config-section">
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <label class="form-label">Formula</label>
+                        <div class="relative">
+                            <textarea id="formulaInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm" rows="4" placeholder="e.g., {Price} * {Quantity}"></textarea>
+                            <div id="formulaAutocomplete" class="absolute z-10 hidden bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto" style="width: calc(100% - 2rem);"></div>
+                        </div>
+                        <p class="form-hint mt-2">Use {Field Name} to reference other fields. Available functions: SUM, AVG, MIN, MAX, IF, CONCAT, ROUND, etc.</p>
+                        <div id="formulaValidation" class="mt-2 text-sm"></div>
+                        <div class="mt-3">
+                            <label class="form-label">Display Format</label>
+                            <select id="formulaFormat" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="number">Number</option>
+                                <option value="currency">Currency</option>
+                                <option value="percentage">Percentage</option>
+                                <option value="text">Text</option>
+                            </select>
+                        </div>
+                        <div class="mt-3">
+                            <label class="form-label">Decimal Places</label>
+                            <input type="number" id="formulaDecimals" class="w-full px-3 py-2 border border-gray-300 rounded-lg" min="0" max="10" value="2">
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer flex justify-end gap-2">
                 <button id="cancelAddFieldBtn" class="btn btn-secondary">Cancel</button>
@@ -2567,6 +2591,30 @@
                         <label class="form-label">Link to Set</label>
                         <select id="changeLinkToSet"></select>
                         <p class="form-hint">Select which set to link to</p>
+                    </div>
+                </div>
+                <div id="changeFormulaConfig" class="config-section">
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <label class="form-label">Formula</label>
+                        <div class="relative">
+                            <textarea id="changeFormulaInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm" rows="4" placeholder="e.g., {Price} * {Quantity}"></textarea>
+                            <div id="changeFormulaAutocomplete" class="absolute z-10 hidden bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto" style="width: calc(100% - 2rem);"></div>
+                        </div>
+                        <p class="form-hint mt-2">Use {Field Name} to reference other fields. Available functions: SUM, AVG, MIN, MAX, IF, CONCAT, ROUND, etc.</p>
+                        <div id="changeFormulaValidation" class="mt-2 text-sm"></div>
+                        <div class="mt-3">
+                            <label class="form-label">Display Format</label>
+                            <select id="changeFormulaFormat" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="number">Number</option>
+                                <option value="currency">Currency</option>
+                                <option value="percentage">Percentage</option>
+                                <option value="text">Text</option>
+                            </select>
+                        </div>
+                        <div class="mt-3">
+                            <label class="form-label">Decimal Places</label>
+                            <input type="number" id="changeFormulaDecimals" class="w-full px-3 py-2 border border-gray-300 rounded-lg" min="0" max="10" value="2">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3221,10 +3269,486 @@
             PHONE: { id: 'PHONE', name: 'Phone', description: 'International phone numbers for contacts', defaultValue: '', icon: 'ph-phone' },
             LINK_RECORD: { id: 'LINK_RECORD', name: 'Link to Record', description: 'Connect records across sets with relationships', defaultValue: '', icon: 'ph-link-simple-horizontal', needsConfig: true },
             SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', description: 'Choose one option from a defined list', defaultValue: '', icon: 'ph-list-bullets', needsConfig: true },
-            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', description: 'Quick yes/no or done/undone tracking', defaultValue: false, icon: 'ph-check-square' }
+            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', description: 'Quick yes/no or done/undone tracking', defaultValue: false, icon: 'ph-check-square' },
+            FORMULA: { id: 'FORMULA', name: 'Formula', description: 'Calculate values using spreadsheet-style formulas', defaultValue: '', icon: 'ph-function', needsConfig: true }
         };
 
         const VIEW_TYPE_ICONS = { grid: 'ph-table', card: 'ph-cards-three', kanban: 'ph-kanban', graph: 'ph-graph', KEY_DERIVED: 'ph-key' };
+
+        // Formula Autocomplete
+        function initFormulaAutocomplete() {
+            const input = document.getElementById('formulaInput');
+            const autocomplete = document.getElementById('formulaAutocomplete');
+            const validation = document.getElementById('formulaValidation');
+
+            if (!input || !autocomplete) return;
+
+            let autocompleteState = {
+                cursorPos: 0,
+                searchText: '',
+                isActive: false
+            };
+
+            function hideAutocomplete() {
+                autocomplete.classList.add('hidden');
+                autocompleteState.isActive = false;
+            }
+
+            function showAutocomplete(items, searchText) {
+                if (items.length === 0) {
+                    hideAutocomplete();
+                    return;
+                }
+
+                autocomplete.innerHTML = items.map((item, index) => `
+                    <div class="autocomplete-item px-3 py-2 hover:bg-purple-100 cursor-pointer ${index === 0 ? 'bg-purple-50' : ''}"
+                         data-value="${item.value}"
+                         data-index="${index}">
+                        <div class="font-medium text-sm">${item.label}</div>
+                        ${item.description ? `<div class="text-xs text-gray-500">${item.description}</div>` : ''}
+                    </div>
+                `).join('');
+
+                // Add click handlers
+                autocomplete.querySelectorAll('.autocomplete-item').forEach(el => {
+                    el.onclick = () => {
+                        insertAutocomplete(el.dataset.value, searchText);
+                        hideAutocomplete();
+                    };
+                });
+
+                autocomplete.classList.remove('hidden');
+                autocompleteState.isActive = true;
+            }
+
+            function insertAutocomplete(value, searchText) {
+                const text = input.value;
+                const cursorPos = input.selectionStart;
+                const beforeCursor = text.substring(0, cursorPos);
+                const afterCursor = text.substring(cursorPos);
+
+                // Find where the search started (after the last '{')
+                const lastBracePos = beforeCursor.lastIndexOf('{');
+                const newText = text.substring(0, lastBracePos) + value + afterCursor;
+
+                input.value = newText;
+                const newCursorPos = lastBracePos + value.length;
+                input.setSelectionRange(newCursorPos, newCursorPos);
+                input.focus();
+
+                validateFormula();
+            }
+
+            function validateFormula() {
+                const formula = input.value.trim();
+                if (!formula) {
+                    validation.innerHTML = '';
+                    return;
+                }
+
+                const set = getCurrentSet();
+                const result = FormulaEngine.validateFormula(formula, set.schema);
+
+                if (result.valid) {
+                    validation.innerHTML = '<span class="text-green-600">✓ Valid formula</span>';
+                    if (result.dependencies.length > 0) {
+                        validation.innerHTML += `<div class="text-xs text-gray-600 mt-1">Uses: ${result.dependencies.join(', ')}</div>`;
+                    }
+                } else {
+                    validation.innerHTML = `<span class="text-red-600">✗ ${result.error}</span>`;
+                }
+            }
+
+            input.addEventListener('input', (e) => {
+                const cursorPos = input.selectionStart;
+                const text = input.value;
+                const beforeCursor = text.substring(0, cursorPos);
+
+                // Check if we're inside a field reference
+                const lastBracePos = beforeCursor.lastIndexOf('{');
+                const lastCloseBracePos = beforeCursor.lastIndexOf('}');
+
+                if (lastBracePos > lastCloseBracePos) {
+                    // We're inside a field reference
+                    const searchText = beforeCursor.substring(lastBracePos + 1).toLowerCase();
+                    const set = getCurrentSet();
+
+                    // Get field suggestions
+                    const fields = set.schema
+                        .filter(f => f.name.toLowerCase().includes(searchText))
+                        .map(f => ({
+                            label: f.name,
+                            value: `{${f.name}}`,
+                            description: FIELD_TYPES[f.type]?.name || f.type
+                        }));
+
+                    showAutocomplete(fields, searchText);
+                } else {
+                    hideAutocomplete();
+                }
+
+                validateFormula();
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (autocompleteState.isActive) {
+                    const items = autocomplete.querySelectorAll('.autocomplete-item');
+                    const selected = autocomplete.querySelector('.bg-purple-50');
+
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (selected && selected.nextElementSibling) {
+                            selected.classList.remove('bg-purple-50');
+                            selected.nextElementSibling.classList.add('bg-purple-50');
+                        }
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (selected && selected.previousElementSibling) {
+                            selected.classList.remove('bg-purple-50');
+                            selected.previousElementSibling.classList.add('bg-purple-50');
+                        }
+                    } else if (e.key === 'Enter' || e.key === 'Tab') {
+                        e.preventDefault();
+                        if (selected) {
+                            const searchText = input.value.substring(0, input.selectionStart).split('{').pop();
+                            insertAutocomplete(selected.dataset.value, searchText);
+                            hideAutocomplete();
+                        }
+                    } else if (e.key === 'Escape') {
+                        hideAutocomplete();
+                    }
+                }
+            });
+
+            input.addEventListener('blur', () => {
+                // Delay hiding to allow click on autocomplete
+                setTimeout(hideAutocomplete, 200);
+            });
+
+            validateFormula();
+        }
+
+        // Change Formula Autocomplete (for change field type modal)
+        function initChangeFormulaAutocomplete() {
+            const input = document.getElementById('changeFormulaInput');
+            const autocomplete = document.getElementById('changeFormulaAutocomplete');
+            const validation = document.getElementById('changeFormulaValidation');
+
+            if (!input || !autocomplete) return;
+
+            let autocompleteState = {
+                cursorPos: 0,
+                searchText: '',
+                isActive: false
+            };
+
+            function hideAutocomplete() {
+                autocomplete.classList.add('hidden');
+                autocompleteState.isActive = false;
+            }
+
+            function showAutocomplete(items, searchText) {
+                if (items.length === 0) {
+                    hideAutocomplete();
+                    return;
+                }
+
+                autocomplete.innerHTML = items.map((item, index) => `
+                    <div class="autocomplete-item px-3 py-2 hover:bg-purple-100 cursor-pointer ${index === 0 ? 'bg-purple-50' : ''}"
+                         data-value="${item.value}"
+                         data-index="${index}">
+                        <div class="font-medium text-sm">${item.label}</div>
+                        ${item.description ? `<div class="text-xs text-gray-500">${item.description}</div>` : ''}
+                    </div>
+                `).join('');
+
+                autocomplete.querySelectorAll('.autocomplete-item').forEach(el => {
+                    el.onclick = () => {
+                        insertAutocomplete(el.dataset.value, searchText);
+                        hideAutocomplete();
+                    };
+                });
+
+                autocomplete.classList.remove('hidden');
+                autocompleteState.isActive = true;
+            }
+
+            function insertAutocomplete(value, searchText) {
+                const text = input.value;
+                const cursorPos = input.selectionStart;
+                const beforeCursor = text.substring(0, cursorPos);
+                const afterCursor = text.substring(cursorPos);
+
+                const lastBracePos = beforeCursor.lastIndexOf('{');
+                const newText = text.substring(0, lastBracePos) + value + afterCursor;
+
+                input.value = newText;
+                const newCursorPos = lastBracePos + value.length;
+                input.setSelectionRange(newCursorPos, newCursorPos);
+                input.focus();
+
+                validateFormula();
+            }
+
+            function validateFormula() {
+                const formula = input.value.trim();
+                if (!formula) {
+                    validation.innerHTML = '';
+                    return;
+                }
+
+                const set = getCurrentSet();
+                const result = FormulaEngine.validateFormula(formula, set.schema);
+
+                if (result.valid) {
+                    validation.innerHTML = '<span class="text-green-600">✓ Valid formula</span>';
+                    if (result.dependencies.length > 0) {
+                        validation.innerHTML += `<div class="text-xs text-gray-600 mt-1">Uses: ${result.dependencies.join(', ')}</div>`;
+                    }
+                } else {
+                    validation.innerHTML = `<span class="text-red-600">✗ ${result.error}</span>`;
+                }
+            }
+
+            input.addEventListener('input', (e) => {
+                const cursorPos = input.selectionStart;
+                const text = input.value;
+                const beforeCursor = text.substring(0, cursorPos);
+
+                const lastBracePos = beforeCursor.lastIndexOf('{');
+                const lastCloseBracePos = beforeCursor.lastIndexOf('}');
+
+                if (lastBracePos > lastCloseBracePos) {
+                    const searchText = beforeCursor.substring(lastBracePos + 1).toLowerCase();
+                    const set = getCurrentSet();
+
+                    const fields = set.schema
+                        .filter(f => f.name.toLowerCase().includes(searchText))
+                        .map(f => ({
+                            label: f.name,
+                            value: `{${f.name}}`,
+                            description: FIELD_TYPES[f.type]?.name || f.type
+                        }));
+
+                    showAutocomplete(fields, searchText);
+                } else {
+                    hideAutocomplete();
+                }
+
+                validateFormula();
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (autocompleteState.isActive) {
+                    const items = autocomplete.querySelectorAll('.autocomplete-item');
+                    const selected = autocomplete.querySelector('.bg-purple-50');
+
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (selected && selected.nextElementSibling) {
+                            selected.classList.remove('bg-purple-50');
+                            selected.nextElementSibling.classList.add('bg-purple-50');
+                        }
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (selected && selected.previousElementSibling) {
+                            selected.classList.remove('bg-purple-50');
+                            selected.previousElementSibling.classList.add('bg-purple-50');
+                        }
+                    } else if (e.key === 'Enter' || e.key === 'Tab') {
+                        e.preventDefault();
+                        if (selected) {
+                            const searchText = input.value.substring(0, input.selectionStart).split('{').pop();
+                            insertAutocomplete(selected.dataset.value, searchText);
+                            hideAutocomplete();
+                        }
+                    } else if (e.key === 'Escape') {
+                        hideAutocomplete();
+                    }
+                }
+            });
+
+            input.addEventListener('blur', () => {
+                setTimeout(hideAutocomplete, 200);
+            });
+
+            validateFormula();
+        }
+
+        // Formula Engine
+        const FormulaEngine = {
+            functions: {
+                // Math functions
+                SUM: (...args) => args.reduce((sum, val) => sum + (Number(val) || 0), 0),
+                AVG: (...args) => {
+                    const nums = args.map(v => Number(v) || 0);
+                    return nums.length ? nums.reduce((sum, val) => sum + val, 0) / nums.length : 0;
+                },
+                MIN: (...args) => Math.min(...args.map(v => Number(v) || 0)),
+                MAX: (...args) => Math.max(...args.map(v => Number(v) || 0)),
+                ROUND: (num, decimals = 0) => {
+                    const n = Number(num) || 0;
+                    const d = Number(decimals) || 0;
+                    return Math.round(n * Math.pow(10, d)) / Math.pow(10, d);
+                },
+                ABS: (num) => Math.abs(Number(num) || 0),
+                SQRT: (num) => Math.sqrt(Number(num) || 0),
+                POWER: (base, exp) => Math.pow(Number(base) || 0, Number(exp) || 0),
+
+                // Logical functions
+                IF: (condition, trueVal, falseVal) => condition ? trueVal : falseVal,
+                AND: (...args) => args.every(v => !!v),
+                OR: (...args) => args.some(v => !!v),
+                NOT: (val) => !val,
+
+                // Text functions
+                CONCAT: (...args) => args.map(v => String(v ?? '')).join(''),
+                UPPER: (text) => String(text ?? '').toUpperCase(),
+                LOWER: (text) => String(text ?? '').toLowerCase(),
+                TRIM: (text) => String(text ?? '').trim(),
+                LEN: (text) => String(text ?? '').length,
+                LEFT: (text, count) => String(text ?? '').substring(0, Number(count) || 0),
+                RIGHT: (text, count) => {
+                    const str = String(text ?? '');
+                    const n = Number(count) || 0;
+                    return str.substring(Math.max(0, str.length - n));
+                },
+
+                // Counting functions
+                COUNT: (...args) => args.filter(v => v != null).length,
+                COUNTA: (...args) => args.filter(v => v !== null && v !== undefined && v !== '').length,
+
+                // Value checks
+                ISBLANK: (val) => val == null || val === '',
+                ISNUMBER: (val) => typeof val === 'number' && !isNaN(val),
+            },
+
+            evaluate(formula, record, schema) {
+                if (!formula) return '';
+
+                try {
+                    // Replace field references {FieldName} with their values
+                    let processedFormula = formula;
+                    const fieldRefs = formula.match(/\{([^}]+)\}/g);
+
+                    if (fieldRefs) {
+                        for (const ref of fieldRefs) {
+                            const fieldName = ref.slice(1, -1); // Remove { and }
+                            const field = schema.find(f => f.name === fieldName);
+                            if (field) {
+                                let value = record[field.id];
+                                // Convert value to appropriate type for formula
+                                if (value === undefined || value === null) value = 0;
+                                if (typeof value === 'string') {
+                                    // If it's a number string, convert it
+                                    const num = parseFloat(value);
+                                    if (!isNaN(num) && value.trim() !== '') {
+                                        value = num;
+                                    } else {
+                                        value = `"${value.replace(/"/g, '\\"')}"`;
+                                    }
+                                }
+                                processedFormula = processedFormula.replace(ref, value);
+                            } else {
+                                processedFormula = processedFormula.replace(ref, '0');
+                            }
+                        }
+                    }
+
+                    // Replace function calls
+                    for (const [funcName, funcImpl] of Object.entries(this.functions)) {
+                        const regex = new RegExp(`\\b${funcName}\\s*\\(`, 'g');
+                        processedFormula = processedFormula.replace(regex, `FormulaEngine.functions.${funcName}(`);
+                    }
+
+                    // Evaluate the formula
+                    const result = eval(processedFormula);
+                    return result;
+                } catch (error) {
+                    console.error('Formula evaluation error:', error, formula);
+                    return '#ERROR';
+                }
+            },
+
+            extractFieldReferences(formula) {
+                if (!formula) return [];
+                const matches = formula.match(/\{([^}]+)\}/g);
+                if (!matches) return [];
+                return matches.map(m => m.slice(1, -1));
+            },
+
+            validateFormula(formula, schema) {
+                if (!formula) return { valid: false, error: 'Formula is empty' };
+
+                try {
+                    // Check for field references
+                    const fieldRefs = this.extractFieldReferences(formula);
+                    const invalidFields = [];
+
+                    for (const fieldName of fieldRefs) {
+                        const field = schema.find(f => f.name === fieldName);
+                        if (!field) {
+                            invalidFields.push(fieldName);
+                        }
+                    }
+
+                    if (invalidFields.length > 0) {
+                        return {
+                            valid: false,
+                            error: `Unknown fields: ${invalidFields.join(', ')}`,
+                            dependencies: fieldRefs
+                        };
+                    }
+
+                    return {
+                        valid: true,
+                        error: null,
+                        dependencies: fieldRefs
+                    };
+                } catch (error) {
+                    return {
+                        valid: false,
+                        error: error.message,
+                        dependencies: []
+                    };
+                }
+            },
+
+            formatFormulaValue(value, format, decimals) {
+                if (value === '#ERROR' || value === null || value === undefined) return value;
+
+                decimals = decimals || 2;
+
+                switch (format) {
+                    case 'number':
+                        if (typeof value === 'number') {
+                            return value.toFixed(decimals);
+                        }
+                        return String(value);
+
+                    case 'currency':
+                        if (typeof value === 'number') {
+                            return new Intl.NumberFormat('en-US', {
+                                style: 'currency',
+                                currency: 'USD',
+                                minimumFractionDigits: decimals,
+                                maximumFractionDigits: decimals
+                            }).format(value);
+                        }
+                        return String(value);
+
+                    case 'percentage':
+                        if (typeof value === 'number') {
+                            return (value * 100).toFixed(decimals) + '%';
+                        }
+                        return String(value);
+
+                    case 'text':
+                    default:
+                        return String(value);
+                }
+            }
+        };
 
         const ICON_OPTIONS = [
             // Organization & Layout
@@ -7517,6 +8041,19 @@
                     if (!value) return '';
                     const color = field.config?.colors?.[value] || 'gray';
                     return `<span class="badge badge-${color}">${value}</span>`;
+                case 'FORMULA':
+                    if (!field.config?.formula) return '';
+                    const set = getCurrentSet();
+                    const formulaResult = FormulaEngine.evaluate(field.config.formula, record, set.schema);
+                    if (formulaResult === '#ERROR') {
+                        return '<span class="text-red-600" title="Formula error">#ERROR</span>';
+                    }
+                    const formatted = FormulaEngine.formatFormulaValue(
+                        formulaResult,
+                        field.config.format || 'number',
+                        field.config.decimals || 2
+                    );
+                    return formatted;
                 case 'RECORD_ID':
                     return `<span class="font-mono text-xs text-gray-700">${record?.id || ''}</span>`;
                 default:
@@ -10813,6 +11350,12 @@
             if (typeId === 'LINK_RECORD') {
                 return { linkedSetId: state.changeLinkedSetId || state.currentSetId };
             }
+            if (typeId === 'FORMULA') {
+                const formula = document.getElementById('changeFormulaInput').value.trim();
+                const format = document.getElementById('changeFormulaFormat').value;
+                const decimals = parseInt(document.getElementById('changeFormulaDecimals').value) || 2;
+                return { formula, format, decimals };
+            }
             return null;
         }
 
@@ -10917,23 +11460,31 @@
         function updateFieldConfig(typeId) {
             document.getElementById('singleSelectConfig').classList.remove('visible');
             document.getElementById('linkToRecordConfig').classList.remove('visible');
+            document.getElementById('formulaConfig').classList.remove('visible');
             if (typeId === 'SINGLE_SELECT') {
                 document.getElementById('singleSelectConfig').classList.add('visible');
                 renderSelectOptions();
             } else if (typeId === 'LINK_RECORD') {
                 document.getElementById('linkToRecordConfig').classList.add('visible');
+            } else if (typeId === 'FORMULA') {
+                document.getElementById('formulaConfig').classList.add('visible');
+                initFormulaAutocomplete();
             }
         }
 
         function renderChangeFieldConfig(typeId) {
             document.getElementById('changeSingleSelectConfig').classList.remove('visible');
             document.getElementById('changeLinkToRecordConfig').classList.remove('visible');
+            document.getElementById('changeFormulaConfig').classList.remove('visible');
 
             if (typeId === 'SINGLE_SELECT') {
                 document.getElementById('changeSingleSelectConfig').classList.add('visible');
                 renderChangeSelectOptions();
             } else if (typeId === 'LINK_RECORD') {
                 document.getElementById('changeLinkToRecordConfig').classList.add('visible');
+            } else if (typeId === 'FORMULA') {
+                document.getElementById('changeFormulaConfig').classList.add('visible');
+                initChangeFormulaAutocomplete();
             }
         }
 
@@ -11074,6 +11625,23 @@
                 const linkedSetId = document.getElementById('linkToSet').value;
                 if (!linkedSetId) { showConfirm('Select a set to link to', () => {}); return; }
                 newField.config = { linkedSetId };
+            } else if (type === 'FORMULA') {
+                const formula = document.getElementById('formulaInput').value.trim();
+                const format = document.getElementById('formulaFormat').value;
+                const decimals = parseInt(document.getElementById('formulaDecimals').value) || 2;
+
+                if (!formula) {
+                    showConfirm('Please enter a formula', () => {});
+                    return;
+                }
+
+                const validation = FormulaEngine.validateFormula(formula, set.schema);
+                if (!validation.valid) {
+                    showConfirm(`Formula error: ${validation.error}`, () => {});
+                    return;
+                }
+
+                newField.config = { formula, format, decimals };
             }
 
             set.schema.push(newField);
