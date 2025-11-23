@@ -1780,6 +1780,8 @@
         .selection-header { width: 46px; text-align: center; }
         .row-select-cell { width: 46px; text-align: center; }
         .row-select-cell input { width: 16px; height: 16px; }
+        .row-number-header { width: 50px; text-align: right; padding-right: 12px; color: #9ca3af; font-size: 12px; font-weight: 500; user-select: none; }
+        .row-number-cell { width: 50px; text-align: right; padding-right: 12px; color: #9ca3af; font-size: 12px; user-select: none; }
         .row-selected td { background: #eef2ff; }
         .row-selected:hover td { background: #e0e7ff; }
 
@@ -3042,13 +3044,19 @@
                         <i class="ph ph-gear-six text-gray-500"></i>
                         <div>
                             <div class="text-sm font-semibold text-gray-900">Columns</div>
-                            <div class="text-xs text-gray-500">Toggle view-only columns like the Record ID.</div>
+                            <div class="text-xs text-gray-500">Toggle view-only columns like Row Numbers and Record ID.</div>
                         </div>
                     </div>
-                    <label class="flex items-center gap-2 cursor-pointer select-none">
-                        <span class="text-sm text-gray-700">Record ID</span>
-                        <input id="recordIdVisibilityToggle" type="checkbox" class="w-4 h-4 border-gray-300 rounded">
-                    </label>
+                    <div class="flex items-center gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <span class="text-sm text-gray-700">Row #</span>
+                            <input id="rowNumbersVisibilityToggle" type="checkbox" class="w-4 h-4 border-gray-300 rounded">
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <span class="text-sm text-gray-700">Record ID</span>
+                            <input id="recordIdVisibilityToggle" type="checkbox" class="w-4 h-4 border-gray-300 rounded">
+                        </label>
+                    </div>
                 </div>
                 <div>
                     <label class="form-label">Property</label>
@@ -5226,6 +5234,7 @@
                 relationships: config.relationships || [],
                 rollups: config.rollups || [],
                 showRecordId: config.showRecordId || false,
+                showRowNumbers: config.showRowNumbers !== undefined ? config.showRowNumbers : true,
                 identifierField: defaultIdentifier,
                 columnRules: config.columnRules || {},
                 columnOrder: config.columnOrder || null,
@@ -7188,6 +7197,7 @@
             if (!view.sorts) view.sorts = [];
             if (!view.columnRules) view.columnRules = {};
             if (typeof view.showRecordId === 'undefined') view.showRecordId = false;
+            if (typeof view.showRowNumbers === 'undefined') view.showRowNumbers = true;
         }
 
         function syncSelectionState(visibleRecords = []) {
@@ -7595,6 +7605,20 @@
             `;
 
             const headerRow = document.getElementById('tableHeader');
+
+            if (view.showRowNumbers) {
+                const rowNumberHeader = document.createElement('th');
+                rowNumberHeader.className = 'column-header row-number-header';
+                rowNumberHeader.innerHTML = '#';
+                rowNumberHeader.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    showContextMenu(e, [
+                        { label: 'Hide Row Numbers', action: () => toggleRowNumbers(false) }
+                    ]);
+                };
+                headerRow.appendChild(rowNumberHeader);
+            }
+
             const selectAllHeader = document.createElement('th');
             selectAllHeader.className = 'column-header selection-header';
             selectAllHeader.innerHTML = `<input type="checkbox" id="selectAllRows" aria-label="Select all rows">`;
@@ -7650,6 +7674,13 @@
 
                     handleRecordSelection(record.id, event.shiftKey, records);
                 };
+
+                if (view.showRowNumbers) {
+                    const rowNumberTd = document.createElement('td');
+                    rowNumberTd.className = 'row-number-cell';
+                    rowNumberTd.textContent = index + 1;
+                    tr.appendChild(rowNumberTd);
+                }
 
                 const selectTd = document.createElement('td');
                 selectTd.className = 'row-select-cell';
@@ -7856,6 +7887,9 @@
             const recordIdToggle = document.getElementById('recordIdVisibilityToggle');
             if (recordIdToggle) recordIdToggle.checked = !!view.showRecordId;
 
+            const rowNumbersToggle = document.getElementById('rowNumbersVisibilityToggle');
+            if (rowNumbersToggle) rowNumbersToggle.checked = !!view.showRowNumbers;
+
             updateColumnRulesSummary();
             openModal('columnRulesModal');
         }
@@ -7894,6 +7928,23 @@
             );
 
             renderCurrentView();
+        }
+
+        function toggleRowNumbers(isVisible) {
+            const view = getCurrentView();
+            if (!view) return;
+
+            view.showRowNumbers = isVisible;
+            createEvent(
+                'View Schema Update',
+                'SEG',
+                { type: 'View', id: view.id, setId: view.key?.setId || state.currentSetId },
+                { viewId: view.id, changes: { showRowNumbers: isVisible }, summary: isVisible ? 'Enabled row numbers' : 'Hid row numbers' },
+                { scale: 'collection' }
+            );
+
+            renderCurrentView();
+            showToast(isVisible ? '✓ Row numbers enabled' : '✓ Row numbers hidden');
         }
 
         function saveColumnRule() {
@@ -14114,6 +14165,8 @@
             document.getElementById('columnRulesPreferredSet').onchange = updateColumnRulesSummary;
           const recordIdVisibilityToggle = document.getElementById('recordIdVisibilityToggle');
           if (recordIdVisibilityToggle) recordIdVisibilityToggle.onchange = (e) => toggleRecordIdVisibility(e.target.checked);
+          const rowNumbersVisibilityToggle = document.getElementById('rowNumbersVisibilityToggle');
+          if (rowNumbersVisibilityToggle) rowNumbersVisibilityToggle.onchange = (e) => toggleRowNumbers(e.target.checked);
           document.getElementById('saveColumnRuleBtn').onclick = saveColumnRule;
           document.getElementById('deleteColumnRuleBtn').onclick = deleteColumnRule;
           document.getElementById('addWorldBtn').onclick = openAddWorldModal;
