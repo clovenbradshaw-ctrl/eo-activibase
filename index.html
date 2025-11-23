@@ -9995,8 +9995,7 @@
 
             const root = document.getElementById('rechartRoot');
             if (root && ReactDOM && React) {
-                const container = ReactDOM.createRoot(root);
-                container.render(chart);
+                ReactDOM.render(chart, root);
             }
         }
 
