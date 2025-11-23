@@ -7198,24 +7198,32 @@
             const select = document.getElementById('worldSelect');
             const label = document.getElementById('currentWorldLabel');
             const headerLabel = document.getElementById('currentWorldHeaderLabel');
-            if (!select) return;
 
-            select.innerHTML = '';
-            state.worlds.forEach((world, id) => {
-                const opt = document.createElement('option');
-                opt.value = id;
-                opt.textContent = world.name;
-                select.appendChild(opt);
-            });
+            // Update the select dropdown if it exists
+            if (select) {
+                select.innerHTML = '';
+                state.worlds.forEach((world, id) => {
+                    const opt = document.createElement('option');
+                    opt.value = id;
+                    opt.textContent = world.name;
+                    select.appendChild(opt);
+                });
 
-            if (!state.currentWorldId && select.options.length > 0) {
-                state.currentWorldId = select.options[0].value;
+                if (!state.currentWorldId && select.options.length > 0) {
+                    state.currentWorldId = select.options[0].value;
+                }
+
+                if (state.currentWorldId) {
+                    select.value = state.currentWorldId;
+                }
+            } else {
+                // If select doesn't exist, ensure we have a current world
+                if (!state.currentWorldId && state.worlds.size > 0) {
+                    state.currentWorldId = Array.from(state.worlds.keys())[0];
+                }
             }
 
-            if (state.currentWorldId) {
-                select.value = state.currentWorldId;
-            }
-
+            // Always update labels
             if (label) {
                 const world = getWorld();
                 label.textContent = world?.name || 'No world selected';
