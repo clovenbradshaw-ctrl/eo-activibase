@@ -2051,6 +2051,10 @@
             <i class="ph ph-arrows-down-up"></i>
             <span>Sort</span>
         </button>
+        <button class="mobile-bottom-action" onclick="document.getElementById('visualizeBtn')?.click()">
+            <i class="ph ph-chart-bar"></i>
+            <span>Visualize</span>
+        </button>
     </div>
 
     <button class="mobile-fab" id="mobileFab" onclick="triggerPrimaryAction()" aria-label="Quick add">
@@ -2324,6 +2328,55 @@
                     <button id="clearSortsBtn" class="btn btn-secondary">Clear All</button>
                     <button id="applySortsBtn" class="btn btn-primary">Apply Sorts</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="visualizationModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Visualize Data</h2>
+                    <p class="text-sm text-gray-500 mt-1">Create interactive charts from your data</p>
+                </div>
+                <button id="closeVisualizationBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-body">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold mb-2">Chart Type</label>
+                        <div class="flex gap-2 flex-wrap">
+                            <button class="btn btn-secondary btn-sm viz-chart-type-btn" data-chart-type="bar">
+                                <i class="ph ph-chart-bar"></i>
+                                Bar Chart
+                            </button>
+                            <button class="btn btn-secondary btn-sm viz-chart-type-btn" data-chart-type="line">
+                                <i class="ph ph-chart-line"></i>
+                                Line Chart
+                            </button>
+                            <button class="btn btn-secondary btn-sm viz-chart-type-btn" data-chart-type="pie">
+                                <i class="ph ph-chart-pie-slice"></i>
+                                Pie Chart
+                            </button>
+                            <button class="btn btn-secondary btn-sm viz-chart-type-btn" data-chart-type="area">
+                                <i class="ph ph-chart-line-up"></i>
+                                Area Chart
+                            </button>
+                        </div>
+                    </div>
+                    <div id="visualizationChartContainer" class="border border-gray-200 rounded-lg bg-white p-6 min-h-[400px]">
+                        <div class="text-center text-gray-500 py-12">
+                            Select a chart type to visualize your data
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button id="closeVisualizationModalBtn" class="btn btn-secondary">Close</button>
             </div>
         </div>
     </div>
@@ -4100,6 +4153,9 @@
             const sortBtn = document.getElementById('sortBtn');
             if (sortBtn) sortBtn.onclick = openSortModal;
 
+            const visualizeBtn = document.getElementById('visualizeBtn');
+            if (visualizeBtn) visualizeBtn.onclick = openVisualizationModal;
+
             const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
             if (deleteSelectedBtn) deleteSelectedBtn.onclick = handleDeleteSelectedRecords;
 
@@ -4137,6 +4193,10 @@
                                 <button id="sortBtn" class="btn btn-secondary btn-sm">
                                     <i class="ph ph-arrows-down-up"></i>
                                     Sort
+                                </button>
+                                <button id="visualizeBtn" class="btn btn-secondary btn-sm">
+                                    <i class="ph ph-chart-bar"></i>
+                                    Visualize
                                 </button>
                             </div>
                             ${extraControls ? `<div class="toolbar-group">${extraControls}</div>` : ''}
@@ -11286,6 +11346,155 @@
             renderFilterBuilder();
         }
 
+        // VISUALIZATION
+        function openVisualizationModal() {
+            openModal('visualizationModal');
+            setupVisualizationModal();
+        }
+
+        function setupVisualizationModal() {
+            const closeBtn = document.getElementById('closeVisualizationBtn');
+            const closeModalBtn = document.getElementById('closeVisualizationModalBtn');
+
+            if (closeBtn) {
+                closeBtn.onclick = () => closeModal('visualizationModal');
+            }
+            if (closeModalBtn) {
+                closeModalBtn.onclick = () => closeModal('visualizationModal');
+            }
+
+            // Setup chart type buttons
+            document.querySelectorAll('.viz-chart-type-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const chartType = btn.dataset.chartType;
+                    renderCurrentViewChart(chartType);
+                };
+            });
+        }
+
+        function renderCurrentViewChart(chartType) {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+
+            // Get and filter records using the same logic as the current view
+            let records = Array.from(set.records.values());
+            const schema = Array.from(set.fields.values());
+
+            if (view && view.filters && view.filters.length > 0) {
+                records = applyFilterGroups(records, view.filters, schema);
+            }
+            if (view?.sorts?.length) {
+                records = applySorts(records, view.sorts, schema);
+            }
+
+            if (records.length === 0) {
+                document.getElementById('visualizationChartContainer').innerHTML =
+                    '<div class="text-center text-gray-500 py-12">No data available to visualize</div>';
+                return;
+            }
+
+            // Prepare data for charts
+            const fields = Array.from(set.fields.values());
+            const numericFields = fields.filter(f =>
+                f.type === 'number' || f.type === 'currency' || f.type === 'percent'
+            );
+
+            // Use first text field as label, first numeric field as value
+            const labelField = fields.find(f => f.type === 'text' || f.type === 'singleSelect');
+            const valueField = numericFields[0];
+
+            if (!labelField || !valueField) {
+                document.getElementById('visualizationChartContainer').innerHTML =
+                    '<div class="text-center text-gray-500 py-12">View needs at least one text field and one numeric field for visualization</div>';
+                return;
+            }
+
+            const chartData = records.slice(0, 20).map(record => ({
+                name: String(record.data[labelField.id] || 'Untitled'),
+                value: Number(record.data[valueField.id] || 0)
+            }));
+
+            const chartContainer = document.getElementById('visualizationChartContainer');
+            chartContainer.innerHTML = '<div id="vizModalRechartRoot" style="width: 100%; height: 400px;"></div>';
+
+            renderRechartsVisualizationInModal(chartType, chartData);
+        }
+
+        function renderRechartsVisualizationInModal(chartType, data) {
+            const { BarChart, LineChart, PieChart, AreaChart, Bar, Line, Pie, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, ResponsiveContainer } = window.Recharts;
+            const React = window.React;
+            const ReactDOM = window.ReactDOM;
+
+            const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#6366f1', '#f97316'];
+
+            let chart;
+            switch(chartType) {
+                case 'bar':
+                    chart = React.createElement(ResponsiveContainer, { width: '100%', height: 400 },
+                        React.createElement(BarChart, { data },
+                            React.createElement(CartesianGrid, { strokeDasharray: '3 3' }),
+                            React.createElement(XAxis, { dataKey: 'name' }),
+                            React.createElement(YAxis, null),
+                            React.createElement(Tooltip, null),
+                            React.createElement(Legend, null),
+                            React.createElement(Bar, { dataKey: 'value', fill: '#3b82f6' })
+                        )
+                    );
+                    break;
+                case 'line':
+                    chart = React.createElement(ResponsiveContainer, { width: '100%', height: 400 },
+                        React.createElement(LineChart, { data },
+                            React.createElement(CartesianGrid, { strokeDasharray: '3 3' }),
+                            React.createElement(XAxis, { dataKey: 'name' }),
+                            React.createElement(YAxis, null),
+                            React.createElement(Tooltip, null),
+                            React.createElement(Legend, null),
+                            React.createElement(Line, { type: 'monotone', dataKey: 'value', stroke: '#3b82f6', strokeWidth: 2 })
+                        )
+                    );
+                    break;
+                case 'pie':
+                    chart = React.createElement(ResponsiveContainer, { width: '100%', height: 400 },
+                        React.createElement(PieChart, null,
+                            React.createElement(Pie, {
+                                data,
+                                dataKey: 'value',
+                                nameKey: 'name',
+                                cx: '50%',
+                                cy: '50%',
+                                outerRadius: 120,
+                                label: true
+                            }, data.map((entry, index) =>
+                                React.createElement(Cell, { key: `cell-${index}`, fill: COLORS[index % COLORS.length] })
+                            )),
+                            React.createElement(Tooltip, null),
+                            React.createElement(Legend, null)
+                        )
+                    );
+                    break;
+                case 'area':
+                    chart = React.createElement(ResponsiveContainer, { width: '100%', height: 400 },
+                        React.createElement(AreaChart, { data },
+                            React.createElement(CartesianGrid, { strokeDasharray: '3 3' }),
+                            React.createElement(XAxis, { dataKey: 'name' }),
+                            React.createElement(YAxis, null),
+                            React.createElement(Tooltip, null),
+                            React.createElement(Legend, null),
+                            React.createElement(Area, { type: 'monotone', dataKey: 'value', fill: '#3b82f6', stroke: '#1e40af' })
+                        )
+                    );
+                    break;
+                default:
+                    chart = React.createElement('div', { className: 'text-center text-gray-500 py-12' }, 'Unknown chart type');
+            }
+
+            const root = document.getElementById('vizModalRechartRoot');
+            if (root) {
+                ReactDOM.render(chart, root);
+            }
+        }
+
         // EXPANDED RECORD
         function openExpandedRecord(recordId) {
             const set = getCurrentSet();
@@ -13396,6 +13605,8 @@
             if (filterBtn) filterBtn.onclick = openFilterModal;
             const sortBtn = document.getElementById('sortBtn');
             if (sortBtn) sortBtn.onclick = openSortModal;
+            const visualizeBtn = document.getElementById('visualizeBtn');
+            if (visualizeBtn) visualizeBtn.onclick = openVisualizationModal;
             document.getElementById('parseCsvTextBtn').onclick = previewCsvFromText;
             document.getElementById('csvFileInput').onchange = handleCsvFileSelected;
             document.getElementById('refreshCsvPreviewBtn').onclick = renderCsvPreview;
