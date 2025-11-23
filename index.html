@@ -4835,7 +4835,7 @@
             setupKeyboardShortcuts();
             applyResponsiveLayout();
             window.addEventListener('resize', applyResponsiveLayout);
-            syncUrlState();
+            // syncUrlState(); // Commented out to prevent URL manipulation
         }
 
         function normalizeOperatorModeDictionary(data) {
@@ -7251,7 +7251,7 @@
             if (state.currentSetId) {
                 switchSet(state.currentSetId, state.currentViewId);
             }
-            syncUrlState();
+            // syncUrlState(); // Commented out to prevent URL manipulation
         }
 
         function loadGraphDemo() {
@@ -7262,7 +7262,7 @@
             if (state.currentSetId && state.currentViewId) {
                 switchSet(state.currentSetId, state.currentViewId);
             }
-            syncUrlState();
+            // syncUrlState(); // Commented out to prevent URL manipulation
             showToast('Graph demo loaded! Explore the visualization of projects, people, tasks, and concepts.');
         }
 
@@ -7280,7 +7280,7 @@
             renderSidebar();
             renderCurrentView();
             updateMobileChrome();
-            syncUrlState();
+            // syncUrlState(); // Commented out to prevent URL manipulation
         }
 
         function saveWorldFromModal() {
@@ -7301,7 +7301,7 @@
             renderSidebar();
             renderCurrentView();
             updateMobileChrome();
-            syncUrlState();
+            // syncUrlState(); // Commented out to prevent URL manipulation
         }
 
         function openConnectionsPage() {
@@ -7312,7 +7312,7 @@
             renderSidebar();
             renderCurrentView();
             updateMobileChrome();
-            syncUrlState();
+            // syncUrlState(); // Commented out to prevent URL manipulation
         }
 
         function openVisualizationsPage() {
@@ -7323,7 +7323,7 @@
             renderSidebar();
             renderCurrentView();
             updateMobileChrome();
-            syncUrlState();
+            // syncUrlState(); // Commented out to prevent URL manipulation
         }
 
         // NEW NAVIGATION HELPER FUNCTION
@@ -7381,7 +7381,7 @@
             renderSidebar();
             renderCurrentView();
             updateMobileChrome();
-            syncUrlState();
+            // syncUrlState(); // Commented out to prevent URL manipulation
         }
 
         // Helper functions for navigation actions
@@ -7891,7 +7891,7 @@
             renderViewTabs();
             renderCurrentView();
             updateMobileChrome();
-            syncUrlState();
+            // syncUrlState(); // Commented out to prevent URL manipulation
         }
 
         function getCurrentSet() { return state.sets.get(state.currentSetId); }
@@ -7906,7 +7906,7 @@
 
             renderCurrentView();
             updateMobileChrome();
-            syncUrlState();
+            // syncUrlState(); // Commented out to prevent URL manipulation
         }
 
         function renderCurrentView() {
