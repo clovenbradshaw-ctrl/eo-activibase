@@ -12,7 +12,7 @@
     <link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/recharts@2.10.3/dist/Recharts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="eo_lean_context.js"></script>
     <style>
         :root {
@@ -11416,83 +11416,168 @@
             }));
 
             const chartContainer = document.getElementById('visualizationChartContainer');
-            chartContainer.innerHTML = '<div id="vizModalRechartRoot" style="width: 100%; height: 400px;"></div>';
+            chartContainer.innerHTML = '<div style="position: relative; height: 400px; width: 100%;"><canvas id="vizModalChartCanvas"></canvas></div>';
 
-            renderRechartsVisualizationInModal(chartType, chartData);
+            renderChartJsVisualizationInModal(chartType, chartData);
         }
 
-        function renderRechartsVisualizationInModal(chartType, data) {
-            const { BarChart, LineChart, PieChart, AreaChart, Bar, Line, Pie, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, ResponsiveContainer } = window.Recharts;
-            const React = window.React;
-            const ReactDOM = window.ReactDOM;
+        // Store the current chart instance so we can destroy it before creating a new one
+        let currentModalChart = null;
+
+        function renderChartJsVisualizationInModal(chartType, data) {
+            if (!window.Chart) {
+                console.error('Chart.js library not loaded');
+                document.getElementById('visualizationChartContainer').innerHTML =
+                    '<div class="text-center text-red-500 py-12">Chart library failed to load. Please refresh the page.</div>';
+                return;
+            }
+
+            // Destroy previous chart if it exists
+            if (currentModalChart) {
+                currentModalChart.destroy();
+                currentModalChart = null;
+            }
+
+            const canvas = document.getElementById('vizModalChartCanvas');
+            if (!canvas) {
+                console.error('Canvas element not found');
+                return;
+            }
 
             const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#6366f1', '#f97316'];
 
-            let chart;
+            const labels = data.map(item => item.name);
+            const values = data.map(item => item.value);
+            const backgroundColors = data.map((_, index) => COLORS[index % COLORS.length]);
+
+            let chartConfig;
+
             switch(chartType) {
                 case 'bar':
-                    chart = React.createElement(ResponsiveContainer, { width: '100%', height: 400 },
-                        React.createElement(BarChart, { data },
-                            React.createElement(CartesianGrid, { strokeDasharray: '3 3' }),
-                            React.createElement(XAxis, { dataKey: 'name' }),
-                            React.createElement(YAxis, null),
-                            React.createElement(Tooltip, null),
-                            React.createElement(Legend, null),
-                            React.createElement(Bar, { dataKey: 'value', fill: '#3b82f6' })
-                        )
-                    );
+                    chartConfig = {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Value',
+                                data: values,
+                                backgroundColor: '#3b82f6',
+                                borderColor: '#2563eb',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    };
                     break;
                 case 'line':
-                    chart = React.createElement(ResponsiveContainer, { width: '100%', height: 400 },
-                        React.createElement(LineChart, { data },
-                            React.createElement(CartesianGrid, { strokeDasharray: '3 3' }),
-                            React.createElement(XAxis, { dataKey: 'name' }),
-                            React.createElement(YAxis, null),
-                            React.createElement(Tooltip, null),
-                            React.createElement(Legend, null),
-                            React.createElement(Line, { type: 'monotone', dataKey: 'value', stroke: '#3b82f6', strokeWidth: 2 })
-                        )
-                    );
+                    chartConfig = {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Value',
+                                data: values,
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                borderWidth: 2,
+                                fill: false,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    };
                     break;
                 case 'pie':
-                    chart = React.createElement(ResponsiveContainer, { width: '100%', height: 400 },
-                        React.createElement(PieChart, null,
-                            React.createElement(Pie, {
-                                data,
-                                dataKey: 'value',
-                                nameKey: 'name',
-                                cx: '50%',
-                                cy: '50%',
-                                outerRadius: 120,
-                                label: true
-                            }, data.map((entry, index) =>
-                                React.createElement(Cell, { key: `cell-${index}`, fill: COLORS[index % COLORS.length] })
-                            )),
-                            React.createElement(Tooltip, null),
-                            React.createElement(Legend, null)
-                        )
-                    );
+                    chartConfig = {
+                        type: 'pie',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: values,
+                                backgroundColor: backgroundColors,
+                                borderColor: '#ffffff',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'right'
+                                }
+                            }
+                        }
+                    };
                     break;
                 case 'area':
-                    chart = React.createElement(ResponsiveContainer, { width: '100%', height: 400 },
-                        React.createElement(AreaChart, { data },
-                            React.createElement(CartesianGrid, { strokeDasharray: '3 3' }),
-                            React.createElement(XAxis, { dataKey: 'name' }),
-                            React.createElement(YAxis, null),
-                            React.createElement(Tooltip, null),
-                            React.createElement(Legend, null),
-                            React.createElement(Area, { type: 'monotone', dataKey: 'value', fill: '#3b82f6', stroke: '#1e40af' })
-                        )
-                    );
+                    chartConfig = {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Value',
+                                data: values,
+                                borderColor: '#1e40af',
+                                backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    };
                     break;
                 default:
-                    chart = React.createElement('div', { className: 'text-center text-gray-500 py-12' }, 'Unknown chart type');
+                    document.getElementById('visualizationChartContainer').innerHTML =
+                        '<div class="text-center text-gray-500 py-12">Unknown chart type</div>';
+                    return;
             }
 
-            const root = document.getElementById('vizModalRechartRoot');
-            if (root) {
-                ReactDOM.render(chart, root);
-            }
+            currentModalChart = new Chart(canvas, chartConfig);
         }
 
         // EXPANDED RECORD
