@@ -13679,7 +13679,9 @@
                 icon: 'ph-chart-pie',
                 key: keyRef,
                 schema: detection.schema,
-                relationships: detection.relationships
+                relationships: detection.relationships,
+                showRecordId: false,
+                hiddenFields: ['__recordId']
             });
 
             closeModal('searchDataModal');
@@ -13713,7 +13715,9 @@
             const viewId = createView(set.id, viewName, {
                 type: 'grid',
                 icon: 'ph-file-text',
-                filters
+                filters,
+                showRecordId: false,
+                hiddenFields: ['__recordId']
             });
 
             closeModal('searchDataModal');
@@ -13737,7 +13741,9 @@
             const viewId = createView(set.id, viewName, {
                 type: 'grid',
                 icon: 'ph-funnel-simple',
-                filters
+                filters,
+                showRecordId: false,
+                hiddenFields: ['__recordId']
             });
 
             closeModal('searchDataModal');
