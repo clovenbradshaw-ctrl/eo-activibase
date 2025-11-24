@@ -16293,25 +16293,109 @@
                 return eventDate.getTime() === today.getTime();
             });
 
-            const recordCreates = todayEvents.filter(e => e.verb === 'Create Record' || e.op === 'INS' && e.object?.type === 'Record').length;
-            const fieldUpdates = todayEvents.filter(e => e.verb === 'Update Field' || e.op === 'UPD' && e.object?.type === 'Field').length;
-            const setCreates = todayEvents.filter(e => e.verb === 'Create Set' || e.op === 'INS' && e.object?.type === 'Set').length;
+            const recordCreateEvents = todayEvents.filter(e => e.verb === 'Create Record' || e.op === 'INS' && e.object?.type === 'Record');
+            const fieldUpdateEvents = todayEvents.filter(e => e.verb === 'Update Field' || e.op === 'UPD' && e.object?.type === 'Field');
+            const setCreateEvents = todayEvents.filter(e => e.verb === 'Create Set' || e.op === 'INS' && e.object?.type === 'Set');
 
-            if (recordCreates > 0) changes.push({ label: `${recordCreates} new record${recordCreates > 1 ? 's' : ''} today`, type: null });
-            if (fieldUpdates > 0) changes.push({ label: `${fieldUpdates} field update${fieldUpdates > 1 ? 's' : ''} today`, type: null });
-            if (setCreates > 0) changes.push({ label: `${setCreates} new set${setCreates > 1 ? 's' : ''} today`, type: null });
+            if (recordCreateEvents.length > 0) {
+                changes.push({
+                    label: `${recordCreateEvents.length} new record${recordCreateEvents.length > 1 ? 's' : ''} today`,
+                    type: null,
+                    action: () => {
+                        // Show records created today
+                        const results = { fields: [], records: [], values: [] };
+                        const worldSets = getSetsForWorld();
+
+                        recordCreateEvents.forEach(event => {
+                            const setId = event.object?.setId || event.actor?.setId;
+                            const recordId = event.object?.id;
+                            if (setId && recordId) {
+                                const set = worldSets.find(s => s.id === setId);
+                                if (set && set.records && set.records.has(recordId)) {
+                                    const record = set.records.get(recordId);
+                                    const recordLabel = getRecordDisplayLabel(record, set);
+                                    results.records.push({
+                                        record,
+                                        recordId,
+                                        setId: set.id,
+                                        setName: set.name,
+                                        label: recordLabel
+                                    });
+                                }
+                            }
+                        });
+
+                        renderSearchResults(results, 'new records today', 'records');
+                    }
+                });
+            }
+
+            if (fieldUpdateEvents.length > 0) {
+                changes.push({
+                    label: `${fieldUpdateEvents.length} field update${fieldUpdateEvents.length > 1 ? 's' : ''} today`,
+                    type: null,
+                    action: () => {
+                        // Show fields updated today
+                        const results = { fields: [], records: [], values: [] };
+                        const worldSets = getSetsForWorld();
+                        const processedFields = new Set();
+
+                        fieldUpdateEvents.forEach(event => {
+                            const setId = event.object?.setId || event.actor?.setId;
+                            const fieldId = event.object?.id || event.object?.fieldId;
+                            const fieldKey = `${setId}:${fieldId}`;
+
+                            if (setId && fieldId && !processedFields.has(fieldKey)) {
+                                processedFields.add(fieldKey);
+                                const set = worldSets.find(s => s.id === setId);
+                                if (set && set.schema) {
+                                    const field = set.schema.find(f => f.id === fieldId);
+                                    if (field) {
+                                        results.fields.push({
+                                            field,
+                                            setId: set.id,
+                                            setName: set.name
+                                        });
+                                    }
+                                }
+                            }
+                        });
+
+                        renderSearchResults(results, 'field updates today', 'fields');
+                    }
+                });
+            }
+
+            if (setCreateEvents.length > 0) {
+                changes.push({
+                    label: `${setCreateEvents.length} new set${setCreateEvents.length > 1 ? 's' : ''} today`,
+                    type: null,
+                    action: () => {
+                        // Navigate to Sets view (main sidebar)
+                        renderSidebar();
+                        closeModal('searchDataModal');
+                    }
+                });
+            }
 
             // If no changes today, show recent from this week
             if (changes.length === 0) {
                 const weekAgo = new Date(today);
                 weekAgo.setDate(weekAgo.getDate() - 7);
-                const recentCount = state.eventStream.filter(e => {
+                const recentEvents = state.eventStream.filter(e => {
                     const eventDate = new Date(e.published || e.t);
                     return eventDate >= weekAgo;
-                }).length;
+                });
 
-                if (recentCount > 0) {
-                    changes.push({ label: `${recentCount} change${recentCount > 1 ? 's' : ''} this week`, type: null });
+                if (recentEvents.length > 0) {
+                    changes.push({
+                        label: `${recentEvents.length} change${recentEvents.length > 1 ? 's' : ''} this week`,
+                        type: null,
+                        action: () => {
+                            // Could show activity log or recent changes view
+                            alert('Activity log view coming soon');
+                        }
+                    });
                 }
             }
 
@@ -16323,26 +16407,54 @@
             const worldSets = getSetsForWorld();
 
             // Fields with definitions
-            let fieldsWithDefs = 0;
+            const fieldsWithDefinitions = [];
             worldSets.forEach(set => {
                 set.schema?.forEach(field => {
-                    if (field.definitionId) fieldsWithDefs++;
+                    if (field.definitionId) {
+                        fieldsWithDefinitions.push({
+                            field,
+                            setId: set.id,
+                            setName: set.name
+                        });
+                    }
                 });
             });
-            if (fieldsWithDefs > 0) {
-                highlights.push({ label: `${fieldsWithDefs} field${fieldsWithDefs > 1 ? 's' : ''} with definitions`, type: null });
+            if (fieldsWithDefinitions.length > 0) {
+                highlights.push({
+                    label: `${fieldsWithDefinitions.length} field${fieldsWithDefinitions.length > 1 ? 's' : ''} with definitions`,
+                    type: null,
+                    action: () => {
+                        const results = { fields: fieldsWithDefinitions, records: [], values: [] };
+                        renderSearchResults(results, 'fields with definitions', 'fields');
+                    }
+                });
             }
 
             // Fields with connections
             const connections = getConnectionView();
             if (connections.length > 0) {
-                highlights.push({ label: `${connections.length} connection${connections.length > 1 ? 's' : ''} defined`, type: null });
+                highlights.push({
+                    label: `${connections.length} connection${connections.length > 1 ? 's' : ''} defined`,
+                    type: null,
+                    action: () => {
+                        openConnectionsPage();
+                        closeModal('searchDataModal');
+                    }
+                });
             }
 
             // Large sets
             const largeSets = worldSets.filter(set => set.records?.size > 50);
             if (largeSets.length > 0) {
-                highlights.push({ label: `${largeSets.length} set${largeSets.length > 1 ? 's' : ''} with 50+ records`, type: null });
+                highlights.push({
+                    label: `${largeSets.length} set${largeSets.length > 1 ? 's' : ''} with 50+ records`,
+                    type: null,
+                    action: () => {
+                        // Show large sets in the main view
+                        renderSidebar();
+                        closeModal('searchDataModal');
+                    }
+                });
             }
 
             // Shared fields (fields with same name across sets)
@@ -16352,12 +16464,32 @@
                     if (!fieldNames.has(field.name)) {
                         fieldNames.set(field.name, []);
                     }
-                    fieldNames.get(field.name).push(set.id);
+                    fieldNames.get(field.name).push({ setId: set.id, setName: set.name, field });
                 });
             });
-            const sharedFields = Array.from(fieldNames.values()).filter(sets => sets.length > 1).length;
-            if (sharedFields > 0) {
-                highlights.push({ label: `${sharedFields} shared field${sharedFields > 1 ? 's' : ''} across sets`, type: null });
+
+            const sharedFieldsArray = Array.from(fieldNames.entries())
+                .filter(([name, occurrences]) => occurrences.length > 1);
+
+            if (sharedFieldsArray.length > 0) {
+                highlights.push({
+                    label: `${sharedFieldsArray.length} shared field${sharedFieldsArray.length > 1 ? 's' : ''} across sets`,
+                    type: null,
+                    action: () => {
+                        // Show shared fields
+                        const results = { fields: [], records: [], values: [] };
+                        sharedFieldsArray.forEach(([name, occurrences]) => {
+                            // Just show the first occurrence of each shared field
+                            const first = occurrences[0];
+                            results.fields.push({
+                                field: first.field,
+                                setId: first.setId,
+                                setName: first.setName
+                            });
+                        });
+                        renderSearchResults(results, 'shared fields across sets', 'fields');
+                    }
+                });
             }
 
             return highlights.slice(0, 4);
@@ -16411,26 +16543,30 @@
             const recentChanges = getRecentChanges(4);
             if (recentChanges.length > 0) {
                 html += '<h3 class="zero-input-section-title">New & Updated</h3>';
-                recentChanges.forEach(item => {
+                const startIdx = window.zeroInputActions?.length || 0;
+                recentChanges.forEach((item, idx) => {
                     html += `
-                        <div class="zero-input-item" style="cursor: default;">
+                        <div class="zero-input-item" onclick="zeroInputActions[${startIdx + idx}]()">
                             <span class="zero-input-item-label">${item.label}</span>
                         </div>
                     `;
                 });
+                window.zeroInputActions = [...(window.zeroInputActions || []), ...recentChanges.map(item => item.action || (() => {}))];
             }
 
             // Structural Highlights
             const structuralHighlights = getStructuralHighlights();
             if (structuralHighlights.length > 0) {
                 html += '<h3 class="zero-input-section-title">Structural Highlights</h3>';
-                structuralHighlights.forEach(item => {
+                const startIdx = window.zeroInputActions?.length || 0;
+                structuralHighlights.forEach((item, idx) => {
                     html += `
-                        <div class="zero-input-item" style="cursor: default;">
+                        <div class="zero-input-item" onclick="zeroInputActions[${startIdx + idx}]()">
                             <span class="zero-input-item-label">${item.label}</span>
                         </div>
                     `;
                 });
+                window.zeroInputActions = [...(window.zeroInputActions || []), ...structuralHighlights.map(item => item.action || (() => {}))];
             }
 
             // Explore
