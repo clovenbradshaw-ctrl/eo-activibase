@@ -14386,32 +14386,69 @@
       }
 
       function openAddFieldModal() {
+          // Reset select options
           state.selectOptions = [{ value: 'Option 1', color: 'blue' }];
+
+          // Generate auto-name for the field
+          const set = getCurrentSet();
+          let fieldNumber = 1;
+          let autoName = `New Field ${fieldNumber}`;
+
+          // Find the next available "New Field N" name
+          if (set && set.schema) {
+              while (set.schema.some(f => f.name === autoName)) {
+                  fieldNumber++;
+                  autoName = `New Field ${fieldNumber}`;
+              }
+          }
+
+          // Set the auto-generated name
           const nameInput = document.getElementById('newFieldName');
-          if (nameInput) nameInput.value = '';
+          if (nameInput) {
+              nameInput.value = autoName;
+              // Select the text so user can easily replace it
+              setTimeout(() => nameInput.select(), 100);
+          }
+
           resetFieldNameValidation();
+
+          // Reset field type to TEXT
           document.getElementById('newFieldType').value = 'TEXT';
           renderFieldTypeGrid('TEXT');
-            closeFieldTypeDropdown();
-            updateFieldConfig('TEXT');
+          closeFieldTypeDropdown();
 
-            const linkSelect = document.getElementById('linkToSet');
-            linkSelect.innerHTML = '';
-            getSetsForWorld(state.currentWorldId).forEach(set => {
-                const label = set.id === state.currentSetId ? `${set.name} (this set)` : set.name;
-                linkSelect.innerHTML += `<option value="${set.id}">${label}</option>`;
-            });
-            if (linkSelect.options.length === 0) {
-                linkSelect.innerHTML = '<option value="">No sets available</option>';
-                linkSelect.disabled = true;
-            } else {
-                linkSelect.disabled = false;
-                const defaultValue = state.sets.has(state.currentSetId) ? state.currentSetId : linkSelect.options[0].value;
-                linkSelect.value = defaultValue;
-            }
+          // Clear formula input
+          const formulaInput = document.getElementById('formulaInput');
+          if (formulaInput) formulaInput.value = '';
 
-            openModal('addFieldModal');
-        }
+          // Reset formula format and decimals
+          const formulaFormat = document.getElementById('formulaFormat');
+          if (formulaFormat) formulaFormat.value = 'number';
+
+          const formulaDecimals = document.getElementById('formulaDecimals');
+          if (formulaDecimals) formulaDecimals.value = '2';
+
+          // Update field config to show correct section
+          updateFieldConfig('TEXT');
+
+          // Populate link to set dropdown
+          const linkSelect = document.getElementById('linkToSet');
+          linkSelect.innerHTML = '';
+          getSetsForWorld(state.currentWorldId).forEach(set => {
+              const label = set.id === state.currentSetId ? `${set.name} (this set)` : set.name;
+              linkSelect.innerHTML += `<option value="${set.id}">${label}</option>`;
+          });
+          if (linkSelect.options.length === 0) {
+              linkSelect.innerHTML = '<option value="">No sets available</option>';
+              linkSelect.disabled = true;
+          } else {
+              linkSelect.disabled = false;
+              const defaultValue = state.sets.has(state.currentSetId) ? state.currentSetId : linkSelect.options[0].value;
+              linkSelect.value = defaultValue;
+          }
+
+          openModal('addFieldModal');
+      }
 
         function openLinkedFieldsModal() {
             const view = getCurrentView();
