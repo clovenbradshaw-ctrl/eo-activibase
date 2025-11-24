@@ -2959,13 +2959,9 @@
                         <label class="form-label">Mode</label>
                         <select id="connectionRelationMode" class="border rounded px-3 py-2 w-full"></select>
                     </div>
-                    <div>
-                        <label class="form-label">Required Params (comma separated)</label>
-                        <input id="connectionRelationRequired" type="text" class="border rounded px-3 py-2 w-full" placeholder="threshold, weight" />
-                    </div>
-                    <div>
-                        <label class="form-label">Optional Params (comma separated)</label>
-                        <input id="connectionRelationOptional" type="text" class="border rounded px-3 py-2 w-full" placeholder="notes" />
+                    <div class="md:col-span-2">
+                        <label class="form-label">Name</label>
+                        <input id="connectionRelationName" type="text" class="border rounded px-3 py-2 w-full" placeholder="e.g., Segmentation Filter" required />
                     </div>
                     <div class="md:col-span-2">
                         <label class="form-label">Description</label>
@@ -5680,6 +5676,7 @@
                 id: relation.id || `REL_${relation.operator}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
                 operator: relation.operator,
                 mode: relation.mode,
+                name: relation.name || '',
                 description: relation.description || '',
                 requiredParams,
                 optionalParams,
@@ -13394,9 +13391,8 @@
                 modeSelect.innerHTML = renderModeOptions(relation.operator, relation.mode);
             }
 
+            form.querySelector('#connectionRelationName').value = relation.name || '';
             form.querySelector('#connectionRelationDescription').value = relation.description || '';
-            form.querySelector('#connectionRelationRequired').value = (relation.requiredParams || []).join(', ');
-            form.querySelector('#connectionRelationOptional').value = (relation.optionalParams || []).join(', ');
             state.connectionRelationFormState.editingId = relation.id;
 
             const submit = document.getElementById('connectionRelationSubmit');
@@ -13430,17 +13426,15 @@
 
             const operator = form.querySelector('#connectionRelationOperator')?.value;
             const mode = form.querySelector('#connectionRelationMode')?.value;
-            const requiredParams = (form.querySelector('#connectionRelationRequired')?.value || '').split(',').map(p => p.trim()).filter(Boolean);
-            const optionalParams = (form.querySelector('#connectionRelationOptional')?.value || '').split(',').map(p => p.trim()).filter(Boolean);
+            const name = form.querySelector('#connectionRelationName')?.value || '';
             const description = form.querySelector('#connectionRelationDescription')?.value || '';
 
             const payload = {
                 id: state.connectionRelationFormState.editingId,
                 operator,
                 mode,
+                name,
                 description,
-                requiredParams,
-                optionalParams,
                 worldId: state.currentWorldId
             };
 
@@ -13647,8 +13641,7 @@
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">ID</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Operator</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Mode</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Required Params</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Optional Params</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Name</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Description</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Actions</th>
                             </tr>
@@ -13659,8 +13652,7 @@
                                     <td class="px-4 py-3 text-gray-800 whitespace-nowrap">${rel.id}</td>
                                     <td class="px-4 py-3 text-gray-800">${rel.operator}</td>
                                     <td class="px-4 py-3 text-gray-800">${rel.mode}</td>
-                                    <td class="px-4 py-3 text-gray-600" data-relation-inline="requiredParams:${rel.id}">${(rel.requiredParams || []).join(', ') || '—'}</td>
-                                    <td class="px-4 py-3 text-gray-600" data-relation-inline="optionalParams:${rel.id}">${(rel.optionalParams || []).join(', ') || '—'}</td>
+                                    <td class="px-4 py-3 text-gray-600" data-relation-inline="name:${rel.id}">${rel.name || '—'}</td>
                                     <td class="px-4 py-3 text-gray-500" data-relation-inline="description:${rel.id}">${rel.description || ''}</td>
                                     <td class="px-4 py-3 whitespace-nowrap space-x-3">
                                         <button class="text-blue-600" data-relation-edit="${rel.id}">Edit</button>
@@ -14213,12 +14205,7 @@
                     const current = (cell.textContent || '').trim();
                     const baseline = cell.dataset.originalValue !== undefined ? cell.dataset.originalValue : original;
                     if (current === baseline) return;
-                    const updates = {};
-                    if (field === 'requiredParams' || field === 'optionalParams') {
-                        updates[field] = current ? current.split(',').map(p => p.trim()).filter(Boolean) : [];
-                    } else {
-                        updates[field] = current;
-                    }
+                    const updates = { [field]: current };
 
                     updateConnectionRelation(relationId, updates);
                     showToast('✓ Connection relation updated');
