@@ -10387,6 +10387,13 @@
 
             const headerRow = document.getElementById('tableHeader');
 
+            // Checkbox column comes first (leftmost)
+            const selectAllHeader = document.createElement('th');
+            selectAllHeader.className = 'column-header selection-header';
+            selectAllHeader.innerHTML = `<input type="checkbox" id="selectAllRows" aria-label="Select all rows">`;
+            headerRow.appendChild(selectAllHeader);
+
+            // Row numbers come after checkbox
             if (view.showRowNumbers) {
                 const rowNumberHeader = document.createElement('th');
                 rowNumberHeader.className = 'column-header row-number-header';
@@ -10399,11 +10406,6 @@
                 };
                 headerRow.appendChild(rowNumberHeader);
             }
-
-            const selectAllHeader = document.createElement('th');
-            selectAllHeader.className = 'column-header selection-header';
-            selectAllHeader.innerHTML = `<input type="checkbox" id="selectAllRows" aria-label="Select all rows">`;
-            headerRow.appendChild(selectAllHeader);
 
             tableSchema.forEach(field => {
                 const th = document.createElement('th');
@@ -10457,13 +10459,7 @@
                     openExpandedRecord(record.id);
                 };
 
-                if (view.showRowNumbers) {
-                    const rowNumberTd = document.createElement('td');
-                    rowNumberTd.className = 'row-number-cell';
-                    rowNumberTd.textContent = index + 1;
-                    tr.appendChild(rowNumberTd);
-                }
-
+                // Checkbox cell comes first (leftmost)
                 const selectTd = document.createElement('td');
                 selectTd.className = 'row-select-cell';
                 const checkboxId = `select-${record.id}`;
@@ -10475,6 +10471,14 @@
                     handleRecordSelection(record.id, event.shiftKey, records);
                 };
                 tr.appendChild(selectTd);
+
+                // Row number cell comes after checkbox
+                if (view.showRowNumbers) {
+                    const rowNumberTd = document.createElement('td');
+                    rowNumberTd.className = 'row-number-cell';
+                    rowNumberTd.textContent = index + 1;
+                    tr.appendChild(rowNumberTd);
+                }
 
                 tableSchema.forEach(field => {
                     const td = document.createElement('td');
@@ -10964,16 +10968,38 @@
             const listContainer = document.getElementById('fieldManagerList');
             listContainer.innerHTML = '';
 
-            // Only show fields that are visible in the current view
+            // Split fields into visible and hidden
             const visibleFields = set.schema.filter(field => !hiddenFields.includes(field.id));
+            const hiddenFieldsList = set.schema.filter(field => hiddenFields.includes(field.id));
 
-            visibleFields.forEach((field, index) => {
-                const fieldItem = createFieldManagerItem(field, index);
-                listContainer.appendChild(fieldItem);
-            });
+            // Render visible fields
+            if (visibleFields.length > 0) {
+                const visibleHeader = document.createElement('div');
+                visibleHeader.className = 'text-sm font-semibold text-gray-700 mb-2 mt-2';
+                visibleHeader.textContent = 'Visible Fields';
+                listContainer.appendChild(visibleHeader);
+
+                visibleFields.forEach((field, index) => {
+                    const fieldItem = createFieldManagerItem(field, index, false);
+                    listContainer.appendChild(fieldItem);
+                });
+            }
+
+            // Render hidden fields
+            if (hiddenFieldsList.length > 0) {
+                const hiddenHeader = document.createElement('div');
+                hiddenHeader.className = 'text-sm font-semibold text-gray-500 mb-2 mt-4';
+                hiddenHeader.textContent = 'Hidden Fields';
+                listContainer.appendChild(hiddenHeader);
+
+                hiddenFieldsList.forEach((field, index) => {
+                    const fieldItem = createFieldManagerItem(field, index, true);
+                    listContainer.appendChild(fieldItem);
+                });
+            }
         }
 
-        function createFieldManagerItem(field, index) {
+        function createFieldManagerItem(field, index, isHidden) {
             const fieldType = FIELD_TYPES[field.type] || { name: field.type, icon: 'ph-question' };
 
             // Get subtype info if available
@@ -10988,10 +11014,20 @@
 
             const div = document.createElement('div');
             div.className = 'field-manager-item';
+            if (isHidden) {
+                div.style.opacity = '0.6';
+            }
             div.dataset.fieldId = field.id;
             div.draggable = true;
 
+            const visibilityIcon = isHidden ? 'ph-eye-slash' : 'ph-eye';
+            const visibilityTitle = isHidden ? 'Show field' : 'Hide field';
+            const visibilityAction = isHidden ? `showField('${field.id}')` : `hideField('${field.id}')`;
+
             div.innerHTML = `
+                <button class="field-manager-action-btn" title="${visibilityTitle}" onclick="${visibilityAction}">
+                    <i class="ph ${visibilityIcon}"></i>
+                </button>
                 <i class="ph ph-dots-six-vertical field-drag-handle"></i>
                 <div class="field-manager-icon">
                     <i class="ph ${displayIcon}"></i>
@@ -18597,6 +18633,20 @@
             if (fieldId === '__recordId') view.showRecordId = false;
             renderCurrentView();
             showToast('✓ Field hidden');
+        }
+
+        function showField(fieldId) {
+            const view = getCurrentView();
+            if (!view) return;
+
+            view.hiddenFields = view.hiddenFields || [];
+            const index = view.hiddenFields.indexOf(fieldId);
+            if (index > -1) {
+                view.hiddenFields.splice(index, 1);
+            }
+            if (fieldId === '__recordId') view.showRecordId = true;
+            renderCurrentView();
+            showToast('✓ Field shown');
         }
 
         function deleteField(fieldId) {
