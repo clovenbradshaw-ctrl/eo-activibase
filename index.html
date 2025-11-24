@@ -10295,10 +10295,16 @@
             const set = getCurrentSet();
             if (!set) return;
 
+            const view = getCurrentView();
+            const hiddenFields = view?.hiddenFields || [];
+
             const listContainer = document.getElementById('fieldManagerList');
             listContainer.innerHTML = '';
 
-            set.schema.forEach((field, index) => {
+            // Only show fields that are visible in the current view
+            const visibleFields = set.schema.filter(field => !hiddenFields.includes(field.id));
+
+            visibleFields.forEach((field, index) => {
                 const fieldItem = createFieldManagerItem(field, index);
                 listContainer.appendChild(fieldItem);
             });
