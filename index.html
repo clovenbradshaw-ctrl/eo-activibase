@@ -3907,12 +3907,31 @@
                 const beforeCursor = text.substring(0, cursorPos);
                 const afterCursor = text.substring(cursorPos);
 
-                // Find where the search started (after the last '{')
+                let newText, newCursorPos;
+
+                // Check if we're inserting a field (starts with {) or a function
                 const lastBracePos = beforeCursor.lastIndexOf('{');
-                const newText = text.substring(0, lastBracePos) + value + afterCursor;
+                const lastCloseBracePos = beforeCursor.lastIndexOf('}');
+
+                if (lastBracePos > lastCloseBracePos && value.startsWith('{')) {
+                    // Inserting a field reference
+                    newText = text.substring(0, lastBracePos) + value + afterCursor;
+                    newCursorPos = lastBracePos + value.length;
+                } else {
+                    // Inserting a function - replace the partial word
+                    const wordMatch = beforeCursor.match(/[A-Z_]+$/i);
+                    if (wordMatch) {
+                        const startPos = cursorPos - wordMatch[0].length;
+                        newText = text.substring(0, startPos) + value + afterCursor;
+                        newCursorPos = startPos + value.length;
+                    } else {
+                        // Fallback: just insert at cursor
+                        newText = beforeCursor + value + afterCursor;
+                        newCursorPos = cursorPos + value.length;
+                    }
+                }
 
                 input.value = newText;
-                const newCursorPos = lastBracePos + value.length;
                 input.setSelectionRange(newCursorPos, newCursorPos);
                 input.focus();
 
@@ -3964,7 +3983,56 @@
 
                     showAutocomplete(fields, searchText);
                 } else {
-                    hideAutocomplete();
+                    // Check if we're typing a function name
+                    // Look for the last word before cursor (alphanumeric characters)
+                    const wordMatch = beforeCursor.match(/[A-Z_]+$/i);
+                    if (wordMatch && wordMatch[0].length > 0) {
+                        const searchText = wordMatch[0].toUpperCase();
+
+                        // Function descriptions
+                        const functionDescriptions = {
+                            SUM: 'Add numbers together',
+                            AVG: 'Calculate average of numbers',
+                            MIN: 'Find minimum value',
+                            MAX: 'Find maximum value',
+                            ROUND: 'Round number to decimals',
+                            ABS: 'Absolute value',
+                            SQRT: 'Square root',
+                            POWER: 'Raise to power',
+                            IF: 'Conditional logic',
+                            AND: 'Logical AND',
+                            OR: 'Logical OR',
+                            NOT: 'Logical NOT',
+                            CONCAT: 'Combine text',
+                            UPPER: 'Convert to uppercase',
+                            LOWER: 'Convert to lowercase',
+                            TRIM: 'Remove whitespace',
+                            LEN: 'Text length',
+                            LEFT: 'Get left characters',
+                            RIGHT: 'Get right characters',
+                            COUNT: 'Count non-null values',
+                            COUNTA: 'Count non-empty values',
+                            ISBLANK: 'Check if blank',
+                            ISNUMBER: 'Check if number'
+                        };
+
+                        // Get function suggestions
+                        const functions = Object.keys(FormulaEngine.functions)
+                            .filter(fn => fn.startsWith(searchText))
+                            .map(fn => ({
+                                label: fn,
+                                value: fn + '(',
+                                description: functionDescriptions[fn] || 'Function'
+                            }));
+
+                        if (functions.length > 0) {
+                            showAutocomplete(functions, searchText);
+                        } else {
+                            hideAutocomplete();
+                        }
+                    } else {
+                        hideAutocomplete();
+                    }
                 }
 
                 validateFormula();
@@ -4059,11 +4127,31 @@
                 const beforeCursor = text.substring(0, cursorPos);
                 const afterCursor = text.substring(cursorPos);
 
+                let newText, newCursorPos;
+
+                // Check if we're inserting a field (starts with {) or a function
                 const lastBracePos = beforeCursor.lastIndexOf('{');
-                const newText = text.substring(0, lastBracePos) + value + afterCursor;
+                const lastCloseBracePos = beforeCursor.lastIndexOf('}');
+
+                if (lastBracePos > lastCloseBracePos && value.startsWith('{')) {
+                    // Inserting a field reference
+                    newText = text.substring(0, lastBracePos) + value + afterCursor;
+                    newCursorPos = lastBracePos + value.length;
+                } else {
+                    // Inserting a function - replace the partial word
+                    const wordMatch = beforeCursor.match(/[A-Z_]+$/i);
+                    if (wordMatch) {
+                        const startPos = cursorPos - wordMatch[0].length;
+                        newText = text.substring(0, startPos) + value + afterCursor;
+                        newCursorPos = startPos + value.length;
+                    } else {
+                        // Fallback: just insert at cursor
+                        newText = beforeCursor + value + afterCursor;
+                        newCursorPos = cursorPos + value.length;
+                    }
+                }
 
                 input.value = newText;
-                const newCursorPos = lastBracePos + value.length;
                 input.setSelectionRange(newCursorPos, newCursorPos);
                 input.focus();
 
@@ -4099,6 +4187,7 @@
                 const lastCloseBracePos = beforeCursor.lastIndexOf('}');
 
                 if (lastBracePos > lastCloseBracePos) {
+                    // We're inside a field reference
                     const searchText = beforeCursor.substring(lastBracePos + 1).toLowerCase();
                     const set = getCurrentSet();
 
@@ -4112,7 +4201,55 @@
 
                     showAutocomplete(fields, searchText);
                 } else {
-                    hideAutocomplete();
+                    // Check if we're typing a function name
+                    const wordMatch = beforeCursor.match(/[A-Z_]+$/i);
+                    if (wordMatch && wordMatch[0].length > 0) {
+                        const searchText = wordMatch[0].toUpperCase();
+
+                        // Function descriptions
+                        const functionDescriptions = {
+                            SUM: 'Add numbers together',
+                            AVG: 'Calculate average of numbers',
+                            MIN: 'Find minimum value',
+                            MAX: 'Find maximum value',
+                            ROUND: 'Round number to decimals',
+                            ABS: 'Absolute value',
+                            SQRT: 'Square root',
+                            POWER: 'Raise to power',
+                            IF: 'Conditional logic',
+                            AND: 'Logical AND',
+                            OR: 'Logical OR',
+                            NOT: 'Logical NOT',
+                            CONCAT: 'Combine text',
+                            UPPER: 'Convert to uppercase',
+                            LOWER: 'Convert to lowercase',
+                            TRIM: 'Remove whitespace',
+                            LEN: 'Text length',
+                            LEFT: 'Get left characters',
+                            RIGHT: 'Get right characters',
+                            COUNT: 'Count non-null values',
+                            COUNTA: 'Count non-empty values',
+                            ISBLANK: 'Check if blank',
+                            ISNUMBER: 'Check if number'
+                        };
+
+                        // Get function suggestions
+                        const functions = Object.keys(FormulaEngine.functions)
+                            .filter(fn => fn.startsWith(searchText))
+                            .map(fn => ({
+                                label: fn,
+                                value: fn + '(',
+                                description: functionDescriptions[fn] || 'Function'
+                            }));
+
+                        if (functions.length > 0) {
+                            showAutocomplete(functions, searchText);
+                        } else {
+                            hideAutocomplete();
+                        }
+                    } else {
+                        hideAutocomplete();
+                    }
                 }
 
                 validateFormula();
