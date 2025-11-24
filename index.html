@@ -2738,6 +2738,17 @@
                     </div>
                 </div>
 
+                <!-- RECENT IMPORTS Section -->
+                <div class="nav-section-title" style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('recentImports')">
+                    <span>Recent Imports</span>
+                    <i id="recentImportsSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
+                </div>
+                <div id="recentImportsNavContent">
+                    <div id="navRecentImportsContainer" style="padding: 0 1rem; margin-bottom: 0.5rem;">
+                        <!-- Recent imports will be populated here dynamically -->
+                    </div>
+                </div>
+
                 <!-- SETS Section (dynamically populated) -->
                 <div class="nav-section-title" style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('sets')">
                     <span>Sets</span>
@@ -6041,6 +6052,9 @@
             const reifyBtn = document.getElementById('reifyViewBtn');
             if (reifyBtn) reifyBtn.onclick = reifyCurrentView;
 
+            const reifyRecordsBtn = document.getElementById('reifyRecordsBtn');
+            if (reifyRecordsBtn) reifyRecordsBtn.onclick = reifyImportView;
+
             const toolbarActions = [
                 ['popupSettingsBtn', openPopupSettingsModal],
                 ['importCsvBtn', openCsvImportModal],
@@ -6054,8 +6068,32 @@
         }
 
         function renderViewActions(extraControls = '') {
+            const view = getCurrentView();
+            const isImportView = view && view.isTemporary && view.importMetadata;
+
+            // Add reify button for import views
+            const reifyButton = isImportView ? `
+                <button id="reifyRecordsBtn" class="btn btn-success btn-sm" style="background: #10b981; border-color: #10b981;">
+                    <i class="ph ph-check-circle"></i>
+                    Make Permanent
+                </button>
+            ` : '';
+
             return `
                 <div class="view-stage-actions">
+                    ${isImportView ? `
+                        <div class="import-banner" style="background: #064e3b; border: 1px solid #10b981; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <i class="ph ph-info" style="font-size: 20px; color: #10b981;"></i>
+                                <div>
+                                    <div style="font-weight: 600; color: #d1fae5;">Temporary Import</div>
+                                    <div style="font-size: 0.875rem; color: #a7f3d0;">
+                                        This is a temporary import view. Make it permanent or it will expire in ${Math.ceil((view.importMetadata.expiresAt - Date.now()) / (24 * 60 * 60 * 1000))} days.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
                     <div class="toolbar-row">
                         <div class="toolbar-group">
                             <div class="selection-group">
@@ -6065,6 +6103,7 @@
                                 </div>
                             </div>
                             <div class="view-stage-inline-actions">
+                                ${reifyButton}
                                 <button id="filterBtn" class="btn btn-secondary btn-sm">
                                     <i class="ph ph-funnel-simple"></i>
                                     Filter
@@ -8220,6 +8259,7 @@
             });
 
             // Create batch import event (compact)
+            const importTimestamp = Date.now();
             if (state.leanContext && importTemplateId) {
                 createEvent(
                     'Batch Import',
@@ -8228,12 +8268,46 @@
                     {
                         count: state.csvImportState.rows.length,
                         templateId: importTemplateId,
-                        summary: `Imported ${state.csvImportState.rows.length} records`
+                        summary: `Imported ${state.csvImportState.rows.length} records`,
+                        timestamp: importTimestamp
                     }
                 );
             }
 
-            switchSet(set.id, null);
+            // Auto-create a temporary view for this import
+            const importFileName = state.csvImportState.filename || 'import.csv';
+            const baseViewName = importFileName.replace(/\.[^/.]+$/, ''); // Remove extension
+            const viewName = `Import: ${baseViewName}`;
+
+            const importViewId = createView(set.id, viewName, {
+                type: 'grid',
+                icon: '📥',
+                isTemporary: true,
+                importMetadata: {
+                    filename: importFileName,
+                    timestamp: importTimestamp,
+                    recordCount: state.csvImportState.rows.length,
+                    templateId: importTemplateId,
+                    expiresAt: importTimestamp + (7 * 24 * 60 * 60 * 1000) // 7 days from now
+                }
+            });
+
+            // Track this as an import view in event stream
+            createEvent(
+                'Import View Created',
+                'INS',
+                { type: 'View', id: importViewId },
+                {
+                    setId: set.id,
+                    viewName: viewName,
+                    filename: importFileName,
+                    recordCount: state.csvImportState.rows.length,
+                    isTemporary: true,
+                    expiresAt: importTimestamp + (7 * 24 * 60 * 60 * 1000)
+                }
+            );
+
+            switchSet(set.id, importViewId);
             showToast(`✓ Imported ${state.csvImportState.rows.length} records`);
             closeModal('csvImportModal');
         }
@@ -8915,6 +8989,220 @@
             }
         }
 
+        function getRecentImportViews() {
+            // Get all views that are marked as import views and haven't expired
+            const recentImports = [];
+            const now = Date.now();
+
+            if (state.views) {
+                state.views.forEach((view) => {
+                    if (view.isTemporary && view.importMetadata) {
+                        // Check if it has expired (default 7 days)
+                        const expiresAt = view.importMetadata.expiresAt;
+                        if (!expiresAt || now < expiresAt) {
+                            recentImports.push(view);
+                        }
+                    }
+                });
+            }
+
+            // Sort by timestamp (most recent first)
+            recentImports.sort((a, b) => {
+                const timeA = a.importMetadata?.timestamp || 0;
+                const timeB = b.importMetadata?.timestamp || 0;
+                return timeB - timeA;
+            });
+
+            return recentImports;
+        }
+
+        function renderRecentImports() {
+            const container = document.getElementById('navRecentImportsContainer');
+            if (!container) return;
+
+            const recentImports = getRecentImportViews();
+
+            if (recentImports.length === 0) {
+                container.innerHTML = '<div style="color: #9ca3af; font-size: 0.875rem; padding: 0.5rem 0;">No recent imports</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            recentImports.forEach(importView => {
+                const importItem = document.createElement('div');
+                importItem.className = `view-item ${importView.id === state.currentViewId ? 'active' : ''}`;
+                importItem.style.display = 'flex';
+                importItem.style.alignItems = 'center';
+                importItem.style.justifyContent = 'space-between';
+                importItem.style.gap = '0.5rem';
+
+                const importLabel = document.createElement('div');
+                importLabel.style.display = 'flex';
+                importLabel.style.alignItems = 'center';
+                importLabel.style.flex = '1';
+                importLabel.style.minWidth = '0';
+                importLabel.innerHTML = `
+                    <span class="view-item-icon">${renderIcon(importView.icon || '📥')}</span>
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${importView.name}</span>
+                `;
+                importLabel.onclick = () => {
+                    switchSet(importView.setId, importView.id);
+                };
+
+                const actionsContainer = document.createElement('div');
+                actionsContainer.style.display = 'flex';
+                actionsContainer.style.gap = '4px';
+                actionsContainer.style.opacity = '0.7';
+
+                // Pin button
+                const pinBtn = document.createElement('button');
+                pinBtn.innerHTML = '<i class="ph ph-push-pin" style="font-size: 14px;"></i>';
+                pinBtn.title = 'Pin to Views';
+                pinBtn.style.cssText = 'background: none; border: none; color: #10b981; cursor: pointer; padding: 2px 4px;';
+                pinBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    pinImportToViews(importView.id);
+                };
+
+                // Remove button
+                const removeBtn = document.createElement('button');
+                removeBtn.innerHTML = '<i class="ph ph-x" style="font-size: 14px;"></i>';
+                removeBtn.title = 'Remove';
+                removeBtn.style.cssText = 'background: none; border: none; color: #ef4444; cursor: pointer; padding: 2px 4px;';
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    removeImportView(importView.id);
+                };
+
+                actionsContainer.appendChild(pinBtn);
+                actionsContainer.appendChild(removeBtn);
+
+                importItem.appendChild(importLabel);
+                importItem.appendChild(actionsContainer);
+                container.appendChild(importItem);
+            });
+        }
+
+        function pinImportToViews(viewId) {
+            const view = state.views?.get(viewId);
+            if (!view) return;
+
+            // Remove temporary flag and import metadata
+            view.isTemporary = false;
+            delete view.importMetadata;
+
+            // Update the view name to remove "Import: " prefix if present
+            if (view.name.startsWith('Import: ')) {
+                view.name = view.name.replace('Import: ', '');
+            }
+
+            // Log the pin event
+            createEvent(
+                'Import View Pinned',
+                'UPD',
+                { type: 'View', id: viewId },
+                {
+                    setId: view.setId,
+                    viewName: view.name,
+                    wasPinned: true
+                }
+            );
+
+            showToast('✓ Import pinned to views');
+            renderSidebar();
+            renderCurrentView();
+        }
+
+        function removeImportView(viewId) {
+            const view = state.views?.get(viewId);
+            if (!view) return;
+
+            if (!confirm(`Remove import "${view.name}"? The imported records will remain in the set.`)) {
+                return;
+            }
+
+            // Remove the view
+            const set = state.sets.get(view.setId);
+            if (set && set.views) {
+                set.views.delete(viewId);
+            }
+            state.views.delete(viewId);
+
+            // Log the removal event
+            createEvent(
+                'Import View Removed',
+                'DEL',
+                { type: 'View', id: viewId },
+                {
+                    setId: view.setId,
+                    viewName: view.name
+                }
+            );
+
+            // If this was the current view, switch to the set default view
+            if (state.currentViewId === viewId) {
+                switchSet(view.setId, null);
+            }
+
+            showToast('✓ Import removed');
+            renderSidebar();
+        }
+
+        function reifyImportView() {
+            const view = getCurrentView();
+            if (!view || !view.isTemporary || !view.importMetadata) return;
+
+            const set = getCurrentSet();
+            if (!set) return;
+
+            // Mark all imported records as "reified" (permanent entities)
+            const recordIds = Array.from(set.records.keys());
+            let reifiedCount = 0;
+
+            recordIds.forEach(recordId => {
+                const record = set.records.get(recordId);
+                if (record) {
+                    // Add reified metadata to record
+                    if (!record._metadata) {
+                        record._metadata = {};
+                    }
+                    record._metadata.reified = true;
+                    record._metadata.reifiedAt = Date.now();
+                    record._metadata.reifiedBy = state.currentUser.id;
+                    record._metadata.importSource = view.importMetadata.filename;
+                    reifiedCount++;
+                }
+            });
+
+            // Remove temporary flag and import metadata from view
+            view.isTemporary = false;
+            const importMetadata = view.importMetadata;
+            delete view.importMetadata;
+
+            // Update the view name to remove "Import: " prefix if present
+            if (view.name.startsWith('Import: ')) {
+                view.name = view.name.replace('Import: ', '');
+            }
+
+            // Log the reification event
+            createEvent(
+                'Import Reified',
+                'UPD',
+                { type: 'View', id: view.id },
+                {
+                    setId: view.setId,
+                    viewName: view.name,
+                    recordCount: reifiedCount,
+                    originalFilename: importMetadata.filename,
+                    wasReified: true
+                }
+            );
+
+            showToast(`✓ Import made permanent (${reifiedCount} records reified)`);
+            renderSidebar();
+            renderCurrentView();
+        }
+
         function renderSidebar() {
             // Update world name in nav
             const worldNavName = document.getElementById('worldNavName');
@@ -8941,6 +9229,9 @@
                     el.classList.toggle('active', isActive);
                 }
             });
+
+            // Render recent imports
+            renderRecentImports();
 
             // Populate sets in nav
             const setsContainer = document.getElementById('navSetsContainer');
