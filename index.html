@@ -6110,6 +6110,21 @@
 
             const record = { id: `rec_${Date.now()}` };
             set.schema.forEach(f => record[f.id] = FIELD_TYPES[f.type].defaultValue);
+
+            // If on a filtered view, pre-populate the record with filter values
+            // so it's immediately visible after creation
+            const view = getCurrentView();
+            if (view && view.filters && view.filters.length > 0) {
+                // Use the first filter group to populate values
+                const firstGroup = view.filters[0];
+                const rules = firstGroup.filter(r => r.field);
+                rules.forEach(rule => {
+                    if (rule.field && rule.value !== undefined) {
+                        record[rule.field] = rule.value;
+                    }
+                });
+            }
+
             set.records.set(record.id, record);
 
             // Track the new record for auto-focus after render
@@ -19253,6 +19268,20 @@
                     // Create a new record with default values based on schema
                     const record = { id: `rec_${Date.now()}` };
                     set.schema.forEach(f => record[f.id] = FIELD_TYPES[f.type].defaultValue);
+
+                    // If the selected view has filters, pre-populate the record with filter values
+                    // so it's immediately visible after creation
+                    const view = set.views.find(v => v.id === viewId);
+                    if (view && view.filters && view.filters.length > 0) {
+                        const firstGroup = view.filters[0];
+                        const rules = firstGroup.filter(r => r.field);
+                        rules.forEach(rule => {
+                            if (rule.field && rule.value !== undefined) {
+                                record[rule.field] = rule.value;
+                            }
+                        });
+                    }
+
                     set.records.set(record.id, record);
 
                     // Switch to the selected view and show the new record
