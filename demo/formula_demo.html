@@ -368,7 +368,9 @@
         { name: 'Total Revenue', formula: '{Price} * {Quantity}', format: 'currency' },
         { name: 'Net Price', formula: '{Price} * (1 - {Discount})', format: 'currency' },
         { name: 'High Value Item', formula: 'IF({Price} > 300, "Premium", "Standard")', format: 'text' },
-        { name: 'Days Old', formula: 'DATEDIFF(TODAY(), {Created}, "days")', format: 'number' }
+        { name: 'Days Old', formula: 'DATEDIFF(TODAY(), {Created}, "days")', format: 'number' },
+        { name: 'Product Label', formula: '{Category} & " - " & {Product}', format: 'text' },
+        { name: 'Price Tag', formula: '"$" & {Price} & " (" & {Quantity} & " items)"', format: 'text' }
       ];
 
       sampleFormulas.forEach(({ name, formula, format }) => {
