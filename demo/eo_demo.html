@@ -6,6 +6,7 @@
     <title>EO Framework Demo - Epistemic Observability</title>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="stylesheet" href="eo_styles.css">
+    <link rel="stylesheet" href="eo_three_level_detail.css">
     <style>
         * {
             box-sizing: border-box;
@@ -187,19 +188,23 @@
 <body>
     <div class="demo-container">
         <div class="demo-header">
-            <h1>🌟 EO Framework Demo</h1>
+            <h1>🌟 EO Framework Demo - Three-Level Detail View</h1>
             <p>
                 Epistemic Observability (EO) brings automatic context tracking, superposition of multiple values,
-                and stability classification to your data. This demo also includes <strong>formula fields</strong> 🧮
-                that automatically calculate values based on other fields (e.g., temperature conversion, battery status).
-                Click any cell to explore its context, history, and perspectives.
+                and stability classification to your data. This demo features the <strong>Three-Level Detail System</strong>:
             </p>
+            <ul style="margin: 12px 0 0 0; padding-left: 24px; line-height: 1.8;">
+                <li><strong>Level 1 (Inline):</strong> Hover over cells to see type badges and indicators. Double-click to edit.</li>
+                <li><strong>Level 2 (Record Modal):</strong> Click the first cell in any row to view the full record with tabs for Fields, Relationships, Provenance, History, and Context.</li>
+                <li><strong>Level 3 (Field Lens):</strong> In the record modal, click any field label to open the deep field inspector showing definitions, provenance, relationships, data lineage, and actions.</li>
+            </ul>
         </div>
 
         <div class="demo-section">
             <h2>Sample Data Table</h2>
             <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">
-                Click any cell to view its value, context, history, and superposition (if applicable).
+                <strong>Hover</strong> over cells to see type indicators. <strong>Double-click</strong> to edit.
+                <strong>Click the Subject column</strong> to open the full record modal.
                 Columns marked with 🧮 are <strong>formula fields</strong> that automatically calculate values from other fields.
             </p>
 
@@ -261,6 +266,12 @@
     <script src="eo_cell_modal.js"></script>
     <script src="eo_integration.js"></script>
 
+    <!-- Load Three-Level Detail System -->
+    <script src="eo_inline_cell_editor.js"></script>
+    <script src="eo_record_modal.js"></script>
+    <script src="eo_field_lens_panel.js"></script>
+    <script src="eo_three_level_integration.js"></script>
+
     <!-- Load Formula Engine -->
     <script src="../formula_engine.js"></script>
     <script src="../formula_field_service.js"></script>
@@ -273,6 +284,9 @@
                 this.eo.initialize();
                 this.eo.setCurrentUser('demo_user', 'Demo User');
                 this.eo.enableDebug();
+
+                // Initialize three-level detail system
+                this.threeLevelSystem = new EOThreeLevelIntegration(this.eo);
 
                 // Initialize formula field service
                 this.formulaService = new FormulaFieldService();
@@ -494,7 +508,7 @@
 
                     return `
                         <tr>
-                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Subject Label">
+                            <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Subject Label" data-record-label style="cursor: pointer; font-weight: 500;" title="Click to view full record">
                                 ${subject}
                             </td>
                             <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Observed At">
@@ -525,6 +539,11 @@
                         </tr>
                     `;
                 }).join('');
+
+                // Attach three-level detail system to the table
+                const table = document.getElementById('demoTable');
+                this.threeLevelSystem.attachToGrid(table);
+                this.eo.schema = this.schema; // Ensure schema is available
             }
 
             refreshStats() {
