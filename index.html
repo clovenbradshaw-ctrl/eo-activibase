@@ -4807,9 +4807,9 @@
                             if (field) {
                                 let value = record[field.id];
                                 // Convert value to appropriate type for formula
-                                if (value === undefined || value === null) value = 0;
+                                if (value === undefined || value === null) value = '';
                                 if (typeof value === 'string') {
-                                    // If it's a number string, convert it
+                                    // If it's a number string, convert it for math operations
                                     const num = parseFloat(value);
                                     if (!isNaN(num) && value.trim() !== '') {
                                         value = num;
@@ -4819,10 +4819,14 @@
                                 }
                                 processedFormula = processedFormula.replace(ref, value);
                             } else {
-                                processedFormula = processedFormula.replace(ref, '0');
+                                processedFormula = processedFormula.replace(ref, '""');
                             }
                         }
                     }
+
+                    // Replace concatenation operator & with JavaScript's +
+                    // Must be done carefully to avoid replacing bitwise AND in conditions
+                    processedFormula = processedFormula.replace(/&/g, '+');
 
                     // Replace function calls
                     for (const [funcName, funcImpl] of Object.entries(this.functions)) {
@@ -13253,6 +13257,10 @@
                 showSelectDropdown(td, recordId, field);
             } else if (field.type === 'LINK_RECORD') {
                 showLinkedRecordDropdown(td, recordId, field);
+            } else if (field.type === 'FORMULA' || field.type === 'RECORD_ID') {
+                // Formula and Record ID fields are read-only, exit edit mode
+                exitEditMode(false);
+                return;
             } else {
                 makeContentEditable(td, recordId, field);
             }
@@ -14073,6 +14081,15 @@
                 }
             } else if (typeId === 'LINK_RECORD') {
                 state.changeLinkedSetId = field?.config?.linkedSetId || state.currentSetId;
+            } else if (typeId === 'FORMULA') {
+                // Populate formula configuration from existing field
+                const formulaInput = document.getElementById('changeFormulaInput');
+                const formatSelect = document.getElementById('changeFormulaFormat');
+                const decimalsInput = document.getElementById('changeFormulaDecimals');
+
+                if (formulaInput) formulaInput.value = field?.config?.formula || '';
+                if (formatSelect) formatSelect.value = field?.config?.format || 'number';
+                if (decimalsInput) decimalsInput.value = field?.config?.decimals || 2;
             }
         }
 
