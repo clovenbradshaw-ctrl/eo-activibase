@@ -2263,6 +2263,7 @@
                 <div class="world-nav-children" style="padding: 0 1rem; margin-bottom: 1.5rem;">
                     <div class="nav-item" onclick="openAddRecordModal()">+ Add Record</div>
                     <div class="nav-item" onclick="openAddSetModal()">+ Add Set</div>
+                    <div class="nav-item" onclick="openAddWorldModal()">+ Add World</div>
                     <div class="nav-item" onclick="importWorld()">Import</div>
                     <div class="nav-item" onclick="exportWorld()">Export</div>
                 </div>
@@ -15191,10 +15192,12 @@
 
           document.getElementById('saveColumnRuleBtn').onclick = saveColumnRule;
           document.getElementById('deleteColumnRuleBtn').onclick = deleteColumnRule;
-          document.getElementById('addWorldBtn').onclick = openAddWorldModal;
+          const addWorldBtn = document.getElementById('addWorldBtn');
+          if (addWorldBtn) addWorldBtn.onclick = openAddWorldModal;
           document.getElementById('saveAddWorldBtn').onclick = saveWorldFromModal;
           document.getElementById('cancelAddWorldBtn').onclick = () => closeModal('addWorldModal');
-          document.getElementById('worldSelect').onchange = (e) => switchWorld(e.target.value);
+          const worldSelect = document.getElementById('worldSelect');
+          if (worldSelect) worldSelect.onchange = (e) => switchWorld(e.target.value);
           document.getElementById('exportWorldBtn').onclick = exportJSON;
           document.getElementById('viewWorldJsonBtn').onclick = openJsonViewer;
           document.getElementById('importWorldBtn').onclick = triggerWorldImport;
