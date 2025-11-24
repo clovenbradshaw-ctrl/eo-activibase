@@ -1078,6 +1078,287 @@
             border-radius: 2px;
         }
 
+        /* SEARCH FOCUS PANEL */
+        .search-shell {
+            display: flex;
+            gap: 16px;
+            height: calc(90vh - 100px);
+        }
+
+        .search-surface {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .search-input-row {
+            padding: 12px 20px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .search-input-row input {
+            flex: 1;
+            border-radius: 999px;
+            border: 1px solid #d1d5db;
+            padding: 8px 14px;
+            font-size: 14px;
+        }
+
+        .search-input-row input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        .search-input-row .scope-pill {
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid #d1d5db;
+            background: #f9fafb;
+            color: #4b5563;
+            white-space: nowrap;
+        }
+
+        .search-results-container {
+            padding: 8px 0 12px;
+            overflow: auto;
+            flex: 1;
+        }
+
+        .results-section {
+            padding: 8px 20px 4px;
+        }
+
+        .results-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #9ca3af;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .result-item {
+            padding: 8px 10px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            transition: background 0.12s ease;
+            margin-bottom: 4px;
+        }
+
+        .result-item:hover {
+            background: #f3f4ff;
+        }
+
+        .result-item.focused {
+            background: #eff6ff;
+            border: 1px solid #2563eb;
+        }
+
+        .result-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .result-label {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .result-meta {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .focus-btn {
+            border-radius: 999px;
+            border: 1px solid #2563eb;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 12px;
+            padding: 6px 10px;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .focus-btn:hover {
+            background: #dbeafe;
+        }
+
+        /* FOCUS PANEL */
+        .focus-panel {
+            flex: 1.2;
+            min-width: 320px;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--border);
+            background: #f9fafb;
+        }
+
+        .focus-panel.hidden {
+            display: none;
+        }
+
+        .focus-header {
+            padding: 16px 18px 10px;
+            border-bottom: 1px solid var(--border);
+            background: white;
+        }
+
+        .focus-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #9ca3af;
+            margin-bottom: 4px;
+        }
+
+        .focus-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .focus-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .focus-tag {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #3730a3;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .focus-subtitle {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .focus-clear {
+            margin-top: 8px;
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: #f9fafb;
+            color: #6b7280;
+            cursor: pointer;
+        }
+
+        .focus-clear:hover {
+            background: #e5e7eb;
+        }
+
+        .focus-body {
+            padding: 12px 18px 16px;
+            overflow: auto;
+            flex: 1;
+            background: white;
+        }
+
+        .focus-section {
+            margin-bottom: 16px;
+        }
+
+        .focus-section h4 {
+            margin: 0 0 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #4b5563;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .focus-kv {
+            font-size: 13px;
+            margin-bottom: 6px;
+            line-height: 1.5;
+        }
+
+        .focus-kv-label {
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .focus-kv-value {
+            color: var(--text);
+        }
+
+        .focus-badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .focus-badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: #f9fafb;
+            color: #4b5563;
+        }
+
+        .focus-actions {
+            padding: 10px 18px 14px;
+            border-top: 1px solid var(--border);
+            background: #f9fafb;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .focus-action-btn {
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid #d1d5db;
+            background: white;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .focus-action-btn:hover {
+            background: #eff6ff;
+            border-color: #2563eb;
+            color: #1d4ed8;
+        }
+
+        @media (max-width: 900px) {
+            .search-shell {
+                flex-direction: column;
+            }
+            .focus-panel {
+                max-width: 100%;
+                border-left: none;
+                border-top: 1px solid var(--border);
+            }
+        }
+
         .table-scroll {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
@@ -3624,52 +3905,61 @@
 
     <!-- Search Data Modal -->
     <div id="searchDataModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="modal-container bg-white w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
             <div class="modal-header">
                 <h2 class="text-xl font-bold text-gray-900">Search Data</h2>
-                <p class="text-sm text-gray-500 mt-1">Find fields, records, and values to create views</p>
+                <p class="text-sm text-gray-500 mt-1">Find fields, records, and values. Focus on anything to explore its context.</p>
             </div>
-            <div class="modal-body space-y-4 overflow-y-auto flex-1">
-                <div>
-                    <label class="form-label">Search Query</label>
-                    <input type="text" id="searchDataInput" placeholder="Type to search..." class="w-full">
-                </div>
-                <div>
-                    <label class="form-label">Search Scope</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <label class="view-type-option">
-                            <input type="radio" name="searchScope" value="everything" checked>
-                            <div class="view-type-option-content">
-                                <i class="ph ph-magnifying-glass"></i>
-                                <span>Everything</span>
-                            </div>
-                        </label>
-                        <label class="view-type-option">
-                            <input type="radio" name="searchScope" value="fields">
-                            <div class="view-type-option-content">
-                                <i class="ph ph-columns"></i>
-                                <span>Fields</span>
-                            </div>
-                        </label>
-                        <label class="view-type-option">
-                            <input type="radio" name="searchScope" value="records">
-                            <div class="view-type-option-content">
-                                <i class="ph ph-rows"></i>
-                                <span>Records</span>
-                            </div>
-                        </label>
-                        <label class="view-type-option">
-                            <input type="radio" name="searchScope" value="values">
-                            <div class="view-type-option-content">
-                                <i class="ph ph-text-aa"></i>
-                                <span>Values</span>
-                            </div>
-                        </label>
+            <div class="search-shell">
+                <!-- LEFT: SEARCH + RESULTS -->
+                <div class="search-surface">
+                    <div class="search-input-row">
+                        <input type="text" id="searchDataInput" placeholder="Type to search..." />
+                        <div class="scope-pill" id="searchScopePill">Scope: Everything</div>
+                    </div>
+                    <div class="search-results-container" id="searchDataResults">
+                        <p class="text-sm text-gray-400 px-5 pt-2">Type to search...</p>
                     </div>
                 </div>
-                <div id="searchDataResults" class="space-y-4"></div>
+
+                <!-- RIGHT: FOCUS PANEL -->
+                <aside class="focus-panel hidden" id="focusPanel">
+                    <div class="focus-header">
+                        <div class="focus-label">Focus</div>
+                        <div class="focus-title-row">
+                            <div style="flex: 1;">
+                                <div class="focus-title" id="focusTitle">Select an item</div>
+                                <div class="focus-subtitle" id="focusSubtitle"></div>
+                            </div>
+                            <span class="focus-tag" id="focusTag">-</span>
+                        </div>
+                        <button class="focus-clear" onclick="clearFocus()">Clear Focus</button>
+                    </div>
+                    <div class="focus-body" id="focusBody">
+                        <p class="text-sm text-gray-500">Click "Focus" on any search result to see detailed information here.</p>
+                    </div>
+                    <div class="focus-actions" id="focusActions"></div>
+                </aside>
             </div>
-            <div class="modal-footer flex justify-end gap-2">
+            <div class="modal-footer flex justify-between gap-2" style="border-top: 1px solid var(--border);">
+                <div class="flex gap-2">
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="radio" name="searchScope" value="everything" checked onchange="updateSearchScope()">
+                        <span>Everything</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="radio" name="searchScope" value="fields" onchange="updateSearchScope()">
+                        <span>Fields</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="radio" name="searchScope" value="records" onchange="updateSearchScope()">
+                        <span>Records</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="radio" name="searchScope" value="values" onchange="updateSearchScope()">
+                        <span>Values</span>
+                    </label>
+                </div>
                 <button id="closeSearchDataBtn" class="btn btn-secondary">Close</button>
             </div>
         </div>
@@ -15078,10 +15368,16 @@
             return identifierValue || record.name || '';
         }
 
+        // Global search state
+        let currentFocusedItem = null;
+
         function openSearchDataModal() {
             openModal('searchDataModal');
             document.getElementById('searchDataInput').value = '';
-            document.getElementById('searchDataResults').innerHTML = '';
+            document.getElementById('searchDataResults').innerHTML = '<p class="text-sm text-gray-400 px-5 pt-2">Type to search...</p>';
+
+            // Clear focus
+            clearFocus();
 
             // Set up event listeners
             const searchInput = document.getElementById('searchDataInput');
@@ -15089,11 +15385,34 @@
 
             searchInput.oninput = () => performSearch();
             scopeRadios.forEach(radio => {
-                radio.onchange = () => performSearch();
+                radio.onchange = () => {
+                    updateSearchScope();
+                    performSearch();
+                };
             });
 
             // Focus search input
             setTimeout(() => searchInput.focus(), 100);
+        }
+
+        function updateSearchScope() {
+            const scope = document.querySelector('input[name="searchScope"]:checked').value;
+            const scopeNames = {
+                'everything': 'Everything',
+                'fields': 'Fields',
+                'records': 'Records',
+                'values': 'Values'
+            };
+            document.getElementById('searchScopePill').textContent = `Scope: ${scopeNames[scope]}`;
+        }
+
+        function clearFocus() {
+            currentFocusedItem = null;
+            document.getElementById('focusPanel').classList.add('hidden');
+            // Remove focused class from all items
+            document.querySelectorAll('.result-item.focused').forEach(el => {
+                el.classList.remove('focused');
+            });
         }
 
         function performSearch() {
@@ -15193,85 +15512,63 @@
             const totalResults = results.fields.length + results.records.length + results.values.length;
 
             if (totalResults === 0) {
-                container.innerHTML = `<p class="text-sm text-gray-400">No results found for "${query}"</p>`;
+                container.innerHTML = `<p class="text-sm text-gray-400 px-5 pt-2">No results found for "${query}"</p>`;
                 return;
             }
 
-            let html = `<div class="text-sm text-gray-600 mb-4">Found ${totalResults} result${totalResults !== 1 ? 's' : ''}</div>`;
+            let html = '';
 
             // Render Fields
             if (results.fields.length > 0) {
-                html += `
-                    <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                        <h3 class="font-bold text-gray-900 mb-2 flex items-center gap-2">
-                            <i class="ph ph-columns"></i>
-                            Fields (${results.fields.length})
-                        </h3>
-                        <div class="space-y-2">
-                `;
+                html += `<div class="results-section">
+                    <div class="results-section-title">Fields</div>`;
                 results.fields.forEach((item, index) => {
-                    if (index < 10) { // Limit display
+                    if (index < 20) { // Limit display
+                        const itemId = `field-${item.setId}-${item.field.id}`;
+                        const usageCount = getFieldUsageCount(item.setId, item.field.id);
                         html += `
-                            <div class="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-blue-400 transition">
-                                <div class="flex-1">
-                                    <div class="font-medium text-gray-900">${item.field.name}</div>
-                                    <div class="text-xs text-gray-500">${item.setName} • ${item.field.type}</div>
+                            <div class="result-item" id="${itemId}">
+                                <div class="result-main">
+                                    <div class="result-label">${escapeHtml(item.field.name)}</div>
+                                    <div class="result-meta">Field • ${item.field.type} • ${usageCount} record${usageCount !== 1 ? 's' : ''}</div>
                                 </div>
-                                <button class="btn btn-primary btn-sm" onclick="createViewFromSearchField('${item.setId}', '${item.field.id}')">
-                                    Create View
-                                </button>
+                                <button class="focus-btn" onclick='focusOnField(${JSON.stringify(item)}, "${itemId}")'>Focus</button>
                             </div>
                         `;
                     }
                 });
-                if (results.fields.length > 10) {
-                    html += `<p class="text-sm text-gray-500">...and ${results.fields.length - 10} more</p>`;
+                if (results.fields.length > 20) {
+                    html += `<p class="text-xs text-gray-500 px-3">...and ${results.fields.length - 20} more</p>`;
                 }
-                html += `</div></div>`;
+                html += `</div>`;
             }
 
             // Render Records
             if (results.records.length > 0) {
-                html += `
-                    <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                        <h3 class="font-bold text-gray-900 mb-2 flex items-center gap-2">
-                            <i class="ph ph-rows"></i>
-                            Records (${results.records.length})
-                        </h3>
-                        <div class="space-y-2">
-                `;
+                html += `<div class="results-section">
+                    <div class="results-section-title">Records</div>`;
                 results.records.forEach((item, index) => {
-                    if (index < 10) {
+                    if (index < 20) {
+                        const itemId = `record-${item.setId}-${item.recordId}`;
                         html += `
-                            <div class="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-blue-400 transition">
-                                <div class="flex-1">
-                                    <div class="font-medium text-gray-900">${item.label}</div>
-                                    <div class="text-xs text-gray-500">${item.setName}</div>
+                            <div class="result-item" id="${itemId}">
+                                <div class="result-main">
+                                    <div class="result-label">${escapeHtml(item.label)}</div>
+                                    <div class="result-meta">Record • ${escapeHtml(item.setName)}</div>
                                 </div>
-                                <button class="btn btn-primary btn-sm" onclick="createViewFromSearchRecord('${item.setId}', '${item.recordId}')">
-                                    Create View
-                                </button>
+                                <button class="focus-btn" onclick='focusOnRecord(${JSON.stringify(item)}, "${itemId}")'>Focus</button>
                             </div>
                         `;
                     }
                 });
-                if (results.records.length > 10) {
-                    html += `<p class="text-sm text-gray-500">...and ${results.records.length - 10} more</p>`;
+                if (results.records.length > 20) {
+                    html += `<p class="text-xs text-gray-500 px-3">...and ${results.records.length - 20} more</p>`;
                 }
-                html += `</div></div>`;
+                html += `</div>`;
             }
 
             // Render Values
             if (results.values.length > 0) {
-                html += `
-                    <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                        <h3 class="font-bold text-gray-900 mb-2 flex items-center gap-2">
-                            <i class="ph ph-text-aa"></i>
-                            Cell Values (${results.values.length})
-                        </h3>
-                        <div class="space-y-2">
-                `;
-
                 // Group values by field
                 const valuesByField = {};
                 results.values.forEach(item => {
@@ -15288,29 +15585,265 @@
                     valuesByField[key].values.push(item);
                 });
 
+                html += `<div class="results-section">
+                    <div class="results-section-title">Values</div>`;
+
                 Object.values(valuesByField).forEach((group, index) => {
-                    if (index < 10) {
+                    if (index < 20) {
+                        const itemId = `value-${group.setId}-${group.fieldId}`;
                         const displayValue = String(group.values[0].value).slice(0, 50);
                         html += `
-                            <div class="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-blue-400 transition">
-                                <div class="flex-1">
-                                    <div class="font-medium text-gray-900">"${displayValue}" in ${group.fieldName}</div>
-                                    <div class="text-xs text-gray-500">${group.setName} • ${group.values.length} match${group.values.length !== 1 ? 'es' : ''}</div>
+                            <div class="result-item" id="${itemId}">
+                                <div class="result-main">
+                                    <div class="result-label">"${escapeHtml(displayValue)}"</div>
+                                    <div class="result-meta">Value • appears in ${group.values.length} record${group.values.length !== 1 ? 's' : ''}</div>
                                 </div>
-                                <button class="btn btn-primary btn-sm" onclick="createViewFromSearchValue('${group.setId}', '${group.fieldId}', '${encodeURIComponent(JSON.stringify(group.values[0].value))}')">
-                                    Create View
-                                </button>
+                                <button class="focus-btn" onclick='focusOnValue(${JSON.stringify(group)}, "${itemId}")'>Focus</button>
                             </div>
                         `;
                     }
                 });
-                if (Object.keys(valuesByField).length > 10) {
-                    html += `<p class="text-sm text-gray-500">...and ${Object.keys(valuesByField).length - 10} more</p>`;
+                if (Object.keys(valuesByField).length > 20) {
+                    html += `<p class="text-xs text-gray-500 px-3">...and ${Object.keys(valuesByField).length - 20} more</p>`;
                 }
-                html += `</div></div>`;
+                html += `</div>`;
             }
 
             container.innerHTML = html;
+        }
+
+        function getFieldUsageCount(setId, fieldId) {
+            const set = state.sets.get(setId);
+            if (!set || !set.records) return 0;
+            let count = 0;
+            set.records.forEach(record => {
+                if (record && record[fieldId] != null && record[fieldId] !== '') {
+                    count++;
+                }
+            });
+            return count;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function focusOnField(item, itemId) {
+            currentFocusedItem = { type: 'field', data: item, itemId };
+
+            // Remove previous focused class
+            document.querySelectorAll('.result-item.focused').forEach(el => el.classList.remove('focused'));
+            // Add focused class to clicked item
+            const itemEl = document.getElementById(itemId);
+            if (itemEl) itemEl.classList.add('focused');
+
+            // Show focus panel
+            document.getElementById('focusPanel').classList.remove('hidden');
+
+            // Update header
+            document.getElementById('focusTitle').textContent = item.field.name;
+            document.getElementById('focusSubtitle').textContent = `Field • ${item.field.type} • from ${item.setName}`;
+            document.getElementById('focusTag').textContent = 'Field';
+
+            // Build provenance section
+            let bodyHtml = '';
+
+            // Provenance section
+            bodyHtml += `<div class="focus-section">
+                <h4>Provenance</h4>
+                <div class="focus-kv"><span class="focus-kv-label">Set:</span> <span class="focus-kv-value">${escapeHtml(item.setName)}</span></div>
+                <div class="focus-kv"><span class="focus-kv-label">Type:</span> <span class="focus-kv-value">${item.field.type}</span></div>`;
+
+            if (item.field.description) {
+                bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">Description:</span> <span class="focus-kv-value">${escapeHtml(item.field.description)}</span></div>`;
+            }
+
+            const usageCount = getFieldUsageCount(item.setId, item.field.id);
+            bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">Usage:</span> <span class="focus-kv-value">${usageCount} record${usageCount !== 1 ? 's' : ''}</span></div>`;
+
+            // Check for metadata from provenance
+            const set = state.sets.get(item.setId);
+            if (set && set.metadata) {
+                if (set.metadata.sourceSystem) {
+                    bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">Source System:</span> <span class="focus-kv-value">${escapeHtml(set.metadata.sourceSystem)}</span></div>`;
+                }
+                if (set.metadata.frame) {
+                    bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">Frame:</span> <span class="focus-kv-value">${escapeHtml(set.metadata.frame)}</span></div>`;
+                }
+            }
+
+            bodyHtml += `</div>`;
+
+            // Context Frame section
+            bodyHtml += `<div class="focus-section">
+                <h4>Context</h4>`;
+
+            if (item.field.options) {
+                bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">Options:</span> <span class="focus-kv-value">${item.field.options.length} defined option${item.field.options.length !== 1 ? 's' : ''}</span></div>`;
+            }
+
+            if (item.field.format) {
+                bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">Format:</span> <span class="focus-kv-value">${escapeHtml(item.field.format)}</span></div>`;
+            }
+
+            bodyHtml += `</div>`;
+
+            document.getElementById('focusBody').innerHTML = bodyHtml;
+
+            // Action buttons
+            let actionsHtml = `
+                <button class="focus-action-btn" onclick="createViewFromSearchField('${item.setId}', '${item.field.id}'); clearFocus();">Create View with this Field</button>
+                <button class="focus-action-btn" onclick="navigateToSet('${item.setId}'); closeModal('searchDataModal');">Open Set</button>
+            `;
+            document.getElementById('focusActions').innerHTML = actionsHtml;
+        }
+
+        function focusOnRecord(item, itemId) {
+            currentFocusedItem = { type: 'record', data: item, itemId };
+
+            // Remove previous focused class
+            document.querySelectorAll('.result-item.focused').forEach(el => el.classList.remove('focused'));
+            // Add focused class to clicked item
+            const itemEl = document.getElementById(itemId);
+            if (itemEl) itemEl.classList.add('focused');
+
+            // Show focus panel
+            document.getElementById('focusPanel').classList.remove('hidden');
+
+            // Update header
+            document.getElementById('focusTitle').textContent = item.label;
+            document.getElementById('focusSubtitle').textContent = `Record • from ${item.setName}`;
+            document.getElementById('focusTag').textContent = 'Record';
+
+            // Build provenance section
+            let bodyHtml = '';
+
+            // Provenance section
+            bodyHtml += `<div class="focus-section">
+                <h4>Provenance</h4>
+                <div class="focus-kv"><span class="focus-kv-label">Set:</span> <span class="focus-kv-value">${escapeHtml(item.setName)}</span></div>
+                <div class="focus-kv"><span class="focus-kv-label">Record ID:</span> <span class="focus-kv-value">${escapeHtml(item.recordId)}</span></div>`;
+
+            // Get record details
+            const set = state.sets.get(item.setId);
+            const record = set ? set.records.get(item.recordId) : null;
+
+            if (record) {
+                // Show a few key fields
+                let fieldCount = 0;
+                if (set.schema) {
+                    set.schema.forEach(field => {
+                        if (fieldCount < 5 && record[field.id] != null && record[field.id] !== '') {
+                            const value = String(record[field.id]).slice(0, 100);
+                            bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">${escapeHtml(field.name)}:</span> <span class="focus-kv-value">${escapeHtml(value)}</span></div>`;
+                            fieldCount++;
+                        }
+                    });
+                }
+            }
+
+            bodyHtml += `</div>`;
+
+            // Context section
+            bodyHtml += `<div class="focus-section">
+                <h4>Context</h4>`;
+
+            // Count connections
+            const fullRecordId = `${item.setId}/${item.recordId}`;
+            let connectionCount = 0;
+            state.connections.forEach(conn => {
+                if ((conn.subject.type === 'Record' && conn.subject.id === fullRecordId) ||
+                    (conn.operand && conn.operand.type === 'Record' && conn.operand.id === fullRecordId)) {
+                    connectionCount++;
+                }
+            });
+
+            bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">Connections:</span> <span class="focus-kv-value">${connectionCount} connection${connectionCount !== 1 ? 's' : ''}</span></div>`;
+            bodyHtml += `</div>`;
+
+            document.getElementById('focusBody').innerHTML = bodyHtml;
+
+            // Action buttons
+            let actionsHtml = `
+                <button class="focus-action-btn" onclick="createViewFromSearchRecord('${item.setId}', '${item.recordId}'); clearFocus();">Create View from this Record</button>
+                <button class="focus-action-btn" onclick="navigateToSet('${item.setId}'); closeModal('searchDataModal');">Open Set</button>
+            `;
+            if (connectionCount > 0) {
+                actionsHtml += `<button class="focus-action-btn" onclick="showRecordConnections('${item.setId}', '${item.recordId}');">View Connections</button>`;
+            }
+            document.getElementById('focusActions').innerHTML = actionsHtml;
+        }
+
+        function focusOnValue(group, itemId) {
+            currentFocusedItem = { type: 'value', data: group, itemId };
+
+            // Remove previous focused class
+            document.querySelectorAll('.result-item.focused').forEach(el => el.classList.remove('focused'));
+            // Add focused class to clicked item
+            const itemEl = document.getElementById(itemId);
+            if (itemEl) itemEl.classList.add('focused');
+
+            // Show focus panel
+            document.getElementById('focusPanel').classList.remove('hidden');
+
+            const displayValue = String(group.values[0].value).slice(0, 50);
+
+            // Update header
+            document.getElementById('focusTitle').textContent = `"${displayValue}"`;
+            document.getElementById('focusSubtitle').textContent = `Value • appears in ${group.values.length} record${group.values.length !== 1 ? 's' : ''}`;
+            document.getElementById('focusTag').textContent = 'Value';
+
+            // Build provenance section
+            let bodyHtml = '';
+
+            // Provenance section
+            bodyHtml += `<div class="focus-section">
+                <h4>Provenance</h4>
+                <div class="focus-kv"><span class="focus-kv-label">Field:</span> <span class="focus-kv-value">${escapeHtml(group.fieldName)}</span></div>
+                <div class="focus-kv"><span class="focus-kv-label">Set:</span> <span class="focus-kv-value">${escapeHtml(group.setName)}</span></div>
+                <div class="focus-kv"><span class="focus-kv-label">Occurrences:</span> <span class="focus-kv-value">${group.values.length} record${group.values.length !== 1 ? 's' : ''}</span></div>`;
+
+            // Show full value if it was truncated
+            const fullValue = String(group.values[0].value);
+            if (fullValue.length > 50) {
+                bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">Full Value:</span> <span class="focus-kv-value">${escapeHtml(fullValue)}</span></div>`;
+            }
+
+            bodyHtml += `</div>`;
+
+            // Context section - show which records contain this value
+            bodyHtml += `<div class="focus-section">
+                <h4>Found In</h4>`;
+
+            const recordCount = Math.min(5, group.values.length);
+            for (let i = 0; i < recordCount; i++) {
+                const val = group.values[i];
+                bodyHtml += `<div class="focus-kv"><span class="focus-kv-value">${escapeHtml(val.recordLabel || val.recordId)}</span></div>`;
+            }
+
+            if (group.values.length > 5) {
+                bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">...and ${group.values.length - 5} more</span></div>`;
+            }
+
+            bodyHtml += `</div>`;
+
+            document.getElementById('focusBody').innerHTML = bodyHtml;
+
+            // Action buttons
+            let actionsHtml = `
+                <button class="focus-action-btn" onclick="createViewFromSearchValue('${group.setId}', '${group.fieldId}', '${encodeURIComponent(JSON.stringify(group.values[0].value))}'); clearFocus();">Create View with this Value</button>
+                <button class="focus-action-btn" onclick="navigateToSet('${group.setId}'); closeModal('searchDataModal');">Open Set</button>
+            `;
+            document.getElementById('focusActions').innerHTML = actionsHtml;
+        }
+
+        function navigateToSet(setId) {
+            state.currentSetId = setId;
+            navigateTo('data');
+            renderCurrentView();
         }
 
         function expandOneLevel(setId, recordIds) {
