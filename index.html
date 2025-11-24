@@ -9123,6 +9123,159 @@
             }
         }
 
+        function showViewTabContextMenu(event, setId, viewId) {
+            const set = state.sets.get(setId);
+            const view = set?.views.get(viewId);
+            if (!set || !view) return;
+
+            // Remove any existing context menu
+            document.querySelectorAll('.view-tab-context-menu').forEach(menu => menu.remove());
+
+            const menu = document.createElement('div');
+            menu.className = 'context-menu view-tab-context-menu';
+            menu.innerHTML = `
+                <div class="menu-item" data-action="edit">
+                    <span class="icon">✏️</span> Edit View
+                </div>
+                <div class="menu-item" data-action="duplicate">
+                    <span class="icon">📋</span> Duplicate
+                </div>
+                <div class="menu-separator"></div>
+                <div class="menu-item" data-action="close">
+                    <span class="icon">✕</span> Close Tab
+                </div>
+                <div class="menu-item danger" data-action="delete">
+                    <span class="icon">🗑️</span> Delete View
+                </div>
+            `;
+
+            menu.style.position = 'fixed';
+            menu.style.top = `${event.clientY}px`;
+            menu.style.left = `${event.clientX}px`;
+            menu.style.zIndex = '10000';
+
+            document.body.appendChild(menu);
+
+            // Handle menu item clicks
+            menu.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const action = item.dataset.action;
+                    menu.remove();
+
+                    switch (action) {
+                        case 'edit':
+                            showEditViewDialog(setId, viewId);
+                            break;
+                        case 'duplicate':
+                            const newName = `${view.name} (copy)`;
+                            cloneView(state, viewId, newName);
+                            renderSidebar();
+                            renderViewTabs();
+                            break;
+                        case 'close':
+                            closeViewTab(setId, viewId);
+                            break;
+                        case 'delete':
+                            if (confirm(`Delete view "${view.name}"? This cannot be undone.`)) {
+                                deleteView(state, viewId);
+                                closeViewTab(setId, viewId);
+                                renderSidebar();
+                            }
+                            break;
+                    }
+                });
+            });
+
+            // Close on click outside
+            setTimeout(() => {
+                document.addEventListener('click', function closeMenu(e) {
+                    if (!menu.contains(e.target)) {
+                        menu.remove();
+                        document.removeEventListener('click', closeMenu);
+                    }
+                });
+            }, 0);
+        }
+
+        function showEditViewDialog(setId, viewId) {
+            const set = state.sets.get(setId);
+            const view = set?.views.get(viewId);
+            if (!set || !view) return;
+
+            const dialog = document.createElement('div');
+            dialog.className = 'modal-overlay';
+            dialog.innerHTML = `
+                <div class="modal edit-view-modal">
+                    <div class="modal-header">
+                        <h2>Edit View</h2>
+                        <button class="modal-close">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>View Name</label>
+                            <input type="text" id="edit-view-name" placeholder="Untitled view" value="${view.name}">
+                        </div>
+                        <div class="form-group">
+                            <label>Icon</label>
+                            <div id="editViewIconSelector" class="icon-selector" role="button" tabindex="0">
+                                <div id="editViewIconPreview" class="icon-selector-icon" aria-hidden="true">${view.icon || VIEW_TYPE_ICONS[view.type]}</div>
+                                <div class="icon-selector-text">
+                                    <div class="icon-selector-label">Choose an icon</div>
+                                    <div id="editViewIconToken" class="icon-selector-token">${view.icon || VIEW_TYPE_ICONS[view.type]}</div>
+                                </div>
+                                <span class="icon-selector-chevron">▼</span>
+                            </div>
+                            <input type="hidden" id="edit-view-icon" value="${view.icon || VIEW_TYPE_ICONS[view.type]}">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary modal-close">Cancel</button>
+                        <button class="btn-primary" id="btn-save-view">Save Changes</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(dialog);
+
+            // Setup icon selector for this dialog
+            const iconSelectorId = 'edit-view-icon';
+            ICON_SELECTOR_TARGETS[iconSelectorId] = {
+                inputId: iconSelectorId,
+                selectorId: 'editViewIconSelector',
+                previewId: 'editViewIconPreview',
+                tokenId: 'editViewIconToken'
+            };
+            bindIconSelector(iconSelectorId);
+
+            // Event listeners
+            dialog.querySelectorAll('.modal-close').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    delete ICON_SELECTOR_TARGETS[iconSelectorId];
+                    dialog.remove();
+                });
+            });
+
+            dialog.querySelector('#btn-save-view').addEventListener('click', () => {
+                const name = dialog.querySelector('#edit-view-name').value.trim() || 'Untitled view';
+                const icon = dialog.querySelector('#edit-view-icon').value;
+
+                updateView(state, viewId, { name, icon });
+
+                delete ICON_SELECTOR_TARGETS[iconSelectorId];
+                dialog.remove();
+
+                // Re-render everything to show the changes
+                renderSidebar();
+                renderViewTabs();
+                renderCurrentView();
+            });
+
+            // Focus the name input
+            setTimeout(() => {
+                dialog.querySelector('#edit-view-name')?.focus();
+            }, 100);
+        }
+
         function reorderOpenTabs(dragKey, targetKey, position) {
             const fromIndex = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId) === dragKey);
             const targetIndex = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId) === targetKey);
@@ -9222,6 +9375,7 @@
                 tabEl.dataset.tabKey = tabKey;
                 tabEl.draggable = true;
                 tabEl.onclick = () => switchSet(tab.setId, tab.viewId);
+                tabEl.oncontextmenu = (e) => { e.preventDefault(); showViewTabContextMenu(e, tab.setId, tab.viewId); };
                 tabEl.ondragstart = (e) => handleTabDragStart(e, tab);
                 tabEl.ondragover = (e) => handleTabDragOver(e, tab);
                 tabEl.ondragleave = () => clearTabDropIndicators();
