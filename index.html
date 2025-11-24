@@ -14,6 +14,7 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="eo_lean_context.js"></script>
+    <script src="eo_provenance_extractor.js"></script>
     <style>
         :root {
             --primary: #111827;
@@ -3223,6 +3224,209 @@
             <div class="modal-footer flex justify-end gap-2">
                 <button id="cancelCsvImportBtn" class="btn btn-secondary">Cancel</button>
                 <button id="runCsvImportBtn" class="btn btn-primary">Import Records</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Provenance Review Modal (Tier 2 & 3) -->
+    <div id="provenanceReviewModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Review Import Provenance</h2>
+                    <p class="text-sm text-gray-500 mt-1">We've automatically extracted context from your file. Review and edit if needed.</p>
+                </div>
+                <button id="closeProvenanceReviewBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-body space-y-4">
+                <!-- Filename Display -->
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div class="text-sm font-medium text-gray-700">File:</div>
+                    <div class="text-base font-mono" id="provenanceFilename">—</div>
+                </div>
+
+                <!-- Tier 2: High Confidence Inferences -->
+                <div class="border border-green-200 rounded-lg bg-green-50/50 p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                        <h3 class="text-base font-semibold text-gray-900">High Confidence Inferences</h3>
+                        <span class="text-xs text-gray-500">(click to edit)</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3">
+                            <label class="w-36 text-sm font-medium text-gray-700">Source System:</label>
+                            <input type="text" id="provenanceSourceSystem" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm" placeholder="Auto-detected">
+                            <span class="text-xs text-gray-500" id="provenanceSourceSystemConfidence"></span>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <label class="w-36 text-sm font-medium text-gray-700">Data Type:</label>
+                            <input type="text" id="provenanceDataType" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm" placeholder="Auto-detected">
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <label class="w-36 text-sm font-medium text-gray-700">Method:</label>
+                            <select id="provenanceMethod" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm">
+                                <option value="measured">Measured (system)</option>
+                                <option value="declared">Declared (manual)</option>
+                                <option value="derived">Derived (calculated)</option>
+                                <option value="aggregated">Aggregated</option>
+                                <option value="inferred">Inferred</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <label class="w-36 text-sm font-medium text-gray-700">Timeframe:</label>
+                            <div class="flex-1 flex items-center gap-2">
+                                <input type="text" id="provenanceTimeframeStart" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm" placeholder="Start date">
+                                <span class="text-gray-400">to</span>
+                                <input type="text" id="provenanceTimeframeEnd" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm" placeholder="End date">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tier 2: Medium Confidence (please verify) -->
+                <div class="border border-amber-200 rounded-lg bg-amber-50/50 p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                        <h3 class="text-base font-semibold text-gray-900">Medium Confidence</h3>
+                        <span class="text-xs text-gray-500">(please verify)</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-sm font-medium text-gray-700 block mb-2">Jurisdiction:</label>
+                            <div class="space-y-2 pl-3">
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="provenanceJurisdiction" value="us_gaap">
+                                    <span class="text-sm">US GAAP</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="provenanceJurisdiction" value="ifrs">
+                                    <span class="text-sm">IFRS</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="provenanceJurisdiction" value="sox">
+                                    <span class="text-sm">SOX</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="provenanceJurisdiction" value="internal">
+                                    <span class="text-sm">Internal / Custom</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="provenanceJurisdiction" value="auto" checked>
+                                    <span class="text-sm">Auto (use column hints)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-sm font-medium text-gray-700 block mb-2">Organizational Scale:</label>
+                            <div class="space-y-2 pl-3">
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="provenanceScale" value="individual">
+                                    <span class="text-sm">Individual</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="provenanceScale" value="team" checked>
+                                    <span class="text-sm">Team</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="provenanceScale" value="department">
+                                    <span class="text-sm">Department</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="provenanceScale" value="organization">
+                                    <span class="text-sm">Organization</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tier 3: Epistemic Context (Optional but Recommended) -->
+                <div class="border border-blue-200 rounded-lg bg-blue-50/50 p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-blue-600">ℹ️</span>
+                        <h3 class="text-base font-semibold text-gray-900">Epistemic Context</h3>
+                        <span class="text-xs text-gray-500">(optional but recommended)</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-sm font-medium text-gray-700 block mb-2">Frame of Reference:</label>
+                            <div class="text-xs text-gray-500 mb-2">What conceptual frame applies to this data?</div>
+                            <select id="provenanceFrame" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                <option value="">None specified</option>
+                                <option value="financial_reporting">Financial Reporting (GAAP/IFRS)</option>
+                                <option value="operational">Operational Metrics</option>
+                                <option value="sales_metrics">Sales & Revenue</option>
+                                <option value="product_analytics">Product Analytics</option>
+                                <option value="scientific">Scientific/Research</option>
+                                <option value="legal_compliance">Legal/Compliance</option>
+                                <option value="hr">Human Resources</option>
+                                <option value="custom">Custom (specify below)</option>
+                            </select>
+                            <input type="text" id="provenanceFrameCustom" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mt-2 hidden" placeholder="Specify custom frame">
+                        </div>
+
+                        <div>
+                            <label class="text-sm font-medium text-gray-700 block mb-2">Authority/Ground:</label>
+                            <div class="text-xs text-gray-500 mb-2">Who authorized this data source?</div>
+                            <input type="text" id="provenanceAuthority" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="e.g., CFO - Finance Department">
+                        </div>
+
+                        <div>
+                            <label class="text-sm font-medium text-gray-700 block mb-2">Trust Level:</label>
+                            <div class="space-y-2 pl-3">
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="provenanceTrustLevel" value="authoritative" checked>
+                                    <span class="text-sm">Authoritative (official record)</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="provenanceTrustLevel" value="provisional">
+                                    <span class="text-sm">Provisional (draft/estimate)</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="provenanceTrustLevel" value="exploratory">
+                                    <span class="text-sm">Exploratory (analysis/sandbox)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- External System Linkage -->
+                        <div id="provenanceExternalLinksContainer" class="hidden">
+                            <label class="text-sm font-medium text-gray-700 block mb-2">External System Linkage:</label>
+                            <div class="bg-white border border-blue-200 rounded-md p-3">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="text-blue-600">🔗</span>
+                                    <span class="text-sm font-medium" id="provenanceExternalLinkText">Detected ID column</span>
+                                </div>
+                                <label class="flex items-center gap-2 text-sm">
+                                    <input type="checkbox" id="provenanceEnableExternalLink">
+                                    <span>Enable cross-system provenance tracking</span>
+                                </label>
+                                <input type="text" id="provenanceExternalLinkUrl" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mt-2 hidden" placeholder="Base URL (e.g., https://mycompany.salesforce.com)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary of Detections -->
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div class="text-xs font-medium text-gray-700 mb-2">Detection Summary:</div>
+                    <div id="provenanceSummary" class="text-xs text-gray-600 space-y-1"></div>
+                </div>
+            </div>
+            <div class="modal-footer flex justify-between items-center gap-2">
+                <button id="skipProvenanceBtn" class="btn btn-secondary">Skip - Use Defaults</button>
+                <button id="continueToMappingBtn" class="btn btn-primary">Continue to Column Mapping →</button>
             </div>
         </div>
     </div>
@@ -6556,10 +6760,202 @@
             }
             const reader = new FileReader();
             reader.onload = (e) => {
-                const { headers, rows } = parseCsvContent(e.target.result || '');
-                handleCsvData(headers, rows);
+                const csvText = e.target.result || '';
+                const { headers, rows } = parseCsvContent(csvText);
+
+                // NEW: Extract full provenance
+                if (window.EOProvenanceExtractor) {
+                    const extractor = new EOProvenanceExtractor();
+                    const provenance = extractor.extractFullProvenance(file, csvText, headers, rows);
+
+                    // Store provenance for later use
+                    state.csvImportState.provenance = provenance;
+                    state.csvImportState.filename = file.name;
+                    state.csvImportState.file = file;
+                    state.csvImportState.csvText = csvText;
+                    state.csvImportState.headers = headers;
+                    state.csvImportState.rows = rows;
+
+                    // Show provenance review modal
+                    showProvenanceReviewModal(provenance, () => {
+                        // After user reviews provenance, continue to column mapping
+                        handleCsvData(headers, rows);
+                    });
+                } else {
+                    // Fallback: no provenance extraction available
+                    handleCsvData(headers, rows);
+                }
             };
             reader.readAsText(file);
+        }
+
+        // PROVENANCE REVIEW MODAL FUNCTIONS
+
+        function showProvenanceReviewModal(provenance, onContinue) {
+            // Store the continuation callback
+            state.csvImportState.provenanceContinueCallback = onContinue;
+
+            // Populate modal fields with extracted provenance
+            populateProvenanceModal(provenance);
+
+            // Show the modal
+            openModal('provenanceReviewModal');
+        }
+
+        function populateProvenanceModal(provenance) {
+            const { file, filename, inferred, confidence, embedded, schema } = provenance;
+
+            // Set filename
+            document.getElementById('provenanceFilename').textContent = file.filename || '—';
+
+            // High confidence inferences
+            if (inferred.sourceSystem) {
+                document.getElementById('provenanceSourceSystem').value = inferred.sourceSystem.name || '';
+                const confPercent = Math.round((confidence.sourceSystem || 0) * 100);
+                document.getElementById('provenanceSourceSystemConfidence').textContent = `${confPercent}% confidence`;
+            } else {
+                document.getElementById('provenanceSourceSystem').value = '';
+                document.getElementById('provenanceSourceSystemConfidence').textContent = '';
+            }
+
+            document.getElementById('provenanceDataType').value = inferred.dataType || '';
+
+            // Method
+            const methodSelect = document.getElementById('provenanceMethod');
+            if (inferred.method && inferred.method.name) {
+                methodSelect.value = inferred.method.name;
+            }
+
+            // Timeframe
+            if (inferred.timeframe) {
+                document.getElementById('provenanceTimeframeStart').value = inferred.timeframe.start || '';
+                document.getElementById('provenanceTimeframeEnd').value = inferred.timeframe.end || '';
+            } else {
+                document.getElementById('provenanceTimeframeStart').value = '';
+                document.getElementById('provenanceTimeframeEnd').value = '';
+            }
+
+            // Medium confidence: Jurisdiction
+            if (inferred.jurisdiction && inferred.jurisdiction.name) {
+                const jurisdictionValue = inferred.jurisdiction.name.toLowerCase().replace(/\s+/g, '_');
+                const jurisdictionRadio = document.querySelector(`input[name="provenanceJurisdiction"][value="${jurisdictionValue}"]`);
+                if (jurisdictionRadio) {
+                    jurisdictionRadio.checked = true;
+                } else {
+                    document.querySelector('input[name="provenanceJurisdiction"][value="auto"]').checked = true;
+                }
+            } else {
+                document.querySelector('input[name="provenanceJurisdiction"][value="auto"]').checked = true;
+            }
+
+            // Scale
+            if (inferred.scale && inferred.scale.name) {
+                const scaleRadio = document.querySelector(`input[name="provenanceScale"][value="${inferred.scale.name}"]`);
+                if (scaleRadio) {
+                    scaleRadio.checked = true;
+                }
+            }
+
+            // Frame
+            const frameSelect = document.getElementById('provenanceFrame');
+            if (inferred.frame && inferred.frame.name) {
+                frameSelect.value = inferred.frame.name;
+            } else {
+                frameSelect.value = '';
+            }
+
+            // External links
+            if (inferred.externalLinks && inferred.externalLinks.length > 0) {
+                const link = inferred.externalLinks[0];
+                document.getElementById('provenanceExternalLinksContainer').classList.remove('hidden');
+                document.getElementById('provenanceExternalLinkText').textContent =
+                    `Detected ID column: "${link.idColumn}" (${link.system})`;
+            } else {
+                document.getElementById('provenanceExternalLinksContainer').classList.add('hidden');
+            }
+
+            // Build summary
+            const summaryEl = document.getElementById('provenanceSummary');
+            const summaryItems = [];
+
+            if (schema.externalIds && schema.externalIds.length > 0) {
+                summaryItems.push(`• Found ${schema.externalIds.length} external ID column(s)`);
+            }
+            if (schema.timestamps && schema.timestamps.length > 0) {
+                summaryItems.push(`• Found ${schema.timestamps.length} timestamp column(s)`);
+            }
+            if (schema.definitionColumns && schema.definitionColumns.length > 0) {
+                summaryItems.push(`• Found ${schema.definitionColumns.length} definition column(s)`);
+            }
+            if (embedded && Object.keys(embedded).length > 0) {
+                summaryItems.push(`• Extracted ${Object.keys(embedded).length} embedded metadata field(s)`);
+            }
+
+            summaryEl.innerHTML = summaryItems.length > 0
+                ? summaryItems.join('<br>')
+                : '• No special markers detected';
+        }
+
+        function captureProvenanceEdits() {
+            // Capture user edits from the modal
+            const edits = {
+                sourceSystem: document.getElementById('provenanceSourceSystem').value.trim() || null,
+                dataType: document.getElementById('provenanceDataType').value.trim() || null,
+                method: document.getElementById('provenanceMethod').value || null,
+                timeframe: {
+                    start: document.getElementById('provenanceTimeframeStart').value || null,
+                    end: document.getElementById('provenanceTimeframeEnd').value || null
+                },
+                jurisdiction: document.querySelector('input[name="provenanceJurisdiction"]:checked')?.value || 'auto',
+                scale: document.querySelector('input[name="provenanceScale"]:checked')?.value || 'individual',
+                frame: document.getElementById('provenanceFrame').value || null,
+                authority: document.getElementById('provenanceAuthority').value.trim() || null,
+                trustLevel: document.querySelector('input[name="provenanceTrustLevel"]:checked')?.value || 'authoritative',
+                externalLink: {
+                    enabled: document.getElementById('provenanceEnableExternalLink')?.checked || false,
+                    url: document.getElementById('provenanceExternalLinkUrl')?.value.trim() || null
+                }
+            };
+
+            // Handle custom frame
+            if (edits.frame === 'custom') {
+                edits.frame = document.getElementById('provenanceFrameCustom').value.trim() || null;
+            }
+
+            return edits;
+        }
+
+        function closeProvenanceReviewModal() {
+            closeModal('provenanceReviewModal');
+            // Clear the callback
+            state.csvImportState.provenanceContinueCallback = null;
+        }
+
+        function continueToColumnMapping() {
+            // Capture edits
+            const edits = captureProvenanceEdits();
+            state.csvImportState.provenanceEdits = edits;
+
+            // Close provenance modal
+            closeModal('provenanceReviewModal');
+
+            // Execute the continuation callback
+            if (state.csvImportState.provenanceContinueCallback) {
+                state.csvImportState.provenanceContinueCallback();
+            }
+        }
+
+        function skipProvenanceReview() {
+            // Use default/auto-detected values
+            state.csvImportState.provenanceEdits = {};
+
+            // Close provenance modal
+            closeModal('provenanceReviewModal');
+
+            // Execute the continuation callback
+            if (state.csvImportState.provenanceContinueCallback) {
+                state.csvImportState.provenanceContinueCallback();
+            }
         }
 
         function previewCsvFromText() {
@@ -6883,17 +7279,82 @@
             const finalizedMappings = Object.entries(state.csvImportState.mappings).filter(([, fieldId]) => fieldId);
 
             // Create ONE context template for the entire import (lean approach)
+            // Enhanced with rich provenance from extraction
             let importTemplateId = null;
             if (state.leanContext) {
                 const importFilename = state.csvImportState.filename || 'import.csv';
-                importTemplateId = state.leanContext.registerContextTemplate({
-                    method: 'declared',
-                    source: 'csv_import',
+                const provenance = state.csvImportState.provenance || {};
+                const provenanceEdits = state.csvImportState.provenanceEdits || {};
+                const inferred = provenance.inferred || {};
+
+                // Build rich context template
+                const templateContext = {
+                    // Basic context (with provenance enhancements)
+                    method: provenanceEdits.method || inferred.method?.name || 'declared',
+                    source: provenanceEdits.sourceSystem || inferred.sourceSystem?.name || 'csv_import',
                     agent: state.currentUser.id,
-                    timeframe: {
+                    timeframe: provenanceEdits.timeframe?.start ? provenanceEdits.timeframe : (inferred.timeframe || {
                         start: new Date().toISOString().split('T')[0]
-                    }
-                });
+                    }),
+                    scale: provenanceEdits.scale || inferred.scale?.name || 'individual',
+
+                    // NEW: Rich provenance fields
+                    frame: provenanceEdits.frame || inferred.frame?.name || null,
+                    jurisdiction: provenanceEdits.jurisdiction !== 'auto' ? provenanceEdits.jurisdiction : (inferred.jurisdiction?.name || null),
+                    ground: provenanceEdits.authority || null,
+                    trustLevel: provenanceEdits.trustLevel || 'authoritative',
+
+                    // File metadata
+                    fileMetadata: provenance.file || {},
+                    embeddedMetadata: provenance.embedded || {},
+
+                    // External system linkage
+                    externalLinks: inferred.externalLinks || [],
+
+                    // Confidence scores (for transparency)
+                    confidence: provenance.confidence || {}
+                };
+
+                // If external link is enabled, add connection info
+                if (provenanceEdits.externalLink?.enabled && provenanceEdits.externalLink?.url) {
+                    templateContext.externalSystemUrl = provenanceEdits.externalLink.url;
+                }
+
+                importTemplateId = state.leanContext.registerContextTemplate(templateContext);
+
+                // Column-level definition detection and capture
+                if (provenance.schema && provenance.schema.definitionColumns) {
+                    state.csvImportState.fieldDefinitions = state.csvImportState.fieldDefinitions || {};
+
+                    provenance.schema.definitionColumns.forEach(defColumn => {
+                        // Find the base field name (e.g., "revenue" from "revenue_definition")
+                        const baseFieldName = defColumn.replace(/_definition$|_definition_id$|_def$|_type$|_category$/i, '');
+
+                        // Extract unique definitions from the data
+                        const definitions = new Set();
+                        state.csvImportState.rows.forEach(row => {
+                            const defValue = row[defColumn];
+                            if (defValue) definitions.add(defValue);
+                        });
+
+                        // Record as definitional events
+                        definitions.forEach(defValue => {
+                            state.csvImportState.fieldDefinitions[baseFieldName] = {
+                                operator: 'DES',
+                                definer: {
+                                    type: 'system',
+                                    source: templateContext.source,
+                                    id: templateContext.agent
+                                },
+                                definition: defValue,
+                                frame: templateContext.frame,
+                                jurisdiction: templateContext.jurisdiction,
+                                definitionColumn: defColumn,
+                                timestamp: new Date().toISOString()
+                            };
+                        });
+                    });
+                }
             }
 
             state.csvImportState.rows.forEach(row => {
@@ -6911,6 +7372,33 @@
                 // Use lean record creation if available
                 if (state.leanContext && importTemplateId) {
                     const leanRecord = state.leanContext.createLeanRecord(set.id, recordData, importTemplateId);
+
+                    // Apply field-level definition overrides if available
+                    if (state.csvImportState.fieldDefinitions) {
+                        Object.entries(state.csvImportState.fieldDefinitions).forEach(([baseFieldName, defInfo]) => {
+                            // Find matching field in mappings
+                            const matchingMapping = finalizedMappings.find(([header, fieldId]) => {
+                                const normalized = header.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                                return normalized.includes(baseFieldName.toLowerCase());
+                            });
+
+                            if (matchingMapping) {
+                                const [header, fieldId] = matchingMapping;
+                                const definitionColumn = defInfo.definitionColumn;
+                                const recordDefinition = row[definitionColumn];
+
+                                // If this record has a specific definition value, apply field-level context
+                                if (recordDefinition && state.leanContext.setFieldContext) {
+                                    state.leanContext.setFieldContext(leanRecord, fieldId, {
+                                        definition: recordDefinition,
+                                        frame: defInfo.frame,
+                                        jurisdiction: defInfo.jurisdiction
+                                    });
+                                }
+                            }
+                        });
+                    }
+
                     set.records.set(leanRecord.id, leanRecord);
                     createEvent(
                         'Create Record',
@@ -15257,6 +15745,28 @@
             document.getElementById('runCsvImportBtn').onclick = importCsvRecords;
             document.getElementById('cancelCsvImportBtn').onclick = () => closeModal('csvImportModal');
             document.getElementById('closeCsvImportBtn').onclick = () => closeModal('csvImportModal');
+
+            // Provenance review modal event listeners
+            document.getElementById('closeProvenanceReviewBtn').onclick = closeProvenanceReviewModal;
+            document.getElementById('continueToMappingBtn').onclick = continueToColumnMapping;
+            document.getElementById('skipProvenanceBtn').onclick = skipProvenanceReview;
+            document.getElementById('provenanceFrame').onchange = (event) => {
+                const customInput = document.getElementById('provenanceFrameCustom');
+                if (event.target.value === 'custom') {
+                    customInput.classList.remove('hidden');
+                } else {
+                    customInput.classList.add('hidden');
+                }
+            };
+            document.getElementById('provenanceEnableExternalLink').onchange = (event) => {
+                const urlInput = document.getElementById('provenanceExternalLinkUrl');
+                if (event.target.checked) {
+                    urlInput.classList.remove('hidden');
+                } else {
+                    urlInput.classList.add('hidden');
+                }
+            };
+
             document.querySelectorAll('input[name="csvImportTargetMode"]').forEach(input => {
                 input.onchange = (event) => {
                     state.csvImportState.targetMode = event.target.value;
