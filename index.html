@@ -1348,6 +1348,84 @@
             color: #1d4ed8;
         }
 
+        /* ZERO-INPUT SEARCH */
+        .zero-input-section {
+            padding: 8px 20px 12px;
+        }
+
+        .zero-input-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #9ca3af;
+            margin: 16px 0 6px;
+            font-weight: 600;
+        }
+
+        .zero-input-section-title:first-child {
+            margin-top: 0;
+        }
+
+        .zero-input-item {
+            padding: 8px 10px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            transition: background 0.12s ease;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+
+        .zero-input-item:hover {
+            background: #f3f4ff;
+        }
+
+        .zero-input-item-label {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .zero-input-type-label {
+            font-size: 11px;
+            background: #eef2ff;
+            padding: 2px 8px;
+            border-radius: 6px;
+            color: #3730a3;
+            white-space: nowrap;
+        }
+
+        .browse-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .browse-item {
+            padding: 10px 12px;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: #4b5563;
+            transition: all 0.12s ease;
+        }
+
+        .browse-item:hover {
+            background: #f3f4ff;
+            border-color: #c7d2fe;
+            color: #3730a3;
+        }
+
         @media (max-width: 900px) {
             .search-shell {
                 flex-direction: column;
@@ -16055,10 +16133,12 @@
         function openSearchDataModal() {
             openModal('searchDataModal');
             document.getElementById('searchDataInput').value = '';
-            document.getElementById('searchDataResults').innerHTML = '<p class="text-sm text-gray-400 px-5 pt-2">Type to search...</p>';
 
             // Clear focus
             clearFocus();
+
+            // Show zero-input search surface
+            renderZeroInputSearch();
 
             // Set up event listeners
             const searchInput = document.getElementById('searchDataInput');
@@ -16087,6 +16167,306 @@
             document.getElementById('searchScopePill').textContent = `Scope: ${scopeNames[scope]}`;
         }
 
+        // ZERO-INPUT SEARCH DATA HELPERS
+        function getRecentItems(limit = 10) {
+            const recent = [];
+            const seen = new Set();
+
+            // Get recent events from eventStream
+            for (const event of state.eventStream) {
+                if (recent.length >= limit) break;
+
+                // Extract meaningful items from events
+                if (event.object?.type === 'Set' && event.object?.id) {
+                    const set = state.sets.get(event.object.id);
+                    if (set && !seen.has(event.object.id)) {
+                        recent.push({
+                            label: set.name,
+                            type: 'set',
+                            setId: set.id,
+                            action: () => {
+                                navigateToSet(set.id);
+                                closeModal('searchDataModal');
+                            }
+                        });
+                        seen.add(event.object.id);
+                    }
+                } else if (event.object?.type === 'Field' && event.data?.setId && event.data?.fieldId) {
+                    const set = state.sets.get(event.data.setId);
+                    const field = set?.schema.find(f => f.id === event.data.fieldId);
+                    if (field && !seen.has(`${event.data.setId}-${event.data.fieldId}`)) {
+                        recent.push({
+                            label: `${field.name} (${set.name})`,
+                            type: 'field',
+                            setId: event.data.setId,
+                            fieldId: event.data.fieldId,
+                            action: () => {
+                                navigateToSet(set.id);
+                                closeModal('searchDataModal');
+                            }
+                        });
+                        seen.add(`${event.data.setId}-${event.data.fieldId}`);
+                    }
+                } else if (event.object?.type === 'Record' && event.data?.setId) {
+                    const set = state.sets.get(event.data.setId);
+                    const recordId = event.object.id.split('/')[1] || event.object.id;
+                    const record = set?.records.get(recordId);
+                    if (record && !seen.has(event.object.id)) {
+                        const label = getRecordDisplayLabel(record, set);
+                        recent.push({
+                            label: `${label} (${set.name})`,
+                            type: 'record',
+                            setId: set.id,
+                            recordId: recordId,
+                            action: () => {
+                                navigateToSet(set.id);
+                                closeModal('searchDataModal');
+                            }
+                        });
+                        seen.add(event.object.id);
+                    }
+                }
+            }
+
+            return recent;
+        }
+
+        function getFrequentFields(limit = 8) {
+            // Track field access frequency from eventStream
+            const fieldFrequency = new Map();
+
+            state.eventStream.forEach(event => {
+                if (event.data?.fieldId && event.data?.setId) {
+                    const key = `${event.data.setId}/${event.data.fieldId}`;
+                    fieldFrequency.set(key, (fieldFrequency.get(key) || 0) + 1);
+                }
+            });
+
+            // Sort by frequency and take top N
+            const sorted = Array.from(fieldFrequency.entries())
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, limit);
+
+            return sorted.map(([key]) => {
+                const [setId, fieldId] = key.split('/');
+                const set = state.sets.get(setId);
+                const field = set?.schema.find(f => f.id === fieldId);
+                return field ? {
+                    label: `${field.name} (${set.name})`,
+                    type: 'field',
+                    setId,
+                    fieldId,
+                    action: () => {
+                        navigateToSet(setId);
+                        closeModal('searchDataModal');
+                    }
+                } : null;
+            }).filter(Boolean);
+        }
+
+        function getRecentChanges(limit = 5) {
+            const changes = [];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Count events by type for today
+            const todayEvents = state.eventStream.filter(event => {
+                const eventDate = new Date(event.published || event.t);
+                eventDate.setHours(0, 0, 0, 0);
+                return eventDate.getTime() === today.getTime();
+            });
+
+            const recordCreates = todayEvents.filter(e => e.verb === 'Create Record' || e.op === 'INS' && e.object?.type === 'Record').length;
+            const fieldUpdates = todayEvents.filter(e => e.verb === 'Update Field' || e.op === 'UPD' && e.object?.type === 'Field').length;
+            const setCreates = todayEvents.filter(e => e.verb === 'Create Set' || e.op === 'INS' && e.object?.type === 'Set').length;
+
+            if (recordCreates > 0) changes.push({ label: `${recordCreates} new record${recordCreates > 1 ? 's' : ''} today`, type: null });
+            if (fieldUpdates > 0) changes.push({ label: `${fieldUpdates} field update${fieldUpdates > 1 ? 's' : ''} today`, type: null });
+            if (setCreates > 0) changes.push({ label: `${setCreates} new set${setCreates > 1 ? 's' : ''} today`, type: null });
+
+            // If no changes today, show recent from this week
+            if (changes.length === 0) {
+                const weekAgo = new Date(today);
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                const recentCount = state.eventStream.filter(e => {
+                    const eventDate = new Date(e.published || e.t);
+                    return eventDate >= weekAgo;
+                }).length;
+
+                if (recentCount > 0) {
+                    changes.push({ label: `${recentCount} change${recentCount > 1 ? 's' : ''} this week`, type: null });
+                }
+            }
+
+            return changes.slice(0, limit);
+        }
+
+        function getStructuralHighlights() {
+            const highlights = [];
+            const worldSets = getSetsForWorld();
+
+            // Fields with definitions
+            let fieldsWithDefs = 0;
+            worldSets.forEach(set => {
+                set.schema?.forEach(field => {
+                    if (field.definitionId) fieldsWithDefs++;
+                });
+            });
+            if (fieldsWithDefs > 0) {
+                highlights.push({ label: `${fieldsWithDefs} field${fieldsWithDefs > 1 ? 's' : ''} with definitions`, type: null });
+            }
+
+            // Fields with connections
+            const connections = getConnectionView();
+            if (connections.length > 0) {
+                highlights.push({ label: `${connections.length} connection${connections.length > 1 ? 's' : ''} defined`, type: null });
+            }
+
+            // Large sets
+            const largeSets = worldSets.filter(set => set.records?.size > 50);
+            if (largeSets.length > 0) {
+                highlights.push({ label: `${largeSets.length} set${largeSets.length > 1 ? 's' : ''} with 50+ records`, type: null });
+            }
+
+            // Shared fields (fields with same name across sets)
+            const fieldNames = new Map();
+            worldSets.forEach(set => {
+                set.schema?.forEach(field => {
+                    if (!fieldNames.has(field.name)) {
+                        fieldNames.set(field.name, []);
+                    }
+                    fieldNames.get(field.name).push(set.id);
+                });
+            });
+            const sharedFields = Array.from(fieldNames.values()).filter(sets => sets.length > 1).length;
+            if (sharedFields > 0) {
+                highlights.push({ label: `${sharedFields} shared field${sharedFields > 1 ? 's' : ''} across sets`, type: null });
+            }
+
+            return highlights.slice(0, 4);
+        }
+
+        function getExploreSlices() {
+            return [
+                { label: 'All Definitions →', type: null, action: () => { openDefinitionsPage(); closeModal('searchDataModal'); } },
+                { label: 'All Connections →', type: null, action: () => { openConnectionsPage(); closeModal('searchDataModal'); } }
+            ];
+        }
+
+        function renderZeroInputSearch() {
+            const container = document.getElementById('searchDataResults');
+
+            let html = '<div class="zero-input-section">';
+
+            // Recent Items
+            const recentItems = getRecentItems(8);
+            if (recentItems.length > 0) {
+                html += '<h3 class="zero-input-section-title">Recent</h3>';
+                recentItems.forEach((item, idx) => {
+                    html += `
+                        <div class="zero-input-item" onclick="zeroInputActions[${idx}]()">
+                            <span class="zero-input-item-label">${item.label}</span>
+                            ${item.type ? `<span class="zero-input-type-label">${item.type}</span>` : ''}
+                        </div>
+                    `;
+                });
+                // Store actions
+                window.zeroInputActions = recentItems.map(item => item.action || (() => {}));
+            }
+
+            // Frequently Used Fields
+            const frequentFields = getFrequentFields(6);
+            if (frequentFields.length > 0) {
+                html += '<h3 class="zero-input-section-title">Frequently Used Fields</h3>';
+                const startIdx = window.zeroInputActions?.length || 0;
+                frequentFields.forEach((item, idx) => {
+                    html += `
+                        <div class="zero-input-item" onclick="zeroInputActions[${startIdx + idx}]()">
+                            <span class="zero-input-item-label">${item.label}</span>
+                            ${item.type ? `<span class="zero-input-type-label">${item.type}</span>` : ''}
+                        </div>
+                    `;
+                });
+                window.zeroInputActions = [...(window.zeroInputActions || []), ...frequentFields.map(item => item.action || (() => {}))];
+            }
+
+            // Recent Changes
+            const recentChanges = getRecentChanges(4);
+            if (recentChanges.length > 0) {
+                html += '<h3 class="zero-input-section-title">New & Updated</h3>';
+                recentChanges.forEach(item => {
+                    html += `
+                        <div class="zero-input-item" style="cursor: default;">
+                            <span class="zero-input-item-label">${item.label}</span>
+                        </div>
+                    `;
+                });
+            }
+
+            // Structural Highlights
+            const structuralHighlights = getStructuralHighlights();
+            if (structuralHighlights.length > 0) {
+                html += '<h3 class="zero-input-section-title">Structural Highlights</h3>';
+                structuralHighlights.forEach(item => {
+                    html += `
+                        <div class="zero-input-item" style="cursor: default;">
+                            <span class="zero-input-item-label">${item.label}</span>
+                        </div>
+                    `;
+                });
+            }
+
+            // Explore
+            const exploreSlices = getExploreSlices();
+            if (exploreSlices.length > 0) {
+                html += '<h3 class="zero-input-section-title">Explore</h3>';
+                const startIdx = window.zeroInputActions?.length || 0;
+                exploreSlices.forEach((item, idx) => {
+                    html += `
+                        <div class="zero-input-item" onclick="zeroInputActions[${startIdx + idx}]()">
+                            <span class="zero-input-item-label">${item.label}</span>
+                        </div>
+                    `;
+                });
+                window.zeroInputActions = [...(window.zeroInputActions || []), ...exploreSlices.map(item => item.action || (() => {}))];
+            }
+
+            // Browse
+            html += '<h3 class="zero-input-section-title">Browse</h3>';
+            html += '<div class="browse-grid">';
+
+            const worldSets = getSetsForWorld();
+            const totalFields = worldSets.reduce((sum, set) => sum + (set.schema?.length || 0), 0);
+            const totalRecords = worldSets.reduce((sum, set) => sum + (set.records?.size || 0), 0);
+            const definitions = getDefinitionView();
+            const connections = getConnectionView();
+
+            html += `
+                <div class="browse-item" onclick="renderSidebar(); closeModal('searchDataModal');">
+                    Sets (${worldSets.length})
+                </div>
+                <div class="browse-item" onclick="alert('Fields browse coming soon');">
+                    Fields (${totalFields})
+                </div>
+                <div class="browse-item" onclick="alert('Records browse coming soon');">
+                    Records (${totalRecords})
+                </div>
+                <div class="browse-item" onclick="openDefinitionsPage(); closeModal('searchDataModal');">
+                    Definitions (${definitions.length})
+                </div>
+                <div class="browse-item" onclick="openConnectionsPage(); closeModal('searchDataModal');">
+                    Connections (${connections.length})
+                </div>
+                <div class="browse-item" onclick="alert('Values browse coming soon');">
+                    Values
+                </div>
+            `;
+
+            html += '</div></div>';
+
+            container.innerHTML = html;
+        }
+
         function clearFocus() {
             currentFocusedItem = null;
             document.getElementById('focusPanel').classList.add('hidden');
@@ -16101,7 +16481,7 @@
             const scope = document.querySelector('input[name="searchScope"]:checked').value;
 
             if (!query || query.trim().length === 0) {
-                document.getElementById('searchDataResults').innerHTML = '<p class="text-sm text-gray-400">Type to search...</p>';
+                renderZeroInputSearch();
                 return;
             }
 
