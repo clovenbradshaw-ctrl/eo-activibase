@@ -10621,29 +10621,54 @@
                 const identifierFieldId = view.identifierField || inferIdentifierFieldId(set);
                 const identifierField = set.schema.find(f => f.id === identifierFieldId) || set.schema[0];
 
-                // Get display fields (all fields except the identifier)
-                const displayFields = set.schema.filter(f => f.id !== identifierField.id).slice(0, 5);
+                // Get display fields (all fields except the identifier and recordId)
+                const displayFields = set.schema.filter(f => f.id !== identifierField.id && f.id !== '__recordId').slice(0, 5);
 
-                card.innerHTML = `
-                    <div class="flex items-start justify-between mb-2">
-                        <div class="card-title">${record[identifierField.id] || 'Untitled'}</div>
-                        ${view?.showStability && state.leanContext ? `
-                            <span class="badge badge-${getStabilityColor(state.leanContext.getRecordStability(record.id))} text-xs">
-                                ${state.leanContext.getRecordStability(record.id)}
-                            </span>
-                        ` : ''}
-                    </div>
-                    ${displayFields.map(field => {
-                        const value = record[field.id];
-                        if (!value && value !== 0 && value !== false) return '';
-                        return `
-                            <div class="card-field">
-                                <div class="card-field-label">${field.name}</div>
-                                <div class="card-field-value">${renderCellValue(value, field, record)}</div>
-                            </div>
-                        `;
-                    }).join('')}
-                `;
+                // Create card header
+                const header = document.createElement('div');
+                header.className = 'flex items-start justify-between mb-2';
+
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'card-title';
+                titleDiv.textContent = record[identifierField.id] || 'Untitled';
+                header.appendChild(titleDiv);
+
+                if (view?.showStability && state.leanContext) {
+                    const badge = document.createElement('span');
+                    badge.className = `badge badge-${getStabilityColor(state.leanContext.getRecordStability(record.id))} text-xs`;
+                    badge.textContent = state.leanContext.getRecordStability(record.id);
+                    header.appendChild(badge);
+                }
+
+                card.appendChild(header);
+
+                // Create field elements with context menus
+                displayFields.forEach(field => {
+                    const value = record[field.id];
+                    if (!value && value !== 0 && value !== false) return;
+
+                    const fieldDiv = document.createElement('div');
+                    fieldDiv.className = 'card-field';
+
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = 'card-field-label';
+                    labelDiv.textContent = field.name;
+                    labelDiv.style.cursor = 'context-menu';
+                    labelDiv.title = 'Right-click for field options';
+                    labelDiv.oncontextmenu = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showColumnMenu(e, field);
+                    };
+
+                    const valueDiv = document.createElement('div');
+                    valueDiv.className = 'card-field-value';
+                    valueDiv.innerHTML = renderCellValue(value, field, record);
+
+                    fieldDiv.appendChild(labelDiv);
+                    fieldDiv.appendChild(valueDiv);
+                    card.appendChild(fieldDiv);
+                });
 
                 grid.appendChild(card);
             });
@@ -10803,23 +10828,47 @@
             const identifierFieldId = view.identifierField || inferIdentifierFieldId(set);
             const identifierField = set.schema.find(f => f.id === identifierFieldId) || set.schema[0];
 
-            // Get display fields (all fields except the identifier)
-            const displayFields = set.schema.filter(f => f.id !== identifierField.id).slice(0, 3);
-            
-            card.innerHTML = `
-                <div class="font-semibold mb-2">${record[identifierField.id] || 'Untitled'}</div>
-                ${displayFields.map(field => {
-                    const value = record[field.id];
-                    if (!value && value !== 0 && value !== false) return '';
-                    return `<div class="text-sm text-gray-600 mb-1">${renderCellValue(value, field, record)}</div>`;
-                }).join('')}
-            `;
-            
+            // Get display fields (all fields except the identifier and recordId)
+            const displayFields = set.schema.filter(f => f.id !== identifierField.id && f.id !== '__recordId').slice(0, 3);
+
+            // Create card title
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'font-semibold mb-2';
+            titleDiv.textContent = record[identifierField.id] || 'Untitled';
+            card.appendChild(titleDiv);
+
+            // Create field elements with context menus
+            displayFields.forEach(field => {
+                const value = record[field.id];
+                if (!value && value !== 0 && value !== false) return;
+
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'text-sm text-gray-600 mb-1';
+
+                const labelSpan = document.createElement('span');
+                labelSpan.textContent = field.name + ': ';
+                labelSpan.style.fontWeight = '500';
+                labelSpan.style.cursor = 'context-menu';
+                labelSpan.title = 'Right-click for field options';
+                labelSpan.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showColumnMenu(e, field);
+                };
+
+                const valueSpan = document.createElement('span');
+                valueSpan.innerHTML = renderCellValue(value, field, record);
+
+                fieldDiv.appendChild(labelSpan);
+                fieldDiv.appendChild(valueSpan);
+                card.appendChild(fieldDiv);
+            });
+
             card.addEventListener('dragstart', (e) => {
                 state.draggedRecord = record;
                 card.classList.add('dragging');
             });
-            
+
             card.addEventListener('dragend', () => {
                 card.classList.remove('dragging');
             });
