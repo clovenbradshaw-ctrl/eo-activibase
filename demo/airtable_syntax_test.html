@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airtable-Style Formula Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f3f4f6;
+      padding: 40px 20px;
+      color: #111827;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      font-size: 32px;
+      margin-bottom: 8px;
+      color: #111827;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: #6b7280;
+      margin-bottom: 32px;
+    }
+
+    .example {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .example h3 {
+      font-size: 18px;
+      margin-bottom: 12px;
+      color: #374151;
+    }
+
+    .formula-code {
+      background: #1f2937;
+      color: #10b981;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+      margin: 12px 0;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .data-table th {
+      background: #f9fafb;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .data-table tr:hover {
+      background: #f9fafb;
+    }
+
+    .result {
+      background: #ecfdf5;
+      color: #047857;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .error {
+      background: #fef2f2;
+      color: #dc2626;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .test-button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+
+    .test-button:hover {
+      background: #2563eb;
+    }
+
+    .info-box {
+      background: #dbeafe;
+      border-left: 4px solid #3b82f6;
+      padding: 16px;
+      margin: 24px 0;
+      border-radius: 4px;
+    }
+
+    .info-box strong {
+      color: #1e40af;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 Airtable-Style Formula Syntax</h1>
+    <p class="subtitle">Testing the exact syntax: {Name} & " dog " & {Color}</p>
+
+    <div class="info-box">
+      <strong>✅ Formula System Already Supports:</strong><br>
+      • Field references: <code>{FieldName}</code><br>
+      • String literals: <code>"text"</code> or <code>'text'</code><br>
+      • Concatenation: <code>&amp;</code> operator<br>
+      • Plus much more: math, logic, dates, 40+ functions!
+    </div>
+
+    <div class="example">
+      <h3>Example 1: Basic String Concatenation</h3>
+      <div class="formula-code">{Name} & " dog " & {Color}</div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Color</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="example1-results">
+          <tr><td colspan="3">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="example">
+      <h3>Example 2: Complex Concatenation</h3>
+      <div class="formula-code">{FirstName} & " " & {LastName} & " is " & {Age} & " years old"</div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>FirstName</th>
+            <th>LastName</th>
+            <th>Age</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="example2-results">
+          <tr><td colspan="4">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="example">
+      <h3>Example 3: Mixed with Other Operators</h3>
+      <div class="formula-code">{Product} & ": $" & ({Price} * {Quantity})</div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Price</th>
+            <th>Quantity</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="example3-results">
+          <tr><td colspan="4">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="example">
+      <h3>Example 4: Conditional Text</h3>
+      <div class="formula-code">IF({Score} >= 90, {Name} & " - Excellent!", {Name} & " - Keep trying")</div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Score</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="example4-results">
+          <tr><td colspan="3">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <button class="test-button" onclick="runAllTests()">🔄 Refresh Tests</button>
+  </div>
+
+  <script src="eo_formula_engine.js"></script>
+  <script>
+    // Initialize formula engine
+    const formulaEngine = new EOFormulaEngine();
+
+    // Test data for each example
+    const example1Data = [
+      { Name: 'Howard', Color: 'blue' },
+      { Name: 'Sarah', Color: 'red' },
+      { Name: 'Max', Color: 'green' }
+    ];
+
+    const example2Data = [
+      { FirstName: 'John', LastName: 'Smith', Age: 25 },
+      { FirstName: 'Jane', LastName: 'Doe', Age: 30 },
+      { FirstName: 'Bob', LastName: 'Wilson', Age: 42 }
+    ];
+
+    const example3Data = [
+      { Product: 'Laptop', Price: 999, Quantity: 2 },
+      { Product: 'Mouse', Price: 25, Quantity: 5 },
+      { Product: 'Keyboard', Price: 75, Quantity: 3 }
+    ];
+
+    const example4Data = [
+      { Name: 'Alice', Score: 95 },
+      { Name: 'Bob', Score: 75 },
+      { Name: 'Charlie', Score: 92 }
+    ];
+
+    function evaluateFormula(formula, record) {
+      try {
+        const result = formulaEngine.evaluate(formula, record);
+        if (result.success) {
+          return `<span class="result">${result.value}</span>`;
+        } else {
+          return `<span class="error">${result.error}</span>`;
+        }
+      } catch (error) {
+        return `<span class="error">${error.message}</span>`;
+      }
+    }
+
+    function runExample1() {
+      const formula = '{Name} & " dog " & {Color}';
+      const tbody = document.getElementById('example1-results');
+      tbody.innerHTML = example1Data.map(record => `
+        <tr>
+          <td>${record.Name}</td>
+          <td>${record.Color}</td>
+          <td>${evaluateFormula(formula, record)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function runExample2() {
+      const formula = '{FirstName} & " " & {LastName} & " is " & {Age} & " years old"';
+      const tbody = document.getElementById('example2-results');
+      tbody.innerHTML = example2Data.map(record => `
+        <tr>
+          <td>${record.FirstName}</td>
+          <td>${record.LastName}</td>
+          <td>${record.Age}</td>
+          <td>${evaluateFormula(formula, record)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function runExample3() {
+      const formula = '{Product} & ": $" & ({Price} * {Quantity})';
+      const tbody = document.getElementById('example3-results');
+      tbody.innerHTML = example3Data.map(record => `
+        <tr>
+          <td>${record.Product}</td>
+          <td>$${record.Price}</td>
+          <td>${record.Quantity}</td>
+          <td>${evaluateFormula(formula, record)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function runExample4() {
+      const formula = 'IF({Score} >= 90, {Name} & " - Excellent!", {Name} & " - Keep trying")';
+      const tbody = document.getElementById('example4-results');
+      tbody.innerHTML = example4Data.map(record => `
+        <tr>
+          <td>${record.Name}</td>
+          <td>${record.Score}</td>
+          <td>${evaluateFormula(formula, record)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function runAllTests() {
+      runExample1();
+      runExample2();
+      runExample3();
+      runExample4();
+    }
+
+    // Run tests on page load
+    runAllTests();
+  </script>
+</body>
+</html>
