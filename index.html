@@ -157,6 +157,15 @@
             flex-direction: column;
             overflow: hidden;
         }
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .sidebar-actions {
+            flex-shrink: 0;
+            border-top: 1px solid #1e293b;
+        }
         .app-header {
             grid-area: header;
             background: var(--surface);
@@ -2216,56 +2225,72 @@
             <!-- Brand Logo -->
             <div class="p-4 font-bold tracking-wide text-lg" style="padding: 1rem; font-weight: 700; letter-spacing: 0.05em; font-size: 1.125rem;">[EO]</div>
 
-            <!-- WORLD Section -->
-            <div class="nav-section-title" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('world')">
-                <span>World</span>
-                <i id="worldSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
-            </div>
-            <div id="worldNavContent">
-                <div class="world-nav-parent" id="worldNavParent" onclick="navigateTo('dashboard')">
-                    <span id="worldNavName">Loading...</span>
+            <!-- Scrollable Content Area -->
+            <div class="sidebar-content">
+                <!-- WORLD Section -->
+                <div class="nav-section-title" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('world')">
+                    <span>World</span>
+                    <i id="worldSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
                 </div>
-                <div class="world-nav-children" style="padding: 0 1rem;">
-                    <div class="nav-item" id="navDashboard" onclick="navigateTo('dashboard')">Dashboard</div>
-                    <div class="nav-item" id="navEntities" onclick="navigateTo('entities')">Entities</div>
-                    <div class="nav-item" id="navConnections" onclick="navigateTo('connections')">Connections</div>
-                    <div class="nav-item" id="navDefinitions" onclick="navigateTo('definitions')">Definitions</div>
-                    <div class="nav-item" id="navViews" onclick="navigateTo('views')">Views</div>
+                <div id="worldNavContent">
+                    <div class="world-nav-parent" id="worldNavParent" onclick="navigateTo('dashboard')">
+                        <span id="worldNavName">Loading...</span>
+                    </div>
+                    <div class="world-nav-children" style="padding: 0 1rem;">
+                        <div class="nav-item" id="navDashboard" onclick="navigateTo('dashboard')">Dashboard</div>
+                        <div class="nav-item" id="navEntities" onclick="navigateTo('entities')">Entities</div>
+                        <div class="nav-item" id="navConnections" onclick="navigateTo('connections')">Connections</div>
+                        <div class="nav-item" id="navDefinitions" onclick="navigateTo('definitions')">Definitions</div>
+                        <div class="nav-item" id="navViews" onclick="navigateTo('views')">Views</div>
+                    </div>
+                </div>
+
+                <!-- EXPLORE Section -->
+                <div class="nav-section-title" style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('explore')">
+                    <span>Explore</span>
+                    <i id="exploreSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
+                </div>
+                <div id="exploreNavContent">
+                    <div class="world-nav-children" style="padding: 0 1rem;">
+                        <div class="nav-item" id="navSearch" onclick="navigateTo('search')">Search & Discover</div>
+                        <div class="nav-item" id="navSuggestedViews" onclick="navigateTo('suggestedViews')">Suggested Views</div>
+                        <div class="nav-item" id="navSuggestedConcepts" onclick="navigateTo('suggestedConcepts')">Suggested Concepts</div>
+                    </div>
+                </div>
+
+                <!-- SETS Section (dynamically populated) -->
+                <div class="nav-section-title" style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('sets')">
+                    <span>Sets</span>
+                    <i id="setsSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
+                </div>
+                <div id="setsNavContent">
+                    <div class="world-nav-children" style="padding: 0 1rem; margin-bottom: 0.5rem;">
+                        <div style="position: relative; margin-bottom: 0.75rem;">
+                            <input type="text" id="setsSearchInput" placeholder="Search sets and views..." style="width: 100%; padding: 6px 8px 6px 28px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: white; font-size: 0.875rem; outline: none;" oninput="filterSets(this.value)">
+                            <i class="ph ph-magnifying-glass" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.5;"></i>
+                        </div>
+                    </div>
+                    <div id="navSetsContainer" style="padding: 0 1rem; margin-bottom: 0.5rem;"></div>
+                    <div class="world-nav-children" style="padding: 0 1rem; margin-bottom: 1rem;">
+                        <div class="nav-item" style="color: #6ee7b7;" onclick="handleAddViewClick()">+ Add View</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- EXPLORE Section -->
-            <div class="nav-section-title" style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('explore')">
-                <span>Explore</span>
-                <i id="exploreSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
-            </div>
-            <div id="exploreNavContent">
-                <div class="world-nav-children" style="padding: 0 1rem;">
-                    <div class="nav-item" id="navSearch" onclick="navigateTo('search')">Search & Discover</div>
-                    <div class="nav-item" id="navSuggestedViews" onclick="navigateTo('suggestedViews')">Suggested Views</div>
-                    <div class="nav-item" id="navSuggestedConcepts" onclick="navigateTo('suggestedConcepts')">Suggested Concepts</div>
+            <!-- Fixed Actions Section at Bottom -->
+            <div class="sidebar-actions">
+                <div class="nav-section-title" style="padding-top: 1rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('actions')">
+                    <span>Actions</span>
+                    <i id="actionsSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
                 </div>
-            </div>
-
-            <!-- SETS Section (dynamically populated) -->
-            <div class="nav-section-title" style="margin-top: 1.5rem;">Sets</div>
-            <div id="navSetsContainer" style="padding: 0 1rem; margin-bottom: 0.5rem;"></div>
-            <div class="world-nav-children" style="padding: 0 1rem;">
-                <div class="nav-item" style="color: #6ee7b7;" onclick="handleAddViewClick()">+ Add View</div>
-            </div>
-
-            <!-- ACTIONS Section -->
-            <div class="nav-section-title" style="margin-top: auto; padding-top: 1.5rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('actions')">
-                <span>Actions</span>
-                <i id="actionsSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
-            </div>
-            <div id="actionsNavContent">
-                <div class="world-nav-children" style="padding: 0 1rem; margin-bottom: 1.5rem;">
-                    <div class="nav-item" onclick="openAddRecordModal()">+ Add Record</div>
-                    <div class="nav-item" onclick="openAddSetModal()">+ Add Set</div>
-                    <div class="nav-item" onclick="openAddWorldModal()">+ Add World</div>
-                    <div class="nav-item" onclick="importWorld()">Import</div>
-                    <div class="nav-item" onclick="exportWorld()">Export</div>
+                <div id="actionsNavContent">
+                    <div class="world-nav-children" style="padding: 0 1rem; margin-bottom: 1.5rem;">
+                        <div class="nav-item" onclick="openAddRecordModal()">+ Add Record</div>
+                        <div class="nav-item" onclick="openAddSetModal()">+ Add Set</div>
+                        <div class="nav-item" onclick="openAddWorldModal()">+ Add World</div>
+                        <div class="nav-item" onclick="importWorld()">Import</div>
+                        <div class="nav-item" onclick="exportWorld()">Export</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -7195,6 +7220,102 @@
             }
         }
 
+        function filterSets(searchTerm) {
+            const setsContainer = document.getElementById('navSetsContainer');
+            if (!setsContainer) return;
+
+            const normalizedSearch = searchTerm.toLowerCase().trim();
+
+            // If search is empty, re-render normally
+            if (!normalizedSearch) {
+                renderSidebar();
+                return;
+            }
+
+            // Get all sets for the current world
+            const setsForWorld = getSetsForWorld();
+            setsContainer.innerHTML = '';
+
+            let hasResults = false;
+
+            setsForWorld.forEach(set => {
+                const setMatches = set.name.toLowerCase().includes(normalizedSearch);
+                const matchingViews = [];
+
+                // Check if any views match
+                if (set.views && set.views.size > 0) {
+                    set.views.forEach((view, viewId) => {
+                        if (view.name.toLowerCase().includes(normalizedSearch)) {
+                            matchingViews.push([viewId, view]);
+                        }
+                    });
+                }
+
+                // Show set if it matches or has matching views
+                if (setMatches || matchingViews.length > 0) {
+                    hasResults = true;
+
+                    // Create set header
+                    const setHeader = document.createElement('div');
+                    setHeader.className = 'nav-item';
+                    setHeader.style.display = 'flex';
+                    setHeader.style.alignItems = 'center';
+                    setHeader.style.justifyContent = 'space-between';
+
+                    const setLabel = document.createElement('span');
+                    setLabel.textContent = set.name;
+                    setLabel.style.flex = '1';
+
+                    if (set.id === state.currentSetId && !state.currentSpecialView && !state.currentViewId) {
+                        setHeader.classList.add('active');
+                    }
+
+                    setHeader.appendChild(setLabel);
+
+                    setHeader.onclick = (e) => {
+                        e.stopPropagation();
+                        state.currentSetId = set.id;
+                        state.currentViewId = null;
+                        state.currentSpecialView = null;
+                        renderCurrentView();
+                        renderSidebar();
+                    };
+
+                    setsContainer.appendChild(setHeader);
+
+                    // Show matching views (or all views if set matched)
+                    const viewsToShow = setMatches ? Array.from(set.views.entries()) : matchingViews;
+                    if (viewsToShow.length > 0) {
+                        const viewsContainer = document.createElement('div');
+                        viewsContainer.style.paddingLeft = '0.5rem';
+                        viewsContainer.style.marginTop = '0.25rem';
+                        viewsContainer.style.marginBottom = '0.5rem';
+
+                        viewsToShow.forEach(([viewId, view]) => {
+                            const viewItem = document.createElement('div');
+                            viewItem.className = `view-item ${viewId === state.currentViewId ? 'active' : ''}`;
+                            viewItem.style.paddingLeft = '12px';
+                            viewItem.innerHTML = `
+                                <span class="view-item-icon">${renderIcon(view.icon || VIEW_TYPE_ICONS[view.type])}</span>
+                                <span>${view.name}</span>
+                            `;
+                            viewItem.onclick = (e) => {
+                                e.stopPropagation();
+                                switchSet(set.id, viewId);
+                            };
+                            viewsContainer.appendChild(viewItem);
+                        });
+
+                        setsContainer.appendChild(viewsContainer);
+                    }
+                }
+            });
+
+            if (!hasResults) {
+                setsContainer.innerHTML = '<div style="color: #9ca3af; font-size: 0.875rem; padding: 0.5rem 0;">No matching sets or views</div>';
+            }
+        }
+
         function renderWorldSelector() {
             const select = document.getElementById('worldSelect');
             const label = document.getElementById('currentWorldLabel');
@@ -8667,7 +8788,8 @@
                     );
                     return formatted;
                 case 'RECORD_ID':
-                    return `<span class="font-mono text-xs text-gray-700">${record?.id || ''}</span>`;
+                    const displayName = getRecordDisplayName(record?.id);
+                    return `<span class="font-mono text-xs text-gray-700">${displayName}</span>`;
                 default:
                     return value || '';
             }
@@ -12957,7 +13079,7 @@
             const record = set.records.get(recordId);
             state.currentRecordTab = 'history';
             state.recordHistoryVisible = true;
-            document.getElementById('expandedRecordTitle').textContent = record.name || record.id;
+            document.getElementById('expandedRecordTitle').textContent = getRecordDisplayName(record.id);
             renderExpandedRecordMain(recordId);
             renderRecordSidebar(recordId);
             updateRecordHistoryVisibility();
@@ -13337,7 +13459,10 @@
             const allAvailableRecords = selectedSet ? Array.from(selectedSet.records.values()).filter(r => r.id !== recordId) : [];
             const search = builder.searchQuery?.trim().toLowerCase() || '';
             const availableRecords = search
-                ? allAvailableRecords.filter(rec => (rec.name || rec.id || '').toLowerCase().includes(search) || rec.id.toLowerCase().includes(search))
+                ? allAvailableRecords.filter(rec => {
+                    const displayName = getRecordDisplayName(rec.id);
+                    return displayName.toLowerCase().includes(search);
+                })
                 : allAvailableRecords;
             const selectedRecordId = availableRecords.some(rec => rec.id === builder.targetRecordId) ? builder.targetRecordId : '';
             if (builder.targetRecordId !== selectedRecordId) builder.targetRecordId = selectedRecordId;
@@ -13372,7 +13497,7 @@
                         <select id="newConnectionTarget" class="border rounded px-3 py-2 text-sm w-full" onchange="handleConnectionRecordChange('${recordId}', this.value)" ${!selectedSetId ? 'disabled' : ''}>
                             <option value="">${selectedSetId ? 'Select a record' : 'Select a set first'}</option>
                             ${availableRecords.length === 0 && selectedSetId ? `<option value="" disabled>${allAvailableRecords.length === 0 ? 'No records available' : 'No matches found'}</option>` : ''}
-                            ${availableRecords.map(rec => `<option value="${rec.id}" ${rec.id === selectedRecordId ? 'selected' : ''}>${rec.name || rec.id}</option>`).join('')}
+                            ${availableRecords.map(rec => `<option value="${rec.id}" ${rec.id === selectedRecordId ? 'selected' : ''}>${getRecordDisplayName(rec.id)}</option>`).join('')}
                         </select>
                         <label class="form-label">Format</label>
                         <select id="sidebarConnectionFormat" class="border rounded px-3 py-2 text-sm w-full" ${formatOptions.length === 0 ? 'disabled' : ''}>
