@@ -2418,48 +2418,48 @@
         </div>
     </div>
 
-    <div id="connectionFormatModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+    <div id="connectionRelationModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
         <div class="modal-container bg-white w-full max-w-2xl">
             <div class="modal-header flex items-center justify-between">
                 <div>
-                    <h2 class="text-xl font-bold text-gray-900" id="connectionFormatModalTitle">Add Connection Format</h2>
+                    <h2 class="text-xl font-bold text-gray-900" id="connectionRelationModalTitle">Add Connection Relation</h2>
                     <p class="text-sm text-gray-500">Define operator + mode templates using the EO dictionary.</p>
                 </div>
-                <button class="text-gray-400 hover:text-gray-600 transition" onclick="closeModal('connectionFormatModal')" aria-label="Close">
+                <button class="text-gray-400 hover:text-gray-600 transition" onclick="closeModal('connectionRelationModal')" aria-label="Close">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
             <div class="modal-body">
-                <form id="connectionFormatForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <form id="connectionRelationForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                         <label class="form-label">Operator</label>
-                        <select id="connectionFormatOperator" class="border rounded px-3 py-2 w-full">
+                        <select id="connectionRelationOperator" class="border rounded px-3 py-2 w-full">
                             <option value="">Select operator</option>
                         </select>
                     </div>
                     <div>
                         <label class="form-label">Mode</label>
-                        <select id="connectionFormatMode" class="border rounded px-3 py-2 w-full"></select>
+                        <select id="connectionRelationMode" class="border rounded px-3 py-2 w-full"></select>
                     </div>
                     <div>
                         <label class="form-label">Required Params (comma separated)</label>
-                        <input id="connectionFormatRequired" type="text" class="border rounded px-3 py-2 w-full" placeholder="threshold, weight" />
+                        <input id="connectionRelationRequired" type="text" class="border rounded px-3 py-2 w-full" placeholder="threshold, weight" />
                     </div>
                     <div>
                         <label class="form-label">Optional Params (comma separated)</label>
-                        <input id="connectionFormatOptional" type="text" class="border rounded px-3 py-2 w-full" placeholder="notes" />
+                        <input id="connectionRelationOptional" type="text" class="border rounded px-3 py-2 w-full" placeholder="notes" />
                     </div>
                     <div class="md:col-span-2">
                         <label class="form-label">Description</label>
-                        <input id="connectionFormatDescription" type="text" class="border rounded px-3 py-2 w-full" placeholder="Describe how this format should be used" />
+                        <input id="connectionRelationDescription" type="text" class="border rounded px-3 py-2 w-full" placeholder="Describe how this relation should be used" />
                     </div>
                 </form>
             </div>
             <div class="modal-footer flex justify-end gap-2">
-                <button class="btn btn-secondary" type="button" onclick="closeModal('connectionFormatModal')">Cancel</button>
-                <button class="btn btn-primary" type="submit" form="connectionFormatForm" id="connectionFormatSubmit">Add Format</button>
+                <button class="btn btn-secondary" type="button" onclick="closeModal('connectionRelationModal')">Cancel</button>
+                <button class="btn btn-primary" type="submit" form="connectionRelationForm" id="connectionRelationSubmit">Add Relation</button>
             </div>
         </div>
     </div>
@@ -2469,7 +2469,7 @@
             <div class="modal-header flex items-center justify-between">
                 <div>
                     <h2 class="text-xl font-bold text-gray-900" id="connectionModalTitle">Add Connection</h2>
-                    <p class="text-sm text-gray-500">Choose a format to link specific entities.</p>
+                    <p class="text-sm text-gray-500">Choose a relation to link specific entities.</p>
                 </div>
                 <button class="text-gray-400 hover:text-gray-600 transition" onclick="closeModal('connectionModal')" aria-label="Close">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2480,13 +2480,13 @@
             <div class="modal-body">
                 <form id="connectionForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                        <label class="form-label">Format</label>
-                        <select id="connectionFormatSelect" class="border rounded px-3 py-2 w-full">
-                            <option value="">Select a format</option>
+                        <label class="form-label">Relation</label>
+                        <select id="connectionRelationSelect" class="border rounded px-3 py-2 w-full">
+                            <option value="">Select a relation</option>
                         </select>
                     </div>
                     <div class="flex items-end text-sm text-gray-600 gap-2">
-                        <div class="mt-6" id="connectionFormatSummary">No format selected</div>
+                        <div class="mt-6" id="connectionRelationSummary">No relation selected</div>
                     </div>
                     <div>
                         <label class="form-label">Subject Type</label>
@@ -3496,18 +3496,18 @@
             currentUser: { type: 'Person', id: 'user_1', name: 'User' },
             operatorSet: {},
             connectionModes: {},
-            connectionFormats: new Map(),
+            connectionRelations: new Map(),
             leanContext: null, // Will be initialized in initializeApp
             interpretationRules: [],
             definitions: new Map(),
             entityFormState: { activeFilter: 'all', editingId: null, selectedType: 'set', expandedEntities: new Set() },
             connections: new Map(),
             demoRefs: {},
-            connectionBuilder: { targetSetId: null, targetRecordId: '', searchQuery: '', formatId: null, params: {} },
+            connectionBuilder: { targetSetId: null, targetRecordId: '', searchQuery: '', relationId: null, params: {} },
             currentSpecialView: null,
             definitionFormState: { editingId: null, activeFilter: 'all', showImportPanel: false },
-            connectionFormState: { editingId: null, selectedFormatId: null },
-            connectionFormatFormState: { editingId: null },
+            connectionFormState: { editingId: null, selectedRelationId: null },
+            connectionRelationFormState: { editingId: null },
             sidebarCollapsed: false,
             sidebarOpenMobile: false,
             modalStack: [],
@@ -4589,70 +4589,70 @@
             );
         }
 
-        function validateConnectionFormatPayload(format) {
-            const modes = getModesForOperator(format?.operator);
+        function validateConnectionRelationPayload(relation) {
+            const modes = getModesForOperator(relation?.operator);
             if (!modes.length) throw new Error('Invalid operator');
-            if (!modes.includes(format?.mode)) throw new Error('Invalid mode for operator');
+            if (!modes.includes(relation?.mode)) throw new Error('Invalid mode for operator');
 
-            const requiredParams = normalizeParamList(format.requiredParams || []);
-            const optionalParams = normalizeParamList(format.optionalParams || []);
-            const worldId = format.worldId || state.currentWorldId;
+            const requiredParams = normalizeParamList(relation.requiredParams || []);
+            const optionalParams = normalizeParamList(relation.optionalParams || []);
+            const worldId = relation.worldId || state.currentWorldId;
 
             return {
-                ...format,
-                id: format.id || `CF_${format.operator}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                operator: format.operator,
-                mode: format.mode,
-                description: format.description || '',
+                ...relation,
+                id: relation.id || `REL_${relation.operator}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                operator: relation.operator,
+                mode: relation.mode,
+                description: relation.description || '',
                 requiredParams,
                 optionalParams,
-                createdAt: format.createdAt || new Date().toISOString(),
+                createdAt: relation.createdAt || new Date().toISOString(),
                 worldId
             };
         }
 
-        function addConnectionFormat(format) {
+        function addConnectionRelation(relation) {
             let payload;
             try {
-                payload = validateConnectionFormatPayload(format);
+                payload = validateConnectionRelationPayload(relation);
             } catch (error) {
-                showToast(`⚠️ ${error.message || 'Unable to create connection format'}`);
+                showToast(`⚠️ ${error.message || 'Unable to create connection relation'}`);
                 return null;
             }
 
-            state.connectionFormats.set(payload.id, payload);
+            state.connectionRelations.set(payload.id, payload);
             return payload.id;
         }
 
-        function updateConnectionFormat(formatId, updates = {}) {
-            const existing = state.connectionFormats.get(formatId);
-            if (!existing) throw new Error(`Connection format ${formatId} not found`);
+        function updateConnectionRelation(relationId, updates = {}) {
+            const existing = state.connectionRelations.get(relationId);
+            if (!existing) throw new Error(`Connection relation ${relationId} not found`);
 
-            const merged = validateConnectionFormatPayload({ ...existing, ...updates, id: formatId });
-            state.connectionFormats.set(formatId, { ...existing, ...merged, updatedAt: new Date().toISOString() });
-            return formatId;
+            const merged = validateConnectionRelationPayload({ ...existing, ...updates, id: relationId });
+            state.connectionRelations.set(relationId, { ...existing, ...merged, updatedAt: new Date().toISOString() });
+            return relationId;
         }
 
-        function deleteConnectionFormat(formatId) {
-            if (!state.connectionFormats.has(formatId)) throw new Error(`Connection format ${formatId} not found`);
-            const inUse = Array.from(state.connections.values()).some(conn => conn.formatId === formatId);
-            if (inUse) throw new Error('Cannot delete a format that is used by existing connections');
-            state.connectionFormats.delete(formatId);
-            return formatId;
+        function deleteConnectionRelation(relationId) {
+            if (!state.connectionRelations.has(relationId)) throw new Error(`Connection relation ${relationId} not found`);
+            const inUse = Array.from(state.connections.values()).some(conn => conn.relationId === relationId);
+            if (inUse) throw new Error('Cannot delete a relation that is used by existing relationships');
+            state.connectionRelations.delete(relationId);
+            return relationId;
         }
 
-        function getConnectionFormatView(filterFn) {
-            const formats = Array.from(state.connectionFormats.values()).filter(fmt => !fmt.worldId || fmt.worldId === state.currentWorldId);
-            return typeof filterFn === 'function' ? formats.filter(filterFn) : formats;
+        function getConnectionRelationView(filterFn) {
+            const relations = Array.from(state.connectionRelations.values()).filter(rel => !rel.worldId || rel.worldId === state.currentWorldId);
+            return typeof filterFn === 'function' ? relations.filter(filterFn) : relations;
         }
 
-        function findConnectionFormat(formatId) {
-            return state.connectionFormats.get(formatId) || null;
+        function findConnectionRelation(relationId) {
+            return state.connectionRelations.get(relationId) || null;
         }
 
-        function getDefaultConnectionFormatId(preferredOperator = null) {
-            const formats = getConnectionFormatView(fmt => !preferredOperator || fmt.operator === preferredOperator);
-            return formats.length ? formats[0].id : null;
+        function getDefaultConnectionRelationId(preferredOperator = null) {
+            const relations = getConnectionRelationView(rel => !preferredOperator || rel.operator === preferredOperator);
+            return relations.length ? relations[0].id : null;
         }
 
         function suggestFormatsForView(view) {
@@ -5254,11 +5254,11 @@
                 .filter(def => def.worldId === defaultWorldId)
                 .forEach(def => state.definitions.delete(def.id));
 
-            Array.from(state.connectionFormats.values())
+            Array.from(state.connectionRelations.values())
                 .filter(fmt => fmt.worldId === defaultWorldId)
-                .forEach(fmt => state.connectionFormats.delete(fmt.id));
+                .forEach(fmt => state.connectionRelations.delete(fmt.id));
 
-            const observationLinkFormatId = addConnectionFormat({
+            const observationLinkRelationId = addConnectionRelation({
                 id: `${defaultWorldId}_format_observation_link`,
                 operator: 'CON',
                 mode: 'is linked to',
@@ -5268,7 +5268,7 @@
                 worldId: defaultWorldId
             });
 
-            if (!observationLinkFormatId) return;
+            if (!observationLinkRelationId) return;
 
             addDefinition({
                 id: `${defaultWorldId}_def_location`,
@@ -5305,7 +5305,7 @@
             addConnection({
                 id: `${defaultWorldId}_example_conn_1`,
                 subject: { type: 'Record', id: obs1Id },
-                formatId: observationLinkFormatId,
+                relationId: observationLinkRelationId,
                 operand: { type: 'Record', id: ridgeId },
                 description: 'Tracks where the ridge observation was made.',
                 params: { context: 'location' },
@@ -5315,7 +5315,7 @@
             addConnection({
                 id: `${defaultWorldId}_example_conn_2`,
                 subject: { type: 'Record', id: obs2Id },
-                formatId: observationLinkFormatId,
+                relationId: observationLinkRelationId,
                 operand: { type: 'Record', id: marshId },
                 description: 'Links marsh observation to its site.',
                 params: { context: 'location' },
@@ -5325,7 +5325,7 @@
             addConnection({
                 id: `${defaultWorldId}_example_conn_3`,
                 subject: { type: 'Record', id: obs3Id },
-                formatId: observationLinkFormatId,
+                relationId: observationLinkRelationId,
                 operand: { type: 'Record', id: groveId },
                 description: 'Associates grove observation with location.',
                 params: { context: 'location' },
@@ -5335,7 +5335,7 @@
             addConnection({
                 id: `${defaultWorldId}_example_conn_4`,
                 subject: { type: 'Record', id: obs4Id },
-                formatId: observationLinkFormatId,
+                relationId: observationLinkRelationId,
                 operand: { type: 'Record', id: ridgeId },
                 description: 'Links the second ridge observation to its site.',
                 params: { context: 'location' },
@@ -5488,12 +5488,12 @@
             Array.from(state.definitions.values())
                 .filter(def => def.worldId === demoWorldId)
                 .forEach(def => state.definitions.delete(def.id));
-            Array.from(state.connectionFormats.values())
+            Array.from(state.connectionRelations.values())
                 .filter(fmt => fmt.worldId === demoWorldId)
-                .forEach(fmt => state.connectionFormats.delete(fmt.id));
+                .forEach(fmt => state.connectionRelations.delete(fmt.id));
 
-            // Create connection formats
-            const ownsFormatId = addConnectionFormat({
+            // Create connection relations
+            const ownsRelationId = addConnectionRelation({
                 id: `${demoWorldId}_format_owns`,
                 operator: 'OWN',
                 mode: 'owns',
@@ -5501,7 +5501,7 @@
                 worldId: demoWorldId
             });
 
-            const assignedFormatId = addConnectionFormat({
+            const assignedRelationId = addConnectionRelation({
                 id: `${demoWorldId}_format_assigned`,
                 operator: 'ASG',
                 mode: 'assigned to',
@@ -5509,7 +5509,7 @@
                 worldId: demoWorldId
             });
 
-            const partOfFormatId = addConnectionFormat({
+            const partOfRelationId = addConnectionRelation({
                 id: `${demoWorldId}_format_part_of`,
                 operator: 'SUB',
                 mode: 'part of',
@@ -5517,7 +5517,7 @@
                 worldId: demoWorldId
             });
 
-            const implementsFormatId = addConnectionFormat({
+            const implementsRelationId = addConnectionRelation({
                 id: `${demoWorldId}_format_implements`,
                 operator: 'IMP',
                 mode: 'implements',
@@ -5525,7 +5525,7 @@
                 worldId: demoWorldId
             });
 
-            const dependsFormatId = addConnectionFormat({
+            const dependsRelationId = addConnectionRelation({
                 id: `${demoWorldId}_format_depends`,
                 operator: 'DEP',
                 mode: 'depends on',
@@ -5533,7 +5533,7 @@
                 worldId: demoWorldId
             });
 
-            const relatesFormatId = addConnectionFormat({
+            const relatesRelationId = addConnectionRelation({
                 id: `${demoWorldId}_format_relates`,
                 operator: 'REL',
                 mode: 'relates to',
@@ -5623,7 +5623,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_1`,
                 subject: { type: 'Record', id: person1 },
-                formatId: ownsFormatId,
+                relationId: ownsRelationId,
                 operand: { type: 'Record', id: proj1 },
                 description: 'Sarah leads the Knowledge Graph project',
                 worldId: demoWorldId
@@ -5632,7 +5632,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_2`,
                 subject: { type: 'Record', id: person1 },
-                formatId: ownsFormatId,
+                relationId: ownsRelationId,
                 operand: { type: 'Record', id: proj2 },
                 description: 'Sarah oversees Context Engine development',
                 worldId: demoWorldId
@@ -5641,7 +5641,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_3`,
                 subject: { type: 'Record', id: person3 },
-                formatId: ownsFormatId,
+                relationId: ownsRelationId,
                 operand: { type: 'Record', id: proj3 },
                 description: 'Jordan leads Formula System research',
                 worldId: demoWorldId
@@ -5651,7 +5651,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_4`,
                 subject: { type: 'Record', id: task1 },
-                formatId: assignedFormatId,
+                relationId: assignedRelationId,
                 operand: { type: 'Record', id: person1 },
                 description: 'Node layout assigned to Sarah',
                 worldId: demoWorldId
@@ -5660,7 +5660,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_5`,
                 subject: { type: 'Record', id: task2 },
-                formatId: assignedFormatId,
+                relationId: assignedRelationId,
                 operand: { type: 'Record', id: person2 },
                 description: 'Edge rendering assigned to Alex',
                 worldId: demoWorldId
@@ -5669,7 +5669,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_6`,
                 subject: { type: 'Record', id: task3 },
-                formatId: assignedFormatId,
+                relationId: assignedRelationId,
                 operand: { type: 'Record', id: person2 },
                 description: 'Context tracker assigned to Alex',
                 worldId: demoWorldId
@@ -5678,7 +5678,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_7`,
                 subject: { type: 'Record', id: task4 },
-                formatId: assignedFormatId,
+                relationId: assignedRelationId,
                 operand: { type: 'Record', id: person3 },
                 description: 'Formula parser assigned to Jordan',
                 worldId: demoWorldId
@@ -5687,7 +5687,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_8`,
                 subject: { type: 'Record', id: task5 },
-                formatId: assignedFormatId,
+                relationId: assignedRelationId,
                 operand: { type: 'Record', id: person3 },
                 description: 'Database research assigned to Jordan',
                 worldId: demoWorldId
@@ -5697,7 +5697,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_9`,
                 subject: { type: 'Record', id: task1 },
-                formatId: partOfFormatId,
+                relationId: partOfRelationId,
                 operand: { type: 'Record', id: proj1 },
                 description: 'Layout algorithm is part of Knowledge Graph',
                 worldId: demoWorldId
@@ -5706,7 +5706,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_10`,
                 subject: { type: 'Record', id: task2 },
-                formatId: partOfFormatId,
+                relationId: partOfRelationId,
                 operand: { type: 'Record', id: proj1 },
                 description: 'Edge rendering is part of Knowledge Graph',
                 worldId: demoWorldId
@@ -5715,7 +5715,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_11`,
                 subject: { type: 'Record', id: task3 },
-                formatId: partOfFormatId,
+                relationId: partOfRelationId,
                 operand: { type: 'Record', id: proj2 },
                 description: 'Context tracker is part of Context Engine',
                 worldId: demoWorldId
@@ -5724,7 +5724,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_12`,
                 subject: { type: 'Record', id: task4 },
-                formatId: partOfFormatId,
+                relationId: partOfRelationId,
                 operand: { type: 'Record', id: proj3 },
                 description: 'Formula parser is part of Formula System',
                 worldId: demoWorldId
@@ -5733,7 +5733,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_13`,
                 subject: { type: 'Record', id: task5 },
-                formatId: partOfFormatId,
+                relationId: partOfRelationId,
                 operand: { type: 'Record', id: proj1 },
                 description: 'Graph database research supports Knowledge Graph',
                 worldId: demoWorldId
@@ -5743,7 +5743,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_14`,
                 subject: { type: 'Record', id: proj1 },
-                formatId: implementsFormatId,
+                relationId: implementsRelationId,
                 operand: { type: 'Record', id: concept4 },
                 description: 'Knowledge Graph project implements graph concepts',
                 worldId: demoWorldId
@@ -5752,7 +5752,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_15`,
                 subject: { type: 'Record', id: proj2 },
-                formatId: implementsFormatId,
+                relationId: implementsRelationId,
                 operand: { type: 'Record', id: concept1 },
                 description: 'Context Engine implements epistemic observability',
                 worldId: demoWorldId
@@ -5761,7 +5761,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_16`,
                 subject: { type: 'Record', id: proj3 },
-                formatId: implementsFormatId,
+                relationId: implementsRelationId,
                 operand: { type: 'Record', id: concept3 },
                 description: 'Formula System implements reactive formulas',
                 worldId: demoWorldId
@@ -5771,7 +5771,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_17`,
                 subject: { type: 'Record', id: task2 },
-                formatId: dependsFormatId,
+                relationId: dependsRelationId,
                 operand: { type: 'Record', id: task1 },
                 description: 'Edge rendering depends on layout algorithm',
                 worldId: demoWorldId
@@ -5780,7 +5780,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_18`,
                 subject: { type: 'Record', id: task5 },
-                formatId: dependsFormatId,
+                relationId: dependsRelationId,
                 operand: { type: 'Record', id: task1 },
                 description: 'Database research depends on layout design',
                 worldId: demoWorldId
@@ -5790,7 +5790,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_19`,
                 subject: { type: 'Record', id: concept2 },
-                formatId: relatesFormatId,
+                relationId: relatesRelationId,
                 operand: { type: 'Record', id: concept1 },
                 description: 'Superposition requires epistemic observability',
                 worldId: demoWorldId
@@ -5799,7 +5799,7 @@
             addConnection({
                 id: `${demoWorldId}_conn_20`,
                 subject: { type: 'Record', id: concept4 },
-                formatId: relatesFormatId,
+                relationId: relatesRelationId,
                 operand: { type: 'Record', id: concept1 },
                 description: 'Knowledge graphs benefit from context tracking',
                 worldId: demoWorldId
@@ -6995,13 +6995,13 @@
         }
 
         function validateConnectionPayload(connection) {
-            if (!connection?.formatId) {
-                throw new Error('Connections must reference a connection format');
+            if (!connection?.relationId) {
+                throw new Error('Connections must reference a connection relation');
             }
 
-            const format = findConnectionFormat(connection.formatId);
-            if (!format) {
-                throw new Error('Referenced connection format not found');
+            const relation = findConnectionRelation(connection.relationId);
+            if (!relation) {
+                throw new Error('Referenced connection relation not found');
             }
 
             if (!connection?.subject || !connection?.operand) {
@@ -7024,24 +7024,24 @@
                 throw new Error('Connection params must be an object');
             }
 
-            format.requiredParams.forEach(param => {
+            relation.requiredParams.forEach(param => {
                 if (!(param in params)) {
                     throw new Error(`Missing required param: ${param}`);
                 }
             });
 
             const worldId = connection.worldId || subjectWorld || operandWorld || state.currentWorldId;
-            if (format.worldId && worldId && format.worldId !== worldId) {
-                throw new Error('Connection must use a format from the same world');
+            if (relation.worldId && worldId && relation.worldId !== worldId) {
+                throw new Error('Connection must use a relation from the same world');
             }
 
             return {
                 ...connection,
                 params,
                 worldId,
-                formatId: format.id,
-                operator: format.operator,
-                mode: format.mode
+                relationId: relation.id,
+                operator: relation.operator,
+                mode: relation.mode
             };
         }
 
@@ -7135,17 +7135,17 @@
             return existing;
         }
 
-        function createConnection(sourceId, targetId, formatId = null, params = {}) {
-            const resolvedFormatId = formatId || getDefaultConnectionFormatId('CON') || getDefaultConnectionFormatId();
-            if (!resolvedFormatId) {
-                showToast('⚠️ Add a connection format before creating connections');
+        function createConnection(sourceId, targetId, relationId = null, params = {}) {
+            const resolvedRelationId = relationId || getDefaultConnectionRelationId('CON') || getDefaultConnectionRelationId();
+            if (!resolvedRelationId) {
+                showToast('⚠️ Add a connection relation before creating connections');
                 return null;
             }
 
             return addConnection({
                 subject: { type: 'Record', id: sourceId },
                 operand: { type: 'Record', id: targetId },
-                formatId: resolvedFormatId,
+                relationId: resolvedRelationId,
                 params
             });
         }
@@ -9227,12 +9227,12 @@
             const connection = state.connections.get(connectionId);
             if (!connection) return null;
 
-            const format = connection.formatId ? state.connectionFormats.get(connection.formatId) : null;
+            const relation = connection.relationId ? state.connectionRelations.get(connection.relationId) : null;
             const subjectEntity = state.entities.get(connection.subject?.id);
             const operandEntity = state.entities.get(connection.operand?.id);
             const definitions = Array.from(state.definitions.values()).filter(d => d.entity?.type === 'Connection' && d.entity?.id === connectionId);
 
-            return { connection, format, subjectEntity, operandEntity, definitions };
+            return { connection, relation, subjectEntity, operandEntity, definitions };
         }
 
         function getChildrenForViewEntity(viewEntityId) {
@@ -9389,12 +9389,12 @@
             const children = getChildrenForConnection(connectionId);
             if (!children) return '<p class="text-xs text-gray-500 mt-2">Connection not found</p>';
 
-            const { connection, format, subjectEntity, operandEntity, definitions } = children;
+            const { connection, relation, subjectEntity, operandEntity, definitions } = children;
 
             return `
                 <div class="mt-3 space-y-2 pl-4 border-l-2 border-purple-200">
                     <div class="text-xs space-y-1">
-                        ${format ? `<div><strong>Format:</strong> ${format.name || format.id}</div>` : ''}
+                        ${relation ? `<div><strong>Relation:</strong> ${relation.name || relation.id}</div>` : ''}
                         <div><strong>Subject:</strong> ${renderEntityLabel(connection.subject)}</div>
                         <div><strong>Operator:</strong> ${connection.operator || connection.mode || '→'}</div>
                         <div><strong>Operand:</strong> ${renderEntityLabel(connection.operand)}</div>
@@ -10144,7 +10144,7 @@
         }
 
         function openGraphConnectionModal(sourceNode, targetNode) {
-            const formats = Array.from(state.connectionFormats.values());
+            const formats = Array.from(state.connectionRelations.values());
 
             // Pre-populate the connection modal with source and target
             resetConnectionForm();
@@ -10172,7 +10172,7 @@
                             </div>
                             <div class="mb-4">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Connection Type</label>
-                                <select id="graphConnectionFormat" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <select id="graphConnectionRelation" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="">Select a connection type...</option>
                                     ${formats.map(fmt => `<option value="${fmt.id}">${fmt.operator} - ${fmt.mode || 'No mode'}</option>`).join('')}
                                 </select>
@@ -10204,7 +10204,7 @@
         }
 
         function handleGraphConnectionSubmit(sourceType, sourceId, targetType, targetId) {
-            const formatId = document.getElementById('graphConnectionFormat')?.value;
+            const formatId = document.getElementById('graphConnectionRelation')?.value;
             const description = document.getElementById('graphConnectionDescription')?.value?.trim() || '';
 
             if (!formatId) {
@@ -10569,75 +10569,75 @@
             return modes.map(mode => `<option value="${mode}" ${mode === selectedMode ? 'selected' : ''}>${mode}</option>`).join('');
         }
 
-        function populateConnectionFormatOptions(selectedOperator = '') {
-            const operatorSelect = document.getElementById('connectionFormatOperator');
+        function populateConnectionRelationOptions(selectedOperator = '') {
+            const operatorSelect = document.getElementById('connectionRelationOperator');
             if (!operatorSelect) return;
             const operatorOptions = Object.keys(state.connectionModes || {});
             operatorSelect.innerHTML = ['<option value="">Select operator</option>', ...operatorOptions.map(op => `<option value="${op}">${op}</option>`)].join('');
             operatorSelect.value = selectedOperator || operatorOptions[0] || '';
 
-            const modeSelect = document.getElementById('connectionFormatMode');
+            const modeSelect = document.getElementById('connectionRelationMode');
             if (modeSelect) {
                 modeSelect.innerHTML = renderModeOptions(operatorSelect.value || selectedOperator, '');
             }
         }
 
-        function populateConnectionFormatForm(formatId) {
-            const format = state.connectionFormats.get(formatId);
-            if (!format) return;
-            const form = document.getElementById('connectionFormatForm');
+        function populateConnectionRelationForm(relationId) {
+            const relation = state.connectionRelations.get(relationId);
+            if (!relation) return;
+            const form = document.getElementById('connectionRelationForm');
             if (!form) return;
 
-            populateConnectionFormatOptions(format.operator);
+            populateConnectionRelationOptions(relation.operator);
 
-            form.querySelector('#connectionFormatOperator').value = format.operator;
-            const modeSelect = form.querySelector('#connectionFormatMode');
+            form.querySelector('#connectionRelationOperator').value = relation.operator;
+            const modeSelect = form.querySelector('#connectionRelationMode');
             if (modeSelect) {
-                modeSelect.innerHTML = renderModeOptions(format.operator, format.mode);
+                modeSelect.innerHTML = renderModeOptions(relation.operator, relation.mode);
             }
 
-            form.querySelector('#connectionFormatDescription').value = format.description || '';
-            form.querySelector('#connectionFormatRequired').value = (format.requiredParams || []).join(', ');
-            form.querySelector('#connectionFormatOptional').value = (format.optionalParams || []).join(', ');
-            state.connectionFormatFormState.editingId = format.id;
+            form.querySelector('#connectionRelationDescription').value = relation.description || '';
+            form.querySelector('#connectionRelationRequired').value = (relation.requiredParams || []).join(', ');
+            form.querySelector('#connectionRelationOptional').value = (relation.optionalParams || []).join(', ');
+            state.connectionRelationFormState.editingId = relation.id;
 
-            const submit = document.getElementById('connectionFormatSubmit');
-            if (submit) submit.textContent = 'Save Format';
-            const title = document.getElementById('connectionFormatModalTitle');
-            if (title) title.textContent = 'Edit Connection Format';
-            openModal('connectionFormatModal');
+            const submit = document.getElementById('connectionRelationSubmit');
+            if (submit) submit.textContent = 'Save Relation';
+            const title = document.getElementById('connectionRelationModalTitle');
+            if (title) title.textContent = 'Edit Connection Relation';
+            openModal('connectionRelationModal');
         }
 
-        function resetConnectionFormatForm() {
-            state.connectionFormatFormState.editingId = null;
-            const form = document.getElementById('connectionFormatForm');
+        function resetConnectionRelationForm() {
+            state.connectionRelationFormState.editingId = null;
+            const form = document.getElementById('connectionRelationForm');
             if (!form) return;
             form.reset();
-            populateConnectionFormatOptions();
-            const submit = document.getElementById('connectionFormatSubmit');
-            if (submit) submit.textContent = 'Add Format';
-            const title = document.getElementById('connectionFormatModalTitle');
-            if (title) title.textContent = 'Add Connection Format';
+            populateConnectionRelationOptions();
+            const submit = document.getElementById('connectionRelationSubmit');
+            if (submit) submit.textContent = 'Add Relation';
+            const title = document.getElementById('connectionRelationModalTitle');
+            if (title) title.textContent = 'Add Connection Relation';
         }
 
-        function openConnectionFormatModal(formatId = null) {
-            resetConnectionFormatForm();
-            if (formatId) populateConnectionFormatForm(formatId);
-            openModal('connectionFormatModal');
+        function openConnectionRelationModal(relationId = null) {
+            resetConnectionRelationForm();
+            if (relationId) populateConnectionRelationForm(relationId);
+            openModal('connectionRelationModal');
         }
 
-        function handleConnectionFormatSubmit() {
-            const form = document.getElementById('connectionFormatForm');
+        function handleConnectionRelationSubmit() {
+            const form = document.getElementById('connectionRelationForm');
             if (!form) return;
 
-            const operator = form.querySelector('#connectionFormatOperator')?.value;
-            const mode = form.querySelector('#connectionFormatMode')?.value;
-            const requiredParams = (form.querySelector('#connectionFormatRequired')?.value || '').split(',').map(p => p.trim()).filter(Boolean);
-            const optionalParams = (form.querySelector('#connectionFormatOptional')?.value || '').split(',').map(p => p.trim()).filter(Boolean);
-            const description = form.querySelector('#connectionFormatDescription')?.value || '';
+            const operator = form.querySelector('#connectionRelationOperator')?.value;
+            const mode = form.querySelector('#connectionRelationMode')?.value;
+            const requiredParams = (form.querySelector('#connectionRelationRequired')?.value || '').split(',').map(p => p.trim()).filter(Boolean);
+            const optionalParams = (form.querySelector('#connectionRelationOptional')?.value || '').split(',').map(p => p.trim()).filter(Boolean);
+            const description = form.querySelector('#connectionRelationDescription')?.value || '';
 
             const payload = {
-                id: state.connectionFormatFormState.editingId,
+                id: state.connectionRelationFormState.editingId,
                 operator,
                 mode,
                 description,
@@ -10646,42 +10646,42 @@
                 worldId: state.currentWorldId
             };
 
-            const isEdit = Boolean(state.connectionFormatFormState.editingId);
+            const isEdit = Boolean(state.connectionRelationFormState.editingId);
             try {
                 if (isEdit) {
-                    updateConnectionFormat(payload.id, payload);
-                    showToast('✓ Format updated');
+                    updateConnectionRelation(payload.id, payload);
+                    showToast('✓ Relation updated');
                 } else {
-                    addConnectionFormat(payload);
-                    showToast('✓ Format added');
+                    addConnectionRelation(payload);
+                    showToast('✓ Relation added');
                 }
             } catch (error) {
                 showToast(error.message);
                 return;
             }
 
-            resetConnectionFormatForm();
-            closeModal('connectionFormatModal');
+            resetConnectionRelationForm();
+            closeModal('connectionRelationModal');
             renderConnectionsPage(state.connectionFormState.activeFilter || 'all');
         }
 
-        function renderConnectionParamFields(containerId, formatId, params = {}) {
+        function renderConnectionParamFields(containerId, relationId, params = {}) {
             const container = document.getElementById(containerId);
             if (!container) return;
-            const format = findConnectionFormat(formatId);
-            if (!format) {
-                container.innerHTML = '<p class="text-sm text-gray-500">Select a format to enter parameters.</p>';
+            const relation = findConnectionRelation(relationId);
+            if (!relation) {
+                container.innerHTML = '<p class="text-sm text-gray-500">Select a relation to enter parameters.</p>';
                 return;
             }
 
-            const allParams = [...format.requiredParams, ...format.optionalParams];
+            const allParams = [...relation.requiredParams, ...relation.optionalParams];
             if (!allParams.length) {
-                container.innerHTML = '<p class="text-sm text-gray-500">No parameters required for this format.</p>';
+                container.innerHTML = '<p class="text-sm text-gray-500">No parameters required for this relation.</p>';
                 return;
             }
 
             container.innerHTML = allParams.map(name => {
-                const required = format.requiredParams.includes(name);
+                const required = relation.requiredParams.includes(name);
                 const value = params[name] !== undefined ? params[name] : '';
                 const safeValue = typeof value === 'object' ? JSON.stringify(value) : String(value || '');
                 const escapedValue = safeValue
@@ -10709,7 +10709,7 @@
             if (!conn) return;
             const form = document.getElementById('connectionForm');
             if (!form) return;
-            populateConnectionSelectOptions(conn.formatId, conn.params || {});
+            populateConnectionSelectOptions(conn.relationId, conn.params || {});
             form.querySelector('#connectionSubjectType').value = conn.subject?.type || '';
             form.querySelector('#connectionSubjectId').value = conn.subject?.id || '';
             form.querySelector('#connectionOperandType').value = conn.operand?.type || '';
@@ -10728,31 +10728,31 @@
             const form = document.getElementById('connectionForm');
             if (!form) return;
             form.reset();
-            const defaultFormat = getDefaultConnectionFormatId();
-            populateConnectionSelectOptions(defaultFormat, {});
+            const defaultRelation = getDefaultConnectionRelationId();
+            populateConnectionSelectOptions(defaultRelation, {});
             const submit = document.getElementById('connectionSubmit');
             if (submit) submit.textContent = 'Add Connection';
             const title = document.getElementById('connectionModalTitle');
             if (title) title.textContent = 'Add Connection';
         }
 
-        function populateConnectionSelectOptions(selectedFormatId, params = {}) {
-            const select = document.getElementById('connectionFormatSelect');
+        function populateConnectionSelectOptions(selectedRelationId, params = {}) {
+            const select = document.getElementById('connectionRelationSelect');
             if (!select) return;
-            const formats = getConnectionFormatView();
-            select.innerHTML = ['<option value="">Select a format</option>', ...formats.map(fmt => `<option value="${fmt.id}">${fmt.id} (${fmt.operator} / ${fmt.mode})</option>`)].join('');
-            const resolved = selectedFormatId || getDefaultConnectionFormatId();
-            state.connectionFormState.selectedFormatId = resolved;
+            const relations = getConnectionRelationView();
+            select.innerHTML = ['<option value="">Select a relation</option>', ...relations.map(rel => `<option value="${rel.id}">${rel.id} (${rel.operator} / ${rel.mode})</option>`)].join('');
+            const resolved = selectedRelationId || getDefaultConnectionRelationId();
+            state.connectionFormState.selectedRelationId = resolved;
             if (resolved) select.value = resolved;
             renderConnectionParamFields('connectionParamFields', resolved, params);
-            updateConnectionFormatSummary(resolved);
+            updateConnectionRelationSummary(resolved);
         }
 
-        function updateConnectionFormatSummary(formatId) {
-            const summary = document.getElementById('connectionFormatSummary');
-            const format = formatId ? findConnectionFormat(formatId) : null;
+        function updateConnectionRelationSummary(relationId) {
+            const summary = document.getElementById('connectionRelationSummary');
+            const relation = relationId ? findConnectionRelation(relationId) : null;
             if (!summary) return;
-            summary.textContent = format ? `${format.operator} • ${format.mode}` : 'No format selected';
+            summary.textContent = relation ? `${relation.operator} • ${relation.mode}` : 'No relation selected';
         }
 
         function openConnectionModal(connId = null) {
@@ -10763,10 +10763,10 @@
             if (typeSelect) typeSelect.focus();
         }
 
-        function collectParamsFromInputs(containerId, format) {
+        function collectParamsFromInputs(containerId, relation) {
             const container = document.getElementById(containerId);
             const params = {};
-            if (!container || !format) return params;
+            if (!container || !relation) return params;
 
             const inputs = container.querySelectorAll('[data-param-name]');
             for (const input of inputs) {
@@ -10792,21 +10792,21 @@
             const form = document.getElementById('connectionForm');
             if (!form) return;
 
-            const formatId = form.querySelector('#connectionFormatSelect')?.value;
-            if (!formatId) {
-                showToast('Select a connection format');
+            const relationId = form.querySelector('#connectionRelationSelect')?.value;
+            if (!relationId) {
+                showToast('Select a connection relation');
                 return;
             }
 
-            const format = findConnectionFormat(formatId);
-            if (!format) {
-                showToast('Selected connection format not found');
+            const relation = findConnectionRelation(relationId);
+            if (!relation) {
+                showToast('Selected connection relation not found');
                 return;
             }
 
             let params = {};
             try {
-                params = collectParamsFromInputs('connectionParamFields', format);
+                params = collectParamsFromInputs('connectionParamFields', relation);
             } catch (error) {
                 showToast(error.message);
                 return;
@@ -10814,7 +10814,7 @@
 
             const payload = {
                 id: state.connectionFormState.editingId,
-                formatId,
+                relationId,
                 subject: { type: form.querySelector('#connectionSubjectType').value, id: form.querySelector('#connectionSubjectId').value.trim() },
                 operand: { type: form.querySelector('#connectionOperandType').value, id: form.querySelector('#connectionOperandId').value.trim() },
                 description: form.querySelector('#connectionDescription').value.trim(),
@@ -10839,8 +10839,8 @@
             renderConnectionsPage(state.connectionFormState.activeFilter || 'all');
         }
 
-        function renderConnectionFormatsTable(formats) {
-            if (!formats.length) return '<p class="text-sm text-gray-500">No connection formats yet.</p>';
+        function renderConnectionRelationsTable(relations) {
+            if (!relations.length) return '<p class="text-sm text-gray-500">No connection relations yet.</p>';
             return `
                 <div class="overflow-auto border border-gray-200 rounded-lg bg-white">
                     <table class="min-w-full text-sm">
@@ -10856,17 +10856,17 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
-                            ${formats.map(fmt => `
+                            ${relations.map(rel => `
                                 <tr>
-                                    <td class="px-4 py-3 text-gray-800 whitespace-nowrap">${fmt.id}</td>
-                                    <td class="px-4 py-3 text-gray-800">${fmt.operator}</td>
-                                    <td class="px-4 py-3 text-gray-800">${fmt.mode}</td>
-                                    <td class="px-4 py-3 text-gray-600" data-format-inline="requiredParams:${fmt.id}">${(fmt.requiredParams || []).join(', ') || '—'}</td>
-                                    <td class="px-4 py-3 text-gray-600" data-format-inline="optionalParams:${fmt.id}">${(fmt.optionalParams || []).join(', ') || '—'}</td>
-                                    <td class="px-4 py-3 text-gray-500" data-format-inline="description:${fmt.id}">${fmt.description || ''}</td>
+                                    <td class="px-4 py-3 text-gray-800 whitespace-nowrap">${rel.id}</td>
+                                    <td class="px-4 py-3 text-gray-800">${rel.operator}</td>
+                                    <td class="px-4 py-3 text-gray-800">${rel.mode}</td>
+                                    <td class="px-4 py-3 text-gray-600" data-relation-inline="requiredParams:${rel.id}">${(rel.requiredParams || []).join(', ') || '—'}</td>
+                                    <td class="px-4 py-3 text-gray-600" data-relation-inline="optionalParams:${rel.id}">${(rel.optionalParams || []).join(', ') || '—'}</td>
+                                    <td class="px-4 py-3 text-gray-500" data-relation-inline="description:${rel.id}">${rel.description || ''}</td>
                                     <td class="px-4 py-3 whitespace-nowrap space-x-3">
-                                        <button class="text-blue-600" data-format-edit="${fmt.id}">Edit</button>
-                                        <button class="text-red-500" data-format-delete="${fmt.id}">Delete</button>
+                                        <button class="text-blue-600" data-relation-edit="${rel.id}">Edit</button>
+                                        <button class="text-red-500" data-relation-delete="${rel.id}">Delete</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -10884,7 +10884,7 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Subject</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Format</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Relation</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Operator</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Mode</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Operand</th>
@@ -10895,13 +10895,13 @@
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             ${connections.map(conn => {
-                                const format = findConnectionFormat(conn.formatId);
+                                const relation = findConnectionRelation(conn.relationId);
                                 return `
                                     <tr>
                                         <td class="px-4 py-3 whitespace-nowrap text-gray-800">${conn.subject?.type}: ${renderEntityLabel(conn.subject)}</td>
-                                        <td class="px-4 py-3 text-gray-800">${format?.id || conn.formatId || ''}</td>
-                                        <td class="px-4 py-3 text-gray-700">${format?.operator || conn.operator || ''}</td>
-                                        <td class="px-4 py-3 text-gray-700">${format?.mode || conn.mode || ''}</td>
+                                        <td class="px-4 py-3 text-gray-800">${relation?.id || conn.relationId || ''}</td>
+                                        <td class="px-4 py-3 text-gray-700">${relation?.operator || conn.operator || ''}</td>
+                                        <td class="px-4 py-3 text-gray-700">${relation?.mode || conn.mode || ''}</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-gray-800">${conn.operand?.type}: ${renderEntityLabel(conn.operand)}</td>
                                         <td class="px-4 py-3 text-gray-500" data-conn-inline="description:${conn.id}">${conn.description || ''}</td>
                                         <td class="px-4 py-3 text-gray-500" data-conn-inline="params:${conn.id}">${JSON.stringify(conn.params || {})}</td>
@@ -10928,7 +10928,7 @@
                 compound: conn => conn.subject?.type === 'Connection' || conn.operand?.type === 'Connection'
             };
 
-            const formats = getConnectionFormatView();
+            const relations = getConnectionRelationView();
             const connections = getConnectionView(filters[filterKey]);
             const container = document.getElementById('viewContainer');
 
@@ -10938,7 +10938,7 @@
                         <span class="view-stage-pill">${getWorld()?.name || 'World'}</span>
                         <div class="min-w-0">
                             <div class="view-stage-name">Connections</div>
-                            <div class="view-stage-sub">${connections.length} edges · ${formats.length} formats</div>
+                            <div class="view-stage-sub">${connections.length} edges · ${relations.length} relations</div>
                         </div>
                     </div>
                 </div>
@@ -10946,21 +10946,21 @@
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div class="space-y-1">
                             <div class="font-semibold text-gray-900">Connection tools</div>
-                            <p class="text-sm text-gray-500">Work with formats and edges using modals and inline edits.</p>
+                            <p class="text-sm text-gray-500">Work with relations and edges using modals and inline edits.</p>
                         </div>
                         <div class="flex gap-2">
-                            <button class="btn btn-secondary btn-sm" id="openConnectionFormatModalBtn">Add Format</button>
+                            <button class="btn btn-secondary btn-sm" id="openConnectionRelationModalBtn">Add Relation</button>
                             <button class="btn btn-primary btn-sm" id="openConnectionModalBtn">Add Connection</button>
                         </div>
                     </div>
                     <div class="border border-gray-200 rounded-lg bg-white p-4 space-y-3">
                         <div class="flex items-center justify-between">
                             <div>
-                                <div class="font-semibold">Connection Formats</div>
+                                <div class="font-semibold">Connection Relations</div>
                                 <p class="text-sm text-gray-500">Define operator + mode templates using the EO dictionary.</p>
                             </div>
                         </div>
-                        ${renderConnectionFormatsTable(formats)}
+                        ${renderConnectionRelationsTable(relations)}
                     </div>
 
                     <div class="flex flex-wrap gap-2">
@@ -10986,16 +10986,16 @@
                 };
             });
 
-            document.querySelectorAll('[data-format-edit]').forEach(btn => {
-                btn.onclick = () => openConnectionFormatModal(btn.dataset.formatEdit);
+            document.querySelectorAll('[data-relation-edit]').forEach(btn => {
+                btn.onclick = () => openConnectionRelationModal(btn.dataset.relationEdit);
             });
 
-            document.querySelectorAll('[data-format-delete]').forEach(btn => {
+            document.querySelectorAll('[data-relation-delete]').forEach(btn => {
                 btn.onclick = () => {
                     try {
-                        deleteConnectionFormat(btn.dataset.formatDelete);
+                        deleteConnectionRelation(btn.dataset.relationDelete);
                         renderConnectionsPage(filterKey);
-                        showToast('✓ Format removed');
+                        showToast('✓ Relation removed');
                     } catch (error) {
                         showToast(error.message);
                     }
@@ -11005,34 +11005,34 @@
             const openConnectionBtn = document.getElementById('openConnectionModalBtn');
             if (openConnectionBtn) openConnectionBtn.onclick = () => openConnectionModal();
 
-            const openFormatBtn = document.getElementById('openConnectionFormatModalBtn');
-            if (openFormatBtn) openFormatBtn.onclick = () => openConnectionFormatModal();
+            const openFormatBtn = document.getElementById('openConnectionRelationModalBtn');
+            if (openFormatBtn) openFormatBtn.onclick = () => openConnectionRelationModal();
 
-            const formatOperatorSelect = document.getElementById('connectionFormatOperator');
+            const formatOperatorSelect = document.getElementById('connectionRelationOperator');
             if (formatOperatorSelect) {
                 formatOperatorSelect.onchange = (event) => {
                     const nextModes = renderModeOptions(event.target.value);
-                    const modeSelect = document.getElementById('connectionFormatMode');
+                    const modeSelect = document.getElementById('connectionRelationMode');
                     if (modeSelect) modeSelect.innerHTML = nextModes;
                 };
             }
 
-            const connFormatSelect = document.getElementById('connectionFormatSelect');
+            const connFormatSelect = document.getElementById('connectionRelationSelect');
             if (connFormatSelect) {
                 connFormatSelect.onchange = (event) => {
-                    state.connectionFormState.selectedFormatId = event.target.value;
+                    state.connectionFormState.selectedRelationId = event.target.value;
                     renderConnectionParamFields('connectionParamFields', event.target.value, {});
-                    updateConnectionFormatSummary(event.target.value);
+                    updateConnectionRelationSummary(event.target.value);
                 };
             }
 
             const connForm = document.getElementById('connectionForm');
             if (connForm) connForm.onsubmit = (event) => { event.preventDefault(); handleConnectionFormSubmit(); };
 
-            const formatForm = document.getElementById('connectionFormatForm');
-            if (formatForm) formatForm.onsubmit = (event) => { event.preventDefault(); handleConnectionFormatSubmit(); };
+            const formatForm = document.getElementById('connectionRelationForm');
+            if (formatForm) formatForm.onsubmit = (event) => { event.preventDefault(); handleConnectionRelationSubmit(); };
 
-            attachConnectionFormatInlineEditing();
+            attachConnectionRelationInlineEditing();
             attachConnectionInlineEditing();
         }
 
@@ -11398,10 +11398,10 @@
             console.log('Creating suggested view:', suggestionId);
         }
 
-        function attachConnectionFormatInlineEditing() {
-            document.querySelectorAll('[data-format-inline]').forEach(cell => {
-                const [field, formatId] = (cell.dataset.formatInline || '').split(':');
-                if (!field || !formatId) return;
+        function attachConnectionRelationInlineEditing() {
+            document.querySelectorAll('[data-relation-inline]').forEach(cell => {
+                const [field, relationId] = (cell.dataset.relationInline || '').split(':');
+                if (!field || !relationId) return;
                 const original = cell.textContent.trim();
                 cell.contentEditable = 'true';
                 cell.onfocus = () => cell.dataset.originalValue = cell.textContent.trim();
@@ -11422,8 +11422,8 @@
                         updates[field] = current;
                     }
 
-                    updateConnectionFormat(formatId, updates);
-                    showToast('✓ Connection format updated');
+                    updateConnectionRelation(relationId, updates);
+                    showToast('✓ Connection relation updated');
                     renderConnectionsPage(state.connectionFormState.activeFilter || 'all');
                 };
             });
@@ -13313,7 +13313,7 @@
 
         function getConnectionBuilder() {
             if (!state.connectionBuilder) {
-                state.connectionBuilder = { targetSetId: null, targetRecordId: '', searchQuery: '', formatId: null, params: {} };
+                state.connectionBuilder = { targetSetId: null, targetRecordId: '', searchQuery: '', relationId: null, params: {} };
             }
             return state.connectionBuilder;
         }
@@ -13326,12 +13326,12 @@
                 : (setEntries[0]?.[0] || null);
             if (builder.targetSetId !== selectedSetId) builder.targetSetId = selectedSetId;
 
-            const formatOptions = getConnectionFormatView();
-            const sidebarFormatId = builder.formatId && state.connectionFormats.has(builder.formatId)
-                ? builder.formatId
+            const formatOptions = getConnectionRelationView();
+            const sidebarRelationId = builder.relationId && state.connectionRelations.has(builder.relationId)
+                ? builder.relationId
                 : (formatOptions[0]?.id || null);
-            if (builder.formatId !== sidebarFormatId) builder.formatId = sidebarFormatId;
-            const selectedFormat = findConnectionFormat(sidebarFormatId);
+            if (builder.relationId !== sidebarRelationId) builder.relationId = sidebarRelationId;
+            const selectedRelation = findConnectionRelation(sidebarRelationId);
 
             const selectedSet = selectedSetId ? state.sets.get(selectedSetId) : null;
             const allAvailableRecords = selectedSet ? Array.from(selectedSet.records.values()).filter(r => r.id !== recordId) : [];
@@ -13374,14 +13374,14 @@
                             ${availableRecords.length === 0 && selectedSetId ? `<option value="" disabled>${allAvailableRecords.length === 0 ? 'No records available' : 'No matches found'}</option>` : ''}
                             ${availableRecords.map(rec => `<option value="${rec.id}" ${rec.id === selectedRecordId ? 'selected' : ''}>${rec.name || rec.id}</option>`).join('')}
                         </select>
-                        <label class="form-label">Format</label>
-                        <select id="sidebarConnectionFormat" class="border rounded px-3 py-2 text-sm w-full" ${formatOptions.length === 0 ? 'disabled' : ''}>
-                            <option value="">${formatOptions.length === 0 ? 'Add a connection format first' : 'Select a format'}</option>
-                            ${formatOptions.map(fmt => `<option value="${fmt.id}" ${fmt.id === sidebarFormatId ? 'selected' : ''}>${fmt.operator} • ${fmt.mode}</option>`).join('')}
+                        <label class="form-label">Relation</label>
+                        <select id="sidebarConnectionRelation" class="border rounded px-3 py-2 text-sm w-full" ${formatOptions.length === 0 ? 'disabled' : ''}>
+                            <option value="">${formatOptions.length === 0 ? 'Add a connection relation first' : 'Select a relation'}</option>
+                            ${formatOptions.map(rel => `<option value="${rel.id}" ${rel.id === sidebarRelationId ? 'selected' : ''}>${rel.operator} • ${rel.mode}</option>`).join('')}
                         </select>
-                        <div class="text-xs text-gray-600">${selectedFormat ? `${selectedFormat.operator} / ${selectedFormat.mode}` : 'No format selected'}</div>
+                        <div class="text-xs text-gray-600">${selectedRelation ? `${selectedRelation.operator} / ${selectedRelation.mode}` : 'No relation selected'}</div>
                         <div id="sidebarConnectionParams" class="grid grid-cols-1 gap-2"></div>
-                        <button class="btn btn-primary btn-sm" onclick="createConnectionFromSidebar('${recordId}')" ${(availableRecords.length === 0 || !selectedRecordId || !sidebarFormatId) ? 'disabled' : ''}>Add Connection</button>
+                        <button class="btn btn-primary btn-sm" onclick="createConnectionFromSidebar('${recordId}')" ${(availableRecords.length === 0 || !selectedRecordId || !sidebarRelationId) ? 'disabled' : ''}>Add Connection</button>
                         ${availableRecords.length === 0
                             ? `<p class="text-xs text-gray-500">${allAvailableRecords.length === 0 ? 'Add records to the selected set to create connections.' : 'No records match your search.'}</p>`
                             : ''}
@@ -13392,11 +13392,11 @@
                 </div>
             `;
 
-            renderConnectionParamFields('sidebarConnectionParams', sidebarFormatId, builder.params || {});
-            const sidebarFormatSelect = document.getElementById('sidebarConnectionFormat');
-            if (sidebarFormatSelect) {
-                sidebarFormatSelect.onchange = (event) => {
-                    builder.formatId = event.target.value || null;
+            renderConnectionParamFields('sidebarConnectionParams', sidebarRelationId, builder.params || {});
+            const sidebarRelationSelect = document.getElementById('sidebarConnectionRelation');
+            if (sidebarRelationSelect) {
+                sidebarRelationSelect.onchange = (event) => {
+                    builder.relationId = event.target.value || null;
                     builder.params = {};
                     renderConnectionsSidebar(container, recordId);
                 };
@@ -13576,21 +13576,21 @@
                 return;
             }
 
-            const formatId = builder.formatId || document.getElementById('sidebarConnectionFormat')?.value;
-            if (!formatId) {
-                showToast('Select a connection format');
+            const relationId = builder.relationId || document.getElementById('sidebarConnectionRelation')?.value;
+            if (!relationId) {
+                showToast('Select a connection relation');
                 return;
             }
 
-            const format = findConnectionFormat(formatId);
-            if (!format) {
-                showToast('Selected connection format not found');
+            const relation = findConnectionRelation(relationId);
+            if (!relation) {
+                showToast('Selected connection relation not found');
                 return;
             }
 
             let params = {};
             try {
-                params = collectParamsFromInputs('sidebarConnectionParams', format);
+                params = collectParamsFromInputs('sidebarConnectionParams', relation);
             } catch (error) {
                 showToast(error.message);
                 return;
@@ -13601,7 +13601,7 @@
             addConnection({
                 subject: { type: 'Record', id: recordId },
                 operand: { type: 'Record', id: target },
-                formatId,
+                relationId,
                 params
             });
             renderRecordSidebar(recordId);
@@ -14892,7 +14892,7 @@
                     profiles: Array.from(s.profiles.values())
                 })),
                 definitions,
-                connectionFormats: getConnectionFormatView(),
+                connectionRelations: getConnectionRelationView(),
                 connections,
                 eventStream: state.eventStream
             };
@@ -14918,7 +14918,7 @@
                 state.worlds = new Map();
                 state.sets = new Map();
                 state.definitions = new Map();
-                state.connectionFormats = new Map();
+                state.connectionRelations = new Map();
                 state.connections = new Map();
                 state.expandedSets = new Set();
                 state.openTabs = [];
@@ -14974,13 +14974,13 @@
                     state.definitions.set(id, { ...def, id });
                 });
 
-                (data.connectionFormats || []).forEach(fmt => {
-                    const id = fmt.id || `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                (data.connectionRelations || []).forEach(rel => {
+                    const id = rel.id || `REL_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
                     try {
-                        const normalized = validateConnectionFormatPayload({ ...fmt, id });
-                        state.connectionFormats.set(id, normalized);
+                        const normalized = validateConnectionRelationPayload({ ...rel, id });
+                        state.connectionRelations.set(id, normalized);
                     } catch (error) {
-                        console.warn('Skipping invalid connection format during import', error);
+                        console.warn('Skipping invalid connection relation during import', error);
                     }
                 });
 
