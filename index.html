@@ -17013,6 +17013,23 @@
                         });
                         seen.add(event.object.id);
                     }
+                } else if (event.object?.type === 'View' && event.data?.setId && event.data?.viewId) {
+                    const set = state.sets.get(event.data.setId);
+                    const view = set?.views.get(event.data.viewId);
+                    if (view && !seen.has(event.object.id)) {
+                        const viewIcon = view.icon || '📋';
+                        recent.push({
+                            label: `${viewIcon} ${view.name} (${set.name})`,
+                            type: 'view',
+                            setId: set.id,
+                            viewId: event.data.viewId,
+                            action: () => {
+                                switchSet(set.id, event.data.viewId);
+                                closeModal('searchDataModal');
+                            }
+                        });
+                        seen.add(event.object.id);
+                    }
                 }
             }
 
@@ -17415,12 +17432,13 @@
 
         function searchData(query, scope = 'everything') {
             const q = query.trim().toLowerCase();
-            if (!q) return { fields: [], records: [], values: [] };
+            if (!q) return { fields: [], records: [], values: [], views: [] };
 
             const results = {
                 fields: [],
                 records: [],
-                values: []
+                values: [],
+                views: []
             };
 
             // Get all sets in current world
@@ -17428,6 +17446,22 @@
 
             worldSets.forEach(set => {
                 if (!set || !set.schema) return;
+
+                // Search views - simple substring match
+                if (scope === 'everything') {
+                    if (set.views && set.views.size > 0) {
+                        set.views.forEach((view, viewId) => {
+                            if (view && view.name && view.name.toLowerCase().includes(q)) {
+                                results.views.push({
+                                    view,
+                                    viewId,
+                                    setId: set.id,
+                                    setName: set.name
+                                });
+                            }
+                        });
+                    }
+                }
 
                 // Search fields - simple substring match
                 if (scope === 'everything' || scope === 'fields') {
@@ -17494,7 +17528,7 @@
 
         function renderSearchResults(results, query, scope) {
             const container = document.getElementById('searchDataResults');
-            const totalResults = results.fields.length + results.records.length + results.values.length;
+            const totalResults = results.fields.length + results.records.length + results.values.length + (results.views?.length || 0);
 
             if (totalResults === 0) {
                 container.innerHTML = `<p class="text-sm text-gray-400 px-5 pt-2">No results found for "${query}"</p>`;
@@ -17502,6 +17536,31 @@
             }
 
             let html = '';
+
+            // Render Views
+            if (results.views && results.views.length > 0) {
+                html += `<div class="results-section">
+                    <div class="results-section-title">Views</div>`;
+                results.views.forEach((item, index) => {
+                    if (index < 20) { // Limit display
+                        const itemId = `view-${item.setId}-${item.viewId}`;
+                        const viewIcon = item.view.icon || '📋';
+                        html += `
+                            <div class="result-item" id="${itemId}">
+                                <div class="result-main">
+                                    <div class="result-label">${viewIcon} ${escapeHtml(item.view.name)}</div>
+                                    <div class="result-meta">View • ${escapeHtml(item.setName)}</div>
+                                </div>
+                                <button class="focus-btn" onclick='focusOnView(${JSON.stringify(item)}, "${itemId}")'>Focus</button>
+                            </div>
+                        `;
+                    }
+                });
+                if (results.views.length > 20) {
+                    html += `<p class="text-xs text-gray-500 px-3">...and ${results.views.length - 20} more</p>`;
+                }
+                html += `</div>`;
+            }
 
             // Render Fields
             if (results.fields.length > 0) {
@@ -17821,6 +17880,64 @@
             let actionsHtml = `
                 <button class="focus-action-btn" onclick="createViewFromSearchValue('${group.setId}', '${group.fieldId}', '${encodeURIComponent(JSON.stringify(group.values[0].value))}'); clearFocus();">Create View with this Value</button>
                 <button class="focus-action-btn" onclick="navigateToSet('${group.setId}'); closeModal('searchDataModal');">Open Set</button>
+            `;
+            document.getElementById('focusActions').innerHTML = actionsHtml;
+        }
+
+        function focusOnView(item, itemId) {
+            currentFocusedItem = { type: 'view', data: item, itemId };
+
+            // Remove previous focused class
+            document.querySelectorAll('.result-item.focused').forEach(el => el.classList.remove('focused'));
+            // Add focused class to clicked item
+            const itemEl = document.getElementById(itemId);
+            if (itemEl) itemEl.classList.add('focused');
+
+            // Show focus panel
+            document.getElementById('focusPanel').classList.remove('hidden');
+
+            const viewIcon = item.view.icon || '📋';
+
+            // Update header
+            document.getElementById('focusTitle').textContent = `${viewIcon} ${item.view.name}`;
+            document.getElementById('focusSubtitle').textContent = `View • from ${item.setName}`;
+            document.getElementById('focusTag').textContent = 'View';
+
+            // Build provenance section
+            let bodyHtml = '';
+
+            // Provenance section
+            bodyHtml += `<div class="focus-section">
+                <h4>Details</h4>
+                <div class="focus-kv"><span class="focus-kv-label">Set:</span> <span class="focus-kv-value">${escapeHtml(item.setName)}</span></div>
+                <div class="focus-kv"><span class="focus-kv-label">Type:</span> <span class="focus-kv-value">${item.view.type || 'table'}</span></div>`;
+
+            if (item.view.description) {
+                bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">Description:</span> <span class="focus-kv-value">${escapeHtml(item.view.description)}</span></div>`;
+            }
+
+            // Count included fields
+            const fieldCount = item.view.fields?.length || 0;
+            bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">Fields:</span> <span class="focus-kv-value">${fieldCount} field${fieldCount !== 1 ? 's' : ''}</span></div>`;
+
+            // Check for filters
+            if (item.view.filters && item.view.filters.length > 0) {
+                bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">Filters:</span> <span class="focus-kv-value">${item.view.filters.length} filter${item.view.filters.length !== 1 ? 's' : ''} applied</span></div>`;
+            }
+
+            // Check for sorting
+            if (item.view.sorts && item.view.sorts.length > 0) {
+                bodyHtml += `<div class="focus-kv"><span class="focus-kv-label">Sorting:</span> <span class="focus-kv-value">${item.view.sorts.length} sort${item.view.sorts.length !== 1 ? 's' : ''} applied</span></div>`;
+            }
+
+            bodyHtml += `</div>`;
+
+            document.getElementById('focusBody').innerHTML = bodyHtml;
+
+            // Action buttons
+            let actionsHtml = `
+                <button class="focus-action-btn" onclick="switchSet('${item.setId}', '${item.viewId}'); closeModal('searchDataModal');">Open View</button>
+                <button class="focus-action-btn" onclick="navigateToSet('${item.setId}'); closeModal('searchDataModal');">Open Set</button>
             `;
             document.getElementById('focusActions').innerHTML = actionsHtml;
         }
