@@ -2405,6 +2405,17 @@
         }
         .history-entry:hover { border-left-color: #3b82f6; background-color: #f9fafb; }
 
+        .provenance-section {
+            padding: 12px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+        .provenance-section h4 {
+            margin-bottom: 8px;
+            color: #374151;
+        }
+
         .mobile-sidebar-overlay {
             display: none;
             position: fixed;
@@ -3047,6 +3058,7 @@
                     <div id="expandedRecordHistoryColumn" class="overflow-hidden bg-gray-50 flex flex-col">
                         <div class="record-tabs">
                             <div class="record-tab active" data-tab="history" onclick="switchRecordTab('history')">History</div>
+                            <div class="record-tab" data-tab="provenance" onclick="switchRecordTab('provenance')">Provenance</div>
                             <div class="record-tab" data-tab="connections" onclick="switchRecordTab('connections')">Connections</div>
                         </div>
                         <div class="flex-1 overflow-y-auto p-6" id="expandedRecordSidebar"></div>
@@ -15035,7 +15047,7 @@
         function openExpandedRecord(recordId) {
             const set = getCurrentSet();
             const record = set.records.get(recordId);
-            state.currentRecordTab = 'history';
+            state.currentRecordTab = 'provenance';
             state.recordHistoryVisible = true;
             document.getElementById('expandedRecordTitle').textContent = getRecordDisplayName(record.id);
             renderExpandedRecordMain(recordId);
@@ -15285,7 +15297,12 @@
                 <div class="space-y-4">
                     ${visibleFields.map(field => `
                         <div class="field-editor">
-                            <label class="form-label">${field.name}</label>
+                            <label class="form-label cursor-pointer hover:text-blue-600 transition flex items-center gap-2" onclick="openCellHistory('${recordId}', '${field.id}')" title="Click to view field provenance">
+                                ${field.name}
+                                <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </label>
                             ${renderFieldEditor(recordId, field, record[field.id])}
                         </div>
                     `).join('')}
@@ -15427,6 +15444,9 @@
                 case 'connections':
                     renderConnectionsSidebar(container, recordId);
                     break;
+                case 'provenance':
+                    renderProvenanceSidebar(container, recordId);
+                    break;
                 case 'history':
                 default:
                     renderHistorySidebar(container, recordId);
@@ -15450,6 +15470,134 @@
                     </div>
                 `).join('')}
             `;
+        }
+
+        function renderProvenanceSidebar(container, recordId) {
+            const set = getCurrentSet();
+            const record = set.records.get(recordId);
+
+            // Get creation event from event stream
+            const creationEvent = state.eventStream.find(e =>
+                e.op === 'INS' && e.object?.id === recordId
+            );
+
+            // Get import/source metadata from set
+            const importMetadata = set.importMetadata || {};
+            const recordMetadata = record._metadata || {};
+
+            // Get all events related to this record
+            const recordEvents = state.eventStream.filter(e =>
+                e.object?.id === recordId || e.data?.recordId === recordId
+            );
+
+            // Determine source information
+            const sourceSystem = recordMetadata.source?.system || importMetadata.sourceSystem || 'Unknown';
+            const sourceFile = recordMetadata.source?.file || importMetadata.filename || 'Unknown';
+            const importDate = creationEvent?.published || record.created_at || 'Unknown';
+
+            // Get field-level provenance information
+            const fieldsWithProvenance = set.schema.filter(field => {
+                const value = record[field.id];
+                return value && (value._sup || recordEvents.some(e => e.data?.fieldId === field.id));
+            });
+
+            container.innerHTML = `
+                <h3 class="font-semibold mb-4">Record Provenance</h3>
+
+                <div class="space-y-4">
+                    <div class="provenance-section">
+                        <h4 class="text-sm font-semibold text-gray-700 mb-2">Origin</h4>
+                        <div class="space-y-2 text-sm">
+                            <div>
+                                <span class="text-gray-600">Source:</span>
+                                <span class="ml-2 font-medium">${sourceSystem}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">File:</span>
+                                <span class="ml-2 font-medium">${sourceFile}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Created:</span>
+                                <span class="ml-2 font-medium">${formatTimestamp(importDate)}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Record ID:</span>
+                                <span class="ml-2 font-mono text-xs">${recordId}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${importMetadata.jurisdiction || importMetadata.frame ? `
+                        <div class="provenance-section">
+                            <h4 class="text-sm font-semibold text-gray-700 mb-2">Context</h4>
+                            <div class="space-y-2 text-sm">
+                                ${importMetadata.jurisdiction ? `
+                                    <div>
+                                        <span class="text-gray-600">Jurisdiction:</span>
+                                        <span class="ml-2 font-medium">${importMetadata.jurisdiction}</span>
+                                    </div>
+                                ` : ''}
+                                ${importMetadata.frame ? `
+                                    <div>
+                                        <span class="text-gray-600">Frame:</span>
+                                        <span class="ml-2 font-medium">${importMetadata.frame}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <div class="provenance-section">
+                        <h4 class="text-sm font-semibold text-gray-700 mb-2">Field Provenance</h4>
+                        <p class="text-xs text-gray-500 mb-3">Click on any field in the record to view its detailed provenance</p>
+                        ${fieldsWithProvenance.length > 0 ? `
+                            <div class="space-y-2">
+                                ${fieldsWithProvenance.map(field => {
+                                    const value = record[field.id];
+                                    const hasSUP = value && value._sup;
+                                    const eventCount = recordEvents.filter(e => e.data?.fieldId === field.id).length;
+                                    return `
+                                        <div class="flex items-center justify-between text-sm p-2 bg-white rounded border border-gray-200 hover:border-blue-300 cursor-pointer transition" onclick="openCellHistory('${recordId}', '${field.id}')">
+                                            <span class="font-medium">${field.name}</span>
+                                            <div class="flex items-center gap-2">
+                                                ${hasSUP ? '<span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">SUP</span>' : ''}
+                                                ${eventCount > 0 ? `<span class="text-xs text-gray-500">${eventCount} ${eventCount === 1 ? 'event' : 'events'}</span>` : ''}
+                                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        ` : '<p class="text-sm text-gray-500">No field provenance available</p>'}
+                    </div>
+
+                    <div class="provenance-section">
+                        <h4 class="text-sm font-semibold text-gray-700 mb-2">Activity Summary</h4>
+                        <div class="space-y-2 text-sm">
+                            <div>
+                                <span class="text-gray-600">Total Events:</span>
+                                <span class="ml-2 font-medium">${recordEvents.length}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Last Modified:</span>
+                                <span class="ml-2 font-medium">${record.updated_at ? formatTimestamp(record.updated_at) : 'Never'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function formatTimestamp(timestamp) {
+            if (!timestamp || timestamp === 'Unknown') return 'Unknown';
+            try {
+                const date = new Date(timestamp);
+                return date.toLocaleString();
+            } catch (e) {
+                return timestamp;
+            }
         }
 
         function getConnectionBuilder() {
