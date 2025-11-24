@@ -10064,7 +10064,6 @@
             records.forEach((record, index) => {
                 const tr = document.createElement('tr');
                 tr.dataset.recordId = record.id;
-                tr.ondblclick = () => openExpandedRecord(record.id);
 
                 tr.onclick = (event) => {
                     if (event.defaultPrevented) return;
@@ -10074,7 +10073,8 @@
                     );
                     if (interactiveTarget) return;
 
-                    handleRecordSelection(record.id, event.shiftKey, records);
+                    // Click on row background opens record modal (cells handle their own clicks)
+                    openExpandedRecord(record.id);
                 };
 
                 if (view.showRowNumbers) {
@@ -10108,7 +10108,6 @@
                     addColumnResizer(td, field);
                     if (isRecordIdColumn) {
                         td.onclick = (e) => { e.stopPropagation(); openExpandedRecord(record.id); };
-                        td.ondblclick = (e) => { e.stopPropagation(); openExpandedRecord(record.id); };
                     } else if (field.type === 'CHECKBOX') {
                         td.onclick = (e) => {
                             e.stopPropagation();
@@ -10117,18 +10116,10 @@
                             td._lastToggleTime = now;
                             toggleCheckbox(record.id, field.id);
                         };
-                        td.ondblclick = (e) => {
-                            e.stopPropagation();
-                            openExpandedRecord(record.id);
-                        };
                     } else {
                         td.onclick = (e) => {
                             e.stopPropagation();
                             handleCellClick(td, record.id, field);
-                        };
-                        td.ondblclick = (e) => {
-                            e.stopPropagation();
-                            openExpandedRecord(record.id);
                         };
                     }
                     if (!isRecordIdColumn) {
@@ -12392,10 +12383,17 @@
                 };
             }
 
-            // Click-to-connect functionality
+            // Click to open record detail or connect nodes
             graphNetwork.on('click', (params) => {
                 if (params.nodes.length > 0) {
                     const clickedNodeId = params.nodes[0];
+                    const clickedNode = data.nodes.get(clickedNodeId);
+
+                    // If clicking on a Record node and not in connection mode, open record detail
+                    if (clickedNode?.entityType === 'Record' && !graphConnectionState.isConnecting) {
+                        openExpandedRecord(clickedNode.entityId);
+                        return;
+                    }
 
                     if (!graphConnectionState.isConnecting) {
                         // Start connection
