@@ -1,0 +1,336 @@
+/**
+ * EO Linked Fields Modal Styles
+ * Airtable-inspired design for linked field management
+ */
+
+/* Modal Overlay */
+.eo-linked-fields-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 40px;
+}
+
+/* Modal Container */
+.eo-linked-fields-modal {
+    max-width: 880px;
+    width: 100%;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e1e4e8;
+    padding: 20px 22px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.1);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Modal Header */
+.eo-linked-fields-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.eo-linked-fields-modal-header .modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: #1f2937;
+}
+
+.eo-linked-fields-modal-header .modal-subtitle {
+    font-size: 13px;
+    margin-top: 4px;
+    color: #6b7280;
+}
+
+.eo-modal-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #6b7280;
+    padding: 4px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.eo-modal-close:hover {
+    color: #1f2937;
+}
+
+/* Modal Body - Three-panel grid layout */
+.eo-linked-fields-modal-body {
+    display: grid;
+    grid-template-columns: 240px 1fr 260px;
+    gap: 16px;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Panel Styles */
+.eo-linked-fields-panel {
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: #fafafa;
+    padding: 12px;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.eo-linked-fields-panel-wide {
+    min-width: 0; /* Allow flex shrinking */
+}
+
+.panel-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #6b7280;
+    letter-spacing: 0.06em;
+    margin: 0 0 12px 0;
+    font-weight: 600;
+}
+
+/* Linked Sets List (Left Panel) */
+.linked-sets-list {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.linked-set-item {
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 6px;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+}
+
+.linked-set-item:hover {
+    background: #f3f4f6;
+}
+
+.linked-set-item.active {
+    background: #e0f2fe;
+    border: 1px solid #bae6fd;
+}
+
+.linked-set-name {
+    font-weight: 500;
+    font-size: 13px;
+    color: #1f2937;
+    margin-bottom: 2px;
+}
+
+.linked-set-meta {
+    font-size: 11px;
+    color: #6b7280;
+}
+
+/* Fields List (Middle Panel) */
+.fields-list {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.field-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 6px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    transition: background 0.15s ease;
+}
+
+.field-row:hover {
+    background: #eef2ff;
+}
+
+.field-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.field-checkbox {
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.field-name {
+    font-size: 13px;
+    color: #1f2937;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.field-type-badge {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: #9ca3af;
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Aggregation Controls */
+.agg-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.operation-select,
+.aggregation-select {
+    padding: 4px 6px;
+    font-size: 11px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    min-width: 80px;
+}
+
+.operation-select:disabled {
+    background: #f9fafb;
+    cursor: not-allowed;
+    color: #6b7280;
+}
+
+.aggregation-select {
+    min-width: 100px;
+}
+
+/* Selected Fields List (Right Panel) */
+.selected-fields-list {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.summary-item {
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    background: #f3f4f6;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.summary-item-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: #1f2937;
+    margin-bottom: 4px;
+}
+
+.summary-meta {
+    font-size: 11px;
+    color: #6b7280;
+}
+
+/* Modal Footer */
+.eo-linked-fields-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #374151;
+}
+
+.btn:hover {
+    background: #f9fafb;
+}
+
+.btn-primary {
+    background: #3b82f6;
+    color: white;
+    border-color: #2563eb;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-primary:disabled {
+    background: #9ca3af;
+    border-color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.btn-secondary {
+    background: white;
+    color: #374151;
+}
+
+/* Scrollbar Styling */
+.linked-sets-list::-webkit-scrollbar,
+.fields-list::-webkit-scrollbar,
+.selected-fields-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.linked-sets-list::-webkit-scrollbar-track,
+.fields-list::-webkit-scrollbar-track,
+.selected-fields-list::-webkit-scrollbar-track {
+    background: #f9fafb;
+    border-radius: 4px;
+}
+
+.linked-sets-list::-webkit-scrollbar-thumb,
+.fields-list::-webkit-scrollbar-thumb,
+.selected-fields-list::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 4px;
+}
+
+.linked-sets-list::-webkit-scrollbar-thumb:hover,
+.fields-list::-webkit-scrollbar-thumb:hover,
+.selected-fields-list::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .eo-linked-fields-modal-body {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .eo-linked-fields-panel {
+        max-height: 200px;
+    }
+}
