@@ -15,6 +15,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="eo_lean_context.js"></script>
     <script src="eo_provenance_extractor.js"></script>
+    <script src="demo/eo_rollup_engine.js"></script>
+    <script src="demo/eo_linked_fields_modal.js"></script>
+    <link rel="stylesheet" href="demo/eo_linked_fields_modal.css">
     <style>
         :root {
             --primary: #111827;
@@ -5999,6 +6002,9 @@
             const addFieldBtn = document.getElementById('addFieldBtn');
             if (addFieldBtn) addFieldBtn.onclick = openAddFieldModal;
 
+            const addLinkedFieldsBtn = document.getElementById('addLinkedFieldsBtn');
+            if (addLinkedFieldsBtn) addLinkedFieldsBtn.onclick = openLinkedFieldsModal;
+
             const filterBtn = document.getElementById('filterBtn');
             if (filterBtn) filterBtn.onclick = openFilterModal;
 
@@ -6056,6 +6062,10 @@
                         <div class="toolbar-group">
                             <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
                             <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
+                            <button id="addLinkedFieldsBtn" class="btn btn-secondary btn-sm">
+                                <i class="ph ph-link-simple-horizontal"></i>
+                                Add Linked Fields
+                            </button>
                             <button class="btn btn-secondary btn-sm" onclick="openFieldManager()">
                                 <i class="ph ph-gear-six text-sm"></i>
                                 <span class="ml-1">Fields</span>
@@ -6872,11 +6882,44 @@
             const columnOrder = ensureViewColumnOrder(view, schema, view?.showRecordId);
             const visibilitySet = new Set(view?.hiddenFields || []);
 
-            return columnOrder
+            const baseFields = columnOrder
                 .filter(id => id !== '__recordId' || view?.showRecordId)
                 .map(id => id === '__recordId' ? getRecordIdFieldDefinition() : schema.find(f => f.id === id))
                 .filter(Boolean)
                 .filter(field => !visibilitySet.has(field.id));
+
+            // Add linked fields (lookups and rollups) from view
+            const linkedFields = [];
+
+            // Add lookup fields
+            if (view?.relationships && Array.isArray(view.relationships)) {
+                view.relationships.forEach(rel => {
+                    if (rel.type === 'lookup') {
+                        linkedFields.push({
+                            id: rel.id,
+                            name: rel.displayName || `Linked: ${rel.targetFieldId}`,
+                            type: 'LINKED_LOOKUP',
+                            _linkedConfig: rel,
+                            width: '150px'
+                        });
+                    }
+                });
+            }
+
+            // Add rollup fields
+            if (view?.rollups && Array.isArray(view.rollups)) {
+                view.rollups.forEach(rollup => {
+                    linkedFields.push({
+                        id: rollup.id,
+                        name: rollup.displayName || `Rollup: ${rollup.targetFieldId}`,
+                        type: 'LINKED_ROLLUP',
+                        _linkedConfig: rollup,
+                        width: '150px'
+                    });
+                });
+            }
+
+            return [...baseFields, ...linkedFields];
         }
 
         function createView(setId, name, config = {}) {
@@ -10007,6 +10050,50 @@
             updateSelectionUI(rows);
         }
 
+        function evaluateLinkedLookup(lookupConfig, record, state) {
+            const {
+                sourceFieldId,
+                targetSetId,
+                targetFieldId
+            } = lookupConfig;
+
+            // Get linked record ID from source field
+            const linkedRecordId = record[sourceFieldId];
+
+            if (!linkedRecordId) return '';
+
+            // Handle array of IDs (take first one for lookup)
+            const recordId = Array.isArray(linkedRecordId) ? linkedRecordId[0] : linkedRecordId;
+
+            if (!recordId || typeof recordId !== 'string') return '';
+
+            // Get target set
+            const targetSet = state.sets.get(targetSetId);
+            if (!targetSet) return '';
+
+            // Get linked record
+            const linkedRecord = targetSet.records.get(recordId);
+            if (!linkedRecord) return '';
+
+            // Get value from target field
+            const value = linkedRecord[targetFieldId];
+
+            // Format value based on target field type
+            const targetField = targetSet.schema.find(f => f.id === targetFieldId);
+            if (!targetField) return String(value || '');
+
+            // Prevent recursion for linked field types
+            if (targetField.type === 'LINKED_LOOKUP' || targetField.type === 'LINKED_ROLLUP') {
+                return String(value || '');
+            }
+
+            // Use existing renderCellValue logic for proper formatting
+            // Create a temporary element to extract text content
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = renderCellValue(value, targetField, linkedRecord);
+            return tempDiv.textContent || tempDiv.innerText || '';
+        }
+
         function renderCellValue(value, field, record) {
             if (value && typeof value === 'object' && value._sup) {
                 return renderSuperpositionCell(value.value || []);
@@ -10097,6 +10184,22 @@
                 case 'RECORD_ID':
                     const displayName = getRecordDisplayName(record?.id);
                     return `<span class="font-mono text-xs text-gray-700">${displayName}</span>`;
+                case 'LINKED_LOOKUP':
+                    // Render linked lookup field
+                    if (!field._linkedConfig) return '';
+                    const lookupValue = evaluateLinkedLookup(field._linkedConfig, record, state);
+                    if (!lookupValue) return '';
+                    // Display as plain text or link depending on value type
+                    return `<span class="text-gray-700">${lookupValue}</span>`;
+                case 'LINKED_ROLLUP':
+                    // Render linked rollup field
+                    if (!field._linkedConfig) return '';
+                    if (!window.EOCRollupEngine) return '<span class="text-red-600">Rollup engine not loaded</span>';
+                    const rollupValue = window.EOCRollupEngine.evaluate(field._linkedConfig, record, state);
+                    const targetSet = state.sets.get(field._linkedConfig.targetSetId);
+                    const targetField = targetSet?.schema.find(f => f.id === field._linkedConfig.targetFieldId);
+                    const formattedRollup = window.EOCRollupEngine.formatValue(rollupValue, field._linkedConfig.aggregation, targetField);
+                    return `<span class="text-gray-700">${formattedRollup}</span>`;
                 default:
                     return value || '';
             }
@@ -13990,6 +14093,27 @@
             }
 
             openModal('addFieldModal');
+        }
+
+        function openLinkedFieldsModal() {
+            const view = getCurrentView();
+            const set = getCurrentSet();
+
+            if (!view || !set) {
+                showToast('⚠️ No active view or set');
+                return;
+            }
+
+            // Check if EOLinkedFieldsModal is loaded
+            if (!window.EOLinkedFieldsModal) {
+                showToast('⚠️ Linked Fields Modal not loaded');
+                console.error('EOLinkedFieldsModal class not found. Check if demo/eo_linked_fields_modal.js is loaded.');
+                return;
+            }
+
+            // Create and show modal
+            const modal = new window.EOLinkedFieldsModal();
+            modal.show(view, set, state);
         }
 
         function renderFieldTypeGrid(selectedType) {
