@@ -1674,7 +1674,113 @@
         .popup-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: #f3f4f6; color: #475569; font-weight: 600; font-size: 12px; }
         .popup-template-buttons { display: flex; flex-direction: column; gap: 8px; }
         @media (max-width: 1100px) { .popup-config-body { grid-template-columns: 1fr; } .popup-side { order: -1; flex-direction: row; overflow-x: auto; } .popup-side .popup-card { min-width: 240px; } }
-        
+
+        /* FIELD MANAGER */
+        .field-manager-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #fff;
+            transition: all 0.2s ease;
+            cursor: move;
+        }
+        .field-manager-item:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        .field-manager-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .field-manager-item.drag-over {
+            border-color: #1d4ed8;
+            background: #eff6ff;
+        }
+        .field-drag-handle {
+            cursor: grab;
+            color: #94a3b8;
+            font-size: 18px;
+            padding: 4px;
+        }
+        .field-drag-handle:active {
+            cursor: grabbing;
+        }
+        .field-manager-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: #475569;
+            flex-shrink: 0;
+        }
+        .field-manager-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .field-manager-name {
+            font-weight: 600;
+            color: #0f172a;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+        .field-manager-name input {
+            font-weight: 600;
+            color: #0f172a;
+            font-size: 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 2px 6px;
+            width: 100%;
+        }
+        .field-manager-type-label {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 500;
+        }
+        .field-manager-type-select {
+            font-size: 12px;
+            padding: 2px 4px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            background: #fff;
+            color: #475569;
+        }
+        .field-manager-actions {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .field-manager-action-btn {
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 14px;
+            color: #64748b;
+        }
+        .field-manager-action-btn:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+        .field-manager-action-btn.danger:hover {
+            background: #fee2e2;
+            border-color: #fca5a5;
+            color: #dc2626;
+        }
+
         /* BUTTONS */
         .btn {
             padding: 8px 16px;
@@ -3814,6 +3920,62 @@
         </div>
     </div>
 
+    <!-- Field Manager Modal -->
+    <div id="fieldManagerModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Field Manager</h2>
+                    <p class="text-sm text-gray-500 mt-1">Manage schema fields: add, remove, rename, reorder, and change types</p>
+                </div>
+                <button id="closeFieldManagerBtn" class="text-gray-400 hover:text-gray-600 transition p-2 rounded-lg hover:bg-gray-50">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-body">
+                <!-- Field List -->
+                <div class="space-y-2 mb-4" id="fieldManagerList"></div>
+
+                <!-- Add Field Section -->
+                <div class="border-t border-gray-200 pt-4 mt-4">
+                    <button id="addFieldTriggerBtn" class="btn btn-primary w-full flex items-center justify-center gap-2">
+                        <i class="ph ph-plus-circle"></i>
+                        Add New Field
+                    </button>
+
+                    <!-- Add Field Form (initially hidden) -->
+                    <div id="addFieldForm" class="hidden mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+                        <div>
+                            <label class="form-label">Field Name</label>
+                            <input type="text" id="fieldManagerNewName" class="w-full" placeholder="e.g., Email Address">
+                        </div>
+                        <div>
+                            <label class="form-label">Field Type</label>
+                            <select id="fieldManagerNewType" class="w-full"></select>
+                        </div>
+                        <!-- Type-specific config containers -->
+                        <div id="fieldManagerTypeConfig"></div>
+
+                        <div class="flex gap-2">
+                            <button id="saveNewFieldBtn" class="btn btn-primary flex-1">
+                                <i class="ph ph-check"></i>
+                                Save Field
+                            </button>
+                            <button id="cancelNewFieldBtn" class="btn btn-secondary flex-1">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer flex justify-end items-center gap-3">
+                <button id="closeFieldManagerFooterBtn" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
     <div id="historyPanel" class="side-panel">
         <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 flex-shrink-0">
             <div class="flex items-center justify-between mb-4">
@@ -5739,7 +5901,7 @@
                         <div class="toolbar-group">
                             <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
                             <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
-                            <button class="btn btn-secondary btn-sm" onclick="openColumnRulesModal()">
+                            <button class="btn btn-secondary btn-sm" onclick="openFieldManager()">
                                 <i class="ph ph-gear-six text-sm"></i>
                                 <span class="ml-1">Fields</span>
                             </button>
@@ -9874,6 +10036,464 @@
             }
             closeModal('columnRulesModal');
             renderCurrentView();
+        }
+
+        // FIELD MANAGER
+        let fieldManagerDragState = {
+            draggingFieldId: null,
+            dropTargetFieldId: null,
+            dropPosition: null
+        };
+
+        function openFieldManager() {
+            const set = getCurrentSet();
+            if (!set) {
+                showToast('⚠ No set selected');
+                return;
+            }
+
+            // Render the field list
+            renderFieldManagerList();
+
+            // Setup event listeners
+            setupFieldManagerEvents();
+
+            // Open the modal
+            openModal('fieldManagerModal');
+        }
+
+        function renderFieldManagerList() {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            const listContainer = document.getElementById('fieldManagerList');
+            listContainer.innerHTML = '';
+
+            set.schema.forEach((field, index) => {
+                const fieldItem = createFieldManagerItem(field, index);
+                listContainer.appendChild(fieldItem);
+            });
+        }
+
+        function createFieldManagerItem(field, index) {
+            const fieldType = FIELD_TYPES[field.type] || { name: field.type, icon: 'ph-question' };
+
+            const div = document.createElement('div');
+            div.className = 'field-manager-item';
+            div.dataset.fieldId = field.id;
+            div.draggable = true;
+
+            div.innerHTML = `
+                <i class="ph ph-dots-six-vertical field-drag-handle"></i>
+                <div class="field-manager-icon">
+                    <i class="ph ${fieldType.icon}"></i>
+                </div>
+                <div class="field-manager-info">
+                    <div class="field-manager-name" data-field-id="${field.id}">
+                        <span class="field-name-display">${field.name}</span>
+                    </div>
+                    <div class="field-manager-type-label">${fieldType.name}</div>
+                </div>
+                <div class="field-manager-actions">
+                    <button class="field-manager-action-btn" title="Rename field" onclick="enableFieldRename('${field.id}')">
+                        <i class="ph ph-pencil-simple"></i>
+                    </button>
+                    <button class="field-manager-action-btn" title="Change field type" onclick="openFieldTypeChanger('${field.id}')">
+                        <i class="ph ph-swap"></i>
+                    </button>
+                    <button class="field-manager-action-btn danger" title="Delete field" onclick="confirmDeleteFieldFromManager('${field.id}')">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </div>
+            `;
+
+            // Setup drag and drop
+            setupFieldDragAndDrop(div, field.id);
+
+            return div;
+        }
+
+        function setupFieldDragAndDrop(element, fieldId) {
+            element.addEventListener('dragstart', (e) => {
+                fieldManagerDragState.draggingFieldId = fieldId;
+                element.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', fieldId);
+            });
+
+            element.addEventListener('dragend', (e) => {
+                element.classList.remove('dragging');
+                clearFieldDragIndicators();
+                fieldManagerDragState.draggingFieldId = null;
+                fieldManagerDragState.dropTargetFieldId = null;
+                fieldManagerDragState.dropPosition = null;
+            });
+
+            element.addEventListener('dragover', (e) => {
+                if (!fieldManagerDragState.draggingFieldId || fieldManagerDragState.draggingFieldId === fieldId) {
+                    return;
+                }
+                e.preventDefault();
+
+                const rect = element.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                const position = e.clientY < midpoint ? 'before' : 'after';
+
+                clearFieldDragIndicators();
+                element.classList.add('drag-over');
+                fieldManagerDragState.dropTargetFieldId = fieldId;
+                fieldManagerDragState.dropPosition = position;
+            });
+
+            element.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (!fieldManagerDragState.draggingFieldId || !fieldManagerDragState.dropTargetFieldId) {
+                    return;
+                }
+
+                reorderFieldInSchema(
+                    fieldManagerDragState.draggingFieldId,
+                    fieldManagerDragState.dropTargetFieldId,
+                    fieldManagerDragState.dropPosition
+                );
+
+                clearFieldDragIndicators();
+                renderFieldManagerList();
+            });
+        }
+
+        function clearFieldDragIndicators() {
+            document.querySelectorAll('.field-manager-item').forEach(item => {
+                item.classList.remove('drag-over');
+            });
+        }
+
+        function reorderFieldInSchema(draggedFieldId, targetFieldId, position) {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            const schema = set.schema;
+            const fromIndex = schema.findIndex(f => f.id === draggedFieldId);
+            let toIndex = schema.findIndex(f => f.id === targetFieldId);
+
+            if (fromIndex === -1 || toIndex === -1) return;
+
+            // Remove from old position
+            const [movedField] = schema.splice(fromIndex, 1);
+
+            // Adjust toIndex if we removed an item before it
+            if (fromIndex < toIndex) {
+                toIndex -= 1;
+            }
+
+            // Insert at new position
+            const insertIndex = position === 'after' ? toIndex + 1 : toIndex;
+            schema.splice(insertIndex, 0, movedField);
+
+            // Update view column order if exists
+            const view = getCurrentView();
+            if (view) {
+                ensureViewColumnOrder(view, schema, view.showRecordId);
+            }
+
+            createEvent(
+                'Reorder Fields',
+                'SEG',
+                { type: 'Set', id: set.id },
+                { setId: set.id, fieldId: draggedFieldId, summary: `Reordered field ${movedField.name}` },
+                { frame: 'schema', scale: 'collection' }
+            );
+
+            renderCurrentView();
+            showToast('✓ Field reordered');
+        }
+
+        function enableFieldRename(fieldId) {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            const field = set.schema.find(f => f.id === fieldId);
+            if (!field) return;
+
+            const nameDisplay = document.querySelector(`.field-manager-name[data-field-id="${fieldId}"] .field-name-display`);
+            if (!nameDisplay) return;
+
+            const currentName = field.name;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentName;
+            input.className = 'w-full';
+
+            const parent = nameDisplay.parentElement;
+            parent.replaceChild(input, nameDisplay);
+            input.focus();
+            input.select();
+
+            const saveRename = () => {
+                const newName = input.value.trim();
+                if (newName && newName !== currentName) {
+                    field.name = newName;
+                    createEvent(
+                        'Rename Field',
+                        'SEG',
+                        { type: 'Field', id: fieldId, setId: set.id },
+                        { setId: set.id, fieldId, oldName: currentName, newName, summary: `Renamed field from "${currentName}" to "${newName}"` },
+                        { frame: 'schema', scale: 'collection' }
+                    );
+                    renderCurrentView();
+                    showToast(`✓ Field renamed to "${newName}"`);
+                }
+                renderFieldManagerList();
+            };
+
+            input.addEventListener('blur', saveRename);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveRename();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    renderFieldManagerList();
+                }
+            });
+        }
+
+        function openFieldTypeChanger(fieldId) {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            const field = set.schema.find(f => f.id === fieldId);
+            if (!field) return;
+
+            // Close field manager and open the existing change field type modal
+            closeModal('fieldManagerModal');
+            openChangeFieldTypeModal(field);
+        }
+
+        function confirmDeleteFieldFromManager(fieldId) {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            const field = set.schema.find(f => f.id === fieldId);
+            if (!field) return;
+
+            showConfirm(
+                `Are you sure you want to delete the field "${field.name}"? This will remove all data in this field from all records.`,
+                () => {
+                    deleteField(fieldId);
+                    renderFieldManagerList();
+                },
+                () => {}
+            );
+        }
+
+        function setupFieldManagerEvents() {
+            // Close button
+            const closeBtn = document.getElementById('closeFieldManagerBtn');
+            const closeFooterBtn = document.getElementById('closeFieldManagerFooterBtn');
+
+            if (closeBtn) {
+                closeBtn.onclick = () => closeModal('fieldManagerModal');
+            }
+            if (closeFooterBtn) {
+                closeFooterBtn.onclick = () => closeModal('fieldManagerModal');
+            }
+
+            // Add field trigger button
+            const addFieldTrigger = document.getElementById('addFieldTriggerBtn');
+            if (addFieldTrigger) {
+                addFieldTrigger.onclick = showFieldManagerAddForm;
+            }
+
+            // Cancel add field button
+            const cancelNewField = document.getElementById('cancelNewFieldBtn');
+            if (cancelNewField) {
+                cancelNewField.onclick = hideFieldManagerAddForm;
+            }
+
+            // Save new field button
+            const saveNewField = document.getElementById('saveNewFieldBtn');
+            if (saveNewField) {
+                saveNewField.onclick = saveFieldFromManager;
+            }
+
+            // Populate field type selector
+            const typeSelect = document.getElementById('fieldManagerNewType');
+            if (typeSelect) {
+                typeSelect.innerHTML = '';
+                Object.values(FIELD_TYPES)
+                    .filter(ft => ft.id && ft.id !== 'RECORD_ID')
+                    .forEach(ft => {
+                        const option = document.createElement('option');
+                        option.value = ft.id;
+                        option.textContent = `${ft.name}${ft.description ? ' — ' + ft.description : ''}`;
+                        typeSelect.appendChild(option);
+                    });
+
+                // Listen for type changes to show/hide config options
+                typeSelect.addEventListener('change', updateFieldManagerTypeConfig);
+            }
+        }
+
+        function showFieldManagerAddForm() {
+            const form = document.getElementById('addFieldForm');
+            const trigger = document.getElementById('addFieldTriggerBtn');
+
+            if (form && trigger) {
+                form.classList.remove('hidden');
+                trigger.classList.add('hidden');
+
+                // Clear form
+                document.getElementById('fieldManagerNewName').value = '';
+                document.getElementById('fieldManagerNewType').selectedIndex = 0;
+                updateFieldManagerTypeConfig();
+
+                // Focus name input
+                document.getElementById('fieldManagerNewName').focus();
+            }
+        }
+
+        function hideFieldManagerAddForm() {
+            const form = document.getElementById('addFieldForm');
+            const trigger = document.getElementById('addFieldTriggerBtn');
+
+            if (form && trigger) {
+                form.classList.add('hidden');
+                trigger.classList.remove('hidden');
+            }
+        }
+
+        function updateFieldManagerTypeConfig() {
+            const typeSelect = document.getElementById('fieldManagerNewType');
+            const configContainer = document.getElementById('fieldManagerTypeConfig');
+
+            if (!typeSelect || !configContainer) return;
+
+            const selectedType = typeSelect.value;
+            configContainer.innerHTML = '';
+
+            // Add type-specific config UI
+            if (selectedType === 'SINGLE_SELECT') {
+                configContainer.innerHTML = `
+                    <div>
+                        <label class="form-label">Options (one per line)</label>
+                        <textarea id="fieldManagerSelectOptions" class="w-full" rows="4" placeholder="Option 1&#10;Option 2&#10;Option 3">Option 1</textarea>
+                    </div>
+                `;
+            } else if (selectedType === 'LINK_RECORD') {
+                const sets = Array.from(state.sets.values());
+                const options = sets.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                configContainer.innerHTML = `
+                    <div>
+                        <label class="form-label">Link to Set</label>
+                        <select id="fieldManagerLinkToSet" class="w-full">${options}</select>
+                    </div>
+                `;
+            } else if (selectedType === 'FORMULA') {
+                configContainer.innerHTML = `
+                    <div>
+                        <label class="form-label">Formula</label>
+                        <input type="text" id="fieldManagerFormula" class="w-full" placeholder="e.g., price * quantity">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="form-label">Format</label>
+                            <select id="fieldManagerFormulaFormat" class="w-full">
+                                <option value="number">Number</option>
+                                <option value="currency">Currency</option>
+                                <option value="date">Date</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Decimals</label>
+                            <input type="number" id="fieldManagerFormulaDecimals" class="w-full" value="2" min="0" max="10">
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function saveFieldFromManager() {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            const name = document.getElementById('fieldManagerNewName').value.trim();
+            if (!name) {
+                showToast('⚠ Field name is required');
+                return;
+            }
+
+            const fieldId = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+            // Check for duplicates
+            if (set.schema.find(f => f.id === fieldId)) {
+                showToast('⚠ A field with this name already exists');
+                return;
+            }
+
+            const type = document.getElementById('fieldManagerNewType').value;
+            const newField = {
+                id: fieldId,
+                name: name,
+                type: type,
+                width: '150',
+                config: null
+            };
+
+            // Get type-specific config
+            if (type === 'SINGLE_SELECT') {
+                const optionsText = document.getElementById('fieldManagerSelectOptions')?.value || 'Option 1';
+                const options = optionsText.split('\n').map(o => o.trim()).filter(Boolean);
+                const colors = ['blue', 'green', 'red', 'yellow', 'purple', 'pink', 'gray'];
+                newField.config = {
+                    options: options,
+                    colors: Object.fromEntries(options.map((opt, i) => [opt, colors[i % colors.length]]))
+                };
+            } else if (type === 'LINK_RECORD') {
+                const linkedSetId = document.getElementById('fieldManagerLinkToSet')?.value;
+                if (!linkedSetId) {
+                    showToast('⚠ Please select a set to link to');
+                    return;
+                }
+                newField.config = { linkedSetId };
+            } else if (type === 'FORMULA') {
+                const formula = document.getElementById('fieldManagerFormula')?.value.trim();
+                if (!formula) {
+                    showToast('⚠ Please enter a formula');
+                    return;
+                }
+                newField.config = {
+                    formula: formula,
+                    format: document.getElementById('fieldManagerFormulaFormat')?.value || 'number',
+                    decimals: parseInt(document.getElementById('fieldManagerFormulaDecimals')?.value || '2')
+                };
+            }
+
+            // Add field to schema
+            set.schema.push(newField);
+
+            // Initialize field values in all records
+            const defaultValue = FIELD_TYPES[type]?.defaultValue ?? '';
+            set.records.forEach(record => {
+                record[fieldId] = defaultValue;
+            });
+
+            // Create event
+            createEvent(
+                'Add Field',
+                'ADD',
+                { type: 'Field', id: fieldId, setId: set.id },
+                { setId: set.id, fieldId, fieldName: name, fieldType: type, summary: `Added field ${name} (${FIELD_TYPES[type]?.name})` },
+                { frame: 'schema', scale: 'collection' }
+            );
+
+            // Re-render
+            renderCurrentView();
+            showToast(`✓ Field "${name}" added`);
+
+            // Update field manager
+            hideFieldManagerAddForm();
+            renderFieldManagerList();
         }
 
         function renderSuperpositionCell(entries) {
