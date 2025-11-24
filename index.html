@@ -4047,10 +4047,60 @@
                         </div>
                         <div>
                             <label class="form-label">Field Type</label>
-                            <select id="fieldManagerNewType" class="w-full"></select>
+                            <div class="field-type-select">
+                                <button type="button" id="fieldManagerTypeTrigger" class="field-type-trigger">
+                                    <div class="field-type-trigger-content">
+                                        <span class="field-type-trigger-icon" aria-hidden="true"></span>
+                                        <div class="field-type-trigger-text">
+                                            <div class="field-type-name" id="fieldManagerSelectedTypeName"></div>
+                                            <div class="field-type-description" id="fieldManagerSelectedTypeDescription"></div>
+                                        </div>
+                                    </div>
+                                    <span class="field-type-trigger-arrow" aria-hidden="true">▼</span>
+                                </button>
+                                <div id="fieldManagerTypeDropdown" class="field-type-dropdown hidden"></div>
+                            </div>
+                            <input type="hidden" id="fieldManagerNewType" value="TEXT">
                         </div>
                         <!-- Type-specific config containers -->
-                        <div id="fieldManagerTypeConfig"></div>
+                        <div id="fieldManagerSingleSelectConfig" class="config-section">
+                            <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                                <label class="form-label">Options</label>
+                                <div id="fieldManagerSelectOptionsList" class="space-y-2 mb-3"></div>
+                                <button onclick="addFieldManagerSelectOption()" type="button" class="btn btn-secondary btn-sm">+ Add Option</button>
+                            </div>
+                        </div>
+                        <div id="fieldManagerLinkToRecordConfig" class="config-section">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <label class="form-label">Link to Set</label>
+                                <select id="fieldManagerLinkToSet"></select>
+                                <p class="form-hint">Select which set to link to</p>
+                            </div>
+                        </div>
+                        <div id="fieldManagerFormulaConfig" class="config-section">
+                            <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                                <label class="form-label">Formula</label>
+                                <div class="relative">
+                                    <textarea id="fieldManagerFormulaInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm" rows="4" placeholder="e.g., {Price} * {Quantity}"></textarea>
+                                    <div id="fieldManagerFormulaAutocomplete" class="absolute z-10 hidden bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto" style="width: calc(100% - 2rem);"></div>
+                                </div>
+                                <p class="form-hint mt-2">Use {Field Name} to reference other fields. Available functions: SUM, AVG, MIN, MAX, IF, CONCAT, ROUND, etc.</p>
+                                <div id="fieldManagerFormulaValidation" class="mt-2 text-sm"></div>
+                                <div class="mt-3">
+                                    <label class="form-label">Display Format</label>
+                                    <select id="fieldManagerFormulaFormat" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                        <option value="number">Number</option>
+                                        <option value="currency">Currency</option>
+                                        <option value="percentage">Percentage</option>
+                                        <option value="text">Text</option>
+                                    </select>
+                                </div>
+                                <div class="mt-3">
+                                    <label class="form-label">Decimal Places</label>
+                                    <input type="number" id="fieldManagerFormulaDecimals" class="w-full px-3 py-2 border border-gray-300 rounded-lg" min="0" max="10" value="2">
+                                </div>
+                            </div>
+                        </div>
 
                         <div class="flex gap-2">
                             <button id="saveNewFieldBtn" class="btn btn-primary flex-1">
@@ -10845,21 +10895,13 @@
                 saveNewField.onclick = saveFieldFromManager;
             }
 
-            // Populate field type selector
-            const typeSelect = document.getElementById('fieldManagerNewType');
-            if (typeSelect) {
-                typeSelect.innerHTML = '';
-                Object.values(FIELD_TYPES)
-                    .filter(ft => ft.id && ft.id !== 'RECORD_ID')
-                    .forEach(ft => {
-                        const option = document.createElement('option');
-                        option.value = ft.id;
-                        option.textContent = `${ft.name}${ft.description ? ' — ' + ft.description : ''}`;
-                        typeSelect.appendChild(option);
-                    });
-
-                // Listen for type changes to show/hide config options
-                typeSelect.addEventListener('change', updateFieldManagerTypeConfig);
+            // Set up field type trigger
+            const fieldManagerTypeTrigger = document.getElementById('fieldManagerTypeTrigger');
+            if (fieldManagerTypeTrigger) {
+                fieldManagerTypeTrigger.onclick = (event) => {
+                    event.preventDefault();
+                    toggleFieldManagerTypeDropdown();
+                };
             }
         }
 
@@ -10871,13 +10913,39 @@
                 form.classList.remove('hidden');
                 trigger.classList.add('hidden');
 
+                // Initialize select options state
+                state.fieldManagerSelectOptions = [{ value: 'Option 1', color: 'blue' }];
+
                 // Clear form
-                document.getElementById('fieldManagerNewName').value = '';
-                document.getElementById('fieldManagerNewType').selectedIndex = 0;
-                updateFieldManagerTypeConfig();
+                const nameInput = document.getElementById('fieldManagerNewName');
+                if (nameInput) nameInput.value = '';
+
+                // Set default field type to TEXT
+                document.getElementById('fieldManagerNewType').value = 'TEXT';
+                renderFieldManagerTypeGrid('TEXT');
+                closeFieldManagerTypeDropdown();
+                updateFieldManagerConfig('TEXT');
+
+                // Populate link to set dropdown
+                const linkSelect = document.getElementById('fieldManagerLinkToSet');
+                if (linkSelect) {
+                    linkSelect.innerHTML = '';
+                    getSetsForWorld(state.currentWorldId).forEach(set => {
+                        const label = set.id === state.currentSetId ? `${set.name} (this set)` : set.name;
+                        linkSelect.innerHTML += `<option value="${set.id}">${label}</option>`;
+                    });
+                    if (linkSelect.options.length === 0) {
+                        linkSelect.innerHTML = '<option value="">No sets available</option>';
+                        linkSelect.disabled = true;
+                    } else {
+                        linkSelect.disabled = false;
+                        const defaultValue = state.sets.has(state.currentSetId) ? state.currentSetId : linkSelect.options[0].value;
+                        linkSelect.value = defaultValue;
+                    }
+                }
 
                 // Focus name input
-                document.getElementById('fieldManagerNewName').focus();
+                if (nameInput) nameInput.focus();
             }
         }
 
@@ -10891,77 +10959,141 @@
             }
         }
 
-        function updateFieldManagerTypeConfig() {
-            const typeSelect = document.getElementById('fieldManagerNewType');
-            const configContainer = document.getElementById('fieldManagerTypeConfig');
+        function updateFieldManagerConfig(typeId) {
+            document.getElementById('fieldManagerSingleSelectConfig').classList.remove('visible');
+            document.getElementById('fieldManagerLinkToRecordConfig').classList.remove('visible');
+            document.getElementById('fieldManagerFormulaConfig').classList.remove('visible');
 
-            if (!typeSelect || !configContainer) return;
+            if (typeId === 'SINGLE_SELECT') {
+                document.getElementById('fieldManagerSingleSelectConfig').classList.add('visible');
+                renderFieldManagerSelectOptions();
+            } else if (typeId === 'LINK_RECORD') {
+                document.getElementById('fieldManagerLinkToRecordConfig').classList.add('visible');
+            } else if (typeId === 'FORMULA') {
+                document.getElementById('fieldManagerFormulaConfig').classList.add('visible');
+                initFieldManagerFormulaAutocomplete();
+            }
+        }
 
-            const selectedType = typeSelect.value;
-            configContainer.innerHTML = '';
+        function renderFieldManagerTypeGrid(selectedType) {
+            const trigger = document.getElementById('fieldManagerTypeTrigger');
+            const dropdown = document.getElementById('fieldManagerTypeDropdown');
+            const selectedName = document.getElementById('fieldManagerSelectedTypeName');
+            const selectedDescription = document.getElementById('fieldManagerSelectedTypeDescription');
 
-            // Add subtype selector if type has subtypes
-            const fieldType = FIELD_TYPES[selectedType];
-            if (fieldType?.subtypes) {
-                const subtypeOptions = Object.values(fieldType.subtypes)
-                    .map(st => `<option value="${st.id}">${st.name}</option>`)
-                    .join('');
-                configContainer.innerHTML += `
-                    <div class="mb-4">
-                        <label class="form-label">Field Subtype</label>
-                        <select id="fieldManagerNewSubtype" class="w-full">${subtypeOptions}</select>
+            if (!trigger || !dropdown) return;
+
+            const fieldType = FIELD_TYPES[selectedType] || Object.values(FIELD_TYPES)[0];
+            const iconTarget = trigger.querySelector('.field-type-trigger-icon');
+            if (iconTarget) iconTarget.innerHTML = renderIcon(fieldType.icon);
+            if (selectedName) selectedName.textContent = fieldType.name;
+            if (selectedDescription) selectedDescription.textContent = fieldType.description || fieldType.id.replace(/_/g, ' ');
+
+            dropdown.innerHTML = '';
+            Object.values(FIELD_TYPES).forEach(optionType => {
+                const option = document.createElement('div');
+                option.className = `field-type-option ${optionType.id === selectedType ? 'selected' : ''}`;
+                option.dataset.typeId = optionType.id;
+                option.innerHTML = `
+                    <div class="field-type-icon">${renderIcon(optionType.icon)}</div>
+                    <div class="field-type-info">
+                        <div class="field-type-name">${optionType.name}</div>
+                        <div class="field-type-description">${optionType.description || optionType.id.replace(/_/g, ' ')}</div>
                     </div>
+                    <span class="field-type-check">${optionType.id === selectedType ? '✓' : ''}</span>
                 `;
+                option.onclick = () => selectFieldManagerType(optionType.id);
+                dropdown.appendChild(option);
+            });
+        }
+
+        function selectFieldManagerType(typeId) {
+            document.getElementById('fieldManagerNewType').value = typeId;
+            renderFieldManagerTypeGrid(typeId);
+            updateFieldManagerConfig(typeId);
+            closeFieldManagerTypeDropdown();
+        }
+
+        function toggleFieldManagerTypeDropdown() {
+            if (state.fieldManagerTypeDropdownOpen) {
+                closeFieldManagerTypeDropdown();
+            } else {
+                openFieldManagerTypeDropdown();
+            }
+        }
+
+        function openFieldManagerTypeDropdown() {
+            const dropdown = document.getElementById('fieldManagerTypeDropdown');
+            const trigger = document.getElementById('fieldManagerTypeTrigger');
+            if (!dropdown || !trigger) return;
+            dropdown.classList.remove('hidden');
+            trigger.classList.add('active');
+            state.fieldManagerTypeDropdownOpen = true;
+        }
+
+        function closeFieldManagerTypeDropdown() {
+            const dropdown = document.getElementById('fieldManagerTypeDropdown');
+            const trigger = document.getElementById('fieldManagerTypeTrigger');
+            if (!dropdown || !trigger) return;
+            dropdown.classList.add('hidden');
+            trigger.classList.remove('active');
+            state.fieldManagerTypeDropdownOpen = false;
+        }
+
+        function renderFieldManagerSelectOptions() {
+            const list = document.getElementById('fieldManagerSelectOptionsList');
+            if (!list) return;
+
+            list.innerHTML = '';
+            if (!state.fieldManagerSelectOptions) {
+                state.fieldManagerSelectOptions = [{ value: 'Option 1', color: 'blue' }];
             }
 
-            // Add type-specific config UI
-            if (selectedType === 'SINGLE_SELECT') {
-                configContainer.innerHTML += `
-                    <div>
-                        <label class="form-label">Options (one per line)</label>
-                        <textarea id="fieldManagerSelectOptions" class="w-full" rows="4" placeholder="Option 1&#10;Option 2&#10;Option 3">Option 1</textarea>
-                    </div>
+            state.fieldManagerSelectOptions.forEach((option, index) => {
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'flex items-center gap-2';
+                optionDiv.innerHTML = `
+                    <input type="text" value="${option.value}" onchange="state.fieldManagerSelectOptions[${index}].value = this.value" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg">
+                    <select onchange="state.fieldManagerSelectOptions[${index}].color = this.value" class="px-2 py-2 border border-gray-300 rounded-lg">
+                        <option value="blue" ${option.color === 'blue' ? 'selected' : ''}>🔵 Blue</option>
+                        <option value="green" ${option.color === 'green' ? 'selected' : ''}>🟢 Green</option>
+                        <option value="red" ${option.color === 'red' ? 'selected' : ''}>🔴 Red</option>
+                        <option value="yellow" ${option.color === 'yellow' ? 'selected' : ''}>🟡 Yellow</option>
+                        <option value="purple" ${option.color === 'purple' ? 'selected' : ''}>🟣 Purple</option>
+                        <option value="gray" ${option.color === 'gray' ? 'selected' : ''}>⚫ Gray</option>
+                    </select>
+                    <button onclick="removeFieldManagerSelectOption(${index})" class="text-red-500 hover:text-red-700 p-2" ${state.fieldManagerSelectOptions.length === 1 ? 'disabled' : ''}>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
                 `;
-            } else if (selectedType === 'LINK_RECORD') {
-                const sets = Array.from(state.sets.values());
-                const options = sets.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-                configContainer.innerHTML += `
-                    <div>
-                        <label class="form-label">Link to Set</label>
-                        <select id="fieldManagerLinkToSet" class="w-full">${options}</select>
-                    </div>
-                `;
-            } else if (selectedType === 'LOOKUP') {
-                const sets = Array.from(state.sets.values());
-                const options = sets.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-                configContainer.innerHTML += `
-                    <div>
-                        <label class="form-label">Lookup from Set</label>
-                        <select id="fieldManagerLookupFromSet" class="w-full">${options}</select>
-                    </div>
-                `;
-            } else if (selectedType === 'FORMULA') {
-                configContainer.innerHTML += `
-                    <div>
-                        <label class="form-label">Formula</label>
-                        <input type="text" id="fieldManagerFormula" class="w-full" placeholder="e.g., price * quantity">
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="form-label">Format</label>
-                            <select id="fieldManagerFormulaFormat" class="w-full">
-                                <option value="number">Number</option>
-                                <option value="currency">Currency</option>
-                                <option value="date">Date</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="form-label">Decimals</label>
-                            <input type="number" id="fieldManagerFormulaDecimals" class="w-full" value="2" min="0" max="10">
-                        </div>
-                    </div>
-                `;
+                list.appendChild(optionDiv);
+            });
+        }
+
+        function addFieldManagerSelectOption() {
+            if (!state.fieldManagerSelectOptions) {
+                state.fieldManagerSelectOptions = [];
             }
+            state.fieldManagerSelectOptions.push({ value: `Option ${state.fieldManagerSelectOptions.length + 1}`, color: 'blue' });
+            renderFieldManagerSelectOptions();
+        }
+
+        function removeFieldManagerSelectOption(index) {
+            if (state.fieldManagerSelectOptions && state.fieldManagerSelectOptions.length > 1) {
+                state.fieldManagerSelectOptions.splice(index, 1);
+                renderFieldManagerSelectOptions();
+            }
+        }
+
+        function initFieldManagerFormulaAutocomplete() {
+            const formulaInput = document.getElementById('fieldManagerFormulaInput');
+            if (!formulaInput) return;
+
+            // For now, just add a placeholder. Full autocomplete implementation would be more complex
+            // and should match the main formula autocomplete functionality
+            formulaInput.placeholder = 'e.g., {Price} * {Quantity}';
         }
 
         function saveFieldFromManager() {
@@ -10996,13 +11128,13 @@
 
             // Get type-specific config
             if (type === 'SINGLE_SELECT') {
-                const optionsText = document.getElementById('fieldManagerSelectOptions')?.value || 'Option 1';
-                const options = optionsText.split('\n').map(o => o.trim()).filter(Boolean);
-                const colors = ['blue', 'green', 'red', 'yellow', 'purple', 'pink', 'gray'];
-                newField.config = {
-                    options: options,
-                    colors: Object.fromEntries(options.map((opt, i) => [opt, colors[i % colors.length]]))
-                };
+                if (!state.fieldManagerSelectOptions || state.fieldManagerSelectOptions.length === 0) {
+                    showToast('⚠ Please add at least one option');
+                    return;
+                }
+                const options = state.fieldManagerSelectOptions.map(opt => opt.value);
+                const colors = Object.fromEntries(state.fieldManagerSelectOptions.map(opt => [opt.value, opt.color]));
+                newField.config = { options, colors };
             } else if (type === 'LINK_RECORD') {
                 const linkedSetId = document.getElementById('fieldManagerLinkToSet')?.value;
                 if (!linkedSetId) {
@@ -11010,15 +11142,8 @@
                     return;
                 }
                 newField.config = { linkedSetId };
-            } else if (type === 'LOOKUP') {
-                const lookupSetId = document.getElementById('fieldManagerLookupFromSet')?.value;
-                if (!lookupSetId) {
-                    showToast('⚠ Please select a set to lookup from');
-                    return;
-                }
-                newField.config = { lookupSetId };
             } else if (type === 'FORMULA') {
-                const formula = document.getElementById('fieldManagerFormula')?.value.trim();
+                const formula = document.getElementById('fieldManagerFormulaInput')?.value.trim();
                 if (!formula) {
                     showToast('⚠ Please enter a formula');
                     return;
@@ -18795,9 +18920,23 @@
         }
 
         document.addEventListener('click', (event) => {
-            const selector = document.querySelector('.field-type-select');
-            if (!selector) return;
-            if (!selector.contains(event.target)) closeFieldTypeDropdown();
+            // Close Add Field Modal dropdown if clicking outside
+            const addFieldSelector = document.querySelector('#addFieldModal .field-type-select');
+            if (addFieldSelector && !addFieldSelector.contains(event.target)) {
+                closeFieldTypeDropdown();
+            }
+
+            // Close Field Manager dropdown if clicking outside
+            const fieldManagerSelector = document.querySelector('#fieldManagerModal .field-type-select');
+            if (fieldManagerSelector && !fieldManagerSelector.contains(event.target)) {
+                closeFieldManagerTypeDropdown();
+            }
+
+            // Close Change Field Type Modal dropdown if clicking outside
+            const changeFieldSelector = document.querySelector('#changeFieldTypeModal .field-type-select');
+            if (changeFieldSelector && !changeFieldSelector.contains(event.target)) {
+                closeChangeFieldTypeDropdown();
+            }
         });
 
         // Close modals when clicking outside (on overlay)
