@@ -3278,6 +3278,7 @@
                     </div>
                     <input type="hidden" id="changeFieldTypeInput" value="TEXT">
                 </div>
+                <div id="changeFieldSubtypeConfig" class="config-section"></div>
                 <div id="changeSingleSelectConfig" class="config-section">
                     <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
                         <label class="form-label">Options</label>
@@ -4291,18 +4292,90 @@
 
 
         const FIELD_TYPES = {
-            TEXT: { id: 'TEXT', name: 'Single Line Text', description: 'Quick text field for titles and short labels', defaultValue: '', icon: 'ph-text-t' },
-            LONG_TEXT: { id: 'LONG_TEXT', name: 'Long Text', description: 'Multi-line notes, descriptions, or comments', defaultValue: '', icon: 'ph-article' },
-            NUMBER: { id: 'NUMBER', name: 'Number', description: 'Store numeric values with sorting and calculations', defaultValue: 0, icon: 'ph-hash' },
-            CURRENCY: { id: 'CURRENCY', name: 'Currency', description: 'Track prices, budgets, and financial amounts', defaultValue: 0, icon: 'ph-currency-dollar' },
-            DATE: { id: 'DATE', name: 'Date', description: 'Capture due dates, milestones, and schedules', defaultValue: '', icon: 'ph-calendar-blank' },
-            EMAIL: { id: 'EMAIL', name: 'Email', description: 'Contact email addresses with validation', defaultValue: '', icon: 'ph-envelope-simple' },
-            URL: { id: 'URL', name: 'URL', description: 'Links to webpages, docs, or media', defaultValue: '', icon: 'ph-link-simple' },
-            PHONE: { id: 'PHONE', name: 'Phone', description: 'International phone numbers for contacts', defaultValue: '', icon: 'ph-phone' },
-            LINK_RECORD: { id: 'LINK_RECORD', name: 'Link to Record', description: 'Connect records across sets with relationships', defaultValue: '', icon: 'ph-link-simple-horizontal', needsConfig: true },
-            SINGLE_SELECT: { id: 'SINGLE_SELECT', name: 'Single Select', description: 'Choose one option from a defined list', defaultValue: '', icon: 'ph-list-bullets', needsConfig: true },
-            CHECKBOX: { id: 'CHECKBOX', name: 'Checkbox', description: 'Quick yes/no or done/undone tracking', defaultValue: false, icon: 'ph-check-square' },
-            FORMULA: { id: 'FORMULA', name: 'Formula', description: 'Calculate values using spreadsheet-style formulas', defaultValue: '', icon: 'ph-function', needsConfig: true }
+            TEXT: {
+                id: 'TEXT',
+                name: 'Text',
+                description: 'Text fields with formatting options',
+                defaultValue: '',
+                icon: 'ph-text-t',
+                subtypes: {
+                    SHORT: { id: 'SHORT', name: 'Short Text', description: 'Single line text for titles and labels', icon: 'ph-text-t' },
+                    LONG: { id: 'LONG', name: 'Long Text', description: 'Multi-line text for notes and descriptions', icon: 'ph-article' },
+                    RICH: { id: 'RICH', name: 'Rich Text', description: 'Formatted text with markdown and HTML support', icon: 'ph-text-aa' }
+                },
+                defaultSubtype: 'SHORT'
+            },
+            NUMBER: {
+                id: 'NUMBER',
+                name: 'Number',
+                description: 'Numeric values with formatting',
+                defaultValue: 0,
+                icon: 'ph-hash',
+                subtypes: {
+                    NUMBER: { id: 'NUMBER', name: 'Number', description: 'Plain numeric values with sorting and calculations', icon: 'ph-hash' },
+                    CURRENCY: { id: 'CURRENCY', name: 'Currency', description: 'Financial amounts with currency formatting', icon: 'ph-currency-dollar' }
+                },
+                defaultSubtype: 'NUMBER'
+            },
+            DATE: {
+                id: 'DATE',
+                name: 'Date',
+                description: 'Capture due dates, milestones, and schedules',
+                defaultValue: '',
+                icon: 'ph-calendar-blank'
+            },
+            CONTACT: {
+                id: 'CONTACT',
+                name: 'Contact',
+                description: 'Contact information fields',
+                defaultValue: '',
+                icon: 'ph-address-book',
+                subtypes: {
+                    EMAIL: { id: 'EMAIL', name: 'Email', description: 'Email addresses with validation', icon: 'ph-envelope-simple' },
+                    URL: { id: 'URL', name: 'URL', description: 'Links to webpages, docs, or media', icon: 'ph-link-simple' },
+                    PHONE: { id: 'PHONE', name: 'Phone', description: 'Phone numbers for contacts', icon: 'ph-phone' }
+                },
+                defaultSubtype: 'EMAIL'
+            },
+            LINK_RECORD: {
+                id: 'LINK_RECORD',
+                name: 'Link to Record',
+                description: 'Connect records across sets with relationships',
+                defaultValue: '',
+                icon: 'ph-link-simple-horizontal',
+                needsConfig: true
+            },
+            LOOKUP: {
+                id: 'LOOKUP',
+                name: 'Lookup',
+                description: 'Search and reference records from another set',
+                defaultValue: '',
+                icon: 'ph-magnifying-glass',
+                needsConfig: true
+            },
+            SINGLE_SELECT: {
+                id: 'SINGLE_SELECT',
+                name: 'Single Select',
+                description: 'Choose one option from a defined list',
+                defaultValue: '',
+                icon: 'ph-list-bullets',
+                needsConfig: true
+            },
+            CHECKBOX: {
+                id: 'CHECKBOX',
+                name: 'Checkbox',
+                description: 'Quick yes/no or done/undone tracking',
+                defaultValue: false,
+                icon: 'ph-check-square'
+            },
+            FORMULA: {
+                id: 'FORMULA',
+                name: 'Formula',
+                description: 'Calculate values using spreadsheet-style formulas',
+                defaultValue: '',
+                icon: 'ph-function',
+                needsConfig: true
+            }
         };
 
         const VIEW_TYPE_ICONS = { grid: 'ph-table', card: 'ph-cards-three', kanban: 'ph-kanban', graph: 'ph-graph', KEY_DERIVED: 'ph-key' };
@@ -9856,13 +9929,60 @@
             if (value && typeof value === 'object' && value._sup) {
                 return renderSuperpositionCell(value.value || []);
             }
-            switch(field.type) {
-                case 'TEXT': case 'LONG_TEXT': case 'EMAIL': case 'URL': case 'PHONE':
+
+            // Get effective type and subtype (handle legacy fields)
+            let effectiveType = field.type;
+            let effectiveSubtype = field.subtype;
+
+            // Map legacy types to new structure
+            if (field.type === 'LONG_TEXT') {
+                effectiveType = 'TEXT';
+                effectiveSubtype = 'LONG';
+            } else if (field.type === 'EMAIL' || field.type === 'URL' || field.type === 'PHONE') {
+                effectiveType = 'CONTACT';
+                effectiveSubtype = field.type;
+            } else if (field.type === 'CURRENCY') {
+                effectiveType = 'NUMBER';
+                effectiveSubtype = 'CURRENCY';
+            }
+
+            // Handle TEXT with subtypes
+            if (effectiveType === 'TEXT') {
+                const subtype = effectiveSubtype || 'SHORT';
+                if (subtype === 'RICH' && value) {
+                    // Render rich text with markdown/HTML support
+                    return renderRichText(value);
+                } else if (subtype === 'LONG') {
+                    return value ? `<div class="whitespace-pre-wrap">${value}</div>` : '';
+                } else {
                     return value || '';
-                case 'NUMBER':
-                    return value ? Number(value).toLocaleString() : '';
-                case 'CURRENCY':
+                }
+            }
+
+            // Handle NUMBER with subtypes
+            if (effectiveType === 'NUMBER') {
+                const subtype = effectiveSubtype || 'NUMBER';
+                if (subtype === 'CURRENCY') {
                     return value ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value) : '';
+                } else {
+                    return value ? Number(value).toLocaleString() : '';
+                }
+            }
+
+            // Handle CONTACT with subtypes
+            if (effectiveType === 'CONTACT') {
+                const subtype = effectiveSubtype || 'EMAIL';
+                if (subtype === 'EMAIL' && value) {
+                    return `<a href="mailto:${value}" class="text-blue-600 hover:underline" onclick="event.stopPropagation()">${value}</a>`;
+                } else if (subtype === 'URL' && value) {
+                    return `<a href="${value}" target="_blank" class="text-blue-600 hover:underline" onclick="event.stopPropagation()">${value}</a>`;
+                } else if (subtype === 'PHONE' && value) {
+                    return `<a href="tel:${value}" class="text-blue-600 hover:underline" onclick="event.stopPropagation()">${value}</a>`;
+                }
+                return value || '';
+            }
+
+            switch(effectiveType) {
                 case 'DATE':
                     return value ? new Date(value).toLocaleDateString() : '';
                 case 'CHECKBOX':
@@ -9871,6 +9991,10 @@
                     if (!value) return '';
                     const linkedName = getRecordDisplayName(value);
                     return `<button class="text-blue-600 hover:underline" onclick="event.stopPropagation(); openLinkedRecord('${value}')">${linkedName}</button>`;
+                case 'LOOKUP':
+                    if (!value) return '';
+                    const lookupName = getRecordDisplayName(value);
+                    return `<span class="text-gray-700">${lookupName}</span>`;
                 case 'SINGLE_SELECT':
                     if (!value) return '';
                     const color = field.config?.colors?.[value] || 'gray';
@@ -9894,6 +10018,29 @@
                 default:
                     return value || '';
             }
+        }
+
+        function renderRichText(text) {
+            if (!text) return '';
+
+            // Basic markdown to HTML conversion
+            let html = text
+                // Headers
+                .replace(/^### (.*$)/gim, '<h3 class="text-lg font-semibold mt-2">$1</h3>')
+                .replace(/^## (.*$)/gim, '<h2 class="text-xl font-semibold mt-2">$1</h2>')
+                .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mt-2">$1</h1>')
+                // Bold
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/__(.*?)__/g, '<strong>$1</strong>')
+                // Italic
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/_(.*?)_/g, '<em>$1</em>')
+                // Links
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank" onclick="event.stopPropagation()">$1</a>')
+                // Line breaks
+                .replace(/\n/g, '<br>');
+
+            return `<div class="rich-text">${html}</div>`;
         }
 
         function openColumnRulesModal() {
@@ -10078,6 +10225,16 @@
         function createFieldManagerItem(field, index) {
             const fieldType = FIELD_TYPES[field.type] || { name: field.type, icon: 'ph-question' };
 
+            // Get subtype info if available
+            let displayName = fieldType.name;
+            let displayIcon = fieldType.icon;
+
+            if (field.subtype && fieldType.subtypes && fieldType.subtypes[field.subtype]) {
+                const subtype = fieldType.subtypes[field.subtype];
+                displayName = subtype.name;
+                displayIcon = subtype.icon;
+            }
+
             const div = document.createElement('div');
             div.className = 'field-manager-item';
             div.dataset.fieldId = field.id;
@@ -10086,13 +10243,13 @@
             div.innerHTML = `
                 <i class="ph ph-dots-six-vertical field-drag-handle"></i>
                 <div class="field-manager-icon">
-                    <i class="ph ${fieldType.icon}"></i>
+                    <i class="ph ${displayIcon}"></i>
                 </div>
                 <div class="field-manager-info">
                     <div class="field-manager-name" data-field-id="${field.id}">
                         <span class="field-name-display">${field.name}</span>
                     </div>
-                    <div class="field-manager-type-label">${fieldType.name}</div>
+                    <div class="field-manager-type-label">${displayName}</div>
                 </div>
                 <div class="field-manager-actions">
                     <button class="field-manager-action-btn" title="Rename field" onclick="enableFieldRename('${field.id}')">
@@ -10372,9 +10529,23 @@
             const selectedType = typeSelect.value;
             configContainer.innerHTML = '';
 
+            // Add subtype selector if type has subtypes
+            const fieldType = FIELD_TYPES[selectedType];
+            if (fieldType?.subtypes) {
+                const subtypeOptions = Object.values(fieldType.subtypes)
+                    .map(st => `<option value="${st.id}">${st.name}</option>`)
+                    .join('');
+                configContainer.innerHTML += `
+                    <div class="mb-4">
+                        <label class="form-label">Field Subtype</label>
+                        <select id="fieldManagerNewSubtype" class="w-full">${subtypeOptions}</select>
+                    </div>
+                `;
+            }
+
             // Add type-specific config UI
             if (selectedType === 'SINGLE_SELECT') {
-                configContainer.innerHTML = `
+                configContainer.innerHTML += `
                     <div>
                         <label class="form-label">Options (one per line)</label>
                         <textarea id="fieldManagerSelectOptions" class="w-full" rows="4" placeholder="Option 1&#10;Option 2&#10;Option 3">Option 1</textarea>
@@ -10383,14 +10554,23 @@
             } else if (selectedType === 'LINK_RECORD') {
                 const sets = Array.from(state.sets.values());
                 const options = sets.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-                configContainer.innerHTML = `
+                configContainer.innerHTML += `
                     <div>
                         <label class="form-label">Link to Set</label>
                         <select id="fieldManagerLinkToSet" class="w-full">${options}</select>
                     </div>
                 `;
+            } else if (selectedType === 'LOOKUP') {
+                const sets = Array.from(state.sets.values());
+                const options = sets.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                configContainer.innerHTML += `
+                    <div>
+                        <label class="form-label">Lookup from Set</label>
+                        <select id="fieldManagerLookupFromSet" class="w-full">${options}</select>
+                    </div>
+                `;
             } else if (selectedType === 'FORMULA') {
-                configContainer.innerHTML = `
+                configContainer.innerHTML += `
                     <div>
                         <label class="form-label">Formula</label>
                         <input type="text" id="fieldManagerFormula" class="w-full" placeholder="e.g., price * quantity">
@@ -10432,10 +10612,13 @@
             }
 
             const type = document.getElementById('fieldManagerNewType').value;
+            const subtype = document.getElementById('fieldManagerNewSubtype')?.value || null;
+
             const newField = {
                 id: fieldId,
                 name: name,
                 type: type,
+                subtype: subtype,
                 width: '150',
                 config: null
             };
@@ -10456,6 +10639,13 @@
                     return;
                 }
                 newField.config = { linkedSetId };
+            } else if (type === 'LOOKUP') {
+                const lookupSetId = document.getElementById('fieldManagerLookupFromSet')?.value;
+                if (!lookupSetId) {
+                    showToast('⚠ Please select a set to lookup from');
+                    return;
+                }
+                newField.config = { lookupSetId };
             } else if (type === 'FORMULA') {
                 const formula = document.getElementById('fieldManagerFormula')?.value.trim();
                 if (!formula) {
@@ -13892,6 +14082,9 @@
             if (typeId === 'LINK_RECORD') {
                 return { linkedSetId: state.changeLinkedSetId || state.currentSetId };
             }
+            if (typeId === 'LOOKUP') {
+                return { lookupSetId: state.changeLinkedSetId || state.currentSetId };
+            }
             if (typeId === 'FORMULA') {
                 const formula = document.getElementById('changeFormulaInput').value.trim();
                 const format = document.getElementById('changeFormulaFormat').value;
@@ -13901,23 +14094,26 @@
             return null;
         }
 
-        function changeFieldType(fieldId, newType, newConfig = null) {
+        function changeFieldType(fieldId, newType, newSubtype = null, newConfig = null) {
             const set = getCurrentSet();
             const field = set.schema.find(f => f.id === fieldId);
             if (!field || !FIELD_TYPES[newType]) return;
 
             const previousType = field.type;
+            const previousSubtype = field.subtype;
             const previousConfig = cloneConfig(field.config);
             const targetConfig = cloneConfig(newConfig ?? buildDefaultConfigForType(newType));
             const typeChanged = previousType !== newType;
+            const subtypeChanged = previousSubtype !== newSubtype;
             const configChanged = JSON.stringify(previousConfig || null) !== JSON.stringify(targetConfig || null);
 
-            if (!typeChanged && !configChanged) return;
+            if (!typeChanged && !subtypeChanged && !configChanged) return;
 
             const historyKey = `${set.id}:${fieldId}`;
             const historyStack = state.fieldTypeHistory.get(historyKey) || [];
             const historyEntry = {
                 type: previousType,
+                subtype: previousSubtype,
                 config: cloneConfig(field.config)
             };
             if (typeChanged) {
@@ -13934,6 +14130,7 @@
             }
 
             field.type = newType;
+            field.subtype = newSubtype;
             field.config = targetConfig;
 
             createEvent(
@@ -13950,10 +14147,12 @@
         function saveChangeFieldType() {
             const context = state.changeFieldContext;
             const input = document.getElementById('changeFieldTypeInput');
+            const subtypeSelect = document.getElementById('changeFieldSubtypeSelect');
             const newType = input?.value;
+            const newSubtype = subtypeSelect?.value || null;
             if (!context || !newType) return;
             const newConfig = buildChangeFieldConfig(newType);
-            changeFieldType(context.id, newType, newConfig);
+            changeFieldType(context.id, newType, newSubtype, newConfig);
             closeChangeFieldTypeModal();
         }
 
@@ -13978,6 +14177,7 @@
             }
 
             field.type = last.type;
+            field.subtype = last.subtype;
             field.config = cloneConfig(last.config);
             if (last.values) {
                 restoreFieldValues(set, fieldId, last.values);
@@ -14019,14 +14219,60 @@
             document.getElementById('changeLinkToRecordConfig').classList.remove('visible');
             document.getElementById('changeFormulaConfig').classList.remove('visible');
 
+            // Handle subtype selector
+            const subtypeContainer = document.getElementById('changeFieldSubtypeConfig');
+            if (subtypeContainer) {
+                const fieldType = FIELD_TYPES[typeId];
+                if (fieldType?.subtypes) {
+                    const subtypeOptions = Object.values(fieldType.subtypes)
+                        .map(st => `<option value="${st.id}">${st.name}</option>`)
+                        .join('');
+                    subtypeContainer.innerHTML = `
+                        <div class="mb-4">
+                            <label class="form-label">Field Subtype</label>
+                            <select id="changeFieldSubtypeSelect" class="w-full">${subtypeOptions}</select>
+                        </div>
+                    `;
+                    subtypeContainer.classList.add('visible');
+                } else {
+                    subtypeContainer.innerHTML = '';
+                    subtypeContainer.classList.remove('visible');
+                }
+            }
+
             if (typeId === 'SINGLE_SELECT') {
                 document.getElementById('changeSingleSelectConfig').classList.add('visible');
                 renderChangeSelectOptions();
             } else if (typeId === 'LINK_RECORD') {
                 document.getElementById('changeLinkToRecordConfig').classList.add('visible');
+            } else if (typeId === 'LOOKUP') {
+                document.getElementById('changeLinkToRecordConfig').classList.add('visible');
+                renderChangeLookupSelect();
             } else if (typeId === 'FORMULA') {
                 document.getElementById('changeFormulaConfig').classList.add('visible');
                 initChangeFormulaAutocomplete();
+            }
+        }
+
+        function renderChangeLookupSelect() {
+            const linkSelect = document.getElementById('changeLinkToSet');
+            if (!linkSelect) return;
+
+            linkSelect.innerHTML = '';
+            getSetsForWorld(state.currentWorldId).forEach(set => {
+                const label = set.id === state.currentSetId ? `${set.name} (this set)` : set.name;
+                linkSelect.innerHTML += `<option value="${set.id}">${label}</option>`;
+            });
+
+            if (linkSelect.options.length === 0) {
+                linkSelect.innerHTML = '<option value="">No sets available</option>';
+                linkSelect.disabled = true;
+                state.changeLinkedSetId = '';
+            } else {
+                linkSelect.disabled = false;
+                const defaultValue = state.changeLinkedSetId || (state.sets.has(state.currentSetId) ? state.currentSetId : linkSelect.options[0].value);
+                linkSelect.value = defaultValue;
+                state.changeLinkedSetId = defaultValue;
             }
         }
 
@@ -14953,13 +15199,48 @@
         }
 
         function renderFieldEditor(recordId, field, value) {
-            switch(field.type) {
-                case 'TEXT': case 'EMAIL': case 'URL': case 'PHONE':
-                    return `<input type="text" value="${value || ''}" onchange="updateRecordField('${recordId}', '${field.id}', this.value)">`;
-                case 'LONG_TEXT':
+            // Get effective type and subtype (handle legacy fields)
+            let effectiveType = field.type;
+            let effectiveSubtype = field.subtype;
+
+            // Map legacy types to new structure
+            if (field.type === 'LONG_TEXT') {
+                effectiveType = 'TEXT';
+                effectiveSubtype = 'LONG';
+            } else if (field.type === 'EMAIL' || field.type === 'URL' || field.type === 'PHONE') {
+                effectiveType = 'CONTACT';
+                effectiveSubtype = field.type;
+            } else if (field.type === 'CURRENCY') {
+                effectiveType = 'NUMBER';
+                effectiveSubtype = 'CURRENCY';
+            }
+
+            // Handle TEXT with subtypes
+            if (effectiveType === 'TEXT') {
+                const subtype = effectiveSubtype || 'SHORT';
+                if (subtype === 'RICH') {
+                    return `<textarea rows="6" class="w-full" onchange="updateRecordField('${recordId}', '${field.id}', this.value)" placeholder="Use markdown: **bold**, *italic*, [link](url), # headers">${value || ''}</textarea>`;
+                } else if (subtype === 'LONG') {
                     return `<textarea rows="4" onchange="updateRecordField('${recordId}', '${field.id}', this.value)">${value || ''}</textarea>`;
-                case 'NUMBER': case 'CURRENCY':
-                    return `<input type="number" value="${value || 0}" onchange="updateRecordField('${recordId}', '${field.id}', parseFloat(this.value))">`;
+                } else {
+                    return `<input type="text" value="${value || ''}" onchange="updateRecordField('${recordId}', '${field.id}', this.value)">`;
+                }
+            }
+
+            // Handle NUMBER with subtypes
+            if (effectiveType === 'NUMBER') {
+                return `<input type="number" value="${value || 0}" onchange="updateRecordField('${recordId}', '${field.id}', parseFloat(this.value))">`;
+            }
+
+            // Handle CONTACT with subtypes
+            if (effectiveType === 'CONTACT') {
+                const subtype = effectiveSubtype || 'EMAIL';
+                const inputType = subtype === 'EMAIL' ? 'email' : subtype === 'URL' ? 'url' : 'tel';
+                const placeholder = subtype === 'EMAIL' ? 'email@example.com' : subtype === 'URL' ? 'https://example.com' : '+1234567890';
+                return `<input type="${inputType}" value="${value || ''}" placeholder="${placeholder}" onchange="updateRecordField('${recordId}', '${field.id}', this.value)">`;
+            }
+
+            switch(effectiveType) {
                 case 'DATE':
                     return `<input type="date" value="${value || ''}" onchange="updateRecordField('${recordId}', '${field.id}', this.value)">`;
                 case 'CHECKBOX':
@@ -14979,6 +15260,32 @@
                     return `
                         <div class="space-y-1">
                             <input type="text" class="border rounded px-3 py-2 text-sm w-full" placeholder="Search linked records..." ${!linkedSet ? 'disabled' : ''} oninput="filterLinkedRecordSelect('${selectId}', this.value)">
+                            <select id="${selectId}" class="border rounded px-3 py-2 text-sm w-full" data-options="${optionsDataAttr}" ${disableSelect ? 'disabled' : ''} onchange="updateRecordField('${recordId}', '${field.id}', this.value)">
+                                <option value="">Select a record</option>
+                                ${options.map(opt => `<option value="${opt.id}" ${opt.id === value ? 'selected' : ''}>${opt.label}</option>`).join('')}
+                            </select>
+                            ${hint}
+                        </div>
+                    `;
+                }
+                case 'LOOKUP': {
+                    const lookupSet = field.config?.lookupSetId ? state.sets.get(field.config.lookupSetId) : null;
+                    const options = lookupSet ? Array.from(lookupSet.records.values()).map(rec => ({
+                        id: rec.id,
+                        label: getRecordDisplayName(rec.id)
+                    })) : [];
+                    const disableSelect = !lookupSet || options.length === 0;
+                    const selectId = `lookup-select-${recordId}-${field.id}`;
+                    const optionsDataAttr = encodeURIComponent(JSON.stringify(options));
+                    const hint = !lookupSet
+                        ? '<p class="text-xs text-gray-500 mt-1">Configure a lookup set to enable selection.</p>'
+                        : options.length === 0
+                            ? '<p class="text-xs text-gray-500 mt-1">Add records to the lookup set to select one.</p>'
+                            : '';
+
+                    return `
+                        <div class="space-y-1">
+                            <input type="text" class="border rounded px-3 py-2 text-sm w-full" placeholder="Search records..." ${!lookupSet ? 'disabled' : ''} oninput="filterLinkedRecordSelect('${selectId}', this.value)">
                             <select id="${selectId}" class="border rounded px-3 py-2 text-sm w-full" data-options="${optionsDataAttr}" ${disableSelect ? 'disabled' : ''} onchange="updateRecordField('${recordId}', '${field.id}', this.value)">
                                 <option value="">Select a record</option>
                                 ${options.map(opt => `<option value="${opt.id}" ${opt.id === value ? 'selected' : ''}>${opt.label}</option>`).join('')}
@@ -15955,6 +16262,15 @@
             renderChangeFieldTypeGrid(field.type);
             resetChangeFieldConfig(field.type, field);
             renderChangeFieldConfig(field.type);
+
+            // Set initial subtype if field has one
+            setTimeout(() => {
+                const subtypeSelect = document.getElementById('changeFieldSubtypeSelect');
+                if (subtypeSelect && field.subtype) {
+                    subtypeSelect.value = field.subtype;
+                }
+            }, 0);
+
             renderChangeLinkSelect();
             updateChangeFieldTypeSummary(field.type);
             closeChangeFieldTypeDropdown();
