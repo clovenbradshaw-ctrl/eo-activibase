@@ -9083,6 +9083,7 @@
                     </span>
                 `;
                 th.innerHTML = `${headerTitle}<span class="${indicatorClass}"><span class="direction-icon">${directionIcon}</span>${orderBadge}</span>`;
+                th.title = isNameField ? 'This is the Name field (right-click for options)' : 'Click to sort, right-click to set as Name or for more options';
                 th.onclick = () => {
                     if (columnDragState.preventClick) return;
                     toggleColumnSort(field.id);
@@ -9569,12 +9570,16 @@
                 card.className = 'card';
                 card.onclick = () => openExpandedRecord(record.id);
 
-                const primaryField = set.schema[0];
-                const displayFields = set.schema.slice(1, 6);
+                // Use the identifier field set for this view, or infer one
+                const identifierFieldId = view.identifierField || inferIdentifierFieldId(set);
+                const identifierField = set.schema.find(f => f.id === identifierFieldId) || set.schema[0];
+
+                // Get display fields (all fields except the identifier)
+                const displayFields = set.schema.filter(f => f.id !== identifierField.id).slice(0, 5);
 
                 card.innerHTML = `
                     <div class="flex items-start justify-between mb-2">
-                        <div class="card-title">${record[primaryField.id] || 'Untitled'}</div>
+                        <div class="card-title">${record[identifierField.id] || 'Untitled'}</div>
                         ${view?.showStability && state.leanContext ? `
                             <span class="badge badge-${getStabilityColor(state.leanContext.getRecordStability(record.id))} text-xs">
                                 ${state.leanContext.getRecordStability(record.id)}
@@ -9741,16 +9746,21 @@
 
         function createKanbanCard(record) {
             const set = getCurrentSet();
+            const view = getCurrentView();
             const card = document.createElement('div');
             card.className = 'kanban-card';
             card.draggable = true;
             card.dataset.recordId = record.id;
-            
-            const primaryField = set.schema[0];
-            const displayFields = set.schema.slice(1, 4);
+
+            // Use the identifier field set for this view, or infer one
+            const identifierFieldId = view.identifierField || inferIdentifierFieldId(set);
+            const identifierField = set.schema.find(f => f.id === identifierFieldId) || set.schema[0];
+
+            // Get display fields (all fields except the identifier)
+            const displayFields = set.schema.filter(f => f.id !== identifierField.id).slice(0, 3);
             
             card.innerHTML = `
-                <div class="font-semibold mb-2">${record[primaryField.id] || 'Untitled'}</div>
+                <div class="font-semibold mb-2">${record[identifierField.id] || 'Untitled'}</div>
                 ${displayFields.map(field => {
                     const value = record[field.id];
                     if (!value && value !== 0 && value !== false) return '';
@@ -14807,10 +14817,12 @@
         function showColumnMenu(e, field) {
             const currentView = getCurrentView();
             const isIdentifier = currentView?.identifierField === field.id;
+            const isRecordIdField = field.id === '__recordId';
 
             showContextMenu(e, [
                 { label: 'Create View from Column', action: () => createViewFromColumn(field) },
-                { label: isIdentifier ? 'Clear Identifier' : 'Use as Identifier', action: () => setIdentifierField(isIdentifier ? null : field.id) },
+                // Don't allow setting Record ID as the identifier field - it's static
+                !isRecordIdField ? { label: isIdentifier ? 'Clear Identifier' : 'Use as Identifier', action: () => setIdentifierField(isIdentifier ? null : field.id) } : null,
                 { label: 'Change Field Type…', action: () => openChangeFieldTypeModal(field) },
                 hasFieldHistory(getCurrentSet()?.id, field.id) ? { label: 'Revert Last Type Change', action: () => revertFieldType(field.id) } : null,
                 { label: 'Hide Field', action: () => hideField(field.id) },
