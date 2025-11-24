@@ -287,7 +287,7 @@ class EOLinkedFieldsModal {
             { value: 'avg', label: 'Average', types: ['NUMBER', 'FORMULA'] },
             { value: 'min', label: 'Min', types: ['NUMBER', 'FORMULA', 'DATE'] },
             { value: 'max', label: 'Max', types: ['NUMBER', 'FORMULA', 'DATE'] },
-            { value: 'arrayjoin', label: 'Array Join (comma)', types: ['TEXT', 'SINGLE_SELECT', 'CONTACT'] },
+            { value: 'arrayjoin', label: 'Array Join (comma)', types: ['TEXT', 'SELECT', 'CONTACT'] },
             { value: 'unique', label: 'Unique Values', types: ['*'] },
             { value: 'any', label: 'Any Value', types: ['*'] },
         ];

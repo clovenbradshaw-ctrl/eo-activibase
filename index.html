@@ -3300,11 +3300,15 @@
                     </div>
                     <input type="hidden" id="newFieldType" value="TEXT">
                 </div>
-                <div id="singleSelectConfig" class="config-section">
+                <div id="selectConfig" class="config-section">
                     <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
                         <label class="form-label">Options</label>
                         <div id="selectOptionsList" class="space-y-2 mb-3"></div>
                         <button onclick="addSelectOption()" class="btn btn-secondary btn-sm">+ Add Option</button>
+                        <div class="mt-4 flex items-center">
+                            <input type="checkbox" id="acceptNewOptions" checked class="mr-2">
+                            <label for="acceptNewOptions" class="text-sm text-gray-700">Accept new options</label>
+                        </div>
                     </div>
                 </div>
                 <div id="linkToRecordConfig" class="config-section">
@@ -3379,11 +3383,15 @@
                     <input type="hidden" id="changeFieldTypeInput" value="TEXT">
                 </div>
                 <div id="changeFieldSubtypeConfig" class="config-section"></div>
-                <div id="changeSingleSelectConfig" class="config-section">
+                <div id="changeSelectConfig" class="config-section">
                     <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
                         <label class="form-label">Options</label>
                         <div id="changeSelectOptionsList" class="space-y-2 mb-3"></div>
                         <button onclick="changeAddSelectOption()" class="btn btn-secondary btn-sm">+ Add Option</button>
+                        <div class="mt-4 flex items-center">
+                            <input type="checkbox" id="changeAcceptNewOptions" checked class="mr-2">
+                            <label for="changeAcceptNewOptions" class="text-sm text-gray-700">Accept new options</label>
+                        </div>
                     </div>
                 </div>
                 <div id="changeLinkToRecordConfig" class="config-section">
@@ -4098,11 +4106,15 @@
                             <input type="hidden" id="fieldManagerNewType" value="TEXT">
                         </div>
                         <!-- Type-specific config containers -->
-                        <div id="fieldManagerSingleSelectConfig" class="config-section">
+                        <div id="fieldManagerSelectConfig" class="config-section">
                             <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
                                 <label class="form-label">Options</label>
                                 <div id="fieldManagerSelectOptionsList" class="space-y-2 mb-3"></div>
                                 <button onclick="addFieldManagerSelectOption()" type="button" class="btn btn-secondary btn-sm">+ Add Option</button>
+                                <div class="mt-4 flex items-center">
+                                    <input type="checkbox" id="fieldManagerAcceptNewOptions" checked class="mr-2">
+                                    <label for="fieldManagerAcceptNewOptions" class="text-sm text-gray-700">Accept new options</label>
+                                </div>
                             </div>
                         </div>
                         <div id="fieldManagerLinkToRecordConfig" class="config-section">
@@ -4531,13 +4543,18 @@
                 icon: 'ph-magnifying-glass',
                 needsConfig: true
             },
-            SINGLE_SELECT: {
-                id: 'SINGLE_SELECT',
-                name: 'Single Select',
-                description: 'Choose one option from a defined list',
+            SELECT: {
+                id: 'SELECT',
+                name: 'Select',
+                description: 'Choose from a list of options',
                 defaultValue: '',
                 icon: 'ph-list-bullets',
-                needsConfig: true
+                needsConfig: true,
+                subtypes: {
+                    SINGLE: { id: 'SINGLE', name: 'Single Select', description: 'Choose one option from a list', icon: 'ph-list-bullets' },
+                    MULTIPLE: { id: 'MULTIPLE', name: 'Multiple Select', description: 'Choose multiple options from a list', icon: 'ph-list-checks' }
+                },
+                defaultSubtype: 'SINGLE'
             },
             CHECKBOX: {
                 id: 'CHECKBOX',
@@ -10725,7 +10742,7 @@
                     if (!value) return '';
                     const lookupName = getRecordDisplayName(value);
                     return `<span class="text-gray-700">${lookupName}</span>`;
-                case 'SINGLE_SELECT':
+                case 'SELECT':
                     if (!value) return '';
                     const color = field.config?.colors?.[value] || 'gray';
                     return `<span class="badge badge-${color}">${value}</span>`;
@@ -11323,12 +11340,12 @@
         }
 
         function updateFieldManagerConfig(typeId) {
-            document.getElementById('fieldManagerSingleSelectConfig').classList.remove('visible');
+            document.getElementById('fieldManagerSelectConfig').classList.remove('visible');
             document.getElementById('fieldManagerLinkToRecordConfig').classList.remove('visible');
             document.getElementById('fieldManagerFormulaConfig').classList.remove('visible');
 
-            if (typeId === 'SINGLE_SELECT') {
-                document.getElementById('fieldManagerSingleSelectConfig').classList.add('visible');
+            if (typeId === 'SELECT') {
+                document.getElementById('fieldManagerSelectConfig').classList.add('visible');
                 renderFieldManagerSelectOptions();
             } else if (typeId === 'LINK_RECORD') {
                 document.getElementById('fieldManagerLinkToRecordConfig').classList.add('visible');
@@ -11490,14 +11507,15 @@
             };
 
             // Get type-specific config
-            if (type === 'SINGLE_SELECT') {
+            if (type === 'SELECT') {
                 if (!state.fieldManagerSelectOptions || state.fieldManagerSelectOptions.length === 0) {
                     showToast('⚠ Please add at least one option');
                     return;
                 }
+                const acceptNewOptions = document.getElementById('fieldManagerAcceptNewOptions')?.checked ?? true;
                 const options = state.fieldManagerSelectOptions.map(opt => opt.value);
                 const colors = Object.fromEntries(state.fieldManagerSelectOptions.map(opt => [opt.value, opt.color]));
-                newField.config = { options, colors };
+                newField.config = { options, colors, acceptNewOptions };
             } else if (type === 'LINK_RECORD') {
                 const linkedSetId = document.getElementById('fieldManagerLinkToSet')?.value;
                 if (!linkedSetId) {
@@ -11768,7 +11786,7 @@
             }
             
             const groupField = set.schema.find(f => f.id === view.kanbanGroupField);
-            if (!groupField || groupField.type !== 'SINGLE_SELECT') {
+            if (!groupField || groupField.type !== 'SELECT') {
                 showToast('⚠️ Invalid kanban configuration');
                 return;
             }
@@ -11937,7 +11955,7 @@
             select.innerHTML = '<option value="">Select a field...</option>';
             
             set.schema.forEach(field => {
-                if (field.type === 'SINGLE_SELECT') {
+                if (field.type === 'SELECT') {
                     select.innerHTML += `<option value="${field.id}">${field.name}</option>`;
                 }
             });
@@ -14295,7 +14313,7 @@
 
             if (field.type === 'DATE') {
                 showDatePicker(td, recordId, field);
-            } else if (field.type === 'SINGLE_SELECT') {
+            } else if (field.type === 'SELECT') {
                 showSelectDropdown(td, recordId, field);
             } else if (field.type === 'LINK_RECORD') {
                 showLinkedRecordDropdown(td, recordId, field);
@@ -14648,8 +14666,8 @@
 
         function buildDefaultConfigForType(type) {
             switch(type) {
-                case 'SINGLE_SELECT':
-                    return { options: [{ value: 'Option 1', color: 'blue' }] };
+                case 'SELECT':
+                    return { options: [{ value: 'Option 1', color: 'blue' }], acceptNewOptions: true };
                 case 'LINK_RECORD':
                     return { linkedSetId: state.currentSetId };
                 default:
@@ -14707,11 +14725,12 @@
                         return ['true', '1', 'yes', 'y', 'checked', 'on'].includes(value.trim().toLowerCase());
                     }
                     return Boolean(value);
-                case 'SINGLE_SELECT': {
+                case 'SELECT': {
                     const str = String(value ?? '').trim();
                     if (!str) return '';
                     const options = targetConfig.options || [];
-                    if (!options.some(opt => opt.value === str)) {
+                    const acceptNewOptions = targetConfig.acceptNewOptions ?? true;
+                    if (!options.some(opt => opt.value === str) && acceptNewOptions) {
                         options.push({ value: str, color: 'gray' });
                         targetConfig.options = options;
                     }
@@ -14991,10 +15010,12 @@
         }
 
         function buildChangeFieldConfig(typeId) {
-            if (typeId === 'SINGLE_SELECT') {
+            if (typeId === 'SELECT') {
+                const acceptNewOptions = document.getElementById('changeAcceptNewOptions')?.checked ?? true;
                 return {
                     options: state.changeSelectOptions.map(o => o.value),
-                    colors: Object.fromEntries(state.changeSelectOptions.map(o => [o.value, o.color]))
+                    colors: Object.fromEntries(state.changeSelectOptions.map(o => [o.value, o.color])),
+                    acceptNewOptions: acceptNewOptions
                 };
             }
             if (typeId === 'LINK_RECORD') {
@@ -15118,11 +15139,11 @@
         }
 
         function updateFieldConfig(typeId) {
-            document.getElementById('singleSelectConfig').classList.remove('visible');
+            document.getElementById('selectConfig').classList.remove('visible');
             document.getElementById('linkToRecordConfig').classList.remove('visible');
             document.getElementById('formulaConfig').classList.remove('visible');
-            if (typeId === 'SINGLE_SELECT') {
-                document.getElementById('singleSelectConfig').classList.add('visible');
+            if (typeId === 'SELECT') {
+                document.getElementById('selectConfig').classList.add('visible');
                 renderSelectOptions();
             } else if (typeId === 'LINK_RECORD') {
                 document.getElementById('linkToRecordConfig').classList.add('visible');
@@ -15133,7 +15154,7 @@
         }
 
         function renderChangeFieldConfig(typeId) {
-            document.getElementById('changeSingleSelectConfig').classList.remove('visible');
+            document.getElementById('changeSelectConfig').classList.remove('visible');
             document.getElementById('changeLinkToRecordConfig').classList.remove('visible');
             document.getElementById('changeFormulaConfig').classList.remove('visible');
 
@@ -15158,8 +15179,8 @@
                 }
             }
 
-            if (typeId === 'SINGLE_SELECT') {
-                document.getElementById('changeSingleSelectConfig').classList.add('visible');
+            if (typeId === 'SELECT') {
+                document.getElementById('changeSelectConfig').classList.add('visible');
                 renderChangeSelectOptions();
             } else if (typeId === 'LINK_RECORD') {
                 document.getElementById('changeLinkToRecordConfig').classList.add('visible');
@@ -15226,7 +15247,7 @@
         }
 
         function resetChangeFieldConfig(typeId, field = null) {
-            if (typeId === 'SINGLE_SELECT') {
+            if (typeId === 'SELECT') {
                 if (field?.config?.options) {
                     state.changeSelectOptions = field.config.options.map(opt => ({
                         value: typeof opt === 'string' ? opt : opt.value,
@@ -15234,6 +15255,11 @@
                     }));
                 } else {
                     state.changeSelectOptions = [{ value: 'Option 1', color: 'blue' }];
+                }
+                // Set the accept new options checkbox
+                const acceptNewOptionsCheckbox = document.getElementById('changeAcceptNewOptions');
+                if (acceptNewOptionsCheckbox) {
+                    acceptNewOptionsCheckbox.checked = field?.config?.acceptNewOptions ?? true;
                 }
             } else if (typeId === 'LINK_RECORD') {
                 state.changeLinkedSetId = field?.config?.linkedSetId || state.currentSetId;
@@ -15329,12 +15355,15 @@
                 return;
             }
             
-            const newField = { id: fieldId, name: name, type: type, width: '150px', config: {} };
+            const subtype = document.getElementById('fieldManagerNewSubtype')?.value || null;
+            const newField = { id: fieldId, name: name, type: type, subtype: subtype, width: '150px', config: {} };
 
-            if (type === 'SINGLE_SELECT') {
+            if (type === 'SELECT') {
+                const acceptNewOptions = document.getElementById('acceptNewOptions')?.checked ?? true;
                 newField.config = {
                     options: state.selectOptions.map(o => o.value),
-                    colors: Object.fromEntries(state.selectOptions.map(o => [o.value, o.color]))
+                    colors: Object.fromEntries(state.selectOptions.map(o => [o.value, o.color])),
+                    acceptNewOptions: acceptNewOptions
                 };
             } else if (type === 'LINK_RECORD') {
                 const linkedSetId = document.getElementById('linkToSet').value;
@@ -16226,7 +16255,7 @@
                         </div>
                     `;
                 }
-                case 'SINGLE_SELECT':
+                case 'SELECT':
                     return `<select onchange="updateRecordField('${recordId}', '${field.id}', this.value)">
                         <option value="">Select...</option>
                         ${field.config.options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('')}
