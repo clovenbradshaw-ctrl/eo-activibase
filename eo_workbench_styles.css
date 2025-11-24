@@ -1,0 +1,769 @@
+/**
+ * EO Data Workbench Styles
+ *
+ * Styles for view management, structural operations, and zero-input search
+ */
+
+/* ============================================================================
+   VIEW MANAGER
+   ============================================================================ */
+
+.view-manager {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-secondary, #f5f5f5);
+    border-bottom: 1px solid var(--border-color, #ddd);
+}
+
+.view-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.view-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: white;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.view-tab:hover {
+    background: var(--bg-hover, #f9f9f9);
+    border-color: var(--primary-color, #007bff);
+}
+
+.view-tab.active {
+    background: var(--primary-color, #007bff);
+    color: white;
+    border-color: var(--primary-color, #007bff);
+}
+
+.view-tab .view-icon {
+    font-size: 16px;
+}
+
+.view-tab .view-name {
+    font-weight: 500;
+}
+
+.view-menu-btn {
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    cursor: pointer;
+    font-size: 16px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.view-menu-btn:hover {
+    opacity: 1;
+}
+
+.view-tab-add {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px dashed var(--border-color, #ddd);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-secondary, #666);
+    transition: all 0.2s;
+}
+
+.view-tab-add:hover {
+    background: white;
+    border-color: var(--primary-color, #007bff);
+    color: var(--primary-color, #007bff);
+}
+
+.view-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.unsaved-label {
+    color: #856404;
+    font-weight: 500;
+}
+
+.btn-save-view,
+.btn-save-view-as {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.btn-save-view {
+    background: #28a745;
+    color: white;
+}
+
+.btn-save-view:hover {
+    background: #218838;
+}
+
+.btn-save-view-as {
+    background: white;
+    border: 1px solid #ccc;
+    color: #333;
+}
+
+.btn-save-view-as:hover {
+    background: #f9f9f9;
+}
+
+/* ============================================================================
+   CONTEXT MENU
+   ============================================================================ */
+
+.context-menu {
+    position: fixed;
+    background: white;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 4px 0;
+    min-width: 180px;
+    z-index: 10000;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.15s;
+}
+
+.menu-item:hover {
+    background: var(--bg-hover, #f5f5f5);
+}
+
+.menu-item.danger {
+    color: #dc3545;
+}
+
+.menu-item.danger:hover {
+    background: #fff5f5;
+}
+
+.menu-separator {
+    height: 1px;
+    background: var(--border-color, #ddd);
+    margin: 4px 0;
+}
+
+/* ============================================================================
+   MODALS
+   ============================================================================ */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.modal {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal.large {
+    max-width: 900px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color, #ddd);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: var(--text-secondary, #666);
+    line-height: 1;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    background: var(--bg-hover, #f5f5f5);
+    color: var(--text-primary, #333);
+}
+
+.modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color, #ddd);
+}
+
+/* ============================================================================
+   FORM ELEMENTS
+   ============================================================================ */
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group.inline {
+    margin-bottom: 12px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text-primary, #333);
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-color, #007bff);
+}
+
+.field-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 12px;
+    background: var(--bg-secondary, #f9f9f9);
+    border-radius: 4px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.checkbox-label input[type="checkbox"] {
+    cursor: pointer;
+}
+
+/* ============================================================================
+   BUTTONS
+   ============================================================================ */
+
+.btn-primary,
+.btn-secondary {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--primary-color, #007bff);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover, #0056b3);
+}
+
+.btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: white;
+    border: 1px solid var(--border-color, #ddd);
+    color: var(--text-primary, #333);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-hover, #f5f5f5);
+}
+
+/* ============================================================================
+   STRUCTURAL OPERATIONS TOOLBAR
+   ============================================================================ */
+
+.structural-ops-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-secondary, #f5f5f5);
+    border-bottom: 1px solid var(--border-color, #ddd);
+}
+
+.btn-structural-op {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: white;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-structural-op:hover {
+    background: var(--primary-color, #007bff);
+    color: white;
+    border-color: var(--primary-color, #007bff);
+}
+
+.btn-structural-op .icon {
+    font-size: 16px;
+}
+
+/* ============================================================================
+   MERGE TABLE
+   ============================================================================ */
+
+.merge-table {
+    overflow-x: auto;
+}
+
+.merge-comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.merge-comparison-table th,
+.merge-comparison-table td {
+    padding: 12px;
+    border: 1px solid var(--border-color, #ddd);
+    text-align: left;
+}
+
+.merge-comparison-table th {
+    background: var(--bg-secondary, #f5f5f5);
+    font-weight: 600;
+}
+
+.merge-comparison-table .field-name {
+    font-weight: 500;
+}
+
+.merge-comparison-table label {
+    display: block;
+    cursor: pointer;
+}
+
+.merge-comparison-table input[type="radio"] {
+    margin-right: 6px;
+    cursor: pointer;
+}
+
+.strategy-select {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+/* ============================================================================
+   SPLIT RECORD FORMS
+   ============================================================================ */
+
+.split-record-form {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--bg-secondary, #f9f9f9);
+    border-radius: 6px;
+}
+
+.split-record-form h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* ============================================================================
+   ZERO-INPUT SEARCH
+   ============================================================================ */
+
+.search-modal-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.search-input-container {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color, #ddd);
+}
+
+#search-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--border-color, #ddd);
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.2s;
+}
+
+#search-input:focus {
+    outline: none;
+    border-color: var(--primary-color, #007bff);
+}
+
+.search-results,
+.search-results-filtered {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.zero-input-search {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.search-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.search-section h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary, #666);
+    letter-spacing: 0.5px;
+}
+
+.recent-items,
+.frequent-fields,
+.new-updated-items,
+.search-results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: white;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.search-result-item:hover {
+    background: var(--bg-hover, #f9f9f9);
+    border-color: var(--primary-color, #007bff);
+}
+
+.type-badge {
+    padding: 4px 8px;
+    background: var(--primary-color, #007bff);
+    color: white;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.item-name {
+    flex: 1;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.item-meta {
+    font-size: 12px;
+    color: var(--text-secondary, #666);
+}
+
+.highlights {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+}
+
+.highlight-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: white;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.highlight-item:hover {
+    background: var(--bg-hover, #f9f9f9);
+    border-color: var(--primary-color, #007bff);
+}
+
+.highlight-label {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.highlight-count {
+    padding: 4px 8px;
+    background: var(--bg-secondary, #f5f5f5);
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.browse-categories {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.browse-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px;
+    background: white;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.browse-item:hover {
+    background: var(--primary-color, #007bff);
+    color: white;
+    border-color: var(--primary-color, #007bff);
+}
+
+.browse-label {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.browse-count {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.no-results {
+    padding: 40px;
+    text-align: center;
+    color: var(--text-secondary, #666);
+    font-size: 16px;
+}
+
+/* ============================================================================
+   TOAST NOTIFICATIONS
+   ============================================================================ */
+
+.toast-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    background: #333;
+    color: white;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s;
+    z-index: 10001;
+}
+
+.toast-notification.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ============================================================================
+   CREATE VIEW FROM FOCUS BUTTON
+   ============================================================================ */
+
+.btn-create-view-from-focus {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: var(--primary-color, #007bff);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    margin-top: 12px;
+}
+
+.btn-create-view-from-focus:hover {
+    background: var(--primary-hover, #0056b3);
+}
+
+.btn-create-view-from-focus .icon {
+    font-size: 16px;
+}
+
+/* ============================================================================
+   DERIVED FROM INFO
+   ============================================================================ */
+
+.derived-from-info {
+    padding: 12px;
+    background: var(--bg-secondary, #f9f9f9);
+    border-radius: 4px;
+    font-size: 14px;
+    color: var(--text-secondary, #666);
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+@media (max-width: 768px) {
+    .view-tabs {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .modal {
+        max-width: 95%;
+        width: 95%;
+    }
+
+    .structural-ops-toolbar {
+        flex-wrap: wrap;
+    }
+
+    .highlights,
+    .browse-categories {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================================================
+   DARK MODE SUPPORT
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-primary: #1e1e1e;
+        --bg-secondary: #2d2d2d;
+        --bg-hover: #3d3d3d;
+        --text-primary: #e0e0e0;
+        --text-secondary: #a0a0a0;
+        --border-color: #404040;
+    }
+
+    .view-tab {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+    }
+
+    .modal {
+        background: var(--bg-primary);
+        color: var(--text-primary);
+    }
+
+    .search-result-item,
+    .highlight-item,
+    .browse-item {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+    }
+}
