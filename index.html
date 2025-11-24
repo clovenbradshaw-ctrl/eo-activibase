@@ -3548,7 +3548,7 @@
             changeFieldTypeDropdownOpen: false,
             changeFieldContext: null,
             expandedSets: new Set(),
-            collapsedNavSections: new Set(), // Track collapsed nav sections: 'world', 'explore', 'actions'
+            collapsedNavSections: new Set(['actions']), // Track collapsed nav sections: 'world', 'explore', 'actions'
             draggedRecord: null,
             cellHistoryContext: null,
             setEditorContext: null,
@@ -4848,6 +4848,7 @@
             applyRouteParams();
             renderWorldSelector();
             renderSidebar();
+            initializeNavSections();
             if (state.currentSpecialView) {
                 renderCurrentView();
             } else if (state.currentSetId) {
@@ -7218,6 +7219,28 @@
                 content.style.display = 'none';
                 chevron.className = 'ph ph-caret-right';
             }
+        }
+
+        function initializeNavSections() {
+            // Initialize all nav sections based on the collapsedNavSections state
+            const sections = ['world', 'explore', 'actions', 'sets'];
+            sections.forEach(sectionName => {
+                const contentId = sectionName + 'NavContent';
+                const chevronId = sectionName + 'SectionChevron';
+                const content = document.getElementById(contentId);
+                const chevron = document.getElementById(chevronId);
+
+                if (!content || !chevron) return;
+
+                const isCollapsed = state.collapsedNavSections.has(sectionName);
+                if (isCollapsed) {
+                    content.style.display = 'none';
+                    chevron.className = 'ph ph-caret-right';
+                } else {
+                    content.style.display = 'block';
+                    chevron.className = 'ph ph-caret-down';
+                }
+            });
         }
 
         function filterSets(searchTerm) {
