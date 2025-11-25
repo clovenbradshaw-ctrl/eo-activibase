@@ -10655,6 +10655,13 @@
                 th.className = 'column-header';
                 th.dataset.fieldId = field.id;
                 th.textContent = field.name;
+                th.style.cursor = 'context-menu';
+                th.title = 'Right-click for field options';
+                th.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showColumnMenu(e, field);
+                };
                 headerRow.appendChild(th);
             });
 
