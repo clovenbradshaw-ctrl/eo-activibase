@@ -2800,8 +2800,6 @@
                 <div id="exploreNavContent">
                     <div class="world-nav-children" style="padding: 0 1rem;">
                         <div class="nav-item" id="navSearch" onclick="navigateTo('search')">Search & Discover</div>
-                        <div class="nav-item" id="navSuggestedViews" onclick="navigateTo('suggestedViews')">Suggested Views</div>
-                        <div class="nav-item" id="navSuggestedConcepts" onclick="navigateTo('suggestedConcepts')">Suggested Concepts</div>
                     </div>
                 </div>
 
@@ -9067,12 +9065,6 @@
                     // Open search modal
                     openSearchDataModal();
                     return; // Don't re-render for modal
-                case 'suggestedViews':
-                case 'suggestedConcepts':
-                    state.currentSpecialView = page;
-                    state.currentSetId = null;
-                    state.currentViewId = null;
-                    break;
                 default:
                     console.warn('Unknown navigation target:', page);
                     return;
@@ -10013,21 +10005,8 @@
                 return;
             }
 
-            // Placeholder pages for new routes
             if (state.currentSpecialView === 'views') {
-                container.innerHTML = '<div class="p-6"><h2 class="text-xl font-bold mb-4">Views</h2><p>View management interface coming soon.</p></div>';
-                updateMobileChrome();
-                return;
-            }
-
-            if (state.currentSpecialView === 'suggestedViews') {
-                container.innerHTML = '<div class="p-6"><h2 class="text-xl font-bold mb-4">Suggested Views</h2><p>AI-powered view suggestions coming soon.</p></div>';
-                updateMobileChrome();
-                return;
-            }
-
-            if (state.currentSpecialView === 'suggestedConcepts') {
-                container.innerHTML = '<div class="p-6"><h2 class="text-xl font-bold mb-4">Suggested Concepts</h2><p>Concept discovery coming soon.</p></div>';
+                renderViewsPage();
                 updateMobileChrome();
                 return;
             }
@@ -13451,6 +13430,273 @@
             attachDefinitionInlineEditing();
         }
 
+        // ============================================================================
+        // VIEWS PAGE
+        // ============================================================================
+
+        function renderViewsPage(filterType = 'all') {
+            state.viewsPageState = state.viewsPageState || { activeFilter: 'all' };
+            state.viewsPageState.activeFilter = filterType;
+
+            const container = document.getElementById('viewContainer');
+            if (!container) return;
+
+            // Collect all views from all sets
+            const allViews = [];
+            const setsForWorld = getSetsForWorld();
+
+            setsForWorld.forEach(set => {
+                if (set.views && set.views.size > 0) {
+                    set.views.forEach((viewRef, viewId) => {
+                        // Get full view from global state if available
+                        const fullView = state.views?.get(viewId) || viewRef;
+                        allViews.push({
+                            ...fullView,
+                            id: viewId,
+                            setId: set.id,
+                            setName: set.name,
+                            recordCount: set.records ? set.records.size : 0
+                        });
+                    });
+                }
+            });
+
+            // Apply filter
+            const filters = {
+                all: () => true,
+                grid: v => v.type === 'grid',
+                card: v => v.type === 'card',
+                kanban: v => v.type === 'kanban',
+                graph: v => v.type === 'graph',
+                KEY_DERIVED: v => v.type === 'KEY_DERIVED'
+            };
+
+            const filteredViews = allViews.filter(filters[filterType] || filters.all);
+
+            // Sort by set name, then view name
+            filteredViews.sort((a, b) => {
+                if (a.setName !== b.setName) return a.setName.localeCompare(b.setName);
+                return (a.name || '').localeCompare(b.name || '');
+            });
+
+            container.innerHTML = `
+                <div class="view-stage-header">
+                    <div class="view-stage-title">
+                        <span class="view-stage-pill">${getWorld()?.name || 'World'}</span>
+                        <div class="min-w-0">
+                            <div class="view-stage-name">Views</div>
+                            <div class="view-stage-sub">${filteredViews.length} view${filteredViews.length !== 1 ? 's' : ''}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="view-stage-body space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex flex-wrap gap-2">
+                            <button class="btn btn-secondary btn-sm ${filterType === 'all' ? 'btn-primary' : ''}" data-view-filter="all">All</button>
+                            <button class="btn btn-secondary btn-sm ${filterType === 'grid' ? 'btn-primary' : ''}" data-view-filter="grid">
+                                <i class="ph ph-table"></i> Grid
+                            </button>
+                            <button class="btn btn-secondary btn-sm ${filterType === 'card' ? 'btn-primary' : ''}" data-view-filter="card">
+                                <i class="ph ph-cards-three"></i> Gallery
+                            </button>
+                            <button class="btn btn-secondary btn-sm ${filterType === 'kanban' ? 'btn-primary' : ''}" data-view-filter="kanban">
+                                <i class="ph ph-kanban"></i> Kanban
+                            </button>
+                            <button class="btn btn-secondary btn-sm ${filterType === 'graph' ? 'btn-primary' : ''}" data-view-filter="graph">
+                                <i class="ph ph-graph"></i> Graph
+                            </button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="btn btn-primary btn-sm" onclick="handleAddViewClick()">
+                                <i class="ph ph-plus"></i> New View
+                            </button>
+                        </div>
+                    </div>
+                    ${renderViewsTable(filteredViews)}
+                </div>
+            `;
+
+            // Attach filter button handlers
+            document.querySelectorAll('[data-view-filter]').forEach(btn => {
+                btn.onclick = () => renderViewsPage(btn.dataset.viewFilter);
+            });
+
+            // Attach action handlers
+            document.querySelectorAll('[data-view-open]').forEach(btn => {
+                btn.onclick = () => {
+                    const [setId, viewId] = btn.dataset.viewOpen.split(':');
+                    switchSet(setId, viewId);
+                };
+            });
+
+            document.querySelectorAll('[data-view-edit]').forEach(btn => {
+                btn.onclick = () => {
+                    const [setId, viewId] = btn.dataset.viewEdit.split(':');
+                    openEditViewModal(setId, viewId);
+                };
+            });
+
+            document.querySelectorAll('[data-view-duplicate]').forEach(btn => {
+                btn.onclick = () => {
+                    const [setId, viewId] = btn.dataset.viewDuplicate.split(':');
+                    duplicateView(setId, viewId);
+                };
+            });
+
+            document.querySelectorAll('[data-view-delete]').forEach(btn => {
+                btn.onclick = () => {
+                    const [setId, viewId] = btn.dataset.viewDelete.split(':');
+                    if (confirm('Are you sure you want to delete this view?')) {
+                        deleteViewFromSet(setId, viewId);
+                        renderViewsPage(filterType);
+                        showToast('View deleted');
+                    }
+                };
+            });
+        }
+
+        function renderViewsTable(views) {
+            if (!views.length) {
+                return `
+                    <div class="text-center py-12 text-gray-500">
+                        <i class="ph ph-layout text-4xl mb-3 block opacity-50"></i>
+                        <p class="text-sm">No views found</p>
+                        <p class="text-xs mt-1">Create a view to organize and visualize your data</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="overflow-auto border border-gray-200 rounded-lg bg-white">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">View</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Type</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Set</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Records</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Filters</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Created</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            ${views.map(view => {
+                                const viewIcon = view.icon || VIEW_TYPE_ICONS[view.type] || 'ph-table';
+                                const viewType = formatViewType(view.type);
+                                const filterCount = (view.filters || []).length;
+                                const createdAt = view.provenance?.createdAt
+                                    ? new Date(view.provenance.createdAt).toLocaleDateString()
+                                    : (view.createdAt ? new Date(view.createdAt).toLocaleDateString() : '—');
+
+                                return `
+                                    <tr class="hover:bg-gray-50 transition-colors cursor-pointer" data-view-row="${view.setId}:${view.id}">
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-gray-400">${renderIcon(viewIcon)}</span>
+                                                <span class="font-medium text-gray-900">${escapeHtml(view.name || 'Untitled')}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                                ${viewType}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-600">${escapeHtml(view.setName || '—')}</td>
+                                        <td class="px-4 py-3 text-gray-600">${view.recordCount}</td>
+                                        <td class="px-4 py-3">
+                                            ${filterCount > 0
+                                                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">${filterCount} filter${filterCount !== 1 ? 's' : ''}</span>`
+                                                : '<span class="text-gray-400">—</span>'
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-500 text-xs">${createdAt}</td>
+                                        <td class="px-4 py-3 text-right">
+                                            <div class="flex items-center justify-end gap-1">
+                                                <button class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" data-view-open="${view.setId}:${view.id}" title="Open view">
+                                                    <i class="ph ph-arrow-square-out text-sm"></i>
+                                                </button>
+                                                <button class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors" data-view-edit="${view.setId}:${view.id}" title="Edit view">
+                                                    <i class="ph ph-pencil-simple text-sm"></i>
+                                                </button>
+                                                <button class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors" data-view-duplicate="${view.setId}:${view.id}" title="Duplicate view">
+                                                    <i class="ph ph-copy text-sm"></i>
+                                                </button>
+                                                <button class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" data-view-delete="${view.setId}:${view.id}" title="Delete view">
+                                                    <i class="ph ph-trash text-sm"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function formatViewType(type) {
+            const typeLabels = {
+                grid: 'Grid',
+                card: 'Gallery',
+                kanban: 'Kanban',
+                graph: 'Graph',
+                KEY_DERIVED: 'Key Derived'
+            };
+            return typeLabels[type] || type || 'Grid';
+        }
+
+        function duplicateView(setId, viewId) {
+            const set = state.sets.get(setId);
+            if (!set || !set.views) return;
+
+            const originalView = state.views?.get(viewId) || set.views.get(viewId);
+            if (!originalView) return;
+
+            const newViewId = `view_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+            const newView = {
+                ...originalView,
+                id: newViewId,
+                name: `${originalView.name || 'Untitled'} (copy)`,
+                provenance: {
+                    ...originalView.provenance,
+                    createdAt: Date.now(),
+                    updatedAt: null,
+                    derivedFromViewIds: [viewId],
+                    notes: `Duplicated from ${originalView.name}`
+                }
+            };
+
+            // Add to global views
+            if (!state.views) state.views = new Map();
+            state.views.set(newViewId, newView);
+
+            // Add to set
+            set.views.set(newViewId, { id: newViewId });
+
+            showToast('View duplicated');
+            renderViewsPage(state.viewsPageState?.activeFilter || 'all');
+        }
+
+        function deleteViewFromSet(setId, viewId) {
+            const set = state.sets.get(setId);
+            if (!set || !set.views) return;
+
+            // Remove from set
+            set.views.delete(viewId);
+
+            // Remove from global views
+            if (state.views) {
+                state.views.delete(viewId);
+            }
+
+            // If this was the current view, clear selection
+            if (state.currentViewId === viewId) {
+                state.currentViewId = null;
+            }
+        }
+
         function renderModeOptions(operator, selectedMode = '') {
             const modes = getModesForOperator(operator);
             return modes.map(mode => `<option value="${mode}" ${mode === selectedMode ? 'selected' : ''}>${mode}</option>`).join('');
@@ -14152,20 +14398,6 @@
                 return `${timestamp} - ${event.type || 'Change'} - ${event.description || 'System update'}`;
             });
 
-            // Suggested views (placeholder for future implementation)
-            const suggestedViews = [
-                {
-                    label: 'Records by Category',
-                    description: 'Group and analyze your records by category or type',
-                    id: 'suggested-category'
-                },
-                {
-                    label: 'Recent Activity Timeline',
-                    description: 'View recently modified or created records in chronological order',
-                    id: 'suggested-timeline'
-                }
-            ];
-
             container.innerHTML = `
                 <div style="padding: 2rem; display: flex; flex-direction: column; gap: 2.5rem;">
 
@@ -14213,22 +14445,6 @@
                         </div>
                     </div>
 
-                    <!-- DISCOVERY -->
-                    <div class="dashboard-section">
-                        <h2>Discover Potential Views</h2>
-                        <div class="discovery-grid">
-                            ${suggestedViews.map(v => `
-                                <div class="discovery-card">
-                                    <div class="discovery-card-title">${v.label}</div>
-                                    <div class="discovery-card-description">${v.description}</div>
-                                    <button class="btn btn-primary btn-sm" onclick="createSuggestedView('${v.id}')">
-                                        Create View
-                                    </button>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-
                     <!-- RECENT ACTIVITY -->
                     ${recentChanges.length > 0 ? `
                         <div class="dashboard-section">
@@ -14241,11 +14457,6 @@
 
                 </div>
             `;
-        }
-
-        function createSuggestedView(suggestionId) {
-            showToast('Suggested view creation coming soon!');
-            console.log('Creating suggested view:', suggestionId);
         }
 
         function attachConnectionRelationInlineEditing() {
