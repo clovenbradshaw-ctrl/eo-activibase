@@ -3098,6 +3098,29 @@
         </div>
     </div>
 
+    <div id="connectionEditModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-md">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Edit Connection</h2>
+                    <p class="text-sm text-gray-500" id="connectionEditSubtitle">Update relationship parameters</p>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600 transition" onclick="closeModal('connectionEditModal')" aria-label="Close">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="connectionEditParams" class="space-y-3"></div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button class="btn btn-secondary" type="button" onclick="closeModal('connectionEditModal')">Cancel</button>
+                <button class="btn btn-primary" type="button" onclick="saveConnectionEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <div id="expandedRecordModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
         <div class="modal-container bg-white w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
             <div class="modal-header flex items-center justify-between flex-shrink-0">
@@ -16741,47 +16764,125 @@
                 (edge.operand?.type === 'Record' && edge.operand?.id === recordId)
             );
 
+            const isFormExpanded = builder.formExpanded !== false;
+            const canSubmit = selectedRecordId && sidebarRelationId && availableRecords.length > 0;
+
             container.innerHTML = `
                 <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="font-semibold text-gray-900">Relationships</h3>
+                            <p class="text-sm text-gray-500">Link this record to other records.</p>
+                        </div>
+                        <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">${connections.length}</span>
+                    </div>
+
+                    <!-- Add Connection Form -->
+                    <div class="border border-gray-200 bg-white rounded-lg overflow-hidden">
+                        <button
+                            class="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                            onclick="toggleConnectionForm('${recordId}')"
+                        >
+                            <span class="font-medium text-sm text-gray-700 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                Add Connection
+                            </span>
+                            <svg class="w-4 h-4 text-gray-400 transition-transform ${isFormExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+
+                        <div class="${isFormExpanded ? '' : 'hidden'}" id="connectionFormBody">
+                            <div class="px-4 pb-4 space-y-4 border-t border-gray-100">
+                                <!-- Target Selection -->
+                                <div class="pt-4">
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-semibold">1</div>
+                                        <span class="text-sm font-medium text-gray-700">Select Target</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label class="text-xs text-gray-500 mb-1 block">From Set</label>
+                                            <select id="newConnectionSet" class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500" onchange="handleConnectionSetChange('${recordId}', this.value)">
+                                                ${setEntries.length === 0 ? '<option value="">No sets</option>' : ''}
+                                                ${setEntries.map(([id, set]) => `<option value="${id}" ${id === selectedSetId ? 'selected' : ''}>${set.name || id}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="text-xs text-gray-500 mb-1 block">Relation Type</label>
+                                            <select id="sidebarConnectionRelation" class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500" ${formatOptions.length === 0 ? 'disabled' : ''}>
+                                                ${formatOptions.map(rel => `<option value="${rel.id}" ${rel.id === sidebarRelationId ? 'selected' : ''}>${rel.operator} • ${rel.mode}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 relative">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                            </svg>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            class="border border-gray-200 rounded-lg pl-10 pr-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            placeholder="Search records..."
+                                            value="${builder.searchQuery || ''}"
+                                            oninput="handleConnectionSearchChange('${recordId}', this.value)"
+                                            ${!selectedSetId ? 'disabled' : ''}
+                                        />
+                                    </div>
+                                    <select id="newConnectionTarget" class="mt-2 border border-gray-200 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${selectedRecordId ? 'border-blue-300 bg-blue-50' : ''}" onchange="handleConnectionRecordChange('${recordId}', this.value)" ${!selectedSetId ? 'disabled' : ''}>
+                                        <option value="">${selectedSetId ? 'Select a record...' : 'Select a set first'}</option>
+                                        ${availableRecords.length === 0 && selectedSetId ? `<option value="" disabled>${allAvailableRecords.length === 0 ? 'No records in this set' : 'No matches found'}</option>` : ''}
+                                        ${availableRecords.map(rec => `<option value="${rec.id}" ${rec.id === selectedRecordId ? 'selected' : ''}>${getRecordDisplayName(rec.id)}</option>`).join('')}
+                                    </select>
+                                </div>
+
+                                <!-- Parameters -->
+                                <div>
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <div class="w-6 h-6 rounded-full ${selectedRecordId ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'} flex items-center justify-center text-xs font-semibold">2</div>
+                                        <span class="text-sm font-medium ${selectedRecordId ? 'text-gray-700' : 'text-gray-400'}">Add Details</span>
+                                    </div>
+                                    <div id="sidebarConnectionParams" class="space-y-2 ${selectedRecordId ? '' : 'opacity-50 pointer-events-none'}"></div>
+                                </div>
+
+                                <!-- Submit -->
+                                <div class="pt-2 flex items-center gap-2">
+                                    <button
+                                        class="flex-1 btn btn-primary text-sm py-2 ${canSubmit ? '' : 'opacity-50 cursor-not-allowed'}"
+                                        onclick="createConnectionFromSidebar('${recordId}')"
+                                        ${canSubmit ? '' : 'disabled'}
+                                    >
+                                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                                        </svg>
+                                        Create Link
+                                    </button>
+                                    <button
+                                        class="btn btn-ghost text-sm py-2 text-gray-500"
+                                        onclick="resetConnectionBuilder('${recordId}')"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Existing Connections -->
                     <div>
-                        <h3 class="font-semibold">Relationships</h3>
-                        <p class="text-sm text-gray-600">Link this record to other records.</p>
-                    </div>
-                    <div class="border border-gray-200 bg-white rounded-lg p-4 space-y-3">
-                        <label class="form-label">Select set</label>
-                        <select id="newConnectionSet" class="border rounded px-3 py-2 text-sm w-full" onchange="handleConnectionSetChange('${recordId}', this.value)">
-                            ${setEntries.length === 0 ? '<option value="">No sets available</option>' : ''}
-                            ${setEntries.map(([id, set]) => `<option value="${id}" ${id === selectedSetId ? 'selected' : ''}>${set.name || id}</option>`).join('')}
-                        </select>
-                        <label class="form-label">Search records</label>
-                        <input
-                            type="text"
-                            class="border rounded px-3 py-2 text-sm w-full"
-                            placeholder="Search by name or ID"
-                            value="${builder.searchQuery || ''}"
-                            oninput="handleConnectionSearchChange('${recordId}', this.value)"
-                            ${!selectedSetId ? 'disabled' : ''}
-                        />
-                        <label class="form-label">Connect to</label>
-                        <select id="newConnectionTarget" class="border rounded px-3 py-2 text-sm w-full" onchange="handleConnectionRecordChange('${recordId}', this.value)" ${!selectedSetId ? 'disabled' : ''}>
-                            <option value="">${selectedSetId ? 'Select a record' : 'Select a set first'}</option>
-                            ${availableRecords.length === 0 && selectedSetId ? `<option value="" disabled>${allAvailableRecords.length === 0 ? 'No records available' : 'No matches found'}</option>` : ''}
-                            ${availableRecords.map(rec => `<option value="${rec.id}" ${rec.id === selectedRecordId ? 'selected' : ''}>${getRecordDisplayName(rec.id)}</option>`).join('')}
-                        </select>
-                        <label class="form-label">Relation</label>
-                        <select id="sidebarConnectionRelation" class="border rounded px-3 py-2 text-sm w-full" ${formatOptions.length === 0 ? 'disabled' : ''}>
-                            <option value="">${formatOptions.length === 0 ? 'Add a connection relation first' : 'Select a relation'}</option>
-                            ${formatOptions.map(rel => `<option value="${rel.id}" ${rel.id === sidebarRelationId ? 'selected' : ''}>${rel.operator} • ${rel.mode}</option>`).join('')}
-                        </select>
-                        <div class="text-xs text-gray-600">${selectedRelation ? `${selectedRelation.operator} / ${selectedRelation.mode}` : 'No relation selected'}</div>
-                        <div id="sidebarConnectionParams" class="grid grid-cols-1 gap-2"></div>
-                        <button class="btn btn-primary btn-sm" onclick="createConnectionFromSidebar('${recordId}')" ${(availableRecords.length === 0 || !selectedRecordId || !sidebarRelationId) ? 'disabled' : ''}>Add Connection</button>
-                        ${availableRecords.length === 0
-                            ? `<p class="text-xs text-gray-500">${allAvailableRecords.length === 0 ? 'Add records to the selected set to create connections.' : 'No records match your search.'}</p>`
-                            : ''}
-                    </div>
-                    <div class="space-y-3">
-                        ${connections.length === 0 ? '<p class="text-gray-500">No connections yet.</p>' : connections.map(edge => renderConnectionCard(edge, recordId)).join('')}
+                        ${connections.length === 0
+                            ? `<div class="text-center py-8 text-gray-400">
+                                    <svg class="w-10 h-10 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                                    </svg>
+                                    <p class="text-sm">No connections yet</p>
+                                    <p class="text-xs mt-1">Link this record to other records above</p>
+                                </div>`
+                            : `<div class="space-y-2">${connections.map(edge => renderConnectionCard(edge, recordId)).join('')}</div>`
+                        }
                     </div>
                 </div>
             `;
@@ -16814,6 +16915,20 @@
             });
         }
 
+        function toggleConnectionForm(recordId) {
+            const builder = getConnectionBuilder();
+            builder.formExpanded = builder.formExpanded === false ? true : false;
+            renderRecordSidebar(recordId);
+        }
+
+        function resetConnectionBuilder(recordId) {
+            const builder = getConnectionBuilder();
+            builder.targetRecordId = '';
+            builder.searchQuery = '';
+            builder.params = {};
+            renderRecordSidebar(recordId);
+        }
+
         function handleConnectionSetChange(recordId, setId) {
             const builder = getConnectionBuilder();
             builder.targetSetId = setId || null;
@@ -16839,27 +16954,107 @@
             const isSubject = edge.subject?.type === 'Record' && edge.subject?.id === recordId;
             const isOperand = edge.operand?.type === 'Record' && edge.operand?.id === recordId;
             const otherRef = isSubject ? edge.operand : edge.subject;
-            const direction = isSubject ? '→' : (isOperand ? '←' : '↔');
+            const direction = isSubject ? 'outgoing' : (isOperand ? 'incoming' : 'bidirectional');
+            const directionIcon = isSubject
+                ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>'
+                : '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>';
             const timestamp = edge.updatedAt || edge.createdAt;
+            const hasParams = edge.params && Object.keys(edge.params).length > 0;
+            const isExpanded = state.expandedConnectionCards?.has(edge.id);
 
             return `
-                <div class="border border-gray-200 rounded-lg p-3 bg-white">
-                    <div class="flex items-center justify-between gap-3">
-                        <div>
-                            <div class="font-semibold">${direction} ${renderEntityLabel(otherRef)}</div>
-                            <div class="text-xs text-gray-500">${edge.operator || 'CON'} • ${edge.mode || 'related to'} · ${timestamp ? getTimeAgo(timestamp) : ''}</div>
+                <div class="border border-gray-200 rounded-lg bg-white hover:border-gray-300 transition-colors group">
+                    <div class="p-3">
+                        <div class="flex items-start gap-3">
+                            <!-- Direction indicator -->
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full ${isSubject ? 'bg-blue-50 text-blue-500' : 'bg-purple-50 text-purple-500'} flex items-center justify-center">
+                                ${directionIcon}
+                            </div>
+
+                            <!-- Main content -->
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-medium text-gray-900 truncate">${renderEntityLabel(otherRef)}</span>
+                                    <span class="flex-shrink-0 text-xs px-1.5 py-0.5 rounded ${isSubject ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}">${direction}</span>
+                                </div>
+                                <div class="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                    <span class="font-medium">${edge.operator || 'CON'}</span>
+                                    <span class="text-gray-300">|</span>
+                                    <span>${edge.mode || 'related to'}</span>
+                                    ${timestamp ? `<span class="text-gray-300">·</span><span>${getTimeAgo(timestamp)}</span>` : ''}
+                                </div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                ${hasParams ? `
+                                    <button
+                                        class="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                                        onclick="toggleConnectionCardExpand('${edge.id}', '${recordId}')"
+                                        title="${isExpanded ? 'Hide details' : 'Show details'}"
+                                    >
+                                        <svg class="w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                ` : ''}
+                                <button
+                                    class="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-blue-600"
+                                    onclick="openConnectionEditModal('${edge.id}', '${recordId}')"
+                                    title="Edit"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                </button>
+                                <button
+                                    class="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"
+                                    onclick="deleteConnectionFromSidebar('${edge.id}', '${recordId}')"
+                                    title="Remove"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <button class="text-sm text-blue-600" onclick="editConnectionParameters('${edge.id}', '${recordId}')">Edit parameters</button>
-                            <button class="text-sm text-red-500" onclick="deleteConnectionFromSidebar('${edge.id}', '${recordId}')">Remove</button>
-                        </div>
-                    </div>
-                    <div class="mt-2">
-                        <div class="text-xs font-semibold text-gray-600 mb-1">Parameters</div>
-                        ${renderConnectionParams(edge.params)}
+
+                        <!-- Expandable params section -->
+                        ${hasParams ? `
+                            <div class="${isExpanded ? '' : 'hidden'} mt-3 pt-3 border-t border-gray-100">
+                                ${renderConnectionParamsCompact(edge.params)}
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
+        }
+
+        function toggleConnectionCardExpand(edgeId, recordId) {
+            if (!state.expandedConnectionCards) {
+                state.expandedConnectionCards = new Set();
+            }
+            if (state.expandedConnectionCards.has(edgeId)) {
+                state.expandedConnectionCards.delete(edgeId);
+            } else {
+                state.expandedConnectionCards.add(edgeId);
+            }
+            renderRecordSidebar(recordId);
+        }
+
+        function renderConnectionParamsCompact(params) {
+            if (!params || !Object.keys(params).length) {
+                return '<p class="text-xs text-gray-400">No parameters</p>';
+            }
+
+            return `<div class="flex flex-wrap gap-2">
+                ${Object.entries(params).map(([key, value]) => `
+                    <div class="inline-flex items-center gap-1 text-xs bg-gray-50 rounded px-2 py-1">
+                        <span class="text-gray-500">${key}:</span>
+                        <span class="text-gray-700 font-medium">${typeof value === 'object' ? JSON.stringify(value) : value}</span>
+                    </div>
+                `).join('')}
+            </div>`;
         }
 
         function renderConnectionParams(params) {
@@ -16895,28 +17090,131 @@
         }
 
         function editConnectionParameters(connectionId, recordId) {
+            openConnectionEditModal(connectionId, recordId);
+        }
+
+        function openConnectionEditModal(connectionId, recordId) {
             const existing = state.connections.get(connectionId);
             if (!existing) {
                 showToast('Relationship not found');
                 return;
             }
 
-            const currentJson = JSON.stringify(existing.params || {}, null, 2);
-            const input = prompt('Edit relationship parameters (JSON object)', currentJson);
-            if (input === null) return;
+            state.editingConnectionId = connectionId;
+            state.editingConnectionRecordId = recordId;
 
-            let parsed;
-            try {
-                parsed = parseConnectionParams(input);
-            } catch (err) {
-                showToast(err.message);
+            const relation = findConnectionRelation(existing.relationId);
+            const container = document.getElementById('connectionEditParams');
+            const subtitle = document.getElementById('connectionEditSubtitle');
+
+            if (subtitle) {
+                const otherRef = existing.subject?.id === recordId ? existing.operand : existing.subject;
+                const targetLabel = renderEntityLabel(otherRef);
+                subtitle.textContent = `${existing.operator || 'CON'} • ${existing.mode || 'related to'} → ${targetLabel}`;
+            }
+
+            if (!relation) {
+                container.innerHTML = `
+                    <div class="space-y-3">
+                        <p class="text-sm text-gray-500">Edit parameters as JSON:</p>
+                        <textarea
+                            id="connectionEditJsonRaw"
+                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono h-32 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="{}"
+                        >${JSON.stringify(existing.params || {}, null, 2)}</textarea>
+                    </div>
+                `;
+            } else {
+                const allParams = [...(relation.requiredParams || []), ...(relation.optionalParams || [])];
+                container.innerHTML = allParams.length === 0
+                    ? '<p class="text-sm text-gray-500">No parameters for this relation type.</p>'
+                    : allParams.map(name => {
+                        const required = relation.requiredParams?.includes(name);
+                        const value = existing.params?.[name] !== undefined ? existing.params[name] : '';
+                        const safeValue = typeof value === 'object' ? JSON.stringify(value) : String(value || '');
+                        const escapedValue = safeValue
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;');
+                        return `
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    ${name}${required ? ' <span class="text-red-500">*</span>' : ''}
+                                </label>
+                                <input
+                                    type="text"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    data-edit-param-name="${name}"
+                                    data-edit-param-required="${required ? 'true' : 'false'}"
+                                    value="${escapedValue}"
+                                    placeholder="${required ? 'Required' : 'Optional'}"
+                                />
+                            </div>
+                        `;
+                    }).join('');
+            }
+
+            openModal('connectionEditModal');
+        }
+
+        function saveConnectionEdit() {
+            const connectionId = state.editingConnectionId;
+            const recordId = state.editingConnectionRecordId;
+
+            if (!connectionId) {
+                showToast('No connection selected');
                 return;
             }
 
+            const existing = state.connections.get(connectionId);
+            if (!existing) {
+                showToast('Connection not found');
+                closeModal('connectionEditModal');
+                return;
+            }
+
+            let params = {};
+
+            const jsonTextarea = document.getElementById('connectionEditJsonRaw');
+            if (jsonTextarea) {
+                try {
+                    params = parseConnectionParams(jsonTextarea.value);
+                } catch (err) {
+                    showToast(err.message);
+                    return;
+                }
+            } else {
+                const inputs = document.querySelectorAll('[data-edit-param-name]');
+                for (const input of inputs) {
+                    const name = input.dataset.editParamName;
+                    const required = input.dataset.editParamRequired === 'true';
+                    const rawValue = (input.value || '').trim();
+
+                    if (!rawValue) {
+                        if (required) {
+                            showToast(`Missing required parameter: ${name}`);
+                            input.focus();
+                            return;
+                        }
+                        continue;
+                    }
+
+                    try {
+                        params[name] = JSON.parse(rawValue);
+                    } catch (err) {
+                        params[name] = rawValue;
+                    }
+                }
+            }
+
             try {
-                updateConnection(connectionId, { params: parsed });
-                renderRecordSidebar(recordId);
-                showToast('✓ Parameters updated');
+                updateConnection(connectionId, { params });
+                closeModal('connectionEditModal');
+                if (recordId) {
+                    renderRecordSidebar(recordId);
+                }
+                showToast('Parameters updated');
             } catch (error) {
                 showToast(error.message);
             }
