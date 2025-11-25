@@ -1,98 +1,340 @@
 {
-  "INS": [
-    "creates",
-    "generates",
-    "instantiates",
-    "spawns",
-    "produces",
-    "originates",
-    "initializes",
-    "seeds",
-    "emits",
-    "constructs",
-    "yields"
-  ],
-  "DES": [
-    "labels",
-    "defines as",
-    "names",
-    "classifies as",
-    "assigns identity",
-    "tags",
-    "indexes",
-    "marks",
-    "annotates"
-  ],
-  "SEG": [
-    "filters by",
-    "limits to",
-    "excludes",
-    "includes",
-    "constrains",
-    "segments by",
-    "partitions into",
-    "sorts by",
-    "extracts subset of",
-    "bounds",
-    "gates through"
-  ],
-  "CON": [
-    "is linked to",
-    "relates to",
-    "connects with",
-    "associates with",
-    "depends on",
-    "references",
-    "maps onto",
-    "joins with",
-    "cross-references",
-    "corresponds to",
-    "aligns with"
-  ],
-  "ALT": [
-    "toggles with",
-    "alternates between",
-    "cycles through",
-    "flips with",
-    "oscillates with",
-    "switches based on",
-    "transitions via"
-  ],
-  "SYN": [
-    "integrates",
-    "combines with",
-    "aggregates",
-    "fuses with",
-    "summarizes from",
-    "harmonizes with",
-    "computes across",
-    "merges into",
-    "derives from"
-  ],
-  "SUP": [
-    "superposes",
-    "overlays",
-    "holds in parallel",
-    "maintains layers of",
-    "captures multi-valued inputs from",
-    "bundles perspectives from",
-    "keeps alternate forms of"
-  ],
-  "REC": [
-    "feeds back into",
-    "iterates with",
-    "recalibrates against",
-    "loops through",
-    "updates based on",
-    "evolves using",
-    "learns from"
-  ],
-  "NUL": [
-    "detects absence of",
-    "flags missing value in",
-    "depends on lack of",
-    "reveals void in",
-    "identifies gap in",
-    "surfaces incomplete state of"
-  ]
+  "meta": {
+    "version": "2.0",
+    "description": "EO Operators - The 9 fundamental relation types from Elegance of Objects Chapter 8",
+    "note": "These operators constitute all possible modes of relation in the EO framework"
+  },
+  "operators": {
+    "NUL": {
+      "code": "NUL",
+      "name": "Null/Absence",
+      "symbol": "∅",
+      "precedence": 0,
+      "description": "Recognizes absence; detects what is missing or void",
+      "verbs": [
+        "detects absence of",
+        "flags missing value in",
+        "depends on lack of",
+        "reveals void in",
+        "identifies gap in",
+        "surfaces incomplete state of"
+      ],
+      "style": {
+        "color": "#9E9E9E",
+        "strokeStyle": "dashed",
+        "strokeWidth": 1,
+        "arrowShape": "none"
+      },
+      "validNextOperators": ["DES", "INS"],
+      "examples": [
+        "A record 'detects absence of' a required field",
+        "A validation 'flags missing value in' submission",
+        "A query 'reveals void in' dataset"
+      ]
+    },
+    "DES": {
+      "code": "DES",
+      "name": "Designate",
+      "symbol": "≝",
+      "precedence": 1,
+      "description": "Labels, names, or assigns identity to an entity",
+      "verbs": [
+        "labels",
+        "defines as",
+        "names",
+        "classifies as",
+        "assigns identity",
+        "tags",
+        "indexes",
+        "marks",
+        "annotates"
+      ],
+      "style": {
+        "color": "#424242",
+        "strokeStyle": "solid",
+        "strokeWidth": 1,
+        "arrowShape": "triangle"
+      },
+      "validNextOperators": ["INS", "SEG", "CON"],
+      "examples": [
+        "A schema 'defines as' Revenue the numeric field",
+        "A tag 'classifies as' Priority the task",
+        "An index 'names' the lookup key"
+      ]
+    },
+    "INS": {
+      "code": "INS",
+      "name": "Instantiate",
+      "symbol": "⊕",
+      "precedence": 2,
+      "description": "Creates, generates, or brings into existence",
+      "verbs": [
+        "creates",
+        "generates",
+        "instantiates",
+        "spawns",
+        "produces",
+        "originates",
+        "initializes",
+        "seeds",
+        "emits",
+        "constructs",
+        "yields"
+      ],
+      "style": {
+        "color": "#2E7D32",
+        "strokeStyle": "solid",
+        "strokeWidth": 2,
+        "arrowShape": "triangle-filled"
+      },
+      "validNextOperators": ["SEG", "CON", "ALT"],
+      "examples": [
+        "A template 'creates' a new record",
+        "A factory 'instantiates' worker objects",
+        "A trigger 'spawns' notification events"
+      ]
+    },
+    "SEG": {
+      "code": "SEG",
+      "name": "Segment",
+      "symbol": "⊢",
+      "precedence": 3,
+      "description": "Bounds, filters, partitions, or constrains scope",
+      "verbs": [
+        "filters by",
+        "limits to",
+        "excludes",
+        "includes",
+        "constrains",
+        "segments by",
+        "partitions into",
+        "sorts by",
+        "extracts subset of",
+        "bounds",
+        "gates through"
+      ],
+      "style": {
+        "color": "#C62828",
+        "strokeStyle": "solid",
+        "strokeWidth": 1.5,
+        "arrowShape": "bar"
+      },
+      "validNextOperators": ["CON", "ALT", "SYN"],
+      "examples": [
+        "A view 'filters by' status = active",
+        "A permission 'limits to' admin users",
+        "A query 'segments by' department"
+      ]
+    },
+    "CON": {
+      "code": "CON",
+      "name": "Connect",
+      "symbol": "⋈",
+      "precedence": 4,
+      "description": "Links, relates, or associates entities",
+      "verbs": [
+        "is linked to",
+        "relates to",
+        "connects with",
+        "associates with",
+        "depends on",
+        "references",
+        "maps onto",
+        "joins with",
+        "cross-references",
+        "corresponds to",
+        "aligns with"
+      ],
+      "style": {
+        "color": "#1565C0",
+        "strokeStyle": "solid",
+        "strokeWidth": 2,
+        "arrowShape": "diamond"
+      },
+      "validNextOperators": ["ALT", "SYN", "SUP", "REC"],
+      "examples": [
+        "A task 'is linked to' a project",
+        "An employee 'references' a department",
+        "A lookup 'maps onto' a reference table"
+      ]
+    },
+    "ALT": {
+      "code": "ALT",
+      "name": "Alternate",
+      "symbol": "⇌",
+      "precedence": 5,
+      "description": "Toggles, oscillates, or switches between states",
+      "verbs": [
+        "toggles with",
+        "alternates between",
+        "cycles through",
+        "flips with",
+        "oscillates with",
+        "switches based on",
+        "transitions via"
+      ],
+      "style": {
+        "color": "#00838F",
+        "strokeStyle": "dotted",
+        "strokeWidth": 2,
+        "arrowShape": "tee"
+      },
+      "validNextOperators": ["CON", "SYN", "REC"],
+      "examples": [
+        "A workflow 'alternates between' review and approval",
+        "A toggle 'flips with' dark/light mode",
+        "A state machine 'transitions via' events"
+      ]
+    },
+    "SYN": {
+      "code": "SYN",
+      "name": "Synthesize",
+      "symbol": "⊗",
+      "precedence": 6,
+      "description": "Integrates, combines, or fuses into unified whole",
+      "verbs": [
+        "integrates",
+        "combines with",
+        "aggregates",
+        "fuses with",
+        "summarizes from",
+        "harmonizes with",
+        "computes across",
+        "merges into",
+        "derives from"
+      ],
+      "style": {
+        "color": "#6A1B9A",
+        "strokeStyle": "solid",
+        "strokeWidth": 3,
+        "arrowShape": "triangle-filled"
+      },
+      "validNextOperators": ["SUP", "REC"],
+      "examples": [
+        "A rollup 'aggregates' child records",
+        "A merge operation 'combines with' duplicate records",
+        "A dashboard 'summarizes from' multiple sources"
+      ]
+    },
+    "SUP": {
+      "code": "SUP",
+      "name": "Superpose",
+      "symbol": "⧦",
+      "precedence": 7,
+      "description": "Overlays, holds in parallel, maintains multiple valid states",
+      "verbs": [
+        "superposes",
+        "overlays",
+        "holds in parallel",
+        "maintains layers of",
+        "captures multi-valued inputs from",
+        "bundles perspectives from",
+        "keeps alternate forms of"
+      ],
+      "style": {
+        "color": "#AD1457",
+        "strokeStyle": "double",
+        "strokeWidth": 2,
+        "arrowShape": "vee"
+      },
+      "validNextOperators": ["REC", "ALT"],
+      "examples": [
+        "A cell 'superposes' GAAP and IFRS values",
+        "A version 'holds in parallel' draft and published states",
+        "A translation 'maintains layers of' multiple languages"
+      ]
+    },
+    "REC": {
+      "code": "REC",
+      "name": "Recurse",
+      "symbol": "↻",
+      "precedence": 8,
+      "description": "Loops, iterates, feeds back into self",
+      "verbs": [
+        "feeds back into",
+        "iterates with",
+        "recalibrates against",
+        "loops through",
+        "updates based on",
+        "evolves using",
+        "learns from"
+      ],
+      "style": {
+        "color": "#E65100",
+        "strokeStyle": "solid",
+        "strokeWidth": 2,
+        "arrowShape": "circle",
+        "curved": true
+      },
+      "validNextOperators": ["REC", "SYN", "ALT"],
+      "examples": [
+        "A model 'learns from' prediction errors",
+        "A process 'iterates with' each batch",
+        "A metric 'recalibrates against' new data"
+      ]
+    }
+  },
+  "realms": {
+    "I": {
+      "name": "Pre-formation",
+      "range": [1, 6],
+      "description": "Raw potential, undifferentiated possibility",
+      "style": {
+        "backgroundColor": "#FAFAFA",
+        "borderColor": "#E0E0E0",
+        "shape": "ellipse"
+      }
+    },
+    "II": {
+      "name": "Nascent Form",
+      "range": [7, 12],
+      "description": "Emerging structure, initial differentiation",
+      "style": {
+        "backgroundColor": "#E3F2FD",
+        "borderColor": "#90CAF9",
+        "shape": "round-rectangle"
+      }
+    },
+    "III": {
+      "name": "Explicit Form",
+      "range": [13, 18],
+      "description": "Stable structure, clear identity",
+      "style": {
+        "backgroundColor": "#E8F5E9",
+        "borderColor": "#A5D6A7",
+        "shape": "rectangle"
+      }
+    },
+    "IV": {
+      "name": "Pattern Mastery",
+      "range": [19, 24],
+      "description": "Recognized patterns, established behavior",
+      "style": {
+        "backgroundColor": "#FFF3E0",
+        "borderColor": "#FFCC80",
+        "shape": "diamond"
+      }
+    },
+    "V": {
+      "name": "Meta-stability",
+      "range": [25, 27],
+      "description": "Self-referential stability, recursive coherence",
+      "style": {
+        "backgroundColor": "#FFFDE7",
+        "borderColor": "#FFF59D",
+        "shape": "star"
+      }
+    }
+  },
+  "legacyVerbs": {
+    "INS": ["creates", "generates", "instantiates", "spawns", "produces", "originates", "initializes", "seeds", "emits", "constructs", "yields"],
+    "DES": ["labels", "defines as", "names", "classifies as", "assigns identity", "tags", "indexes", "marks", "annotates"],
+    "SEG": ["filters by", "limits to", "excludes", "includes", "constrains", "segments by", "partitions into", "sorts by", "extracts subset of", "bounds", "gates through"],
+    "CON": ["is linked to", "relates to", "connects with", "associates with", "depends on", "references", "maps onto", "joins with", "cross-references", "corresponds to", "aligns with"],
+    "ALT": ["toggles with", "alternates between", "cycles through", "flips with", "oscillates with", "switches based on", "transitions via"],
+    "SYN": ["integrates", "combines with", "aggregates", "fuses with", "summarizes from", "harmonizes with", "computes across", "merges into", "derives from"],
+    "SUP": ["superposes", "overlays", "holds in parallel", "maintains layers of", "captures multi-valued inputs from", "bundles perspectives from", "keeps alternate forms of"],
+    "REC": ["feeds back into", "iterates with", "recalibrates against", "loops through", "updates based on", "evolves using", "learns from"],
+    "NUL": ["detects absence of", "flags missing value in", "depends on lack of", "reveals void in", "identifies gap in", "surfaces incomplete state of"]
+  }
 }
