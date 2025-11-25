@@ -386,10 +386,25 @@
         .world-select {
             width: 100%;
             padding: 8px 10px;
-            border-radius: 10px;
-            border: 1px solid #1f2937;
-            background: #0b1221;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #1e293b;
             color: #e5e7eb;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+        }
+
+        .world-select:hover {
+            background: #263549;
+            border-color: #475569;
+        }
+
+        .world-select:focus {
+            border-color: #6ee7b7;
+            box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);
         }
 
         .btn-ghost {
@@ -2568,14 +2583,13 @@
 
         .world-nav-parent {
             padding: 0.5rem 1rem;
-            cursor: pointer;
             border-radius: 0.375rem;
             margin: 0 0.5rem;
             transition: background-color 0.15s ease;
             font-weight: 500;
         }
         .world-nav-parent:hover {
-            background-color: #131C30;
+            background-color: transparent;
         }
 
         .world-nav-children {
@@ -2764,8 +2778,10 @@
                     <i id="worldSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
                 </div>
                 <div id="worldNavContent">
-                    <div class="world-nav-parent" id="worldNavParent" onclick="navigateTo('dashboard')">
-                        <span id="worldNavName">Loading...</span>
+                    <div class="world-nav-parent" id="worldNavParent">
+                        <select id="worldSelect" class="world-select" onchange="switchWorld(this.value)">
+                            <!-- Options populated by renderWorldSelector() -->
+                        </select>
                     </div>
                     <div class="world-nav-children" style="padding: 0 1rem;">
                         <div class="nav-item" id="navDashboard" onclick="navigateTo('dashboard')">Dashboard</div>
