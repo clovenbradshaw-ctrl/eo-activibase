@@ -5851,16 +5851,21 @@
             if (def?.term) return def.term;
 
             if (entity.type === 'Record') {
-                return getRecordDisplayName(entity.id);
+                const displayName = getRecordDisplayName(entity.id);
+                if (displayName) return displayName;
+                // Fall back to set name if available
+                const ref = getRecordById(entity.id);
+                if (ref?.set?.name) return ref.set.name;
+                return 'Record';
             }
             if (entity.type === 'Set') {
-                return state.sets.get(entity.id)?.name || entity.id;
+                return state.sets.get(entity.id)?.name || 'Set';
             }
             if (entity.type === 'Connection') {
                 const conn = state.connections.get(entity.id);
                 if (conn) return `${renderEntityLabel(conn.subject)} ${conn.mode || '→'} ${renderEntityLabel(conn.operand)}`;
             }
-            return entity.id;
+            return entity.type || 'Entity';
         }
 
         function addDefinition(def) {
@@ -7603,7 +7608,14 @@
         }
 
         function getRecordById(recordId) {
+            // First check current world's sets
             for (const set of getSetsForWorld()) {
+                if (set.records.has(recordId)) {
+                    return { setId: set.id, set, record: set.records.get(recordId) };
+                }
+            }
+            // Fall back to searching all sets across all worlds
+            for (const set of state.sets.values()) {
                 if (set.records.has(recordId)) {
                     return { setId: set.id, set, record: set.records.get(recordId) };
                 }
@@ -7624,9 +7636,10 @@
 
         function createLinkedRecordOptionList(field) {
             const options = getLinkedRecordOptions(field);
+            const linkedSet = getLinkedSet(field);
             return options.map(opt => ({
                 id: opt.id,
-                label: opt.name || getRecordDisplayName(opt.id) || opt.id
+                label: opt.name || getRecordDisplayName(opt.id) || linkedSet?.name || 'Record'
             }));
         }
 
@@ -10796,11 +10809,11 @@
                     return value ? '✅' : '⬜';
                 case 'LINK_RECORD':
                     if (!value) return '';
-                    const linkedName = getRecordDisplayName(value);
+                    const linkedName = getRecordDisplayName(value) || field.config?.linkedSetId && state.sets.get(field.config.linkedSetId)?.name || 'Linked Record';
                     return `<button class="text-blue-600 hover:underline" onclick="event.stopPropagation(); openLinkedRecord('${value}')">${linkedName}</button>`;
                 case 'LOOKUP':
                     if (!value) return '';
-                    const lookupName = getRecordDisplayName(value);
+                    const lookupName = getRecordDisplayName(value) || 'Record';
                     return `<span class="text-gray-700">${lookupName}</span>`;
                 case 'SELECT':
                     if (!value) return '';
@@ -10820,7 +10833,7 @@
                     );
                     return formatted;
                 case 'RECORD_ID':
-                    const displayName = getRecordDisplayName(record?.id);
+                    const displayName = getRecordDisplayName(record?.id) || 'Record';
                     return `<span class="font-mono text-xs text-gray-700">${displayName}</span>`;
                 case 'LINKED_LOOKUP':
                     // Render linked lookup field
@@ -12216,7 +12229,7 @@
                 <div class="mt-3 space-y-2 pl-4 border-l-2 border-green-200">
                     ${renderChildTable('Records', 'ph-database', records.slice(0, 20), record => `
                         <div class="text-xs px-2 py-1 hover:bg-gray-50 rounded">
-                            ${getRecordDisplayName(record.id)}
+                            ${getRecordDisplayName(record.id) || 'Record'}
                         </div>
                     `)}
                     ${records.length > 20 ? `<div class="text-xs text-gray-500 px-2">... and ${records.length - 20} more records</div>` : ''}
@@ -12718,27 +12731,31 @@
         }
 
         function getEntityDisplayName(entityType, entityId) {
-            if (!entityType || !entityId) return entityId || 'Unknown';
+            if (!entityType || !entityId) return 'Unknown';
 
             if (entityType === 'Record') {
-                return getRecordDisplayName(entityId);
+                const displayName = getRecordDisplayName(entityId);
+                if (displayName) return displayName;
+                // Fall back to set name if available
+                const ref = getRecordById(entityId);
+                return ref?.set?.name || 'Record';
             } else if (entityType === 'Set') {
                 const set = state.sets.get(entityId);
-                return set?.name || entityId;
+                return set?.name || 'Set';
             } else if (entityType === 'World') {
                 const world = state.worlds.get(entityId);
-                return world?.name || entityId;
+                return world?.name || 'World';
             } else if (entityType === 'View') {
                 // Try to find the view in sets from the current world
                 for (const set of getSetsForWorld()) {
                     if (set.views.has(entityId)) {
-                        return set.views.get(entityId)?.name || entityId;
+                        return set.views.get(entityId)?.name || 'View';
                     }
                 }
-                return entityId;
+                return 'View';
             }
 
-            return entityId;
+            return entityType || 'Entity';
         }
 
         function renderGraph(definitions, connections, entities = []) {
@@ -14852,7 +14869,7 @@
 
             const options = Array.from(linkedSet.records.values()).map(rec => ({
                 value: rec.id,
-                label: getRecordDisplayName(rec.id),
+                label: getRecordDisplayName(rec.id) || linkedSet.name || 'Record',
                 icon: '🔗',
                 color: '#e0f2fe'
             }));
@@ -16158,7 +16175,7 @@
             const record = set.records.get(recordId);
             state.currentRecordTab = 'provenance';
             state.recordHistoryVisible = true;
-            document.getElementById('expandedRecordTitle').textContent = getRecordDisplayName(record.id);
+            document.getElementById('expandedRecordTitle').textContent = getRecordDisplayName(record.id) || set.name || 'Record';
             renderExpandedRecordMain(recordId);
             renderRecordSidebar(recordId);
             updateRecordHistoryVisibility();
@@ -16493,7 +16510,7 @@
                     const lookupSet = field.config?.lookupSetId ? state.sets.get(field.config.lookupSetId) : null;
                     const options = lookupSet ? Array.from(lookupSet.records.values()).map(rec => ({
                         id: rec.id,
-                        label: getRecordDisplayName(rec.id)
+                        label: getRecordDisplayName(rec.id) || lookupSet.name || 'Record'
                     })) : [];
                     const disableSelect = !lookupSet || options.length === 0;
                     const selectId = `lookup-select-${recordId}-${field.id}`;
@@ -16736,7 +16753,7 @@
             const search = builder.searchQuery?.trim().toLowerCase() || '';
             const availableRecords = search
                 ? allAvailableRecords.filter(rec => {
-                    const displayName = getRecordDisplayName(rec.id);
+                    const displayName = getRecordDisplayName(rec.id) || '';
                     return displayName.toLowerCase().includes(search);
                 })
                 : allAvailableRecords;
@@ -16773,7 +16790,7 @@
                         <select id="newConnectionTarget" class="border rounded px-3 py-2 text-sm w-full" onchange="handleConnectionRecordChange('${recordId}', this.value)" ${!selectedSetId ? 'disabled' : ''}>
                             <option value="">${selectedSetId ? 'Select a record' : 'Select a set first'}</option>
                             ${availableRecords.length === 0 && selectedSetId ? `<option value="" disabled>${allAvailableRecords.length === 0 ? 'No records available' : 'No matches found'}</option>` : ''}
-                            ${availableRecords.map(rec => `<option value="${rec.id}" ${rec.id === selectedRecordId ? 'selected' : ''}>${getRecordDisplayName(rec.id)}</option>`).join('')}
+                            ${availableRecords.map(rec => `<option value="${rec.id}" ${rec.id === selectedRecordId ? 'selected' : ''}>${getRecordDisplayName(rec.id) || selectedSet?.name || 'Record'}</option>`).join('')}
                         </select>
                         <label class="form-label">Relation</label>
                         <select id="sidebarConnectionRelation" class="border rounded px-3 py-2 text-sm w-full" ${formatOptions.length === 0 ? 'disabled' : ''}>
@@ -16931,12 +16948,35 @@
 
         function getRecordDisplayName(recordId) {
             const ref = getRecordById(recordId);
-            if (!ref) return recordId;
+            if (!ref) return null;
 
             const identifierFieldId = getIdentifierFieldForSet(ref.set, ref.setId === state.currentSetId ? state.currentViewId : null);
             const identifierValue = identifierFieldId ? ref.record?.[identifierFieldId] : null;
+            if (identifierValue) return identifierValue;
 
-            return identifierValue || ref.record?.name || recordId;
+            // Check common name properties
+            if (ref.record?.name) return ref.record.name;
+            if (ref.record?.title) return ref.record.title;
+            if (ref.record?.label) return ref.record.label;
+
+            // Look for any text-like field value in the schema order
+            if (ref.set?.schema) {
+                for (const field of ref.set.schema) {
+                    if (['TEXT', 'LONG_TEXT'].includes(field.type)) {
+                        const val = ref.record?.[field.id];
+                        if (val && typeof val === 'string' && val.trim()) return val;
+                    }
+                }
+            }
+
+            // Last resort: look for any non-empty string value
+            for (const [key, val] of Object.entries(ref.record || {})) {
+                if (key !== 'id' && typeof val === 'string' && val.trim() && !val.startsWith('rec_')) {
+                    return val;
+                }
+            }
+
+            return null;
         }
 
         function getIdentifierFieldForSet(set, preferredViewId = null) {
