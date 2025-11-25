@@ -7315,8 +7315,8 @@
                 score += reuseRatio * 0.4;
             }
 
-            for (const [otherSetId, otherSet] of state.sets.entries()) {
-                if (otherSetId === set.id) continue;
+            for (const otherSet of getSetsForWorld(set.worldId)) {
+                if (otherSet.id === set.id) continue;
                 const overlap = otherSet.schema.some(f => f.id === fieldId || f.name === fieldName || f.name === fieldId);
                 const dataOverlap = Array.from(otherSet.records.values()).some(r => r[fieldId] !== undefined);
                 if (overlap || dataOverlap) score += 0.15;
@@ -7589,9 +7589,9 @@
         }
 
         function getRecordById(recordId) {
-            for (const [setId, set] of state.sets.entries()) {
+            for (const set of getSetsForWorld()) {
                 if (set.records.has(recordId)) {
-                    return { setId, set, record: set.records.get(recordId) };
+                    return { setId: set.id, set, record: set.records.get(recordId) };
                 }
             }
             return null;
@@ -10883,7 +10883,7 @@
             const setPicker = document.getElementById('columnRulesSetPicker');
             const preferredSet = document.getElementById('columnRulesPreferredSet');
             preferredSet.innerHTML = '';
-            state.sets.forEach(set => {
+            getSetsForWorld().forEach(set => {
                 const opt = document.createElement('option');
                 opt.value = set.id;
                 opt.textContent = set.name;
@@ -12049,10 +12049,10 @@
 
             const set = record.set;
             const fields = set?.schema || [];
-            const outgoingConnections = Array.from(state.connections.values()).filter(c => c.subject?.id === recordId);
-            const incomingConnections = Array.from(state.connections.values()).filter(c => c.operand?.id === recordId);
-            const definitions = Array.from(state.definitions.values()).filter(d => d.entity?.type === 'Record' && d.entity?.id === recordId);
-            const derivedViews = Array.from(state.entities.values()).filter(e => e.type === 'ViewEntity' && e.memberRefs?.some(ref => ref.id === recordId));
+            const outgoingConnections = getConnectionView(c => c.subject?.id === recordId);
+            const incomingConnections = getConnectionView(c => c.operand?.id === recordId);
+            const definitions = getDefinitionView(d => d.entity?.type === 'Record' && d.entity?.id === recordId);
+            const derivedViews = getEntityView(e => e.type === 'ViewEntity' && e.memberRefs?.some(ref => ref.id === recordId));
 
             return { fields, outgoingConnections, incomingConnections, definitions, derivedViews, record, set };
         }
@@ -12064,12 +12064,12 @@
             const records = Array.from(set.records.values()).map(r => ({ ...r, setId, setName: set.name }));
             const fields = set.schema || [];
             const views = Array.from(set.views.values());
-            const definitions = Array.from(state.definitions.values()).filter(d => d.entity?.type === 'Set' && d.entity?.id === setId);
-            const connections = Array.from(state.connections.values()).filter(c =>
+            const definitions = getDefinitionView(d => d.entity?.type === 'Set' && d.entity?.id === setId);
+            const connections = getConnectionView(c =>
                 (c.subject?.type === 'Set' && c.subject?.id === setId) ||
                 (c.operand?.type === 'Set' && c.operand?.id === setId)
             );
-            const viewEntities = Array.from(state.entities.values()).filter(e => e.type === 'ViewEntity' && e.viewRef?.setId === setId);
+            const viewEntities = getEntityView(e => e.type === 'ViewEntity' && e.viewRef?.setId === setId);
 
             return { records, fields, views, definitions, connections, viewEntities, set };
         }
@@ -12082,7 +12082,7 @@
             if (!field) return null;
 
             const records = Array.from(set.records.values()).map(r => ({ id: r.id, value: r[fieldId] }));
-            const definitions = Array.from(state.definitions.values()).filter(d => d.entity?.type === 'Field' && d.entity?.id === fieldId);
+            const definitions = getDefinitionView(d => d.entity?.type === 'Field' && d.entity?.id === fieldId);
 
             return { field, records, definitions, set };
         }
@@ -12094,7 +12094,7 @@
             const relation = connection.relationId ? state.connectionRelations.get(connection.relationId) : null;
             const subjectEntity = state.entities.get(connection.subject?.id);
             const operandEntity = state.entities.get(connection.operand?.id);
-            const definitions = Array.from(state.definitions.values()).filter(d => d.entity?.type === 'Connection' && d.entity?.id === connectionId);
+            const definitions = getDefinitionView(d => d.entity?.type === 'Connection' && d.entity?.id === connectionId);
 
             return { connection, relation, subjectEntity, operandEntity, definitions };
         }
@@ -12107,8 +12107,8 @@
             const set = viewRef?.setId ? state.sets.get(viewRef.setId) : null;
             const view = set && viewRef?.viewId ? set.views.get(viewRef.viewId) : null;
             const memberRefs = viewEntity.memberRefs || [];
-            const lineageConnections = Array.from(state.connections.values()).filter(c => c.operand?.id === viewEntityId);
-            const definitions = Array.from(state.definitions.values()).filter(d => d.entity?.type === 'ViewEntity' && d.entity?.id === viewEntityId);
+            const lineageConnections = getConnectionView(c => c.operand?.id === viewEntityId);
+            const definitions = getDefinitionView(d => d.entity?.type === 'ViewEntity' && d.entity?.id === viewEntityId);
 
             return { viewEntity, set, view, memberRefs, lineageConnections, definitions };
         }
@@ -12682,7 +12682,7 @@
             const view = getCurrentView();
             const definitions = getDefinitionView();
             const connections = getConnectionView();
-            const entities = state.entities ? Array.from(state.entities.values()) : [];
+            const entities = getEntityView();
 
             const container = document.getElementById('viewContainer');
             const nodeLabel = definitions.length === 1 ? 'node' : 'nodes';
@@ -12727,8 +12727,8 @@
                 const world = state.worlds.get(entityId);
                 return world?.name || entityId;
             } else if (entityType === 'View') {
-                // Try to find the view in all sets
-                for (const set of state.sets.values()) {
+                // Try to find the view in sets from the current world
+                for (const set of getSetsForWorld()) {
                     if (set.views.has(entityId)) {
                         return set.views.get(entityId)?.name || entityId;
                     }
@@ -13015,7 +13015,7 @@
         }
 
         function openGraphConnectionModal(sourceNode, targetNode) {
-            const formats = Array.from(state.connectionRelations.values());
+            const formats = getConnectionRelationView();
 
             // Pre-populate the connection modal with source and target
             resetConnectionForm();
@@ -14113,10 +14113,10 @@
             const world = getWorld();
             const setsForWorld = getSetsForWorld();
 
-            // Calculate counts
-            const entityCount = state.entities.size;
-            const connectionCount = state.connections.size;
-            const definitionCount = state.definitions.size;
+            // Calculate counts (filtered by current world)
+            const entityCount = getEntityView().length;
+            const connectionCount = getConnectionView().length;
+            const definitionCount = getDefinitionView().length;
 
             let totalRecords = 0;
             let totalFields = 0;
