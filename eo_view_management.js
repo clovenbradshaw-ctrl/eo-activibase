@@ -64,6 +64,16 @@ function createViewEntity(config) {
         // EO-specific: Context (9-dimension context schema)
         context: config.context || null,
 
+        // EO-specific: Context Filters (for simplified data operations)
+        // Array of context filter specifications that are applied in addition to field filters
+        // Example: [{ method: 'measured' }, { source: 'salesforce' }, { timeframe: 'Q4_2025' }]
+        contextFilters: config.contextFilters || [],
+
+        // EO-specific: Temporal Mode
+        // Specifies how to interpret data temporally
+        // Example: { type: 'asOf', date: '2025-01-01' } or { type: 'during', timeframe: 'Q4_2025' }
+        temporalMode: config.temporalMode || null,
+
         // EO-specific: Provenance
         provenance: {
             createdBy: config.createdBy || config.provenance?.createdBy || 'system',
@@ -371,6 +381,149 @@ function logEvent(state, event) {
 }
 
 // ============================================================================
+// CONTEXT FILTER OPERATIONS
+// ============================================================================
+
+/**
+ * Add a context filter to a view
+ */
+function addContextFilter(state, viewId, filter) {
+    const view = state.views?.get(viewId);
+    if (!view) return null;
+
+    const contextFilters = [...(view.contextFilters || []), filter];
+
+    return updateView(state, viewId, { contextFilters });
+}
+
+/**
+ * Remove a context filter from a view by index
+ */
+function removeContextFilter(state, viewId, filterIndex) {
+    const view = state.views?.get(viewId);
+    if (!view) return null;
+
+    const contextFilters = [...(view.contextFilters || [])];
+    if (filterIndex >= 0 && filterIndex < contextFilters.length) {
+        contextFilters.splice(filterIndex, 1);
+    }
+
+    return updateView(state, viewId, { contextFilters });
+}
+
+/**
+ * Clear all context filters from a view
+ */
+function clearContextFilters(state, viewId) {
+    return updateView(state, viewId, { contextFilters: [], temporalMode: null });
+}
+
+/**
+ * Set the temporal mode for a view
+ */
+function setTemporalMode(state, viewId, temporalMode) {
+    return updateView(state, viewId, { temporalMode });
+}
+
+/**
+ * Create a view with context filters from a base view
+ * Useful for "Save filtered view as..."
+ */
+function createFilteredViewFrom(state, baseViewId, contextFilters, name) {
+    const baseView = state.views?.get(baseViewId);
+    if (!baseView) return null;
+
+    return createView(state, {
+        ...baseView,
+        name: name || `${baseView.name} (filtered)`,
+        contextFilters: [
+            ...(baseView.contextFilters || []),
+            ...contextFilters
+        ],
+        derivedFromViewIds: [baseViewId],
+        notes: `Filtered view derived from ${baseView.name}`
+    });
+}
+
+/**
+ * Get views with specific context filter types
+ */
+function getViewsWithContextFilter(state, filterType, filterValue) {
+    const views = state.views ? Array.from(state.views.values()) : [];
+
+    return views.filter(view => {
+        if (!view.contextFilters) return false;
+
+        return view.contextFilters.some(filter => {
+            if (filterType === 'source' && filter.source) {
+                return typeof filter.source === 'string'
+                    ? filter.source.includes(filterValue)
+                    : filter.source.system?.includes(filterValue);
+            }
+            if (filterType === 'method' && filter.method) {
+                const methods = Array.isArray(filter.method) ? filter.method : [filter.method];
+                return methods.includes(filterValue);
+            }
+            if (filterType === 'timeframe' && filter.timeframe) {
+                return filter.timeframe === filterValue;
+            }
+            if (filterType === 'stability' && filter.stability) {
+                return filter.stability === filterValue;
+            }
+            return false;
+        });
+    });
+}
+
+/**
+ * Summarize context filters for display
+ */
+function summarizeContextFilters(view) {
+    if (!view.contextFilters || view.contextFilters.length === 0) {
+        return null;
+    }
+
+    const parts = [];
+
+    for (const filter of view.contextFilters) {
+        if (filter.timeframe) {
+            parts.push(`Time: ${filter.timeframe}`);
+        }
+        if (filter.source) {
+            const source = typeof filter.source === 'string' ? filter.source : filter.source.system;
+            parts.push(`Source: ${source}`);
+        }
+        if (filter.method) {
+            const methods = Array.isArray(filter.method) ? filter.method.join(', ') : filter.method;
+            parts.push(`Method: ${methods}`);
+        }
+        if (filter.agent) {
+            const agent = typeof filter.agent === 'string' ? filter.agent : filter.agent.id || filter.agent.name;
+            parts.push(`By: ${agent}`);
+        }
+        if (filter.stability) {
+            parts.push(`Stability: ${filter.stability}`);
+        }
+        if (filter.scale) {
+            parts.push(`Scale: ${filter.scale}`);
+        }
+        if (filter.definition) {
+            parts.push(`Definition: ${filter.definition}`);
+        }
+    }
+
+    if (view.temporalMode) {
+        if (view.temporalMode.type === 'asOf') {
+            parts.push(`As of: ${view.temporalMode.date}`);
+        } else if (view.temporalMode.type === 'during') {
+            parts.push(`During: ${view.temporalMode.timeframe}`);
+        }
+    }
+
+    return parts.length > 0 ? parts.join(' | ') : null;
+}
+
+// ============================================================================
 // MIGRATION HELPERS
 // ============================================================================
 
@@ -432,6 +585,14 @@ if (typeof module !== 'undefined' && module.exports) {
         getViewHierarchy,
         hasUnsavedChanges,
         migrateViews,
-        focusToName
+        focusToName,
+        // Context filter operations
+        addContextFilter,
+        removeContextFilter,
+        clearContextFilters,
+        setTemporalMode,
+        createFilteredViewFrom,
+        getViewsWithContextFilter,
+        summarizeContextFilters
     };
 }

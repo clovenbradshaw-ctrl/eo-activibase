@@ -618,6 +618,189 @@ function executeMergeFieldsOperation(state, setId, fieldIds, canonicalField, opt
 }
 
 // ============================================================================
+// SMART DEDUPLICATION (Context-Aware)
+// ============================================================================
+
+/**
+ * Context-aware deduplication using EOContextOperations
+ *
+ * This function integrates with the new context operations module
+ * to provide intelligent deduplication that:
+ * - Preserves values with different contexts as SUP
+ * - Respects source preferences
+ * - Creates detailed decision logs
+ *
+ * @param {object} state - Application state
+ * @param {string} setId - Set to deduplicate
+ * @param {object} options - Dedupe options
+ * @returns {object} { records, decisions, stats, operation, resultView }
+ */
+function executeSmartDedupe(state, setId, options = {}) {
+    const {
+        identity = [],
+        contextStrategy = 'preserve',
+        sourcePreference = [],
+        threshold = 0.85,
+        algorithm = 'fuzzy',
+        createView = true
+    } = options;
+
+    const set = state.sets.get(setId);
+    if (!set) return null;
+
+    const records = Array.from(set.records.values());
+
+    // Create operation
+    const operation = createOperation(state, {
+        kind: 'dedupe',
+        setId,
+        viewId: state.currentViewId,
+        inputRecordIds: records.map(r => r.id || r.record_id),
+        parameters: { identity, contextStrategy, sourcePreference, threshold, algorithm },
+        status: 'draft'
+    });
+
+    // Use EOContextOperations if available
+    let result;
+    if (typeof EOContextOperations !== 'undefined') {
+        const ops = new EOContextOperations(state);
+        result = ops.smartDedupe(records, {
+            identity,
+            contextStrategy,
+            sourcePreference,
+            threshold,
+            algorithm
+        });
+    } else {
+        // Fallback to basic dedupe
+        const clusters = findDuplicateCandidates(state, setId, {
+            keyFieldIds: identity,
+            threshold,
+            algorithm
+        });
+
+        result = {
+            records: records, // Would need more logic for actual merge
+            decisions: clusters.map(c => ({ action: 'cluster_found', count: c.count })),
+            stats: {
+                clustersFound: clusters.length,
+                recordsMerged: 0
+            }
+        };
+    }
+
+    // Update operation with results
+    updateOperation(state, operation.id, {
+        outputRecordIds: result.records.map(r => r.id || r.record_id),
+        status: 'applied',
+        summary: `Smart dedupe: ${result.stats.clustersFound} clusters found, ${result.stats.recordsMerged} records merged`
+    });
+
+    // Create result view if requested
+    let resultView = null;
+    if (createView) {
+        resultView = createDedupeCandidatesView(state, setId,
+            [{ records: result.records, count: result.records.length }],
+            operation.id
+        );
+        updateOperation(state, operation.id, { resultViewId: resultView?.id });
+    }
+
+    return {
+        records: result.records,
+        decisions: result.decisions,
+        stats: result.stats,
+        operation,
+        resultView
+    };
+}
+
+/**
+ * Execute a context-aware merge operation
+ *
+ * @param {object} state - Application state
+ * @param {string} setId - Set containing records
+ * @param {string[]} recordIds - Records to merge
+ * @param {object} options - Merge options
+ * @returns {object} { newRecord, operation, resultView }
+ */
+function executeSmartMerge(state, setId, recordIds, options = {}) {
+    const {
+        conflictStrategy = 'context-aware',
+        sourcePreference = []
+    } = options;
+
+    const set = state.sets.get(setId);
+    if (!set) return null;
+
+    const records = recordIds.map(id => set.records.get(id)).filter(Boolean);
+    if (records.length === 0) return null;
+
+    // Create operation
+    const operation = createOperation(state, {
+        kind: 'merge_records',
+        setId,
+        viewId: state.currentViewId,
+        inputRecordIds: recordIds,
+        parameters: { conflictStrategy, sourcePreference },
+        status: 'draft'
+    });
+
+    // Use EOContextOperations if available
+    let result;
+    if (typeof EOContextOperations !== 'undefined') {
+        const ops = new EOContextOperations(state);
+        result = ops.bulkMerge(records, { conflictStrategy, sourcePreference });
+    } else {
+        // Fallback to standard merge
+        const strategyMap = { _default: 'first' };
+        const resolveField = (fieldId, candidates, field) => {
+            const strategy = MERGE_STRATEGIES[strategyMap[fieldId] || 'first'];
+            return strategy(candidates, field);
+        };
+        result = {
+            merged: mergeRecords(state, setId, recordIds, resolveField, options),
+            decisions: [{ action: 'basic_merge' }]
+        };
+    }
+
+    if (!result?.merged) return null;
+
+    // Add merged record to set
+    const newId = result.merged.record_id || result.merged.id ||
+        `rec_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    result.merged.id = newId;
+    result.merged.record_id = newId;
+    set.records.set(newId, result.merged);
+
+    // Update operation
+    updateOperation(state, operation.id, {
+        outputRecordIds: [newId],
+        status: 'applied',
+        summary: `Smart merge: ${recordIds.length} records → 1 record (strategy: ${conflictStrategy})`
+    });
+
+    // Log event
+    logEvent(state, {
+        type: 'smart_merge',
+        entityType: 'Record',
+        entityId: newId,
+        data: {
+            setId,
+            inputRecordIds: recordIds,
+            outputRecordId: newId,
+            decisions: result.decisions
+        }
+    });
+
+    return {
+        newRecord: result.merged,
+        decisions: result.decisions,
+        operation
+    };
+}
+
+// ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
 
@@ -644,6 +827,16 @@ if (typeof window !== 'undefined' && window.createView) {
 // EXPORTS
 // ============================================================================
 
+// Dependency for smart operations
+let EOContextOperations;
+if (typeof require !== 'undefined') {
+    try {
+        EOContextOperations = require('./eo_context_operations');
+    } catch (e) {
+        // Module not available, will use fallback
+    }
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         createStructuralOperation,
@@ -657,6 +850,9 @@ if (typeof module !== 'undefined' && module.exports) {
         executeSplitOperation,
         mergeFields,
         executeMergeFieldsOperation,
-        MERGE_STRATEGIES
+        MERGE_STRATEGIES,
+        // New context-aware operations
+        executeSmartDedupe,
+        executeSmartMerge
     };
 }
