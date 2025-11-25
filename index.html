@@ -17443,6 +17443,14 @@
             showToast('✓ View created from column');
         }
 
+        /**
+         * Enhanced pivot view creation from a cell value
+         * - Makes pivoted field first column
+         * - Auto-hides redundant columns (same value across all matching records)
+         * - Auto-applies smart merge rules based on field types
+         * - Auto-sorts by date fields (newest first)
+         * - Groups by categorical fields when useful
+         */
         function createViewFromValue(recordId, field) {
             const set = getCurrentSet();
             const record = set?.records.get(recordId);
@@ -17450,16 +17458,159 @@
 
             const value = record[field.id];
             const filters = [[{ field: field.id, operator: 'equals', value }]];
+
+            // Find all matching records to analyze for intelligent defaults
+            const matchingRecords = Array.from(set.records.values()).filter(r => {
+                const recordValue = r[field.id];
+                if (value === null || value === undefined) {
+                    return recordValue === null || recordValue === undefined;
+                }
+                if (typeof value === 'object') {
+                    return JSON.stringify(recordValue) === JSON.stringify(value);
+                }
+                return recordValue === value;
+            });
+
+            const pivotAnalysis = analyzePivotData(set, matchingRecords, field.id);
+
+            // Build column order: pivoted field first, then identifier, then rest
+            const currentView = getCurrentView();
+            const identifierFieldId = currentView?.identifierField || inferIdentifierFieldId(set);
+            const baseOrder = (currentView?.columnOrder || set.schema.map(f => f.id))
+                .filter(id => id !== field.id && id !== identifierFieldId);
+
+            const columnOrder = [
+                field.id,  // Pivoted field always first
+                ...(identifierFieldId && identifierFieldId !== field.id ? [identifierFieldId] : []),
+                ...baseOrder
+            ];
+
+            // Generate view name with count
             const displayValue = typeof value === 'object' ? JSON.stringify(value) : (value ?? 'Empty');
-            const viewName = `${field.name}: ${String(displayValue).slice(0, 42)}`;
+            const viewName = `${field.name}: ${String(displayValue).slice(0, 32)} (${matchingRecords.length})`;
+
             const viewId = createView(set.id, viewName, {
                 type: 'grid',
                 icon: 'ph-funnel-simple',
-                filters
+                filters,
+                columnOrder,
+                hiddenFields: pivotAnalysis.redundantFields,  // Hide fields with uniform values
+                sorts: pivotAnalysis.suggestedSorts,
+                groups: pivotAnalysis.suggestedGroups,
+                columnRules: pivotAnalysis.suggestedColumnRules,
+                pivotMetadata: {
+                    pivotFieldId: field.id,
+                    pivotValue: value,
+                    matchCount: matchingRecords.length,
+                    redundantFields: pivotAnalysis.redundantFields,
+                    analysisTimestamp: Date.now()
+                }
             });
+
             renderSidebar();
             switchSet(set.id, viewId);
-            showToast('✓ View created from value');
+
+            const hiddenCount = pivotAnalysis.redundantFields.length;
+            const toastMsg = hiddenCount > 0
+                ? `✓ Pivot view created (${hiddenCount} uniform column${hiddenCount > 1 ? 's' : ''} hidden)`
+                : '✓ Pivot view created';
+            showToast(toastMsg);
+        }
+
+        /**
+         * Analyze matching records to determine:
+         * - Which fields have uniform values (redundant for this pivot)
+         * - Best sort order (date fields)
+         * - Potential grouping fields
+         * - Smart column merge rules
+         */
+        function analyzePivotData(set, matchingRecords, pivotFieldId) {
+            const schema = set.schema || [];
+            const redundantFields = [];
+            const suggestedSorts = [];
+            const suggestedGroups = [];
+            const suggestedColumnRules = {};
+
+            if (matchingRecords.length === 0) {
+                return { redundantFields, suggestedSorts, suggestedGroups, suggestedColumnRules };
+            }
+
+            // Always hide the pivot field itself since all values are identical
+            redundantFields.push(pivotFieldId);
+
+            // Analyze each field
+            let bestDateField = null;
+            let bestGroupField = null;
+            let groupFieldCardinality = 0;
+
+            for (const field of schema) {
+                if (field.id === pivotFieldId) continue;
+
+                // Collect all values for this field
+                const values = matchingRecords.map(r => r[field.id]);
+                const nonNullValues = values.filter(v => v !== null && v !== undefined && v !== '');
+                const uniqueValues = new Set(nonNullValues.map(v =>
+                    typeof v === 'object' ? JSON.stringify(v) : String(v)
+                ));
+
+                // Check if field is uniform (all same value) - candidate for hiding
+                if (uniqueValues.size <= 1 && nonNullValues.length > 0) {
+                    // Only hide if we have more than 1 record (otherwise nothing is "uniform")
+                    if (matchingRecords.length > 1) {
+                        redundantFields.push(field.id);
+                    }
+                }
+
+                // Identify best date field for sorting
+                if (field.type === 'DATE' || field.type === 'DATETIME' ||
+                    field.name.toLowerCase().includes('date') ||
+                    field.name.toLowerCase().includes('created') ||
+                    field.name.toLowerCase().includes('updated')) {
+                    if (!bestDateField) {
+                        bestDateField = field;
+                    }
+                }
+
+                // Identify good grouping candidates (categorical with reasonable cardinality)
+                const isCategorial = field.type === 'SELECT' || field.type === 'TEXT' ||
+                    field.type === 'SINGLE_SELECT' || field.type === 'STATUS';
+                const cardinality = uniqueValues.size;
+
+                // Good grouping: 2-10 unique values, and less than half of total records
+                if (isCategorial && cardinality >= 2 && cardinality <= 10 &&
+                    cardinality < matchingRecords.length * 0.5) {
+                    if (cardinality > groupFieldCardinality) {
+                        bestGroupField = field;
+                        groupFieldCardinality = cardinality;
+                    }
+                }
+
+                // Suggest column rules based on field type
+                if (field.type === 'NUMBER' || field.type === 'CURRENCY') {
+                    // Numeric fields: could aggregate
+                    if (uniqueValues.size > 1) {
+                        suggestedColumnRules[field.id] = { rule: 'sup_all' };
+                    }
+                } else if (field.type === 'DATE' || field.type === 'DATETIME') {
+                    // Date fields: prefer newest
+                    suggestedColumnRules[field.id] = { rule: 'prefer_newest' };
+                } else if (field.type === 'LONG_TEXT' || field.type === 'RICH_TEXT') {
+                    // Long text: show all
+                    suggestedColumnRules[field.id] = { rule: 'sup_all' };
+                }
+            }
+
+            // Add date sort if found
+            if (bestDateField) {
+                suggestedSorts.push({ fieldId: bestDateField.id, direction: 'desc' });
+            }
+
+            // Add grouping if found a good candidate (but only if we have enough records)
+            if (bestGroupField && matchingRecords.length >= 4) {
+                suggestedGroups.push({ fieldId: bestGroupField.id });
+            }
+
+            return { redundantFields, suggestedSorts, suggestedGroups, suggestedColumnRules };
         }
 
         // SEARCH DATA FUNCTIONALITY
@@ -18613,21 +18764,66 @@
 
             const value = JSON.parse(decodeURIComponent(encodedValue));
             const filters = [[{ field: fieldId, operator: 'equals', value }]];
+
+            // Find all matching records to analyze for intelligent defaults
+            const matchingRecords = Array.from(set.records.values()).filter(r => {
+                const recordValue = r[fieldId];
+                if (value === null || value === undefined) {
+                    return recordValue === null || recordValue === undefined;
+                }
+                if (typeof value === 'object') {
+                    return JSON.stringify(recordValue) === JSON.stringify(value);
+                }
+                return recordValue === value;
+            });
+
+            const pivotAnalysis = analyzePivotData(set, matchingRecords, fieldId);
+
+            // Build column order: pivoted field first, then identifier, then rest
+            const identifierFieldId = inferIdentifierFieldId(set);
+            const baseOrder = set.schema.map(f => f.id)
+                .filter(id => id !== fieldId && id !== identifierFieldId);
+
+            const columnOrder = [
+                fieldId,  // Pivoted field always first
+                ...(identifierFieldId && identifierFieldId !== fieldId ? [identifierFieldId] : []),
+                ...baseOrder
+            ];
+
+            // Merge hidden fields (include __recordId plus analyzed redundant fields)
+            const hiddenFields = [...new Set(['__recordId', ...pivotAnalysis.redundantFields])];
+
             const displayValue = typeof value === 'object' ? JSON.stringify(value) : (value ?? 'Empty');
-            const viewName = `${field.name}: ${String(displayValue).slice(0, 42)}`;
+            const viewName = `${field.name}: ${String(displayValue).slice(0, 32)} (${matchingRecords.length})`;
 
             const viewId = createView(set.id, viewName, {
                 type: 'grid',
                 icon: 'ph-funnel-simple',
                 filters,
+                columnOrder,
                 showRecordId: false,
-                hiddenFields: ['__recordId']
+                hiddenFields,
+                sorts: pivotAnalysis.suggestedSorts,
+                groups: pivotAnalysis.suggestedGroups,
+                columnRules: pivotAnalysis.suggestedColumnRules,
+                pivotMetadata: {
+                    pivotFieldId: fieldId,
+                    pivotValue: value,
+                    matchCount: matchingRecords.length,
+                    redundantFields: pivotAnalysis.redundantFields,
+                    analysisTimestamp: Date.now()
+                }
             });
 
             closeModal('searchDataModal');
             renderSidebar();
             switchSet(set.id, viewId);
-            showToast('✓ View created from value');
+
+            const hiddenCount = pivotAnalysis.redundantFields.length;
+            const toastMsg = hiddenCount > 0
+                ? `✓ Pivot view created (${hiddenCount} uniform column${hiddenCount > 1 ? 's' : ''} hidden)`
+                : '✓ Pivot view created';
+            showToast(toastMsg);
         }
 
         function registerInterpretationRule(rule, options = {}) {
