@@ -7910,7 +7910,23 @@
                     return uniqueValues.find(v => v !== null && v !== undefined);
                 case 'sup_all':
                 default:
-                    return { value: uniqueValues.map(val => ({ val })), _sup: true };
+                    return {
+                        value: uniqueValues.map(val => {
+                            const rawVal = typeof val === 'object' && val !== null && !Array.isArray(val) ? val : { val };
+                            const actualValue = rawVal.val !== undefined ? rawVal.val : val;
+                            const sourceSetId = rawVal.__sourceSetId;
+                            const sourceSet = sourceSetId ? state.sets.get(sourceSetId) : null;
+                            return {
+                                val: actualValue,
+                                context: {
+                                    method: 'aggregated',
+                                    scale: 'individual',
+                                    source: sourceSet?.name || sourceSetId || 'unknown'
+                                }
+                            };
+                        }),
+                        _sup: true
+                    };
             }
         }
 
@@ -16651,24 +16667,40 @@
             title.textContent = `${ctx.fieldName} observations`;
             subtitle.textContent = ctx.recordName ? `Item: ${ctx.recordName}` : 'Multiple items';
 
-            const supList = (ctx.supValues || []).map((entry, index) => `
+            const supList = (ctx.supValues || []).map((entry, index) => {
+                const context = entry.context || entry.context_schema || {};
+                const method = context.method || 'declared';
+                const scale = context.scale || 'individual';
+                const source = context.source?.system || context.source || 'observation';
+                const agent = context.agent?.name || context.agent?.type || '';
+                const methodIcons = { measured: '📏', declared: '📝', aggregated: '📊', inferred: '🔮', derived: '⚙️' };
+                const methodIcon = methodIcons[method] || '📝';
+                return `
                 <div class="sup-modal-card">
                     <div class="flex items-start justify-between">
                         <div class="flex items-start gap-3">
                             <div class="sup-modal-card-index">${index + 1}</div>
                             <div class="flex-1">
-                                <div class="sup-modal-card-value">${entry.val ?? '—'}</div>
-                                <div class="sup-modal-card-source">
-                                    <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    ${entry.context?.source || 'observation'}
+                                <div class="sup-modal-card-value">${entry.val ?? entry.value ?? '—'}</div>
+                                <div class="sup-modal-card-source text-xs text-gray-500 mt-1 space-y-1">
+                                    <div class="flex items-center gap-2">
+                                        <span title="Method">${methodIcon} ${method}</span>
+                                        <span class="text-gray-300">•</span>
+                                        <span title="Scale">📐 ${scale}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        <span>${source}</span>
+                                        ${agent ? `<span class="text-gray-300">•</span><span>👤 ${agent}</span>` : ''}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
             const timeline = ctx.entries.map((entry, i) => `
                 <div class="border rounded-lg p-3 ${i === ctx.index ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}" onclick="selectCellHistoryEntry(${i})">
                     <div class="flex items-center justify-between">
@@ -16695,7 +16727,50 @@
                     ${['latest','observations','timeline','connections'].map(tab => `<button class="btn btn-secondary btn-sm ${ctx.activePanel === tab ? 'bg-gray-200' : ''}" onclick="setObservationPanel('${tab}')">${tab === 'latest' ? '📌 Latest Value' : tab === 'observations' ? '🔁 Observations' : tab === 'timeline' ? '🕒 Timeline' : '🔗 Relations'}</button>`).join('')}
                 </div>
                 <div class="space-y-4">
-                    ${ctx.activePanel === 'latest' ? `<div class="text-lg font-semibold">${renderCellValue(latestValue, { type: ctx.fieldType || 'TEXT' }, {}) || '—'}</div>` : ''}
+                    ${ctx.activePanel === 'latest' ? (() => {
+                        const displayValue = renderCellValue(latestValue, { type: ctx.fieldType || 'TEXT' }, {}) || '—';
+                        const valueContext = (latestValue && latestValue._sup && Array.isArray(latestValue.value) && latestValue.value[0])
+                            ? (latestValue.value[0].context || latestValue.value[0].context_schema || {})
+                            : {};
+                        const method = valueContext.method || 'declared';
+                        const scale = valueContext.scale || 'individual';
+                        const source = valueContext.source?.system || valueContext.source || ctx.sourceSetName || 'unknown';
+                        const agent = valueContext.agent?.name || valueContext.agent?.type || '';
+                        const definition = valueContext.definition || '';
+                        const methodIcons = { measured: '📏', declared: '📝', aggregated: '📊', inferred: '🔮', derived: '⚙️' };
+                        const methodIcon = methodIcons[method] || '📝';
+                        const hasContext = valueContext.method || valueContext.scale || valueContext.source;
+                        return `
+                            <div class="text-lg font-semibold mb-3">${displayValue}</div>
+                            ${hasContext ? `
+                            <div class="bg-gray-50 rounded-lg p-3 text-sm">
+                                <div class="text-xs text-gray-500 uppercase tracking-wide mb-2">Provenance</div>
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-gray-500 w-16">Method:</span>
+                                        <span>${methodIcon} ${method}</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-gray-500 w-16">Scale:</span>
+                                        <span>📐 ${scale}</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-gray-500 w-16">Source:</span>
+                                        <span>📋 ${source}</span>
+                                    </div>
+                                    ${agent ? `<div class="flex items-center gap-3">
+                                        <span class="text-gray-500 w-16">Agent:</span>
+                                        <span>👤 ${agent}</span>
+                                    </div>` : ''}
+                                    ${definition ? `<div class="flex items-center gap-3">
+                                        <span class="text-gray-500 w-16">Definition:</span>
+                                        <span>${definition}</span>
+                                    </div>` : ''}
+                                </div>
+                            </div>
+                            ` : `<div class="text-sm text-gray-400 mt-2">No provenance information available</div>`}
+                        `;
+                    })() : ''}
                     ${ctx.activePanel === 'observations' ? `
                         <div>
                             ${supList ? `
