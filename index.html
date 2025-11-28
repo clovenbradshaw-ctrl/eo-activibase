@@ -6573,130 +6573,237 @@
             const tasksId = createSet('Tasks', 'ph-list-checks', demoWorldId);
             const conceptsId = createSet('Concepts', 'ph-lightbulb', demoWorldId);
 
-            // Schema for Projects
+            // Schema for Projects - demonstrates TEXT, LONG_TEXT, NUMBER, DATE, CHECKBOX, SELECT
             const projectsSet = state.sets.get(projectsId);
             projectsSet.schema = [
                 { id: 'name', name: 'Project', type: 'TEXT', width: '200px' },
-                { id: 'status', name: 'Status', type: 'TEXT', width: '120px' },
-                { id: 'description', name: 'Description', type: 'LONG_TEXT', width: '300px' }
+                { id: 'status', name: 'Status', type: 'SELECT', subtype: 'SINGLE', width: '120px', options: ['Planning', 'Active', 'On Hold', 'Completed'] },
+                { id: 'description', name: 'Description', type: 'LONG_TEXT', width: '300px' },
+                { id: 'budget', name: 'Budget', type: 'NUMBER', subtype: 'CURRENCY', width: '120px' },
+                { id: 'startDate', name: 'Start Date', type: 'DATE', width: '140px' },
+                { id: 'active', name: 'Active', type: 'CHECKBOX', width: '80px' }
             ];
 
-            // Schema for People
+            // Schema for People - demonstrates TEXT, CONTACT (EMAIL, URL), CHECKBOX
             const peopleSet = state.sets.get(peopleId);
             peopleSet.schema = [
                 { id: 'name', name: 'Name', type: 'TEXT', width: '180px' },
-                { id: 'role', name: 'Role', type: 'TEXT', width: '150px' },
-                { id: 'expertise', name: 'Expertise', type: 'TEXT', width: '200px' }
+                { id: 'role', name: 'Role', type: 'SELECT', subtype: 'SINGLE', width: '150px', options: ['Technical Lead', 'Engineer', 'Researcher', 'Designer', 'Manager'] },
+                { id: 'expertise', name: 'Expertise', type: 'TEXT', width: '200px' },
+                { id: 'email', name: 'Email', type: 'CONTACT', subtype: 'EMAIL', width: '200px' },
+                { id: 'website', name: 'Website', type: 'CONTACT', subtype: 'URL', width: '180px' },
+                { id: 'available', name: 'Available', type: 'CHECKBOX', width: '80px' }
             ];
 
-            // Schema for Tasks
+            // Schema for Tasks - demonstrates TEXT, LONG_TEXT, DATE, NUMBER, CHECKBOX, SELECT (MULTIPLE)
             const tasksSet = state.sets.get(tasksId);
             tasksSet.schema = [
                 { id: 'title', name: 'Task', type: 'TEXT', width: '220px' },
-                { id: 'priority', name: 'Priority', type: 'TEXT', width: '100px' },
-                { id: 'description', name: 'Description', type: 'LONG_TEXT', width: '280px' }
+                { id: 'priority', name: 'Priority', type: 'SELECT', subtype: 'SINGLE', width: '100px', options: ['Low', 'Medium', 'High', 'Critical'] },
+                { id: 'description', name: 'Description', type: 'LONG_TEXT', width: '280px' },
+                { id: 'dueDate', name: 'Due Date', type: 'DATE', width: '140px' },
+                { id: 'estimatedHours', name: 'Est. Hours', type: 'NUMBER', width: '100px' },
+                { id: 'completed', name: 'Done', type: 'CHECKBOX', width: '70px' },
+                { id: 'tags', name: 'Tags', type: 'SELECT', subtype: 'MULTIPLE', width: '150px', options: ['frontend', 'backend', 'design', 'research', 'urgent'] }
             ];
 
-            // Schema for Concepts
+            // Schema for Concepts - demonstrates TEXT, LONG_TEXT, DATE, CHECKBOX, CONTACT (URL)
             const conceptsSet = state.sets.get(conceptsId);
             conceptsSet.schema = [
                 { id: 'concept', name: 'Concept', type: 'TEXT', width: '200px' },
-                { id: 'category', name: 'Category', type: 'TEXT', width: '150px' },
-                { id: 'definition', name: 'Definition', type: 'LONG_TEXT', width: '320px' }
+                { id: 'category', name: 'Category', type: 'SELECT', subtype: 'SINGLE', width: '150px', options: ['Core Concept', 'Data Pattern', 'Computation', 'Data Structure', 'Framework'] },
+                { id: 'definition', name: 'Definition', type: 'LONG_TEXT', width: '320px' },
+                { id: 'createdDate', name: 'Created', type: 'DATE', width: '140px' },
+                { id: 'validated', name: 'Validated', type: 'CHECKBOX', width: '80px' },
+                { id: 'reference', name: 'Reference URL', type: 'CONTACT', subtype: 'URL', width: '180px' }
             ];
 
-            // Add project records
+            // Add project records with all field types populated
             projectsSet.records.clear();
             const proj1 = addRecord(projectsId, {
                 name: 'Knowledge Graph',
                 status: 'Active',
-                description: 'Build interactive knowledge graph visualization system'
+                description: 'Build interactive knowledge graph visualization system',
+                budget: 150000,
+                startDate: '2024-01-15',
+                active: true
             });
             const proj2 = addRecord(projectsId, {
                 name: 'Context Engine',
                 status: 'Active',
-                description: 'Develop epistemic observability context tracking'
+                description: 'Develop epistemic observability context tracking',
+                budget: 120000,
+                startDate: '2024-02-01',
+                active: true
             });
             const proj3 = addRecord(projectsId, {
                 name: 'Formula System',
                 status: 'Planning',
-                description: 'Implement reactive formula field calculations'
+                description: 'Implement reactive formula field calculations',
+                budget: 80000,
+                startDate: '2024-06-01',
+                active: false
             });
 
-            // Add people records
+            // Add people records with CONTACT and CHECKBOX fields
             peopleSet.records.clear();
             const person1 = addRecord(peopleId, {
                 name: 'Dr. Sarah Chen',
                 role: 'Technical Lead',
-                expertise: 'Graph Theory, Distributed Systems'
+                expertise: 'Graph Theory, Distributed Systems',
+                email: 'sarah.chen@example.com',
+                website: 'https://sarahchen.dev',
+                available: true
             });
             const person2 = addRecord(peopleId, {
                 name: 'Alex Morgan',
                 role: 'Engineer',
-                expertise: 'Frontend, Data Visualization'
+                expertise: 'Frontend, Data Visualization',
+                email: 'alex.morgan@example.com',
+                website: 'https://alexmorgan.io',
+                available: true
             });
             const person3 = addRecord(peopleId, {
                 name: 'Jordan Kim',
                 role: 'Researcher',
-                expertise: 'Knowledge Management, Ontologies'
+                expertise: 'Knowledge Management, Ontologies',
+                email: 'jordan.kim@example.com',
+                website: 'https://jkim-research.org',
+                available: false
             });
 
-            // Add task records
+            // Add task records with DATE, NUMBER, CHECKBOX, and MULTIPLE SELECT
             tasksSet.records.clear();
             const task1 = addRecord(tasksId, {
                 title: 'Design node layout algorithm',
                 priority: 'High',
-                description: 'Create force-directed graph layout with clustering'
+                description: 'Create force-directed graph layout with clustering',
+                dueDate: '2024-03-01',
+                estimatedHours: 40,
+                completed: true,
+                tags: ['frontend', 'design']
             });
             const task2 = addRecord(tasksId, {
                 title: 'Implement edge rendering',
                 priority: 'High',
-                description: 'Add support for curved edges and directional arrows'
+                description: 'Add support for curved edges and directional arrows',
+                dueDate: '2024-03-15',
+                estimatedHours: 32,
+                completed: false,
+                tags: ['frontend', 'urgent']
             });
             const task3 = addRecord(tasksId, {
                 title: 'Build context tracker',
                 priority: 'Medium',
-                description: 'Track provenance and lineage of data values'
+                description: 'Track provenance and lineage of data values',
+                dueDate: '2024-04-01',
+                estimatedHours: 24,
+                completed: false,
+                tags: ['backend']
             });
             const task4 = addRecord(tasksId, {
                 title: 'Add formula parser',
                 priority: 'Medium',
-                description: 'Parse and evaluate spreadsheet-like formulas'
+                description: 'Parse and evaluate spreadsheet-like formulas',
+                dueDate: '2024-07-01',
+                estimatedHours: 48,
+                completed: false,
+                tags: ['backend', 'frontend']
             });
             const task5 = addRecord(tasksId, {
                 title: 'Research graph databases',
                 priority: 'Low',
-                description: 'Evaluate Neo4j and other graph database options'
+                description: 'Evaluate Neo4j and other graph database options',
+                dueDate: '2024-05-15',
+                estimatedHours: 16,
+                completed: false,
+                tags: ['research', 'backend']
             });
 
-            // Add concept records
+            // Add concept records with DATE, CHECKBOX, and URL fields
             conceptsSet.records.clear();
             const concept1 = addRecord(conceptsId, {
                 concept: 'Epistemic Observability',
                 category: 'Core Concept',
-                definition: 'The ability to trace the origin and context of every data value'
+                definition: 'The ability to trace the origin and context of every data value',
+                createdDate: '2023-11-01',
+                validated: true,
+                reference: 'https://eleganceofobjects.org/epistemic'
             });
             const concept2 = addRecord(conceptsId, {
                 concept: 'Superposition',
                 category: 'Data Pattern',
-                definition: 'Multiple simultaneous values with different contexts'
+                definition: 'Multiple simultaneous values with different contexts',
+                createdDate: '2023-12-15',
+                validated: true,
+                reference: 'https://eleganceofobjects.org/superposition'
             });
             const concept3 = addRecord(conceptsId, {
                 concept: 'Reactive Formula',
                 category: 'Computation',
-                definition: 'Formula that automatically recalculates when dependencies change'
+                definition: 'Formula that automatically recalculates when dependencies change',
+                createdDate: '2024-01-10',
+                validated: false,
+                reference: 'https://eleganceofobjects.org/formulas'
             });
             const concept4 = addRecord(conceptsId, {
                 concept: 'Knowledge Graph',
                 category: 'Data Structure',
-                definition: 'Network of entities and relationships forming a semantic model'
+                definition: 'Network of entities and relationships forming a semantic model',
+                createdDate: '2023-10-20',
+                validated: true,
+                reference: 'https://eleganceofobjects.org/graphs'
             });
 
-            // Create views
+            // Create views - demonstrating all view types
+            // Grid views (default table view)
             createView(projectsId, 'Projects', { type: 'grid' });
             createView(peopleId, 'People', { type: 'grid' });
             createView(tasksId, 'Tasks', { type: 'grid' });
             createView(conceptsId, 'Concepts', { type: 'grid' });
+
+            // Card views (visual card layout)
+            createView(projectsId, 'Project Cards', { type: 'card' });
+            createView(peopleId, 'Team Cards', { type: 'card' });
+
+            // Kanban views (board layout grouped by status/priority)
+            createView(projectsId, 'Project Board', {
+                type: 'kanban',
+                groupByField: 'status',
+                sortField: 'startDate'
+            });
+            createView(tasksId, 'Task Board', {
+                type: 'kanban',
+                groupByField: 'priority',
+                sortField: 'dueDate'
+            });
+
+            // KEY_DERIVED views (aggregated/summarized views)
+            createView(tasksId, 'Tasks by Priority', {
+                type: 'KEY_DERIVED',
+                key: { setId: tasksId, fieldId: 'priority' },
+                schema: [
+                    { id: 'taskTitles', name: 'Tasks', type: 'TEXT', sourceFieldId: 'title' },
+                    { id: 'totalHours', name: 'Total Est. Hours', type: 'NUMBER', sourceFieldId: 'estimatedHours' }
+                ],
+                columnRules: {
+                    taskTitles: { rule: 'sup_all' },
+                    totalHours: { rule: 'sum' }
+                }
+            });
+
+            createView(conceptsId, 'Concepts by Category', {
+                type: 'KEY_DERIVED',
+                key: { setId: conceptsId, fieldId: 'category' },
+                schema: [
+                    { id: 'conceptNames', name: 'Concepts', type: 'TEXT', sourceFieldId: 'concept' },
+                    { id: 'definitions', name: 'Definitions', type: 'LONG_TEXT', sourceFieldId: 'definition' }
+                ],
+                columnRules: {
+                    conceptNames: { rule: 'sup_all' },
+                    definitions: { rule: 'sup_all' }
+                }
+            });
 
             // Clear existing definitions and connections for this world
             Array.from(state.definitions.values())
@@ -6706,52 +6813,112 @@
                 .filter(fmt => fmt.worldId === demoWorldId)
                 .forEach(fmt => state.connectionRelations.delete(fmt.id));
 
-            // Create connection relations
+            // Create connection relations using valid EO operators
+            // CON (Connect) - for linking/relating entities
             const ownsRelationId = addConnectionRelation({
                 id: `${demoWorldId}_format_owns`,
-                operator: 'OWN',
-                mode: 'owns',
-                description: 'Person owns/leads a project',
+                operator: 'CON',
+                mode: 'is linked to',
+                description: 'Person leads/owns a project',
                 worldId: demoWorldId
             });
 
+            // CON (Connect) - for task assignments
             const assignedRelationId = addConnectionRelation({
                 id: `${demoWorldId}_format_assigned`,
-                operator: 'ASG',
-                mode: 'assigned to',
+                operator: 'CON',
+                mode: 'relates to',
                 description: 'Task assigned to person',
                 worldId: demoWorldId
             });
 
+            // SEG (Segment) - for containment/partitioning
             const partOfRelationId = addConnectionRelation({
                 id: `${demoWorldId}_format_part_of`,
-                operator: 'SUB',
-                mode: 'part of',
-                description: 'Task is part of project',
+                operator: 'SEG',
+                mode: 'constrains',
+                description: 'Task is part of project scope',
                 worldId: demoWorldId
             });
 
+            // SYN (Synthesize) - for integration/combining
             const implementsRelationId = addConnectionRelation({
                 id: `${demoWorldId}_format_implements`,
-                operator: 'IMP',
-                mode: 'implements',
+                operator: 'SYN',
+                mode: 'integrates',
                 description: 'Project implements concept',
                 worldId: demoWorldId
             });
 
+            // CON (Connect) - for dependencies
             const dependsRelationId = addConnectionRelation({
                 id: `${demoWorldId}_format_depends`,
-                operator: 'DEP',
+                operator: 'CON',
                 mode: 'depends on',
                 description: 'Task depends on another task',
                 worldId: demoWorldId
             });
 
+            // CON (Connect) - for concept relationships
             const relatesRelationId = addConnectionRelation({
                 id: `${demoWorldId}_format_relates`,
-                operator: 'REL',
+                operator: 'CON',
                 mode: 'relates to',
                 description: 'Concept relates to concept',
+                worldId: demoWorldId
+            });
+
+            // DES (Designate) - for labeling/naming
+            const designatesRelationId = addConnectionRelation({
+                id: `${demoWorldId}_format_designates`,
+                operator: 'DES',
+                mode: 'labels',
+                description: 'Entity designates/labels another',
+                worldId: demoWorldId
+            });
+
+            // INS (Instantiate) - for creation relationships
+            const createsRelationId = addConnectionRelation({
+                id: `${demoWorldId}_format_creates`,
+                operator: 'INS',
+                mode: 'creates',
+                description: 'Entity creates/generates another',
+                worldId: demoWorldId
+            });
+
+            // ALT (Alternate) - for state transitions
+            const alternatesRelationId = addConnectionRelation({
+                id: `${demoWorldId}_format_alternates`,
+                operator: 'ALT',
+                mode: 'toggles with',
+                description: 'Entity alternates states with another',
+                worldId: demoWorldId
+            });
+
+            // SUP (Superpose) - for parallel/layered values
+            const superposesRelationId = addConnectionRelation({
+                id: `${demoWorldId}_format_superposes`,
+                operator: 'SUP',
+                mode: 'overlays',
+                description: 'Entity maintains parallel values with another',
+                worldId: demoWorldId
+            });
+
+            // REC (Recurse) - for feedback loops
+            const recursesRelationId = addConnectionRelation({
+                id: `${demoWorldId}_format_recurses`,
+                operator: 'REC',
+                mode: 'feeds back into',
+                description: 'Entity iterates/feeds back into another',
+                worldId: demoWorldId
+            });
+
+            // NUL (Null/Absence) - for detecting missing/void relationships
+            const nullRelationId = addConnectionRelation({
+                id: `${demoWorldId}_format_null`,
+                operator: 'NUL',
+                mode: 'detects absence of',
+                description: 'Entity detects absence or void in another',
                 worldId: demoWorldId
             });
 
@@ -7016,6 +7183,120 @@
                 relationId: relatesRelationId,
                 operand: { type: 'Record', id: concept1 },
                 description: 'Knowledge graphs benefit from context tracking',
+                worldId: demoWorldId
+            });
+
+            // DES (Designate) - Labeling/naming relationships
+            addConnection({
+                id: `${demoWorldId}_conn_21`,
+                subject: { type: 'Record', id: concept1 },
+                relationId: designatesRelationId,
+                operand: { type: 'Record', id: proj2 },
+                description: 'Epistemic Observability concept labels Context Engine project',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_22`,
+                subject: { type: 'Record', id: person1 },
+                relationId: designatesRelationId,
+                operand: { type: 'Record', id: task1 },
+                description: 'Sarah labels design approach for node layout',
+                worldId: demoWorldId
+            });
+
+            // INS (Instantiate) - Creation relationships
+            addConnection({
+                id: `${demoWorldId}_conn_23`,
+                subject: { type: 'Record', id: proj1 },
+                relationId: createsRelationId,
+                operand: { type: 'Record', id: task1 },
+                description: 'Knowledge Graph project creates layout algorithm task',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_24`,
+                subject: { type: 'Record', id: person3 },
+                relationId: createsRelationId,
+                operand: { type: 'Record', id: concept2 },
+                description: 'Jordan creates superposition concept definition',
+                worldId: demoWorldId
+            });
+
+            // ALT (Alternate) - State transition relationships
+            addConnection({
+                id: `${demoWorldId}_conn_25`,
+                subject: { type: 'Record', id: proj1 },
+                relationId: alternatesRelationId,
+                operand: { type: 'Record', id: proj2 },
+                description: 'Knowledge Graph and Context Engine alternate focus during development cycles',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_26`,
+                subject: { type: 'Record', id: task1 },
+                relationId: alternatesRelationId,
+                operand: { type: 'Record', id: task2 },
+                description: 'Layout and rendering tasks toggle in priority',
+                worldId: demoWorldId
+            });
+
+            // SUP (Superpose) - Parallel/layered value relationships
+            addConnection({
+                id: `${demoWorldId}_conn_27`,
+                subject: { type: 'Record', id: concept2 },
+                relationId: superposesRelationId,
+                operand: { type: 'Record', id: concept3 },
+                description: 'Superposition overlays with reactive formula pattern',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_28`,
+                subject: { type: 'Record', id: proj2 },
+                relationId: superposesRelationId,
+                operand: { type: 'Record', id: proj3 },
+                description: 'Context Engine and Formula System maintain parallel development tracks',
+                worldId: demoWorldId
+            });
+
+            // REC (Recurse) - Feedback loop relationships
+            addConnection({
+                id: `${demoWorldId}_conn_29`,
+                subject: { type: 'Record', id: task3 },
+                relationId: recursesRelationId,
+                operand: { type: 'Record', id: concept1 },
+                description: 'Context tracker feeds back into epistemic observability understanding',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_30`,
+                subject: { type: 'Record', id: proj1 },
+                relationId: recursesRelationId,
+                operand: { type: 'Record', id: concept4 },
+                description: 'Knowledge Graph project iterates with knowledge graph concept',
+                worldId: demoWorldId
+            });
+
+            // NUL (Null/Absence) - Detecting missing relationships
+            addConnection({
+                id: `${demoWorldId}_conn_31`,
+                subject: { type: 'Record', id: task5 },
+                relationId: nullRelationId,
+                operand: { type: 'Record', id: proj3 },
+                description: 'Database research detects absence of backend in Formula System',
+                worldId: demoWorldId
+            });
+
+            addConnection({
+                id: `${demoWorldId}_conn_32`,
+                subject: { type: 'Record', id: concept3 },
+                relationId: nullRelationId,
+                operand: { type: 'Record', id: task5 },
+                description: 'Reactive Formula concept flags missing implementation in database research',
                 worldId: demoWorldId
             });
 
