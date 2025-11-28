@@ -415,6 +415,57 @@ function migrateViews(state) {
 }
 
 // ============================================================================
+// FIELD-TO-VIEW MANAGEMENT
+// ============================================================================
+
+/**
+ * Add a new field to a specific view
+ * This ensures the field appears in the view immediately after creation
+ */
+function addFieldToView(state, viewId, fieldId) {
+    const view = state.views?.get(viewId);
+    if (!view) return false;
+
+    // Add to visibleFieldIds if the view uses that model
+    if (Array.isArray(view.visibleFieldIds)) {
+        if (!view.visibleFieldIds.includes(fieldId)) {
+            view.visibleFieldIds.push(fieldId);
+        }
+    }
+
+    // Also add to columnOrder if present
+    if (Array.isArray(view.columnOrder)) {
+        if (!view.columnOrder.includes(fieldId)) {
+            view.columnOrder.push(fieldId);
+        }
+    }
+
+    // Remove from hiddenFields if it was hidden
+    if (Array.isArray(view.hiddenFields)) {
+        const hiddenIndex = view.hiddenFields.indexOf(fieldId);
+        if (hiddenIndex !== -1) {
+            view.hiddenFields.splice(hiddenIndex, 1);
+        }
+    }
+
+    // Mark view as dirty
+    view.isDirty = true;
+
+    return true;
+}
+
+/**
+ * Add a new field to all views of a set
+ * This ensures the field appears in all views of the set
+ */
+function addFieldToSetViews(state, setId, fieldId) {
+    const views = getSetViews(state, setId);
+    views.forEach(view => {
+        addFieldToView(state, view.id, fieldId);
+    });
+}
+
+// ============================================================================
 // EXPORTS
 // ============================================================================
 
@@ -432,6 +483,8 @@ if (typeof module !== 'undefined' && module.exports) {
         getViewHierarchy,
         hasUnsavedChanges,
         migrateViews,
-        focusToName
+        focusToName,
+        addFieldToView,
+        addFieldToSetViews
     };
 }

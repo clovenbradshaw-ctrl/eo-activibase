@@ -7478,6 +7478,65 @@
             return viewId;
         }
 
+        /**
+         * Add a new field to the current view's columnOrder
+         * This ensures the field appears in the view immediately after creation
+         */
+        function addFieldToCurrentView(fieldId) {
+            const view = getCurrentView();
+            if (!view) return;
+
+            // Initialize columnOrder if not present
+            if (!Array.isArray(view.columnOrder)) {
+                view.columnOrder = [];
+            }
+
+            // Add field to columnOrder if not already present
+            if (!view.columnOrder.includes(fieldId)) {
+                view.columnOrder.push(fieldId);
+            }
+
+            // Remove from hiddenFields if it was hidden
+            if (Array.isArray(view.hiddenFields)) {
+                const hiddenIndex = view.hiddenFields.indexOf(fieldId);
+                if (hiddenIndex !== -1) {
+                    view.hiddenFields.splice(hiddenIndex, 1);
+                }
+            }
+        }
+
+        /**
+         * Add a new field to all views of a set
+         * This ensures the field appears in all views of the set
+         */
+        function addFieldToAllViews(set, fieldId) {
+            if (!set || !set.views) return;
+
+            set.views.forEach((viewRef, viewId) => {
+                // Get the full view object
+                const view = typeof viewRef === 'object' && viewRef.id === viewId ? viewRef : set.views.get(viewId);
+                if (!view) return;
+
+                // Initialize columnOrder if not present
+                if (!Array.isArray(view.columnOrder)) {
+                    view.columnOrder = [];
+                }
+
+                // Add field to columnOrder if not already present
+                if (!view.columnOrder.includes(fieldId)) {
+                    view.columnOrder.push(fieldId);
+                }
+
+                // Remove from hiddenFields if it was hidden
+                if (Array.isArray(view.hiddenFields)) {
+                    const hiddenIndex = view.hiddenFields.indexOf(fieldId);
+                    if (hiddenIndex !== -1) {
+                        view.hiddenFields.splice(hiddenIndex, 1);
+                    }
+                }
+            });
+        }
+
         function reifyCurrentView() {
             const view = getCurrentView();
             if (!view) {
@@ -8588,6 +8647,10 @@
 
                     const newField = { id: uniqueId, name: fieldName, type: 'TEXT', width: '150px', config: {} };
                     set.schema.push(newField);
+
+                    // Add field to all existing views of the set
+                    addFieldToAllViews(set, uniqueId);
+
                     set.records.forEach(r => r[uniqueId] = FIELD_TYPES.TEXT.defaultValue);
                     existingFieldIds.add(uniqueId);
                     state.csvImportState.mappings[header] = uniqueId;
@@ -11896,6 +11959,9 @@
 
             // Add field to schema
             set.schema.push(newField);
+
+            // Add field to current view so it appears immediately
+            addFieldToCurrentView(fieldId);
 
             // Initialize field values in all records
             const defaultValue = FIELD_TYPES[type]?.defaultValue ?? '';
@@ -16011,6 +16077,10 @@
             }
 
             set.schema.push(newField);
+
+            // Add field to current view so it appears immediately
+            addFieldToCurrentView(fieldId);
+
             set.records.forEach(r => r[fieldId] = FIELD_TYPES[type].defaultValue);
 
             closeModal('addFieldModal');

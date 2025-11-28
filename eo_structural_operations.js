@@ -506,6 +506,43 @@ function executeSplitOperation(state, setId, recordId, newRecordsData, options =
 // ============================================================================
 
 /**
+ * Add a new field to all views of a set
+ * This ensures the field appears in all views of the set
+ */
+function addFieldToSetViews(set, fieldId) {
+    if (!set || !set.views) return;
+
+    set.views.forEach((viewRef, viewId) => {
+        // Get the full view object
+        const view = typeof viewRef === 'object' && viewRef.id === viewId ? viewRef : set.views.get(viewId);
+        if (!view) return;
+
+        // Initialize columnOrder if not present
+        if (!Array.isArray(view.columnOrder)) {
+            view.columnOrder = [];
+        }
+
+        // Add field to columnOrder if not already present
+        if (!view.columnOrder.includes(fieldId)) {
+            view.columnOrder.push(fieldId);
+        }
+
+        // Remove from hiddenFields if it was hidden
+        if (Array.isArray(view.hiddenFields)) {
+            const hiddenIndex = view.hiddenFields.indexOf(fieldId);
+            if (hiddenIndex !== -1) {
+                view.hiddenFields.splice(hiddenIndex, 1);
+            }
+        }
+
+        // Also update visibleFieldIds if the view uses that model
+        if (Array.isArray(view.visibleFieldIds) && !view.visibleFieldIds.includes(fieldId)) {
+            view.visibleFieldIds.push(fieldId);
+        }
+    });
+}
+
+/**
  * Merge multiple fields into a canonical field
  */
 function mergeFields(state, setId, fieldIds, canonicalField, options = {}) {
@@ -516,11 +553,15 @@ function mergeFields(state, setId, fieldIds, canonicalField, options = {}) {
     const canonicalId = canonicalField.id || `field_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
     // Add canonical field to schema if not exists
-    if (!schema.find(f => f.id === canonicalId)) {
+    const isNewField = !schema.find(f => f.id === canonicalId);
+    if (isNewField) {
         schema.push({
             ...canonicalField,
             id: canonicalId
         });
+
+        // Add the new canonical field to all views of the set
+        addFieldToSetViews(set, canonicalId);
     }
 
     // Merge values from old fields into canonical field
@@ -657,6 +698,7 @@ if (typeof module !== 'undefined' && module.exports) {
         executeSplitOperation,
         mergeFields,
         executeMergeFieldsOperation,
+        addFieldToSetViews,
         MERGE_STRATEGIES
     };
 }
