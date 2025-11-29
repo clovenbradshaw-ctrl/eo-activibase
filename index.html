@@ -15554,45 +15554,20 @@
         function renderDashboardPage() {
             const container = document.getElementById('viewContainer');
             const world = getWorld();
-            const setsForWorld = getSetsForWorld();
-
-            // Calculate counts (filtered by current world)
-            const entityCount = getEntityView().length;
-            const connectionCount = getConnectionView().length;
-            const definitionCount = getDefinitionView().length;
-
-            let totalRecords = 0;
-            let totalFields = 0;
-            let totalViews = 0;
-
-            setsForWorld.forEach(set => {
-                totalRecords += set.records ? set.records.size : 0;
-                totalFields += set.fields ? set.fields.size : 0;
-                totalViews += set.views ? set.views.size : 0;
-            });
-
-            const setCount = setsForWorld.length;
-
-            // Get recent changes from event stream (last 10)
-            const recentChanges = (state.eventStream || []).slice(-10).reverse().map(event => {
-                const timestamp = new Date(event.timestamp).toLocaleString();
-                return `${timestamp} - ${event.type || 'Change'} - ${event.description || 'System update'}`;
-            });
 
             container.innerHTML = `
                 <div style="padding: 2rem; display: flex; flex-direction: column; gap: 2.5rem;">
 
                     <!-- HEADER -->
                     <div class="dashboard-header">
-                        <h1>${world?.name || 'World'}</h1>
+                        <h1 style="display: flex; align-items: center; gap: 0.75rem;">
+                            <i class="ph ph-globe" style="font-size: 1.5rem; color: var(--primary);"></i>
+                            ${world?.name || 'World'}
+                        </h1>
                         <div class="dashboard-actions">
-                            <button class="btn btn-primary btn-sm" onclick="openCsvImportModal()">
-                                <i class="ph ph-file-csv"></i>
-                                Import CSV
-                            </button>
                             <button class="btn btn-secondary btn-sm" onclick="document.getElementById('historyPanel').classList.add('open'); renderHistory();">
                                 <i class="ph ph-clock-counter-clockwise"></i>
-                                Global Changes
+                                Global changes
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="openJsonViewer()">
                                 <i class="ph ph-code"></i>
@@ -15600,101 +15575,22 @@
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="document.getElementById('worldJsonInput').click()">
                                 <i class="ph ph-upload-simple"></i>
-                                Import World
+                                Import world
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="exportJSON()">
                                 <i class="ph ph-download-simple"></i>
-                                Download World
+                                Download world
                             </button>
                         </div>
                     </div>
 
-                    <!-- SUMMARY CARDS -->
-                    <div class="summary-grid">
-                        ${createSummaryCard('Entities', entityCount, "navigateTo('entities')")}
-                        ${createSummaryCard('Relations', connectionCount, "navigateTo('relations')")}
-                        ${createSummaryCard('Definitions', definitionCount, "navigateTo('definitions')")}
-                        ${createSummaryCard('Views', totalViews, "navigateTo('views')")}
-                    </div>
-
-                    <!-- QUICK START -->
-                    <div class="dashboard-section">
-                        <h2>Quick Start</h2>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
-                            <div class="dashboard-card" style="background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); border: 1px solid #3b82f6; border-radius: 12px; padding: 1.5rem; cursor: pointer;" onclick="openCsvImportModal()">
-                                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
-                                    <i class="ph ph-file-csv" style="font-size: 32px; color: #60a5fa;"></i>
-                                    <div>
-                                        <h3 style="margin: 0; font-size: 1.1rem; color: #f1f5f9;">Import Your Data</h3>
-                                        <p style="margin: 0.25rem 0 0; font-size: 0.875rem; color: #94a3b8;">Upload a CSV file to get started</p>
-                                    </div>
-                                </div>
-                            </div>
-                            ${setsForWorld.length > 0 ? `
-                            <div class="dashboard-card" style="background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); border: 1px solid #10b981; border-radius: 12px; padding: 1.5rem; cursor: pointer;" onclick="switchSet('${setsForWorld[0].id}', Array.from(setsForWorld[0].views.keys())[0])">
-                                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
-                                    <i class="ph ph-table" style="font-size: 32px; color: #34d399;"></i>
-                                    <div>
-                                        <h3 style="margin: 0; font-size: 1.1rem; color: #f1f5f9;">Explore Sample Data</h3>
-                                        <p style="margin: 0.25rem 0 0; font-size: 0.875rem; color: #94a3b8;">View ${setsForWorld[0].name} (${setsForWorld[0].records.size} records)</p>
-                                    </div>
-                                </div>
-                            </div>
-                            ` : ''}
-                            <div class="dashboard-card" style="background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); border: 1px solid #8b5cf6; border-radius: 12px; padding: 1.5rem; cursor: pointer;" onclick="openAddSetModal()">
-                                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
-                                    <i class="ph ph-plus-circle" style="font-size: 32px; color: #a78bfa;"></i>
-                                    <div>
-                                        <h3 style="margin: 0; font-size: 1.1rem; color: #f1f5f9;">Create New Set</h3>
-                                        <p style="margin: 0.25rem 0 0; font-size: 0.875rem; color: #94a3b8;">Start with an empty data set</p>
-                                    </div>
-                                </div>
-                            </div>
+                    <!-- CLEAN CONTENT AREA -->
+                    <div style="flex: 1; display: flex; align-items: center; justify-content: center; min-height: 400px;">
+                        <div style="text-align: center; color: var(--text-muted);">
+                            <i class="ph ph-squares-four" style="font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;"></i>
+                            <p style="font-size: 1.1rem; margin: 0;">Navigate using the sidebar to explore your world</p>
                         </div>
                     </div>
-
-                    <!-- DATA SETS -->
-                    ${setsForWorld.length > 0 ? `
-                    <div class="dashboard-section">
-                        <h2>Your Data Sets</h2>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-                            ${setsForWorld.map(set => `
-                                <div class="dashboard-card" style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; cursor: pointer;" onclick="switchSet('${set.id}', Array.from(set.views.keys())[0])">
-                                    <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                        ${renderIcon(set.icon || 'ph-squares-four')}
-                                        <div>
-                                            <div style="font-weight: 600;">${set.name}</div>
-                                            <div style="font-size: 0.75rem; color: var(--text-muted);">${set.records.size} records, ${set.schema.length} fields</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    <!-- ENTITY TYPES -->
-                    <div class="dashboard-section">
-                        <h2>Entity Types</h2>
-                        <div class="entity-type-grid">
-                            ${createEntityTypeCard('Sets', setCount, "navigateTo('entities', 'set')")}
-                            ${createEntityTypeCard('Records', totalRecords, "navigateTo('entities', 'record')")}
-                            ${createEntityTypeCard('Fields', totalFields, "navigateTo('entities', 'field')")}
-                            ${createEntityTypeCard('Relationships', connectionCount, "navigateTo('relations')")}
-                            ${createEntityTypeCard('Definitions', definitionCount, "navigateTo('definitions')")}
-                            ${createEntityTypeCard('Views', totalViews, "navigateTo('views')")}
-                        </div>
-                    </div>
-
-                    <!-- RECENT ACTIVITY -->
-                    ${recentChanges.length > 0 ? `
-                        <div class="dashboard-section">
-                            <h2>Recent Changes</h2>
-                            <ul class="recent-changes-list">
-                                ${recentChanges.map(change => `<li>${change}</li>`).join('')}
-                            </ul>
-                        </div>
-                    ` : ''}
 
                 </div>
             `;
