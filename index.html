@@ -1413,6 +1413,31 @@
             color: #1d4ed8;
         }
 
+        /* EXPLORE TABLE */
+        .explore-page {
+            background: white;
+        }
+
+        .table-row {
+            cursor: pointer;
+            transition: background-color 0.12s ease;
+        }
+
+        .table-row:hover {
+            background-color: #f3f4f6;
+        }
+
+        .table-row.selected {
+            background-color: #eff6ff;
+        }
+
+        .table-cell {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+
         /* ZERO-INPUT SEARCH */
         .zero-input-section {
             padding: 8px 20px 12px;
@@ -2862,7 +2887,7 @@
                 </div>
                 <div id="exploreNavContent">
                     <div class="world-nav-children" style="padding: 0 1rem;">
-                        <div class="nav-item" id="navSearch" onclick="navigateTo('search')">Search & Discover</div>
+                        <div class="nav-item" id="navExplore" onclick="navigateTo('explore')">Explore</div>
                     </div>
                 </div>
 
@@ -9769,13 +9794,15 @@
                     state.currentSetId = null;
                     state.currentViewId = null;
                     break;
-                case 'search':
-                    state.currentSpecialView = 'search';
+                case 'explore':
+                    state.currentSpecialView = 'explore';
                     state.currentSetId = null;
                     state.currentViewId = null;
-                    // Open search modal
-                    openSearchDataModal();
-                    return; // Don't re-render for modal
+                    break;
+                case 'search':
+                    // Legacy support - redirect to explore
+                    navigateTo('explore');
+                    return;
                 default:
                     console.warn('Unknown navigation target:', page);
                     return;
@@ -10098,7 +10125,7 @@
                 'navRelations': state.currentSpecialView === 'relations',
                 'navDefinitions': state.currentSpecialView === 'definitions',
                 'navViews': state.currentSpecialView === 'views',
-                'navSearch': state.currentSpecialView === 'search',
+                'navExplore': state.currentSpecialView === 'explore',
                 'navSuggestedViews': state.currentSpecialView === 'suggestedViews',
                 'navSuggestedConcepts': state.currentSpecialView === 'suggestedConcepts'
             };
@@ -10718,6 +10745,12 @@
 
             if (state.currentSpecialView === 'views') {
                 renderViewsPage();
+                updateMobileChrome();
+                return;
+            }
+
+            if (state.currentSpecialView === 'explore') {
+                renderExplorePage();
                 updateMobileChrome();
                 return;
             }
@@ -15671,6 +15704,447 @@
 
                 </div>
             `;
+        }
+
+        function renderExplorePage() {
+            const container = document.getElementById('viewContainer');
+            if (!state.exploreState) {
+                state.exploreState = {
+                    searchQuery: '',
+                    focusedRecordId: null,
+                    sortField: 'lastModified',
+                    sortDirection: 'desc',
+                    filters: []
+                };
+            }
+
+            // Gather all records from all sets
+            const allRecords = [];
+            state.sets.forEach(set => {
+                set.records.forEach(record => {
+                    allRecords.push({
+                        ...record,
+                        setId: set.id,
+                        setName: set.name,
+                        _set: set
+                    });
+                });
+            });
+
+            // Apply search filter
+            let filteredRecords = allRecords;
+            if (state.exploreState.searchQuery) {
+                const query = state.exploreState.searchQuery.toLowerCase();
+                filteredRecords = allRecords.filter(record => {
+                    const label = getRecordDisplayLabel(record).toLowerCase();
+                    return label.includes(query);
+                });
+            }
+
+            // Apply sorting
+            filteredRecords.sort((a, b) => {
+                const direction = state.exploreState.sortDirection === 'asc' ? 1 : -1;
+                switch (state.exploreState.sortField) {
+                    case 'name':
+                        return direction * getRecordDisplayLabel(a).localeCompare(getRecordDisplayLabel(b));
+                    case 'set':
+                        return direction * a.setName.localeCompare(b.setName);
+                    case 'stability':
+                        const stabilityOrder = { emerging: 0, forming: 1, stable: 2, evolved: 3 };
+                        return direction * ((stabilityOrder[a.stability] || 0) - (stabilityOrder[b.stability] || 0));
+                    case 'lastModified':
+                    default:
+                        const aTime = a.edit_history?.[a.edit_history.length - 1]?.timestamp || 0;
+                        const bTime = b.edit_history?.[b.edit_history.length - 1]?.timestamp || 0;
+                        return direction * (bTime - aTime);
+                }
+            });
+
+            const recordCount = filteredRecords.length;
+
+            container.innerHTML = `
+                <div class="explore-page" style="display: flex; flex-direction: column; height: 100%;">
+                    <!-- HEADER -->
+                    <div class="view-stage-header" style="flex-shrink: 0;">
+                        <div class="view-stage-title">
+                            <div class="min-w-0">
+                                <div class="view-stage-name">Explore</div>
+                                <div class="view-stage-sub">Browse and search all records · ${recordCount} record${recordCount !== 1 ? 's' : ''}</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-secondary btn-sm" onclick="openExploreFilters()">
+                                <i class="ph ph-funnel"></i>
+                                Filters
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="openExploreSort()">
+                                <i class="ph ph-arrows-down-up"></i>
+                                Sort
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SEARCH BAR -->
+                    <div style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); flex-shrink: 0;">
+                        <input
+                            type="text"
+                            id="exploreSearchInput"
+                            placeholder="Search records..."
+                            value="${state.exploreState.searchQuery}"
+                            style="width: 100%; padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: 999px; font-size: 14px;"
+                            oninput="updateExploreSearch(this.value)"
+                        />
+                    </div>
+
+                    <!-- MAIN CONTENT: TABLE + FOCUS PANEL -->
+                    <div style="display: flex; flex: 1; overflow: hidden;">
+                        <!-- TABLE AREA -->
+                        <div style="flex: 1; overflow: auto; min-width: 0;">
+                            <div class="table-scroll" style="height: 100%;">
+                                <table id="exploreTable" class="border-collapse" style="width: 100%;">
+                                    <thead>
+                                        <tr id="exploreTableHeader"></tr>
+                                    </thead>
+                                    <tbody id="exploreTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- FOCUS PANEL -->
+                        <aside class="focus-panel" id="exploreFocusPanel" style="display: ${state.exploreState.focusedRecordId ? 'flex' : 'none'};">
+                            <div class="focus-header">
+                                <div class="focus-label">Focus</div>
+                                <div class="focus-title-row">
+                                    <div style="flex: 1;">
+                                        <div class="focus-title" id="exploreFocusTitle">Select a record</div>
+                                        <div class="focus-subtitle" id="exploreFocusSubtitle"></div>
+                                    </div>
+                                    <span class="focus-tag" id="exploreFocusTag">-</span>
+                                </div>
+                                <button class="focus-clear" onclick="clearExploreFocus()">Clear Focus</button>
+                            </div>
+                            <div class="focus-body" id="exploreFocusBody">
+                                <p class="text-sm text-gray-500">Click any row to see detailed information here.</p>
+                            </div>
+                            <div class="focus-actions" id="exploreFocusActions"></div>
+                        </aside>
+                    </div>
+                </div>
+            `;
+
+            // Render table header
+            const headerRow = document.getElementById('exploreTableHeader');
+            const columns = [
+                { id: 'name', label: 'Name', width: '30%' },
+                { id: 'set', label: 'Set', width: '15%' },
+                { id: 'stability', label: 'Stability', width: '12%' },
+                { id: 'lastModified', label: 'Last Modified', width: '13%' },
+                { id: 'context', label: 'Context', width: '15%' },
+                { id: 'relationships', label: 'Relationships', width: '15%' }
+            ];
+
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.className = 'column-header';
+                th.style.width = col.width;
+                th.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 4px; cursor: pointer;" onclick="sortExploreBy('${col.id}')">
+                        <span>${col.label}</span>
+                        ${state.exploreState.sortField === col.id ?
+                            `<i class="ph ph-caret-${state.exploreState.sortDirection === 'asc' ? 'up' : 'down'}" style="font-size: 12px;"></i>`
+                            : ''}
+                    </div>
+                `;
+                headerRow.appendChild(th);
+            });
+
+            // Render table body
+            const tableBody = document.getElementById('exploreTableBody');
+            filteredRecords.forEach(record => {
+                const tr = document.createElement('tr');
+                tr.className = 'table-row';
+                if (state.exploreState.focusedRecordId === record.id) {
+                    tr.classList.add('selected');
+                }
+                tr.onclick = () => focusOnExploreRecord(record.id, record.setId);
+
+                // Name column
+                const nameTd = document.createElement('td');
+                nameTd.className = 'table-cell';
+                nameTd.innerHTML = `<div style="font-weight: 500;">${escapeHtml(getRecordDisplayLabel(record))}</div>`;
+                tr.appendChild(nameTd);
+
+                // Set column
+                const setTd = document.createElement('td');
+                setTd.className = 'table-cell';
+                setTd.innerHTML = `<span class="view-stage-pill" style="font-size: 11px;">${escapeHtml(record.setName)}</span>`;
+                tr.appendChild(setTd);
+
+                // Stability column
+                const stabilityTd = document.createElement('td');
+                stabilityTd.className = 'table-cell';
+                stabilityTd.innerHTML = renderStabilityBadge(record.stability);
+                tr.appendChild(stabilityTd);
+
+                // Last Modified column
+                const modifiedTd = document.createElement('td');
+                modifiedTd.className = 'table-cell';
+                modifiedTd.innerHTML = `<span style="font-size: 12px; color: var(--text-muted);">${getRelativeTime(record)}</span>`;
+                tr.appendChild(modifiedTd);
+
+                // Context column
+                const contextTd = document.createElement('td');
+                contextTd.className = 'table-cell';
+                contextTd.innerHTML = renderContextBadges(record);
+                tr.appendChild(contextTd);
+
+                // Relationships column
+                const relsTd = document.createElement('td');
+                relsTd.className = 'table-cell';
+                relsTd.innerHTML = renderRelationshipChips(record);
+                tr.appendChild(relsTd);
+
+                tableBody.appendChild(tr);
+            });
+
+            // If a record was focused, update the focus panel
+            if (state.exploreState.focusedRecordId) {
+                const focusedRecord = filteredRecords.find(r => r.id === state.exploreState.focusedRecordId);
+                if (focusedRecord) {
+                    updateExploreFocusPanel(focusedRecord);
+                }
+            }
+        }
+
+        function renderStabilityBadge(stability) {
+            if (!stability) return '<span style="color: var(--text-muted); font-size: 12px;">-</span>';
+
+            const config = {
+                emerging: { color: '#ea580c', bg: '#ffedd5', label: 'Emerging' },
+                forming: { color: '#ca8a04', bg: '#fef9c3', label: 'Forming' },
+                stable: { color: '#16a34a', bg: '#dcfce7', label: 'Stable' },
+                evolved: { color: '#2563eb', bg: '#dbeafe', label: 'Evolved' }
+            };
+
+            const cfg = config[stability] || config.stable;
+            return `<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; color: ${cfg.color}; background: ${cfg.bg};">${cfg.label}</span>`;
+        }
+
+        function renderContextBadges(record) {
+            // Get dominant value observation from rollup
+            const dominantValue = getDominantValue(record);
+            if (!dominantValue || !dominantValue.context) {
+                return '<span style="color: var(--text-muted); font-size: 12px;">-</span>';
+            }
+
+            const ctx = dominantValue.context;
+            const badges = [];
+
+            if (ctx.method) {
+                badges.push(`<span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; background: #f3f4f6; color: #6b7280; margin-right: 4px;">${ctx.method}</span>`);
+            }
+            if (ctx.scale) {
+                badges.push(`<span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; background: #f3f4f6; color: #6b7280;">${ctx.scale}</span>`);
+            }
+
+            return badges.length > 0 ? badges.join('') : '<span style="color: var(--text-muted); font-size: 12px;">-</span>';
+        }
+
+        function renderRelationshipChips(record) {
+            const connections = getRecordConnections(record.id);
+            if (!connections || connections.length === 0) {
+                return '<span style="color: var(--text-muted); font-size: 12px;">-</span>';
+            }
+
+            // Count by operator
+            const operatorCounts = {};
+            connections.forEach(conn => {
+                const operator = conn.operator || 'REF';
+                operatorCounts[operator] = (operatorCounts[operator] || 0) + 1;
+            });
+
+            const operatorConfig = {
+                'INS': { color: '#2563eb', bg: '#dbeafe' },
+                'DES': { color: '#7c3aed', bg: '#ede9fe' },
+                'REF': { color: '#6b7280', bg: '#e5e7eb' },
+                'SUP': { color: '#16a34a', bg: '#dcfce7' }
+            };
+
+            const chips = Object.entries(operatorCounts).map(([op, count]) => {
+                const cfg = operatorConfig[op] || operatorConfig['REF'];
+                return `<span style="display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; color: ${cfg.color}; background: ${cfg.bg}; margin-right: 4px;">${op}<span style="opacity: 0.6;">→</span>${count}</span>`;
+            });
+
+            return chips.join('');
+        }
+
+        function getRelativeTime(record) {
+            if (!record.edit_history || record.edit_history.length === 0) {
+                return 'Never';
+            }
+
+            const lastEdit = record.edit_history[record.edit_history.length - 1];
+            const timestamp = lastEdit.timestamp;
+            const now = Date.now();
+            const diff = now - timestamp;
+
+            const seconds = Math.floor(diff / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+
+            if (days > 0) return `${days} day${days !== 1 ? 's' : ''} ago`;
+            if (hours > 0) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+            if (minutes > 0) return `${minutes} min${minutes !== 1 ? 's' : ''} ago`;
+            return 'Just now';
+        }
+
+        function getDominantValue(record) {
+            if (!record.value_history || record.value_history.length === 0) return null;
+            return record.value_history[record.value_history.length - 1];
+        }
+
+        function getRecordConnections(recordId) {
+            const connections = [];
+            state.connections.forEach(conn => {
+                if (conn.source === recordId || conn.target === recordId) {
+                    connections.push(conn);
+                }
+            });
+            return connections;
+        }
+
+        function focusOnExploreRecord(recordId, setId) {
+            state.exploreState.focusedRecordId = recordId;
+
+            // Find the record
+            const set = state.sets.get(setId);
+            if (!set) return;
+
+            const record = set.records.get(recordId);
+            if (!record) return;
+
+            const recordWithSet = { ...record, setId, setName: set.name, _set: set };
+
+            // Re-render to update selection and show focus panel
+            renderExplorePage();
+        }
+
+        function updateExploreFocusPanel(record) {
+            const titleEl = document.getElementById('exploreFocusTitle');
+            const subtitleEl = document.getElementById('exploreFocusSubtitle');
+            const tagEl = document.getElementById('exploreFocusTag');
+            const bodyEl = document.getElementById('exploreFocusBody');
+            const actionsEl = document.getElementById('exploreFocusActions');
+
+            if (!titleEl) return;
+
+            titleEl.textContent = getRecordDisplayLabel(record);
+            subtitleEl.textContent = record.setName;
+            tagEl.textContent = 'Record';
+
+            // Build focus body content
+            let bodyHTML = '';
+
+            // Stability
+            bodyHTML += `<div style="margin-bottom: 1rem;">
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 4px;">Stability</div>
+                ${renderStabilityBadge(record.stability)}
+            </div>`;
+
+            // Context
+            const dominantValue = getDominantValue(record);
+            if (dominantValue && dominantValue.context) {
+                bodyHTML += `<div style="margin-bottom: 1rem;">
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 4px;">Context</div>
+                    <div style="font-size: 12px; color: var(--text-muted);">
+                        ${Object.entries(dominantValue.context).map(([key, val]) =>
+                            `<div><strong>${key}:</strong> ${val}</div>`
+                        ).join('')}
+                    </div>
+                </div>`;
+            }
+
+            // Relationships
+            const connections = getRecordConnections(record.id);
+            if (connections.length > 0) {
+                bodyHTML += `<div style="margin-bottom: 1rem;">
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 4px;">Relationships</div>
+                    <div style="font-size: 12px;">
+                        ${connections.slice(0, 5).map(conn => {
+                            const targetId = conn.source === record.id ? conn.target : conn.source;
+                            const targetRecord = findRecordById(targetId);
+                            const label = targetRecord ? getRecordDisplayLabel(targetRecord) : targetId;
+                            return `<div style="padding: 4px 0;">${conn.operator || 'REF'} → ${escapeHtml(label)}</div>`;
+                        }).join('')}
+                        ${connections.length > 5 ? `<div style="color: var(--text-muted); margin-top: 4px;">+${connections.length - 5} more</div>` : ''}
+                    </div>
+                </div>`;
+            }
+
+            // Fields preview
+            const fields = record._set ? record._set.schema.slice(0, 3) : [];
+            if (fields.length > 0) {
+                bodyHTML += `<div style="margin-bottom: 1rem;">
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 4px;">Fields Preview</div>
+                    <div style="font-size: 12px;">
+                        ${fields.map(field => {
+                            const value = record.data?.[field.id];
+                            return `<div style="padding: 4px 0;"><strong>${escapeHtml(field.name)}:</strong> ${escapeHtml(String(value || '-'))}</div>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+            }
+
+            bodyEl.innerHTML = bodyHTML;
+
+            // Actions
+            actionsEl.innerHTML = `
+                <button class="btn btn-primary btn-sm" onclick="openExpandedRecord('${record.id}', '${record.setId}')">
+                    <i class="ph ph-arrow-square-out"></i>
+                    Open Record
+                </button>
+            `;
+        }
+
+        function findRecordById(recordId) {
+            let found = null;
+            state.sets.forEach(set => {
+                const record = set.records.get(recordId);
+                if (record) found = record;
+            });
+            return found;
+        }
+
+        function clearExploreFocus() {
+            state.exploreState.focusedRecordId = null;
+            renderExplorePage();
+        }
+
+        function updateExploreSearch(query) {
+            state.exploreState.searchQuery = query;
+            renderExplorePage();
+        }
+
+        function sortExploreBy(field) {
+            if (state.exploreState.sortField === field) {
+                // Toggle direction
+                state.exploreState.sortDirection = state.exploreState.sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                state.exploreState.sortField = field;
+                state.exploreState.sortDirection = 'desc';
+            }
+            renderExplorePage();
+        }
+
+        function openExploreFilters() {
+            showToast('Filter functionality coming soon');
+            // TODO: Implement filter modal integration
+        }
+
+        function openExploreSort() {
+            showToast('Advanced sort options coming soon');
+            // TODO: Implement sort modal integration
         }
 
         function attachConnectionRelationInlineEditing() {
