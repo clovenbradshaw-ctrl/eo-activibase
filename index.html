@@ -14764,6 +14764,9 @@
             });
         }
 
+        // Track drill-down state to prevent blur from hiding dropdown during navigation
+        let hierarchyDrilldownActive = false;
+
         function renderHierarchicalEntityBrowser(containerId, onSelect, currentPath = []) {
             const container = document.getElementById(containerId);
             if (!container) return;
@@ -14867,8 +14870,12 @@
             if (backButton) {
                 backButton.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    // Set flag to prevent blur from hiding dropdown during navigation
+                    hierarchyDrilldownActive = true;
                     const newPath = currentPath.slice(0, -1);
                     renderHierarchicalEntityBrowser(containerId, onSelect, newPath);
+                    // Reset flag after a short delay
+                    setTimeout(() => { hierarchyDrilldownActive = false; }, 50);
                 });
             }
 
@@ -14884,7 +14891,11 @@
                             console.error(`Set not found: ${id}`);
                             return;
                         }
+                        // Set flag to prevent blur from hiding dropdown during drill-down
+                        hierarchyDrilldownActive = true;
                         renderHierarchicalEntityBrowser(containerId, onSelect, [...currentPath, { type: 'Set', id, name: set.name }]);
+                        // Reset flag after a short delay
+                        setTimeout(() => { hierarchyDrilldownActive = false; }, 50);
                     } else if (type === 'view') {
                         const setId = item.dataset.setId;
                         const set = state.sets.get(setId);
@@ -14893,7 +14904,11 @@
                             console.error(`View not found: ${id} in set ${setId}`);
                             return;
                         }
+                        // Set flag to prevent blur from hiding dropdown during drill-down
+                        hierarchyDrilldownActive = true;
                         renderHierarchicalEntityBrowser(containerId, onSelect, [...currentPath, { type: 'View', id, name: view.name }]);
+                        // Reset flag after a short delay
+                        setTimeout(() => { hierarchyDrilldownActive = false; }, 50);
                     } else if (type === 'record') {
                         // Final selection - call the onSelect callback
                         const entity = { id, type: 'Record', entityType: 'Record' };
@@ -14990,7 +15005,12 @@
                 });
 
                 subjectSearch.addEventListener('blur', () => {
-                    setTimeout(() => subjectDropdown?.classList.add('hidden'), 200);
+                    setTimeout(() => {
+                        // Don't hide if we're in the middle of a drill-down operation
+                        if (!hierarchyDrilldownActive) {
+                            subjectDropdown?.classList.add('hidden');
+                        }
+                    }, 200);
                 });
             }
 
@@ -15033,7 +15053,12 @@
                 });
 
                 operandSearch.addEventListener('blur', () => {
-                    setTimeout(() => operandDropdown?.classList.add('hidden'), 200);
+                    setTimeout(() => {
+                        // Don't hide if we're in the middle of a drill-down operation
+                        if (!hierarchyDrilldownActive) {
+                            operandDropdown?.classList.add('hidden');
+                        }
+                    }, 200);
                 });
             }
 
