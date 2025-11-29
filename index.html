@@ -13,6 +13,7 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="eo_graph.js"></script>
     <script src="eo_lean_context.js"></script>
     <script src="eo_provenance_extractor.js"></script>
     <script src="demo/eo_rollup_engine.js"></script>
@@ -6678,6 +6679,184 @@
                 params: { context: 'location' },
                 worldId: defaultWorldId
             });
+
+            // Add more relation types demonstrating all 9 EO operators
+            const nullRelationId = addConnectionRelation({
+                id: `${defaultWorldId}_format_null`,
+                operator: 'NUL',
+                mode: 'detects absence of',
+                description: 'Recognizes absence or missing data',
+                requiredParams: [],
+                optionalParams: ['notes'],
+                worldId: defaultWorldId
+            });
+
+            const designateRelationId = addConnectionRelation({
+                id: `${defaultWorldId}_format_designate`,
+                operator: 'DES',
+                mode: 'labels',
+                description: 'Designates or labels an entity',
+                requiredParams: [],
+                optionalParams: ['notes'],
+                worldId: defaultWorldId
+            });
+
+            const instantiateRelationId = addConnectionRelation({
+                id: `${defaultWorldId}_format_instantiate`,
+                operator: 'INS',
+                mode: 'creates',
+                description: 'Creates or generates a new entity',
+                requiredParams: [],
+                optionalParams: ['notes'],
+                worldId: defaultWorldId
+            });
+
+            const segmentRelationId = addConnectionRelation({
+                id: `${defaultWorldId}_format_segment`,
+                operator: 'SEG',
+                mode: 'filters by',
+                description: 'Segments or filters entities',
+                requiredParams: [],
+                optionalParams: ['notes'],
+                worldId: defaultWorldId
+            });
+
+            const alternateRelationId = addConnectionRelation({
+                id: `${defaultWorldId}_format_alternate`,
+                operator: 'ALT',
+                mode: 'alternates with',
+                description: 'Alternates between states or entities',
+                requiredParams: [],
+                optionalParams: ['notes'],
+                worldId: defaultWorldId
+            });
+
+            const synthesizeRelationId = addConnectionRelation({
+                id: `${defaultWorldId}_format_synthesize`,
+                operator: 'SYN',
+                mode: 'combines with',
+                description: 'Synthesizes or integrates entities',
+                requiredParams: [],
+                optionalParams: ['notes'],
+                worldId: defaultWorldId
+            });
+
+            const superposeRelationId = addConnectionRelation({
+                id: `${defaultWorldId}_format_superpose`,
+                operator: 'SUP',
+                mode: 'overlays',
+                description: 'Superimposes or overlays entities',
+                requiredParams: [],
+                optionalParams: ['notes'],
+                worldId: defaultWorldId
+            });
+
+            const recurseRelationId = addConnectionRelation({
+                id: `${defaultWorldId}_format_recurse`,
+                operator: 'REC',
+                mode: 'references',
+                description: 'Creates recursive or self-referential relationships',
+                requiredParams: [],
+                optionalParams: ['notes'],
+                worldId: defaultWorldId
+            });
+
+            // Add demo connections with different operators
+            if (nullRelationId) {
+                addConnection({
+                    id: `${defaultWorldId}_demo_nul_1`,
+                    subject: { type: 'Record', id: marshId },
+                    relationId: nullRelationId,
+                    operand: { type: 'Record', id: obs2Id },
+                    description: 'Marsh observation is missing water quality data.',
+                    params: {},
+                    worldId: defaultWorldId
+                });
+            }
+
+            if (designateRelationId) {
+                addConnection({
+                    id: `${defaultWorldId}_demo_des_1`,
+                    subject: { type: 'Record', id: ridgeId },
+                    relationId: designateRelationId,
+                    operand: { type: 'Set', id: locationsId },
+                    description: 'Summit Ridge is designated as a primary field site.',
+                    params: {},
+                    worldId: defaultWorldId
+                });
+            }
+
+            if (instantiateRelationId) {
+                addConnection({
+                    id: `${defaultWorldId}_demo_ins_1`,
+                    subject: { type: 'Record', id: obs1Id },
+                    relationId: instantiateRelationId,
+                    operand: { type: 'Record', id: obs2Id },
+                    description: 'The ridge observation led to the marsh observation.',
+                    params: {},
+                    worldId: defaultWorldId
+                });
+            }
+
+            if (segmentRelationId) {
+                addConnection({
+                    id: `${defaultWorldId}_demo_seg_1`,
+                    subject: { type: 'Set', id: observationsId },
+                    relationId: segmentRelationId,
+                    operand: { type: 'Set', id: locationsId },
+                    description: 'Observations are filtered by location.',
+                    params: {},
+                    worldId: defaultWorldId
+                });
+            }
+
+            if (alternateRelationId) {
+                addConnection({
+                    id: `${defaultWorldId}_demo_alt_1`,
+                    subject: { type: 'Record', id: obs1Id },
+                    relationId: alternateRelationId,
+                    operand: { type: 'Record', id: obs4Id },
+                    description: 'Observers alternate shifts at the ridge.',
+                    params: {},
+                    worldId: defaultWorldId
+                });
+            }
+
+            if (synthesizeRelationId) {
+                addConnection({
+                    id: `${defaultWorldId}_demo_syn_1`,
+                    subject: { type: 'Record', id: obs2Id },
+                    relationId: synthesizeRelationId,
+                    operand: { type: 'Record', id: obs3Id },
+                    description: 'Marsh and grove data combine for ecosystem analysis.',
+                    params: {},
+                    worldId: defaultWorldId
+                });
+            }
+
+            if (superposeRelationId) {
+                addConnection({
+                    id: `${defaultWorldId}_demo_sup_1`,
+                    subject: { type: 'Record', id: marshId },
+                    relationId: superposeRelationId,
+                    operand: { type: 'Record', id: groveId },
+                    description: 'Wetlands and forest monitoring overlay in the same region.',
+                    params: {},
+                    worldId: defaultWorldId
+                });
+            }
+
+            if (recurseRelationId) {
+                addConnection({
+                    id: `${defaultWorldId}_demo_rec_1`,
+                    subject: { type: 'Record', id: obs3Id },
+                    relationId: recurseRelationId,
+                    operand: { type: 'Record', id: obs3Id },
+                    description: 'This observation references itself as a follow-up note.',
+                    params: {},
+                    worldId: defaultWorldId
+                });
+            }
 
             state.currentSetId = observationsId;
             state.currentViewId = Array.from(observationsSet.views.keys())[0];
@@ -14973,11 +15152,22 @@
 
         function renderRelationsPage(filterKey = 'all') {
             state.connectionFormState.activeFilter = filterKey;
+            // Build filters dynamically from EO_OPERATORS
             const filters = {
-                all: () => true,
-                con: conn => conn.operator === 'CON',
-                seg: conn => conn.operator === 'SEG'
+                all: () => true
             };
+
+            // Add a filter for each of the 9 EO operators
+            if (typeof EO_OPERATORS !== 'undefined') {
+                Object.keys(EO_OPERATORS).forEach(opCode => {
+                    filters[opCode.toLowerCase()] = conn => conn.operator === opCode;
+                });
+            } else {
+                // Fallback if EO_OPERATORS not loaded
+                ['NUL', 'DES', 'INS', 'SEG', 'CON', 'ALT', 'SYN', 'SUP', 'REC'].forEach(opCode => {
+                    filters[opCode.toLowerCase()] = conn => conn.operator === opCode;
+                });
+            }
 
             const relationTypes = getConnectionRelationView();
             const relationships = getConnectionView(filters[filterKey]);
