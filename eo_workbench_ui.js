@@ -265,6 +265,120 @@ function showSaveViewAsDialog(state, viewId) {
 }
 
 // ============================================================================
+// VIEW TOOLBAR UI
+// ============================================================================
+
+/**
+ * Render view toolbar with field management and operations
+ * This toolbar appears below the view tabs and provides quick access to common actions
+ */
+function renderViewToolbar(state, setId) {
+    const set = state.sets.get(setId);
+    if (!set) return '';
+
+    const currentViewId = state.currentViewId;
+    const currentView = state.views?.get(currentViewId);
+
+    // Count field stats
+    const schemaCount = (set.schema || []).length;
+    const visibleCount = (currentView?.visibleFieldIds || []).length;
+    const hiddenCount = (currentView?.hiddenFields || []).length;
+
+    return `
+        <div class="view-toolbar">
+            <div class="toolbar-left">
+                <button class="toolbar-btn" id="btnAvailableFields" title="Explore available fields">
+                    <span class="icon">📋</span>
+                    <span class="label">Fields</span>
+                    <span class="badge">${visibleCount}/${schemaCount}</span>
+                </button>
+                <button class="toolbar-btn" id="btnAddLinkedField" title="Add field from linked set">
+                    <span class="icon">🔗</span>
+                    <span class="label">Linked Fields</span>
+                </button>
+            </div>
+            <div class="toolbar-right">
+                <button class="toolbar-btn subtle" data-op="dedupe" title="Find duplicates">
+                    <span class="icon">🔍</span> Dedupe
+                </button>
+                <button class="toolbar-btn subtle" data-op="harmonize" title="Harmonize fields">
+                    <span class="icon">⚖️</span> Harmonize
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Show the Available Fields Explorer panel
+ * @param {Object} state - Global state
+ * @param {string} setId - Current set ID
+ */
+function showAvailableFieldsExplorer(state, setId) {
+    const set = state.sets.get(setId);
+    const viewId = state.currentViewId;
+    const view = state.views?.get(viewId);
+
+    if (!set || !view) {
+        console.warn('Cannot show fields explorer: missing set or view');
+        return;
+    }
+
+    // Use the EOAvailableFieldsExplorer component
+    if (window.EOAvailableFieldsExplorer) {
+        const explorer = new window.EOAvailableFieldsExplorer();
+        explorer.show(view, set, state);
+    } else {
+        console.warn('EOAvailableFieldsExplorer not loaded');
+        alert('Fields Explorer component not available. Please ensure eo_available_fields_explorer.js is loaded.');
+    }
+}
+
+/**
+ * Attach view toolbar event listeners
+ * Call this after rendering the toolbar
+ */
+function attachViewToolbarListeners(state, setId) {
+    // Available Fields button
+    const btnFields = document.getElementById('btnAvailableFields');
+    if (btnFields) {
+        btnFields.addEventListener('click', () => {
+            showAvailableFieldsExplorer(state, setId);
+        });
+    }
+
+    // Linked Fields button
+    const btnLinked = document.getElementById('btnAddLinkedField');
+    if (btnLinked) {
+        btnLinked.addEventListener('click', () => {
+            if (window.EOLinkedFieldsModal) {
+                const set = state.sets.get(setId);
+                const view = state.views?.get(state.currentViewId);
+                if (set && view) {
+                    const modal = new window.EOLinkedFieldsModal();
+                    modal.show(view, set, state);
+                }
+            }
+        });
+    }
+
+    // Structural operation buttons
+    document.querySelectorAll('.toolbar-btn[data-op]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const op = e.currentTarget.dataset.op;
+            switch (op) {
+                case 'dedupe':
+                    showDedupeDialog(state, setId);
+                    break;
+                case 'harmonize':
+                    showHarmonizeFieldsDialog(state, setId);
+                    break;
+            }
+        });
+    });
+}
+
+// ============================================================================
 // STRUCTURAL OPERATIONS UI
 // ============================================================================
 
@@ -926,6 +1040,9 @@ if (typeof module !== 'undefined' && module.exports) {
         showCreateViewDialog,
         renderCreateViewFromFocusButton,
         showSaveViewAsDialog,
+        renderViewToolbar,
+        showAvailableFieldsExplorer,
+        attachViewToolbarListeners,
         renderStructuralOperationsToolbar,
         showDedupeDialog,
         showMergeRecordsDialog,
@@ -934,4 +1051,11 @@ if (typeof module !== 'undefined' && module.exports) {
         renderEnhancedSearchModal,
         handleSearchInput
     };
+}
+
+// Also expose to window for browser use
+if (typeof window !== 'undefined') {
+    window.showAvailableFieldsExplorer = showAvailableFieldsExplorer;
+    window.renderViewToolbar = renderViewToolbar;
+    window.attachViewToolbarListeners = attachViewToolbarListeners;
 }
