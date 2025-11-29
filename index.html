@@ -16248,15 +16248,17 @@
 
           // Generate auto-name for the field
           const set = getCurrentSet();
+          const view = getCurrentView();
+          const isKeyDerived = view && view.type === 'KEY_DERIVED';
           let fieldNumber = 1;
           let autoName = `New Field ${fieldNumber}`;
 
           // Find the next available "New Field N" name
-          if (set && set.schema) {
-              while (set.schema.some(f => f.name === autoName)) {
-                  fieldNumber++;
-                  autoName = `New Field ${fieldNumber}`;
-              }
+          // For KEY_DERIVED views, check view.schema; otherwise check set.schema
+          const schemaToCheck = isKeyDerived ? (view.schema || []) : (set?.schema || []);
+          while (schemaToCheck.some(f => f.name === autoName)) {
+              fieldNumber++;
+              autoName = `New Field ${fieldNumber}`;
           }
 
           // Set the auto-generated name
@@ -16833,13 +16835,17 @@
           resetFieldNameValidation();
 
           const set = getCurrentSet();
+          const view = getCurrentView();
           const fieldId = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            
-            if (set.schema.find(f => f.id === fieldId)) {
+          const isKeyDerived = view && view.type === 'KEY_DERIVED';
+
+            // Check for duplicate field ID in the appropriate schema
+            const schemaToCheck = isKeyDerived ? (view.schema || []) : (set?.schema || []);
+            if (schemaToCheck.find(f => f.id === fieldId)) {
                 showConfirm('A field with this name already exists', () => {});
                 return;
             }
-            
+
             const subtype = document.getElementById('fieldManagerNewSubtype')?.value || null;
             const newField = { id: fieldId, name: name, type: type, subtype: subtype, width: '150px', config: {} };
 
@@ -16873,12 +16879,18 @@
                 newField.config = { formula, format, decimals };
             }
 
-            set.schema.push(newField);
-
-            // Add field to current view so it appears immediately
-            addFieldToCurrentView(fieldId);
-
-            set.records.forEach(r => r[fieldId] = FIELD_TYPES[type].defaultValue);
+            // Handle KEY_DERIVED views differently - add to view.schema
+            if (isKeyDerived) {
+                if (!view.schema) {
+                    view.schema = [];
+                }
+                view.schema.push(newField);
+            } else {
+                set.schema.push(newField);
+                // Add field to current view so it appears immediately
+                addFieldToCurrentView(fieldId);
+                set.records.forEach(r => r[fieldId] = FIELD_TYPES[type].defaultValue);
+            }
 
             closeModal('addFieldModal');
             renderCurrentView();
