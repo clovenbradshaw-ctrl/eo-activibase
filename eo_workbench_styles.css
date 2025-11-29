@@ -712,6 +712,95 @@
 }
 
 /* ============================================================================
+   VIEW TOOLBAR
+   ============================================================================ */
+
+.view-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: white;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.toolbar-left,
+.toolbar-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.toolbar-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: white;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    transition: all 0.15s ease;
+}
+
+.toolbar-btn:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.toolbar-btn:active {
+    background: #e5e7eb;
+}
+
+.toolbar-btn .icon {
+    font-size: 14px;
+}
+
+.toolbar-btn .label {
+    color: inherit;
+}
+
+.toolbar-btn .badge {
+    background: #e5e7eb;
+    color: #6b7280;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.toolbar-btn.subtle {
+    background: transparent;
+    border-color: transparent;
+    color: #6b7280;
+}
+
+.toolbar-btn.subtle:hover {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #374151;
+}
+
+/* Primary toolbar button variant */
+.toolbar-btn.primary {
+    background: #3b82f6;
+    border-color: #2563eb;
+    color: white;
+}
+
+.toolbar-btn.primary:hover {
+    background: #2563eb;
+}
+
+.toolbar-btn.primary .badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+/* ============================================================================
    RESPONSIVE DESIGN
    ============================================================================ */
 
@@ -728,6 +817,17 @@
 
     .structural-ops-toolbar {
         flex-wrap: wrap;
+    }
+
+    .view-toolbar {
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+    }
+
+    .toolbar-left,
+    .toolbar-right {
+        justify-content: center;
     }
 
     .highlights,
