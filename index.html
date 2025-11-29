@@ -4574,6 +4574,21 @@
             return existing;
         }
 
+        function cleanupOrphanedEntities() {
+            // Remove record entities that no longer exist in their sets
+            if (!state.entities) return 0;
+            let removedCount = 0;
+            for (const [entityId, entity] of state.entities.entries()) {
+                if ((entity.type || '').toLowerCase() === 'record') {
+                    if (getRecordById(entityId) === null) {
+                        state.entities.delete(entityId);
+                        removedCount++;
+                    }
+                }
+            }
+            return removedCount;
+        }
+
         function getEntityView(filterFn) {
             const entities = Array.from(state.entities.values()).filter(entity => !entity.worldId || entity.worldId === state.currentWorldId);
             return typeof filterFn === 'function' ? entities.filter(filterFn) : entities;
@@ -10832,6 +10847,8 @@
             showConfirm(message, () => {
                 ids.forEach(recordId => {
                     set.records.delete(recordId);
+                    // Also remove from state.entities to prevent orphaned references
+                    deleteEntity(recordId);
                     createEvent(
                         'Toss Record',
                         'NUL',
@@ -13224,6 +13241,9 @@
         }
 
         function renderEntitiesPage(selectedType = null) {
+            // Clean up any orphaned record entities first
+            cleanupOrphanedEntities();
+
             // Tier 1: Entity Type Selection with full class names for Tailwind
             const entityTypes = [
                 {
@@ -13286,7 +13306,16 @@
 
             // Get all entities and filter by selected type
             const allEntities = getEntityView();
-            const filteredEntities = allEntities.filter(e => (e.type || '').toLowerCase() === selectedType.toLowerCase());
+            // Filter by type and also validate that records actually exist in their sets
+            const filteredEntities = allEntities.filter(e => {
+                const entityType = (e.type || '').toLowerCase();
+                if (entityType !== selectedType.toLowerCase()) return false;
+                // For records, validate they still exist in a set (not orphaned)
+                if (entityType === 'record') {
+                    return getRecordById(e.id) !== null;
+                }
+                return true;
+            });
 
             // Stats
             const totalCount = allEntities.length;
