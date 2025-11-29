@@ -6062,15 +6062,8 @@
             renderWorldSelector();
             renderSidebar();
             initializeNavSections();
-            if (state.currentSpecialView) {
-                renderCurrentView();
-            } else if (state.currentSetId) {
-                switchSet(state.currentSetId, state.currentViewId);
-            } else {
-                // Default to dashboard if no other view is specified
-                state.currentSpecialView = 'dashboard';
-                renderCurrentView();
-            }
+            // Always navigate to dashboard on initial load
+            navigateTo('dashboard');
             setupEventListeners();
             setupKeyboardShortcuts();
             applyResponsiveLayout();
