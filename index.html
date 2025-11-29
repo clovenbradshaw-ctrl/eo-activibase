@@ -6348,8 +6348,8 @@
             const visualizeBtn = document.getElementById('visualizeBtn');
             if (visualizeBtn) visualizeBtn.onclick = openVisualizationModal;
 
-            const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-            if (deleteSelectedBtn) deleteSelectedBtn.onclick = handleDeleteSelectedRecords;
+            const tossSelectedBtn = document.getElementById('tossSelectedBtn');
+            if (tossSelectedBtn) tossSelectedBtn.onclick = handleTossSelectedRecords;
 
             const reifyBtn = document.getElementById('reifyViewBtn');
             if (reifyBtn) reifyBtn.onclick = reifyCurrentView;
@@ -6453,9 +6453,9 @@
                                     </button>
                                 </div>
                             </div>
-                            <button id="deleteSelectedBtn" class="btn btn-danger btn-sm" disabled>
+                            <button id="tossSelectedBtn" class="btn btn-danger btn-sm" disabled>
                                 <i class="ph ph-trash"></i>
-                                Delete
+                                Toss
                             </button>
                         </div>
                     </div>
@@ -10809,35 +10809,35 @@
                 countEl.textContent = count;
             }
 
-            const deleteBtn = document.getElementById('deleteSelectedBtn');
-            if (deleteBtn) deleteBtn.disabled = !state.selectedRecordIds || state.selectedRecordIds.size === 0;
+            const tossBtn = document.getElementById('tossSelectedBtn');
+            if (tossBtn) tossBtn.disabled = !state.selectedRecordIds || state.selectedRecordIds.size === 0;
         }
 
-        function handleDeleteSelectedRecords() {
+        function handleTossSelectedRecords() {
             const set = getCurrentSet();
             if (!set || !state.selectedRecordIds || state.selectedRecordIds.size === 0) return;
 
             const ids = [...state.selectedRecordIds].filter(id => set.records.has(id));
             if (ids.length === 0) return;
 
-            const message = `Are you sure you want to delete ${ids.length} selected record${ids.length === 1 ? '' : 's'}? ` +
+            const message = `Are you sure you want to toss ${ids.length} selected record${ids.length === 1 ? '' : 's'}? ` +
                 'All changes are reversible while within your retention window (future thresholds may limit recovery).';
 
             showConfirm(message, () => {
                 ids.forEach(recordId => {
                     set.records.delete(recordId);
                     createEvent(
-                        'Delete Record',
+                        'Toss Record',
                         'NUL',
                         { type: 'Record', id: recordId, setId: set.id },
-                        { setId: set.id, recordId, summary: 'Record deleted' }
+                        { setId: set.id, recordId, summary: 'Record tossed' }
                     );
                 });
 
                 state.selectedRecordIds.clear();
                 state.lastSelectedRecordId = null;
                 renderCurrentView();
-                showToast('✓ Selected records deleted (reversible while within retention)');
+                showToast('✓ Selected records tossed (reversible while within retention)');
             });
         }
 
@@ -18878,11 +18878,11 @@
         function confirmDelete(type, id) {
             const messages = {
                 field: 'Delete this field? This will remove data from all records.',
-                record: 'Delete this record? This cannot be undone.'
+                record: 'Toss this record? This can be reversed within your retention window.'
             };
             showConfirm(messages[type], () => {
                 if (type === 'field') deleteField(id);
-                if (type === 'record') deleteRecord(id);
+                if (type === 'record') tossRecord(id);
             });
         }
 
@@ -20362,19 +20362,19 @@
             showToast('✓ Field deleted');
         }
 
-        function deleteRecord(recordId) {
+        function tossRecord(recordId) {
             const set = getCurrentSet();
             set.records.delete(recordId);
             if (state.selectedRecordIds) state.selectedRecordIds.delete(recordId);
             if (!state.selectedRecordIds || state.selectedRecordIds.size === 0) state.lastSelectedRecordId = null;
             createEvent(
-                'Delete Record',
+                'Toss Record',
                 'NUL',
                 { type: 'Record', id: recordId, setId: set.id },
-                { setId: set.id, recordId, summary: 'Record deleted' }
+                { setId: set.id, recordId, summary: 'Record tossed' }
             );
             renderCurrentView();
-            showToast('✓ Record deleted');
+            showToast('✓ Record tossed');
         }
 
         // UTILITIES
