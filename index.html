@@ -2830,6 +2830,220 @@
             background: #f9fafb;
             font-size: 11px;
             font-weight: 600;
+        }
+
+        /* Connection Wizard Styles */
+        .connection-wizard-steps {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .wizard-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .wizard-step .step-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .wizard-step.active .step-circle {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .wizard-step.completed .step-circle {
+            background: #10b981;
+            color: white;
+        }
+
+        .wizard-step .step-label {
+            font-size: 11px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .wizard-step.active .step-label {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .wizard-step.completed .step-label {
+            color: #10b981;
+        }
+
+        .step-connector {
+            flex: 1;
+            height: 2px;
+            background: #e5e7eb;
+            margin: 0 8px;
+            margin-bottom: 20px;
+            max-width: 60px;
+        }
+
+        .wizard-panel {
+            min-height: 350px;
+        }
+
+        /* Entity Selection Grid */
+        .entity-selection-grid {
+            display: grid;
+            gap: 8px;
+        }
+
+        .entity-selection-item {
+            padding: 12px 16px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .entity-selection-item:hover {
+            border-color: #3b82f6;
+            background: #f0f9ff;
+        }
+
+        .entity-selection-item.selected {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .entity-selection-item .entity-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .entity-selection-item .entity-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .entity-selection-item .entity-name {
+            font-weight: 600;
+            color: #111827;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .entity-selection-item .entity-meta {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .entity-selection-item.drill-down {
+            background: #f9fafb;
+        }
+
+        .entity-selection-item.drill-down .entity-icon {
+            background: #e5e7eb;
+        }
+
+        /* Relation Selection */
+        .relation-selection-grid {
+            display: grid;
+            gap: 8px;
+        }
+
+        .relation-selection-item {
+            padding: 14px 16px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .relation-selection-item:hover {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .relation-selection-item.selected {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+
+        .relation-selection-item .relation-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .relation-selection-item .relation-mode {
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .relation-selection-item .relation-operator {
+            font-size: 11px;
+            padding: 2px 6px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            color: #6b7280;
+            font-weight: 600;
+        }
+
+        .relation-selection-item .relation-description {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        /* Hierarchy Breadcrumb */
+        .hierarchy-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: #f3f4f6;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .hierarchy-breadcrumb-item {
+            color: #6b7280;
+            cursor: pointer;
+        }
+
+        .hierarchy-breadcrumb-item:hover {
+            color: #3b82f6;
+            text-decoration: underline;
+        }
+
+        .hierarchy-breadcrumb-item.current {
+            color: #111827;
+            font-weight: 600;
+            cursor: default;
+        }
+
+        .hierarchy-breadcrumb-sep {
+            color: #9ca3af;
             color: var(--text-secondary);
             padding: 6px 12px;
             border-bottom: 1px solid #e5e7eb;
@@ -3132,60 +3346,152 @@
         </div>
     </div>
 
-    <div id="connectionModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-lg">
-            <div class="modal-header flex items-center justify-between">
+    <div id="connectionModal" class="hidden fixed inset-0 bg-black bg-opacity-30 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between border-b border-gray-200 pb-4">
                 <div>
-                    <h2 class="text-xl font-bold text-gray-900" id="connectionModalTitle">Add Relationship</h2>
-                    <p class="text-sm text-gray-500">Connect two entities with a relation</p>
+                    <h2 class="text-xl font-bold text-gray-900" id="connectionModalTitle">Create Relationship</h2>
+                    <p class="text-sm text-gray-500">Connect a subject to an operand through a relation</p>
                 </div>
-                <button class="text-gray-400 hover:text-gray-600 transition" onclick="closeModal('connectionModal')" aria-label="Close">
+                <button class="text-gray-400 hover:text-gray-600 transition p-1" onclick="closeModal('connectionModal')" aria-label="Close">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            <div class="modal-body">
-                <form id="connectionForm" class="space-y-4">
-                    <div>
-                        <label class="form-label">Subject Entity</label>
-                        <div class="entity-search-container relative">
-                            <input id="connectionSubjectSearch" type="text" class="border rounded px-3 py-2 w-full" placeholder="Search by name or click to browse..." autocomplete="off" />
-                            <input id="connectionSubjectId" type="hidden" />
-                            <input id="connectionSubjectType" type="hidden" value="Entity" />
-                            <div id="connectionSubjectDropdown" class="entity-dropdown hidden absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
+
+            <!-- Step Progress Indicator -->
+            <div class="connection-wizard-steps px-6 py-3 bg-gray-50 border-b border-gray-200">
+                <div class="flex items-center justify-between max-w-md mx-auto">
+                    <div class="wizard-step active" data-step="1">
+                        <div class="step-circle">1</div>
+                        <span class="step-label">Subject</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="wizard-step" data-step="2">
+                        <div class="step-circle">2</div>
+                        <span class="step-label">Relation</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="wizard-step" data-step="3">
+                        <div class="step-circle">3</div>
+                        <span class="step-label">Operand</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="wizard-step" data-step="4">
+                        <div class="step-circle">4</div>
+                        <span class="step-label">Review</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-body flex-1 overflow-hidden">
+                <form id="connectionForm" class="h-full flex flex-col">
+                    <!-- Hidden form fields -->
+                    <input id="connectionSubjectId" type="hidden" />
+                    <input id="connectionSubjectType" type="hidden" value="Entity" />
+                    <input id="connectionOperandId" type="hidden" />
+                    <input id="connectionOperandType" type="hidden" value="Entity" />
+                    <input id="connectionRelationSelect" type="hidden" />
+
+                    <!-- Step 1: Select Subject -->
+                    <div id="connectionStep1" class="wizard-panel h-full flex flex-col">
+                        <div class="p-4 border-b border-gray-100">
+                            <h3 class="font-semibold text-gray-900">Select Subject Entity</h3>
+                            <p class="text-sm text-gray-500 mt-1">Choose the entity that is the subject of this relationship</p>
                         </div>
-                        <div class="text-xs text-gray-500 mt-1" id="connectionSubjectInfo"></div>
-                    </div>
-                    <div>
-                        <label class="form-label">Relation</label>
-                        <div class="relation-search-container relative">
-                            <input id="connectionRelationSearch" type="text" class="border rounded px-3 py-2 w-full" placeholder="Search relations (e.g., 'produces', 'depends on')..." autocomplete="off" />
-                            <input id="connectionRelationSelect" type="hidden" />
-                            <div id="connectionRelationDropdown" class="relation-dropdown hidden absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
+                        <div class="p-4">
+                            <input id="connectionSubjectSearch" type="text" class="border rounded-lg px-3 py-2 w-full" placeholder="Search entities by name..." autocomplete="off" />
                         </div>
-                        <div class="text-xs text-gray-500 mt-1" id="connectionRelationSummary"></div>
-                    </div>
-                    <div>
-                        <label class="form-label">Object Entity</label>
-                        <div class="entity-search-container relative">
-                            <input id="connectionOperandSearch" type="text" class="border rounded px-3 py-2 w-full" placeholder="Search by name or click to browse..." autocomplete="off" />
-                            <input id="connectionOperandId" type="hidden" />
-                            <input id="connectionOperandType" type="hidden" value="Entity" />
-                            <div id="connectionOperandDropdown" class="entity-dropdown hidden absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
+                        <div id="connectionSubjectPanel" class="flex-1 overflow-y-auto px-4 pb-4"></div>
+                        <div class="connection-selection-preview p-4 bg-blue-50 border-t border-blue-100 hidden" id="subjectPreview">
+                            <div class="text-xs text-blue-600 font-medium mb-1">Selected Subject:</div>
+                            <div class="font-semibold text-blue-900" id="subjectPreviewName"></div>
+                            <div class="text-xs text-blue-600" id="subjectPreviewMeta"></div>
                         </div>
-                        <div class="text-xs text-gray-500 mt-1" id="connectionOperandInfo"></div>
                     </div>
-                    <div>
-                        <label class="form-label">Description (optional)</label>
-                        <input id="connectionDescription" type="text" class="border rounded px-3 py-2 w-full" placeholder="What does this relationship represent?" />
+
+                    <!-- Step 2: Select Relation -->
+                    <div id="connectionStep2" class="wizard-panel h-full flex flex-col hidden">
+                        <div class="p-4 border-b border-gray-100">
+                            <h3 class="font-semibold text-gray-900">Select Relation Type</h3>
+                            <p class="text-sm text-gray-500 mt-1">How does the subject relate to the operand?</p>
+                        </div>
+                        <div class="p-4">
+                            <input id="connectionRelationSearch" type="text" class="border rounded-lg px-3 py-2 w-full" placeholder="Search relations..." autocomplete="off" />
+                        </div>
+                        <div id="connectionRelationPanel" class="flex-1 overflow-y-auto px-4 pb-4"></div>
+                        <div class="connection-selection-preview p-4 bg-green-50 border-t border-green-100 hidden" id="relationPreview">
+                            <div class="text-xs text-green-600 font-medium mb-1">Selected Relation:</div>
+                            <div class="font-semibold text-green-900" id="relationPreviewName"></div>
+                            <div class="text-xs text-green-600" id="relationPreviewMeta"></div>
+                        </div>
                     </div>
-                    <div id="connectionParamFields" class="hidden"></div>
+
+                    <!-- Step 3: Select Operand -->
+                    <div id="connectionStep3" class="wizard-panel h-full flex flex-col hidden">
+                        <div class="p-4 border-b border-gray-100">
+                            <h3 class="font-semibold text-gray-900">Select Operand Entity</h3>
+                            <p class="text-sm text-gray-500 mt-1">Choose the entity that is the target/operand of this relationship</p>
+                        </div>
+                        <div class="p-4">
+                            <input id="connectionOperandSearch" type="text" class="border rounded-lg px-3 py-2 w-full" placeholder="Search entities by name..." autocomplete="off" />
+                        </div>
+                        <div id="connectionOperandPanel" class="flex-1 overflow-y-auto px-4 pb-4"></div>
+                        <div class="connection-selection-preview p-4 bg-purple-50 border-t border-purple-100 hidden" id="operandPreview">
+                            <div class="text-xs text-purple-600 font-medium mb-1">Selected Operand:</div>
+                            <div class="font-semibold text-purple-900" id="operandPreviewName"></div>
+                            <div class="text-xs text-purple-600" id="operandPreviewMeta"></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Review & Create -->
+                    <div id="connectionStep4" class="wizard-panel h-full flex flex-col hidden">
+                        <div class="p-4 border-b border-gray-100">
+                            <h3 class="font-semibold text-gray-900">Review Relationship</h3>
+                            <p class="text-sm text-gray-500 mt-1">Confirm the relationship details before creating</p>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-4">
+                            <!-- Relationship Summary -->
+                            <div class="connection-review-card bg-gray-50 rounded-lg p-6 mb-4">
+                                <div class="flex items-center justify-center gap-4 text-center flex-wrap">
+                                    <div class="connection-review-entity bg-white rounded-lg p-4 shadow-sm border border-gray-200 min-w-[140px]">
+                                        <div class="text-xs text-gray-500 mb-1">Subject</div>
+                                        <div class="font-semibold text-gray-900" id="reviewSubjectName">-</div>
+                                        <div class="text-xs text-gray-500" id="reviewSubjectType">-</div>
+                                    </div>
+                                    <div class="flex flex-col items-center px-4">
+                                        <div class="text-2xl text-gray-400 mb-1">&#8594;</div>
+                                        <div class="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full" id="reviewRelationName">-</div>
+                                    </div>
+                                    <div class="connection-review-entity bg-white rounded-lg p-4 shadow-sm border border-gray-200 min-w-[140px]">
+                                        <div class="text-xs text-gray-500 mb-1">Operand</div>
+                                        <div class="font-semibold text-gray-900" id="reviewOperandName">-</div>
+                                        <div class="text-xs text-gray-500" id="reviewOperandType">-</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Optional Description -->
+                            <div class="mb-4">
+                                <label class="form-label">Description (optional)</label>
+                                <input id="connectionDescription" type="text" class="border rounded-lg px-3 py-2 w-full" placeholder="Add a note about this relationship..." />
+                            </div>
+
+                            <!-- Parameter Fields (shown if relation requires params) -->
+                            <div id="connectionParamFields"></div>
+                        </div>
+                    </div>
                 </form>
             </div>
-            <div class="modal-footer flex justify-end gap-2">
-                <button class="btn btn-secondary" type="button" onclick="closeModal('connectionModal')">Cancel</button>
-                <button class="btn btn-primary" type="submit" form="connectionForm" id="connectionSubmit">Add</button>
+
+            <div class="modal-footer flex justify-between gap-2 border-t border-gray-200 pt-4">
+                <button class="btn btn-secondary" type="button" id="connectionBackBtn" onclick="connectionWizardBack()" disabled>Back</button>
+                <div class="flex gap-2">
+                    <button class="btn btn-secondary" type="button" onclick="closeModal('connectionModal')">Cancel</button>
+                    <button class="btn btn-primary" type="button" id="connectionNextBtn" onclick="connectionWizardNext()">Next</button>
+                    <button class="btn btn-primary hidden" type="submit" form="connectionForm" id="connectionSubmit">Create Relationship</button>
+                </div>
             </div>
         </div>
     </div>
@@ -6114,12 +6420,27 @@
         function normalizeOperatorModeDictionary(data) {
             if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
 
-            const normalized = {};
-            Object.entries(data).forEach(([op, modes]) => {
-                if (!Array.isArray(modes)) return;
-                const cleaned = modes.map(mode => typeof mode === 'string' ? mode.trim() : '').filter(Boolean);
-                if (cleaned.length) normalized[op] = cleaned;
-            });
+            const normalized = { operators: {} };
+
+            // Handle new nested structure with operators.CON.verbs
+            if (data.operators) {
+                Object.entries(data.operators).forEach(([op, opData]) => {
+                    // Store full operator data for display
+                    normalized.operators[op] = opData;
+
+                    // Extract verbs/modes for backward compatibility
+                    const verbs = opData.verbs || [];
+                    const cleaned = verbs.map(mode => typeof mode === 'string' ? mode.trim() : '').filter(Boolean);
+                    if (cleaned.length) normalized[op] = cleaned;
+                });
+            } else {
+                // Legacy flat format: { "CON": ["mode1", "mode2", ...] }
+                Object.entries(data).forEach(([op, modes]) => {
+                    if (!Array.isArray(modes)) return;
+                    const cleaned = modes.map(mode => typeof mode === 'string' ? mode.trim() : '').filter(Boolean);
+                    if (cleaned.length) normalized[op] = cleaned;
+                });
+            }
 
             return normalized;
         }
@@ -14565,9 +14886,21 @@
         function populateConnectionRelationOptions(selectedOperator = '') {
             const operatorSelect = document.getElementById('connectionRelationOperator');
             if (!operatorSelect) return;
-            const operatorOptions = Object.keys(state.connectionModes || {});
-            operatorSelect.innerHTML = ['<option value="">Select operator</option>', ...operatorOptions.map(op => `<option value="${op}">${op}</option>`)].join('');
-            operatorSelect.value = selectedOperator || operatorOptions[0] || '';
+
+            // Get operator codes, filtering out the 'operators' key that stores full info
+            const operatorOptions = Object.keys(state.connectionModes || {}).filter(k => k !== 'operators' && k !== 'meta');
+            const operators = state.connectionModes?.operators || {};
+
+            operatorSelect.innerHTML = [
+                '<option value="">Select operator</option>',
+                ...operatorOptions.map(op => {
+                    const opInfo = operators[op] || {};
+                    const symbol = opInfo.symbol || '';
+                    const name = opInfo.name || op;
+                    return `<option value="${op}">${symbol} ${op} - ${name}</option>`;
+                })
+            ].join('');
+            operatorSelect.value = selectedOperator || '';
 
             const modeSelect = document.getElementById('connectionRelationMode');
             if (modeSelect) {
@@ -14700,40 +15033,95 @@
             const form = document.getElementById('connectionForm');
             if (!form) return;
 
-            // Populate subject entity
+            // Populate subject entity for wizard
             const subjectEntity = conn.subject?.id ? state.entities.get(conn.subject.id) : null;
-            const subjectSearch = form.querySelector('#connectionSubjectSearch');
             const subjectIdInput = form.querySelector('#connectionSubjectId');
             const subjectTypeInput = form.querySelector('#connectionSubjectType');
-            const subjectInfo = document.getElementById('connectionSubjectInfo');
-            if (subjectSearch && subjectEntity) {
-                subjectSearch.value = getEntityDisplayName(subjectEntity);
-                subjectIdInput.value = conn.subject.id;
-                subjectTypeInput.value = conn.subject.type || 'Entity';
-                if (subjectInfo) subjectInfo.textContent = `${subjectEntity.entityType || subjectEntity.type} • ${conn.subject.id}`;
+
+            // Try to get display name from entity or look up record
+            let subjectDisplayName = 'Unknown';
+            if (subjectEntity) {
+                subjectDisplayName = getEntityDisplayName(subjectEntity);
+            } else if (conn.subject?.id) {
+                // Try to find in records
+                for (const [setId, set] of state.sets) {
+                    const record = set.records.get(conn.subject.id);
+                    if (record) {
+                        subjectDisplayName = getRecordDisplayName(record, set);
+                        break;
+                    }
+                }
             }
 
-            // Populate operand entity
+            subjectIdInput.value = conn.subject?.id || '';
+            subjectTypeInput.value = conn.subject?.type || 'Entity';
+
+            // Set wizard state for subject
+            connectionWizardState.selectedSubject = {
+                id: conn.subject?.id,
+                type: conn.subject?.type || 'Entity',
+                name: subjectDisplayName
+            };
+
+            // Update subject preview
+            const subjectPreview = document.getElementById('subjectPreview');
+            if (subjectPreview) {
+                subjectPreview.classList.remove('hidden');
+                document.getElementById('subjectPreviewName').textContent = subjectDisplayName;
+                document.getElementById('subjectPreviewMeta').textContent = `${conn.subject?.type || 'Entity'} • ${conn.subject?.id?.substring(0, 30) || ''}...`;
+            }
+
+            // Populate operand entity for wizard
             const operandEntity = conn.operand?.id ? state.entities.get(conn.operand.id) : null;
-            const operandSearch = form.querySelector('#connectionOperandSearch');
             const operandIdInput = form.querySelector('#connectionOperandId');
             const operandTypeInput = form.querySelector('#connectionOperandType');
-            const operandInfo = document.getElementById('connectionOperandInfo');
-            if (operandSearch && operandEntity) {
-                operandSearch.value = getEntityDisplayName(operandEntity);
-                operandIdInput.value = conn.operand.id;
-                operandTypeInput.value = conn.operand.type || 'Entity';
-                if (operandInfo) operandInfo.textContent = `${operandEntity.entityType || operandEntity.type} • ${conn.operand.id}`;
+
+            let operandDisplayName = 'Unknown';
+            if (operandEntity) {
+                operandDisplayName = getEntityDisplayName(operandEntity);
+            } else if (conn.operand?.id) {
+                for (const [setId, set] of state.sets) {
+                    const record = set.records.get(conn.operand.id);
+                    if (record) {
+                        operandDisplayName = getRecordDisplayName(record, set);
+                        break;
+                    }
+                }
+            }
+
+            operandIdInput.value = conn.operand?.id || '';
+            operandTypeInput.value = conn.operand?.type || 'Entity';
+
+            // Set wizard state for operand
+            connectionWizardState.selectedOperand = {
+                id: conn.operand?.id,
+                type: conn.operand?.type || 'Entity',
+                name: operandDisplayName
+            };
+
+            // Update operand preview
+            const operandPreview = document.getElementById('operandPreview');
+            if (operandPreview) {
+                operandPreview.classList.remove('hidden');
+                document.getElementById('operandPreviewName').textContent = operandDisplayName;
+                document.getElementById('operandPreviewMeta').textContent = `${conn.operand?.type || 'Entity'} • ${conn.operand?.id?.substring(0, 30) || ''}...`;
             }
 
             // Populate relation
             const relation = conn.relationId ? findConnectionRelation(conn.relationId) : null;
-            const relationSearch = form.querySelector('#connectionRelationSearch');
             const relationSelect = form.querySelector('#connectionRelationSelect');
-            if (relationSearch && relation) {
-                relationSearch.value = relation.mode || relation.name;
+            if (relation) {
                 relationSelect.value = conn.relationId;
-                updateConnectionRelationSummary(conn.relationId);
+                connectionWizardState.selectedRelation = relation;
+
+                // Update relation preview
+                const relationPreview = document.getElementById('relationPreview');
+                if (relationPreview) {
+                    relationPreview.classList.remove('hidden');
+                    const operatorInfo = state.connectionModes?.operators?.[relation.operator] || {};
+                    document.getElementById('relationPreviewName').textContent = relation.mode;
+                    document.getElementById('relationPreviewMeta').textContent = `${operatorInfo.symbol || ''} ${relation.operator}`;
+                }
             }
 
             form.querySelector('#connectionDescription').value = conn.description || '';
@@ -14743,15 +15131,37 @@
             renderConnectionParamFields('connectionParamFields', conn.relationId, conn.params || {});
 
             const submit = document.getElementById('connectionSubmit');
-            if (submit) submit.textContent = 'Save';
+            if (submit) submit.textContent = 'Save Changes';
             const title = document.getElementById('connectionModalTitle');
             if (title) title.textContent = 'Edit Relationship';
+
+            // For editing, go directly to review step
+            showWizardStep(4);
         }
+
+        // Connection Wizard State
+        const connectionWizardState = {
+            currentStep: 1,
+            selectedSubject: null,
+            selectedRelation: null,
+            selectedOperand: null,
+            subjectPath: [],
+            operandPath: []
+        };
 
         function resetConnectionForm() {
             state.connectionFormState.editingId = null;
             state.connectionFormState.selectedRelationId = null;
             state.connectionFormState.selectedRelationType = null;
+
+            // Reset wizard state
+            connectionWizardState.currentStep = 1;
+            connectionWizardState.selectedSubject = null;
+            connectionWizardState.selectedRelation = null;
+            connectionWizardState.selectedOperand = null;
+            connectionWizardState.subjectPath = [];
+            connectionWizardState.operandPath = [];
+
             const form = document.getElementById('connectionForm');
             if (!form) return;
             form.reset();
@@ -14763,16 +15173,8 @@
                 if (el) el.value = '';
             });
 
-            // Clear info displays
-            const infoDisplays = ['connectionSubjectInfo', 'connectionOperandInfo', 'connectionRelationSummary'];
-            infoDisplays.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.textContent = '';
-            });
-
-            // Hide dropdowns
-            const dropdowns = ['connectionSubjectDropdown', 'connectionOperandDropdown', 'connectionRelationDropdown'];
-            dropdowns.forEach(id => {
+            // Hide all previews
+            ['subjectPreview', 'relationPreview', 'operandPreview'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.classList.add('hidden');
             });
@@ -14781,13 +15183,566 @@
             const paramFields = document.getElementById('connectionParamFields');
             if (paramFields) {
                 paramFields.innerHTML = '';
-                paramFields.classList.add('hidden');
             }
 
+            // Reset wizard UI
+            updateWizardSteps(1);
+            showWizardStep(1);
+
             const submit = document.getElementById('connectionSubmit');
-            if (submit) submit.textContent = 'Add';
+            if (submit) submit.classList.add('hidden');
+            const nextBtn = document.getElementById('connectionNextBtn');
+            if (nextBtn) nextBtn.classList.remove('hidden');
+            const backBtn = document.getElementById('connectionBackBtn');
+            if (backBtn) backBtn.disabled = true;
+
             const title = document.getElementById('connectionModalTitle');
-            if (title) title.textContent = 'Add Relationship';
+            if (title) title.textContent = 'Create Relationship';
+        }
+
+        function updateWizardSteps(currentStep) {
+            document.querySelectorAll('.wizard-step').forEach(step => {
+                const stepNum = parseInt(step.dataset.step);
+                step.classList.remove('active', 'completed');
+                if (stepNum === currentStep) {
+                    step.classList.add('active');
+                } else if (stepNum < currentStep) {
+                    step.classList.add('completed');
+                }
+            });
+        }
+
+        function showWizardStep(stepNum) {
+            for (let i = 1; i <= 4; i++) {
+                const panel = document.getElementById(`connectionStep${i}`);
+                if (panel) {
+                    panel.classList.toggle('hidden', i !== stepNum);
+                }
+            }
+            connectionWizardState.currentStep = stepNum;
+            updateWizardSteps(stepNum);
+
+            // Update buttons
+            const backBtn = document.getElementById('connectionBackBtn');
+            const nextBtn = document.getElementById('connectionNextBtn');
+            const submitBtn = document.getElementById('connectionSubmit');
+
+            if (backBtn) backBtn.disabled = stepNum === 1;
+
+            if (stepNum === 4) {
+                nextBtn?.classList.add('hidden');
+                submitBtn?.classList.remove('hidden');
+                updateReviewPanel();
+            } else {
+                nextBtn?.classList.remove('hidden');
+                submitBtn?.classList.add('hidden');
+            }
+
+            // Render step content
+            if (stepNum === 1) {
+                renderEntitySelectionPanel('connectionSubjectPanel', 'subject', connectionWizardState.subjectPath);
+                setupEntitySearchListener('connectionSubjectSearch', 'connectionSubjectPanel', 'subject');
+            } else if (stepNum === 2) {
+                renderRelationSelectionPanel();
+                setupRelationSearchListener();
+            } else if (stepNum === 3) {
+                renderEntitySelectionPanel('connectionOperandPanel', 'operand', connectionWizardState.operandPath);
+                setupEntitySearchListener('connectionOperandSearch', 'connectionOperandPanel', 'operand');
+            }
+        }
+
+        function connectionWizardNext() {
+            const step = connectionWizardState.currentStep;
+
+            // Validate current step
+            if (step === 1 && !connectionWizardState.selectedSubject) {
+                showToast('Please select a subject entity');
+                return;
+            }
+            if (step === 2 && !connectionWizardState.selectedRelation) {
+                showToast('Please select a relation type');
+                return;
+            }
+            if (step === 3 && !connectionWizardState.selectedOperand) {
+                showToast('Please select an operand entity');
+                return;
+            }
+
+            if (step < 4) {
+                showWizardStep(step + 1);
+            }
+        }
+
+        function connectionWizardBack() {
+            const step = connectionWizardState.currentStep;
+            if (step > 1) {
+                showWizardStep(step - 1);
+            }
+        }
+
+        function renderEntitySelectionPanel(containerId, type, currentPath) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            let html = '';
+
+            // Breadcrumb
+            if (currentPath.length > 0) {
+                html += '<div class="hierarchy-breadcrumb">';
+                html += `<span class="hierarchy-breadcrumb-item" data-path-index="-1">All</span>`;
+                currentPath.forEach((item, idx) => {
+                    html += '<span class="hierarchy-breadcrumb-sep">/</span>';
+                    const isCurrent = idx === currentPath.length - 1;
+                    html += `<span class="hierarchy-breadcrumb-item ${isCurrent ? 'current' : ''}" data-path-index="${idx}">${escapeHtml(item.name)}</span>`;
+                });
+                html += '</div>';
+            }
+
+            const level = currentPath.length;
+
+            if (level === 0) {
+                // Show sets
+                const sets = getSetsForWorld();
+                if (!sets.length) {
+                    html += '<div class="text-sm text-gray-500 py-4 text-center">No sets found. Create a set first.</div>';
+                } else {
+                    html += '<div class="entity-selection-grid">';
+                    sets.forEach(set => {
+                        const recordCount = set.records.size;
+                        html += `
+                            <div class="entity-selection-item drill-down" data-action="drill" data-type="set" data-id="${set.id}" data-name="${escapeHtml(set.name)}">
+                                <div class="entity-icon">📁</div>
+                                <div class="entity-info">
+                                    <div class="entity-name">${escapeHtml(set.name)}</div>
+                                    <div class="entity-meta">${recordCount} record${recordCount !== 1 ? 's' : ''}</div>
+                                </div>
+                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
+            } else if (level === 1) {
+                // Show records for selected set
+                const setId = currentPath[0].id;
+                const set = state.sets.get(setId);
+                if (!set) {
+                    html += '<div class="text-sm text-gray-500 py-4 text-center">Set not found.</div>';
+                } else {
+                    const records = Array.from(set.records.values());
+                    if (!records.length) {
+                        html += '<div class="text-sm text-gray-500 py-4 text-center">No records in this set.</div>';
+                    } else {
+                        html += '<div class="entity-selection-grid">';
+                        records.forEach(record => {
+                            const displayName = getRecordDisplayName(record, set);
+                            const isSelected = type === 'subject'
+                                ? connectionWizardState.selectedSubject?.id === record.id
+                                : connectionWizardState.selectedOperand?.id === record.id;
+
+                            html += `
+                                <div class="entity-selection-item ${isSelected ? 'selected' : ''}"
+                                     data-action="select"
+                                     data-type="Record"
+                                     data-id="${record.id}"
+                                     data-name="${escapeHtml(displayName)}"
+                                     data-set-id="${setId}">
+                                    <div class="entity-icon">📄</div>
+                                    <div class="entity-info">
+                                        <div class="entity-name">${escapeHtml(displayName)}</div>
+                                        <div class="entity-meta">Record in ${escapeHtml(set.name)}</div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                    }
+                }
+            }
+
+            container.innerHTML = html;
+
+            // Add click handlers
+            container.querySelectorAll('.entity-selection-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const action = item.dataset.action;
+                    const itemType = item.dataset.type;
+                    const itemId = item.dataset.id;
+                    const itemName = item.dataset.name;
+
+                    if (action === 'drill') {
+                        if (type === 'subject') {
+                            connectionWizardState.subjectPath.push({ type: itemType, id: itemId, name: itemName });
+                            renderEntitySelectionPanel(containerId, type, connectionWizardState.subjectPath);
+                        } else {
+                            connectionWizardState.operandPath.push({ type: itemType, id: itemId, name: itemName });
+                            renderEntitySelectionPanel(containerId, type, connectionWizardState.operandPath);
+                        }
+                    } else if (action === 'select') {
+                        selectEntity(type, { type: itemType, id: itemId, name: itemName, setId: item.dataset.setId });
+                    }
+                });
+            });
+
+            // Breadcrumb navigation
+            container.querySelectorAll('.hierarchy-breadcrumb-item:not(.current)').forEach(item => {
+                item.addEventListener('click', () => {
+                    const pathIndex = parseInt(item.dataset.pathIndex);
+                    if (type === 'subject') {
+                        connectionWizardState.subjectPath = pathIndex < 0 ? [] : connectionWizardState.subjectPath.slice(0, pathIndex + 1);
+                        renderEntitySelectionPanel(containerId, type, connectionWizardState.subjectPath);
+                    } else {
+                        connectionWizardState.operandPath = pathIndex < 0 ? [] : connectionWizardState.operandPath.slice(0, pathIndex + 1);
+                        renderEntitySelectionPanel(containerId, type, connectionWizardState.operandPath);
+                    }
+                });
+            });
+        }
+
+        function selectEntity(type, entity) {
+            if (type === 'subject') {
+                connectionWizardState.selectedSubject = entity;
+                document.getElementById('connectionSubjectId').value = entity.id;
+                document.getElementById('connectionSubjectType').value = entity.type;
+
+                // Update preview
+                const preview = document.getElementById('subjectPreview');
+                if (preview) {
+                    preview.classList.remove('hidden');
+                    document.getElementById('subjectPreviewName').textContent = entity.name;
+                    document.getElementById('subjectPreviewMeta').textContent = `${entity.type} • ${entity.id.substring(0, 30)}...`;
+                }
+            } else {
+                connectionWizardState.selectedOperand = entity;
+                document.getElementById('connectionOperandId').value = entity.id;
+                document.getElementById('connectionOperandType').value = entity.type;
+
+                // Update preview
+                const preview = document.getElementById('operandPreview');
+                if (preview) {
+                    preview.classList.remove('hidden');
+                    document.getElementById('operandPreviewName').textContent = entity.name;
+                    document.getElementById('operandPreviewMeta').textContent = `${entity.type} • ${entity.id.substring(0, 30)}...`;
+                }
+            }
+
+            // Refresh panel to show selected state
+            if (type === 'subject') {
+                renderEntitySelectionPanel('connectionSubjectPanel', 'subject', connectionWizardState.subjectPath);
+            } else {
+                renderEntitySelectionPanel('connectionOperandPanel', 'operand', connectionWizardState.operandPath);
+            }
+        }
+
+        function getRecordDisplayName(record, set) {
+            // Try to find a primary/name field
+            const schema = set?.schema || [];
+            const nameField = schema.find(f =>
+                f.isPrimary ||
+                f.name?.toLowerCase() === 'name' ||
+                f.name?.toLowerCase() === 'title' ||
+                f.id?.toLowerCase() === 'name' ||
+                f.id?.toLowerCase() === 'title'
+            );
+
+            if (nameField) {
+                const value = record[nameField.id] || record[nameField.name];
+                if (value) return String(value);
+            }
+
+            // Try first text field
+            const textField = schema.find(f => f.type === 'text' || f.type === 'TEXT');
+            if (textField) {
+                const value = record[textField.id] || record[textField.name];
+                if (value) return String(value);
+            }
+
+            // Try any field with value
+            for (const field of schema) {
+                const value = record[field.id] || record[field.name];
+                if (value && typeof value === 'string') {
+                    return value.substring(0, 50);
+                }
+            }
+
+            return record.id || 'Unnamed Record';
+        }
+
+        function renderRelationSelectionPanel() {
+            const container = document.getElementById('connectionRelationPanel');
+            if (!container) return;
+
+            const relations = getConnectionRelationView();
+
+            if (!relations.length) {
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-sm text-gray-500 mb-4">No relation types defined yet.</p>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="openConnectionRelationModal(); return false;">
+                            + Create Relation Type
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<div class="relation-selection-grid">';
+            relations.forEach(rel => {
+                const operatorInfo = state.connectionModes?.operators?.[rel.operator] || {};
+                const isSelected = connectionWizardState.selectedRelation?.id === rel.id;
+
+                html += `
+                    <div class="relation-selection-item ${isSelected ? 'selected' : ''}" data-relation-id="${rel.id}">
+                        <div class="relation-header">
+                            <span class="relation-mode">${escapeHtml(rel.mode)}</span>
+                            <span class="relation-operator">${operatorInfo.symbol || ''} ${rel.operator}</span>
+                        </div>
+                        ${rel.description ? `<div class="relation-description">${escapeHtml(rel.description)}</div>` : ''}
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            container.innerHTML = html;
+
+            // Add click handlers
+            container.querySelectorAll('.relation-selection-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const relationId = item.dataset.relationId;
+                    const relation = findConnectionRelation(relationId);
+                    if (relation) {
+                        selectRelation(relation);
+                    }
+                });
+            });
+        }
+
+        function selectRelation(relation) {
+            connectionWizardState.selectedRelation = relation;
+            state.connectionFormState.selectedRelationId = relation.id;
+            document.getElementById('connectionRelationSelect').value = relation.id;
+
+            // Update preview
+            const preview = document.getElementById('relationPreview');
+            if (preview) {
+                preview.classList.remove('hidden');
+                const operatorInfo = state.connectionModes?.operators?.[relation.operator] || {};
+                document.getElementById('relationPreviewName').textContent = relation.mode;
+                document.getElementById('relationPreviewMeta').textContent = `${operatorInfo.symbol || ''} ${relation.operator} - ${operatorInfo.name || ''}`;
+            }
+
+            // Render params if needed
+            renderConnectionParamFields('connectionParamFields', relation.id, {});
+
+            // Refresh panel to show selected state
+            renderRelationSelectionPanel();
+        }
+
+        function setupEntitySearchListener(searchId, panelId, type) {
+            const searchInput = document.getElementById(searchId);
+            if (!searchInput) return;
+
+            // Remove old listeners by cloning
+            const newInput = searchInput.cloneNode(true);
+            searchInput.parentNode.replaceChild(newInput, searchInput);
+
+            newInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim().toLowerCase();
+                if (!query) {
+                    // Show normal hierarchy
+                    const path = type === 'subject' ? connectionWizardState.subjectPath : connectionWizardState.operandPath;
+                    renderEntitySelectionPanel(panelId, type, path);
+                    return;
+                }
+
+                // Search entities
+                const results = searchEntitiesForWizard(query);
+                renderEntitySearchResults(panelId, type, results);
+            });
+        }
+
+        function searchEntitiesForWizard(query) {
+            const results = [];
+            const lowerQuery = query.toLowerCase();
+
+            // Search all sets and their records
+            for (const [setId, set] of state.sets) {
+                // Check set name
+                if (set.name.toLowerCase().includes(lowerQuery)) {
+                    results.push({
+                        type: 'Set',
+                        id: setId,
+                        name: set.name,
+                        meta: `${set.records.size} records`
+                    });
+                }
+
+                // Search records
+                for (const [recordId, record] of set.records) {
+                    const displayName = getRecordDisplayName(record, set);
+                    if (displayName.toLowerCase().includes(lowerQuery)) {
+                        results.push({
+                            type: 'Record',
+                            id: recordId,
+                            name: displayName,
+                            meta: `in ${set.name}`,
+                            setId: setId
+                        });
+                    }
+                }
+            }
+
+            // Also search reified entities
+            for (const [entityId, entity] of state.entities) {
+                const name = getEntityDisplayName(entity);
+                if (name.toLowerCase().includes(lowerQuery)) {
+                    results.push({
+                        type: entity.entityType || 'Entity',
+                        id: entityId,
+                        name: name,
+                        meta: entity.entityType || 'Reified Entity'
+                    });
+                }
+            }
+
+            return results.slice(0, 20); // Limit results
+        }
+
+        function renderEntitySearchResults(containerId, type, results) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            if (!results.length) {
+                container.innerHTML = '<div class="text-sm text-gray-500 py-4 text-center">No matching entities found.</div>';
+                return;
+            }
+
+            let html = '<div class="entity-selection-grid">';
+            results.forEach(result => {
+                const isSelected = type === 'subject'
+                    ? connectionWizardState.selectedSubject?.id === result.id
+                    : connectionWizardState.selectedOperand?.id === result.id;
+
+                const icon = result.type === 'Set' ? '📁' : result.type === 'Record' ? '📄' : '📦';
+
+                html += `
+                    <div class="entity-selection-item ${isSelected ? 'selected' : ''}"
+                         data-action="select"
+                         data-type="${result.type}"
+                         data-id="${result.id}"
+                         data-name="${escapeHtml(result.name)}"
+                         data-set-id="${result.setId || ''}">
+                        <div class="entity-icon">${icon}</div>
+                        <div class="entity-info">
+                            <div class="entity-name">${escapeHtml(result.name)}</div>
+                            <div class="entity-meta">${escapeHtml(result.meta)}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            container.innerHTML = html;
+
+            // Add click handlers
+            container.querySelectorAll('.entity-selection-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    selectEntity(type, {
+                        type: item.dataset.type,
+                        id: item.dataset.id,
+                        name: item.dataset.name,
+                        setId: item.dataset.setId
+                    });
+                });
+            });
+        }
+
+        function setupRelationSearchListener() {
+            const searchInput = document.getElementById('connectionRelationSearch');
+            if (!searchInput) return;
+
+            // Remove old listeners by cloning
+            const newInput = searchInput.cloneNode(true);
+            searchInput.parentNode.replaceChild(newInput, searchInput);
+
+            newInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim().toLowerCase();
+                if (!query) {
+                    renderRelationSelectionPanel();
+                    return;
+                }
+
+                // Filter relations
+                const allRelations = getConnectionRelationView();
+                const filtered = allRelations.filter(rel =>
+                    rel.mode.toLowerCase().includes(query) ||
+                    rel.operator.toLowerCase().includes(query) ||
+                    (rel.description && rel.description.toLowerCase().includes(query))
+                );
+
+                renderFilteredRelations(filtered);
+            });
+        }
+
+        function renderFilteredRelations(relations) {
+            const container = document.getElementById('connectionRelationPanel');
+            if (!container) return;
+
+            if (!relations.length) {
+                container.innerHTML = '<div class="text-sm text-gray-500 py-4 text-center">No matching relations found.</div>';
+                return;
+            }
+
+            let html = '<div class="relation-selection-grid">';
+            relations.forEach(rel => {
+                const operatorInfo = state.connectionModes?.operators?.[rel.operator] || {};
+                const isSelected = connectionWizardState.selectedRelation?.id === rel.id;
+
+                html += `
+                    <div class="relation-selection-item ${isSelected ? 'selected' : ''}" data-relation-id="${rel.id}">
+                        <div class="relation-header">
+                            <span class="relation-mode">${escapeHtml(rel.mode)}</span>
+                            <span class="relation-operator">${operatorInfo.symbol || ''} ${rel.operator}</span>
+                        </div>
+                        ${rel.description ? `<div class="relation-description">${escapeHtml(rel.description)}</div>` : ''}
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            container.innerHTML = html;
+
+            container.querySelectorAll('.relation-selection-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const relationId = item.dataset.relationId;
+                    const relation = findConnectionRelation(relationId);
+                    if (relation) {
+                        selectRelation(relation);
+                    }
+                });
+            });
+        }
+
+        function updateReviewPanel() {
+            const subject = connectionWizardState.selectedSubject;
+            const relation = connectionWizardState.selectedRelation;
+            const operand = connectionWizardState.selectedOperand;
+
+            if (subject) {
+                document.getElementById('reviewSubjectName').textContent = subject.name;
+                document.getElementById('reviewSubjectType').textContent = subject.type;
+            }
+
+            if (relation) {
+                document.getElementById('reviewRelationName').textContent = relation.mode;
+            }
+
+            if (operand) {
+                document.getElementById('reviewOperandName').textContent = operand.name;
+                document.getElementById('reviewOperandType').textContent = operand.type;
+            }
         }
 
         function renderEntityDropdown(containerId, entities, onSelect, options = {}) {
@@ -15202,9 +16157,14 @@
 
         function openConnectionModal(connId = null) {
             resetConnectionForm();
-            setupEntitySearchHandlers();
-            if (connId) populateConnectionForm(connId);
+            if (connId) {
+                populateConnectionForm(connId);
+                // For editing, skip to review step
+                // Note: populateConnectionForm will set up the wizard state
+            }
             openModal('connectionModal');
+            // Initialize first step
+            showWizardStep(1);
             const searchInput = document.getElementById('connectionSubjectSearch');
             if (searchInput) searchInput.focus();
         }
@@ -15263,7 +16223,7 @@
             const operandId = form.querySelector('#connectionOperandId')?.value?.trim();
             const operandType = form.querySelector('#connectionOperandType')?.value || 'Entity';
             if (!operandId) {
-                showToast('Please select an object entity');
+                showToast('Please select an operand entity');
                 return;
             }
 
