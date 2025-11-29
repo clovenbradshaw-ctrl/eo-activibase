@@ -9799,10 +9799,11 @@
                     const optgroup = document.createElement('optgroup');
                     optgroup.label = set.name;
 
-                    Array.from(set.views.entries()).forEach(([viewId, view]) => {
+                    Array.from(set.views.entries()).forEach(([viewId, viewRef]) => {
+                        const fullView = state.views?.get(viewId) || viewRef;
                         const option = document.createElement('option');
                         option.value = JSON.stringify({ setId: set.id, viewId });
-                        option.textContent = view.name;
+                        option.textContent = fullView.name || 'Untitled View';
                         optgroup.appendChild(option);
                     });
 
@@ -20998,7 +20999,7 @@
 
                     // If the selected view has filters, pre-populate the record with filter values
                     // so it's immediately visible after creation
-                    const view = set.views.find(v => v.id === viewId);
+                    const view = state.views?.get(viewId) || set.views.get(viewId);
                     if (view && view.filters && view.filters.length > 0) {
                         const firstGroup = view.filters[0];
                         const rules = firstGroup.filter(r => r.field);
