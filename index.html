@@ -6061,10 +6061,21 @@
             if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
 
             const normalized = {};
-            Object.entries(data).forEach(([op, modes]) => {
-                if (!Array.isArray(modes)) return;
-                const cleaned = modes.map(mode => typeof mode === 'string' ? mode.trim() : '').filter(Boolean);
-                if (cleaned.length) normalized[op] = cleaned;
+
+            // Handle nested structure from connection_modes.json (operators.{CODE}.verbs)
+            const operators = data.operators || data;
+
+            Object.entries(operators).forEach(([op, config]) => {
+                // If config is an object with verbs array, extract verbs
+                if (config && typeof config === 'object' && Array.isArray(config.verbs)) {
+                    const cleaned = config.verbs.map(mode => typeof mode === 'string' ? mode.trim() : '').filter(Boolean);
+                    if (cleaned.length) normalized[op] = cleaned;
+                }
+                // Otherwise, if config is directly an array of modes
+                else if (Array.isArray(config)) {
+                    const cleaned = config.map(mode => typeof mode === 'string' ? mode.trim() : '').filter(Boolean);
+                    if (cleaned.length) normalized[op] = cleaned;
+                }
             });
 
             return normalized;
@@ -6676,8 +6687,9 @@
                 worldId: defaultWorldId
             });
 
-            state.currentSetId = observationsId;
-            state.currentViewId = Array.from(observationsSet.views.keys())[0];
+            // Start in dashboard view instead of directly opening a set
+            // state.currentSetId = observationsId;
+            // state.currentViewId = Array.from(observationsSet.views.keys())[0];
             state.expandedSets.add(observationsId);
             state.expandedSets.add(locationsId);
         }
@@ -15193,7 +15205,10 @@
 
             // Get recent changes from event stream (last 10)
             const recentChanges = (state.eventStream || []).slice(-10).reverse().map(event => {
-                const timestamp = new Date(event.timestamp).toLocaleString();
+                const date = new Date(event.timestamp);
+                const timestamp = (event.timestamp && !isNaN(date.getTime()))
+                    ? date.toLocaleString()
+                    : 'Unknown time';
                 return `${timestamp} - ${event.type || 'Change'} - ${event.description || 'System update'}`;
             });
 
