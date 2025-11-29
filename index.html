@@ -14818,11 +14818,19 @@
 
                     if (type === 'set') {
                         const set = state.sets.get(id);
+                        if (!set) {
+                            console.error(`Set not found: ${id}`);
+                            return;
+                        }
                         renderHierarchicalEntityBrowser(containerId, onSelect, [...currentPath, { type: 'Set', id, name: set.name }]);
                     } else if (type === 'view') {
                         const setId = item.dataset.setId;
                         const set = state.sets.get(setId);
                         const view = set?.views.get(id);
+                        if (!view) {
+                            console.error(`View not found: ${id} in set ${setId}`);
+                            return;
+                        }
                         renderHierarchicalEntityBrowser(containerId, onSelect, [...currentPath, { type: 'View', id, name: view.name }]);
                     } else if (type === 'record') {
                         // Final selection - call the onSelect callback
