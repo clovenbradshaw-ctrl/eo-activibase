@@ -3124,7 +3124,7 @@
                     <div>
                         <label class="form-label">Subject Entity</label>
                         <div class="entity-search-container relative">
-                            <input id="connectionSubjectSearch" type="text" class="border rounded px-3 py-2 w-full" placeholder="Search entities by name..." autocomplete="off" />
+                            <input id="connectionSubjectSearch" type="text" class="border rounded px-3 py-2 w-full" placeholder="Search by name or click to browse..." autocomplete="off" />
                             <input id="connectionSubjectId" type="hidden" />
                             <input id="connectionSubjectType" type="hidden" value="Entity" />
                             <div id="connectionSubjectDropdown" class="entity-dropdown hidden absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
@@ -3143,7 +3143,7 @@
                     <div>
                         <label class="form-label">Object Entity</label>
                         <div class="entity-search-container relative">
-                            <input id="connectionOperandSearch" type="text" class="border rounded px-3 py-2 w-full" placeholder="Search entities by name..." autocomplete="off" />
+                            <input id="connectionOperandSearch" type="text" class="border rounded px-3 py-2 w-full" placeholder="Search by name or click to browse..." autocomplete="off" />
                             <input id="connectionOperandId" type="hidden" />
                             <input id="connectionOperandType" type="hidden" value="Entity" />
                             <div id="connectionOperandDropdown" class="entity-dropdown hidden absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
@@ -6123,15 +6123,18 @@
 
         function getEntityDisplayName(entity) {
             if (!entity) return 'Unknown';
-            // Try various name fields
+
+            // For records, use the comprehensive display name function
+            if (entity.type === 'Record' && entity.id) {
+                const displayName = getRecordDisplayName(entity.id);
+                if (displayName) return displayName;
+            }
+
+            // Try various name fields for other entity types
             if (entity.viewRef?.viewName) return entity.viewRef.viewName;
             if (entity.entityType && entity.entityType !== entity.type) return entity.entityType;
             if (entity.name) return entity.name;
-            // For records, try to get a display value
-            if (entity.type === 'Record' && entity.data) {
-                const firstValue = Object.values(entity.data)[0];
-                if (firstValue && typeof firstValue === 'string') return firstValue.substring(0, 50);
-            }
+
             return entity.id || 'Unknown';
         }
 
@@ -14441,11 +14444,13 @@
             if (title) title.textContent = 'Add Relationship';
         }
 
-        function renderEntityDropdown(containerId, entities, onSelect) {
+        function renderEntityDropdown(containerId, entities, onSelect, options = {}) {
             const container = document.getElementById(containerId);
             if (!container) return;
 
-            if (!entities.length) {
+            const isSearchMode = options.searchMode !== false;
+
+            if (!entities.length && isSearchMode) {
                 container.innerHTML = '<div class="p-3 text-sm text-gray-500">No entities found. Reify a view to create entities.</div>';
                 container.classList.remove('hidden');
                 return;
@@ -14472,6 +14477,137 @@
                     const entityId = option.dataset.entityId;
                     const entityType = option.dataset.entityType;
                     onSelect(entityId, entityType, entities.find(e => e.id === entityId));
+                });
+            });
+        }
+
+        function renderHierarchicalEntityBrowser(containerId, onSelect, currentPath = []) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            let html = '';
+
+            // Breadcrumb navigation
+            if (currentPath.length > 0) {
+                html += '<div class="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2 text-sm">';
+                html += '<button class="hierarchy-back text-blue-600 hover:text-blue-800 font-medium">← Back</button>';
+                html += '<span class="text-gray-400">|</span>';
+                html += '<span class="text-gray-600">' + currentPath.map(p => escapeHtml(p.name)).join(' > ') + '</span>';
+                html += '</div>';
+            }
+
+            const level = currentPath.length;
+
+            if (level === 0) {
+                // Show sets
+                const sets = getSetsForWorld();
+                if (!sets.length) {
+                    html += '<div class="p-3 text-sm text-gray-500">No sets found. Create a set first.</div>';
+                } else {
+                    html += '<div class="px-3 py-2 bg-gray-100 text-xs font-semibold text-gray-600 sticky top-0">Select a Set</div>';
+                    sets.forEach(set => {
+                        const recordCount = set.records.size;
+                        html += `
+                            <div class="hierarchy-item px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0 flex justify-between items-center"
+                                 data-type="set" data-id="${set.id}">
+                                <div>
+                                    <div class="font-medium text-gray-900">${escapeHtml(set.name)}</div>
+                                    <div class="text-xs text-gray-500">${recordCount} record${recordCount !== 1 ? 's' : ''}</div>
+                                </div>
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        `;
+                    });
+                }
+            } else if (level === 1) {
+                // Show views for selected set
+                const setId = currentPath[0].id;
+                const set = state.sets.get(setId);
+                if (!set) {
+                    html += '<div class="p-3 text-sm text-gray-500">Set not found.</div>';
+                } else {
+                    const views = Array.from(set.views.values());
+                    if (!views.length) {
+                        html += '<div class="p-3 text-sm text-gray-500">No views found in this set.</div>';
+                    } else {
+                        html += '<div class="px-3 py-2 bg-gray-100 text-xs font-semibold text-gray-600 sticky top-0">Select a View</div>';
+                        views.forEach(view => {
+                            html += `
+                                <div class="hierarchy-item px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0 flex justify-between items-center"
+                                     data-type="view" data-id="${view.id}" data-set-id="${setId}">
+                                    <div>
+                                        <div class="font-medium text-gray-900">${escapeHtml(view.name)}</div>
+                                        <div class="text-xs text-gray-500">View in ${escapeHtml(set.name)}</div>
+                                    </div>
+                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </div>
+                            `;
+                        });
+                    }
+                }
+            } else if (level === 2) {
+                // Show records for selected view
+                const setId = currentPath[0].id;
+                const viewId = currentPath[1].id;
+                const set = state.sets.get(setId);
+                if (!set) {
+                    html += '<div class="p-3 text-sm text-gray-500">Set not found.</div>';
+                } else {
+                    const records = Array.from(set.records.values());
+                    if (!records.length) {
+                        html += '<div class="p-3 text-sm text-gray-500">No records found. Reify this view to create records.</div>';
+                    } else {
+                        html += '<div class="px-3 py-2 bg-gray-100 text-xs font-semibold text-gray-600 sticky top-0">Select a Record</div>';
+                        records.forEach(record => {
+                            const displayName = getRecordDisplayName(record.id) || 'Unnamed Record';
+                            html += `
+                                <div class="hierarchy-item px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0"
+                                     data-type="record" data-id="${record.id}">
+                                    <div class="font-medium text-gray-900">${escapeHtml(displayName)}</div>
+                                    <div class="text-xs text-gray-500">Record • ${record.id.substring(0, 20)}...</div>
+                                </div>
+                            `;
+                        });
+                    }
+                }
+            }
+
+            container.innerHTML = html;
+            container.classList.remove('hidden');
+
+            // Add click handler for back button
+            const backButton = container.querySelector('.hierarchy-back');
+            if (backButton) {
+                backButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const newPath = currentPath.slice(0, -1);
+                    renderHierarchicalEntityBrowser(containerId, onSelect, newPath);
+                });
+            }
+
+            // Add click handlers for items
+            container.querySelectorAll('.hierarchy-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const type = item.dataset.type;
+                    const id = item.dataset.id;
+
+                    if (type === 'set') {
+                        const set = state.sets.get(id);
+                        renderHierarchicalEntityBrowser(containerId, onSelect, [...currentPath, { type: 'Set', id, name: set.name }]);
+                    } else if (type === 'view') {
+                        const setId = item.dataset.setId;
+                        const set = state.sets.get(setId);
+                        const view = set?.views.get(id);
+                        renderHierarchicalEntityBrowser(containerId, onSelect, [...currentPath, { type: 'View', id, name: view.name }]);
+                    } else if (type === 'record') {
+                        // Final selection - call the onSelect callback
+                        const entity = { id, type: 'Record', entityType: 'Record' };
+                        onSelect(id, 'Record', entity);
+                    }
                 });
             });
         }
@@ -14532,27 +14668,34 @@
             const subjectInfo = document.getElementById('connectionSubjectInfo');
 
             if (subjectSearch) {
+                const onSubjectSelect = (id, type, entity) => {
+                    subjectSearch.value = getEntityDisplayName(entity);
+                    subjectIdInput.value = id;
+                    subjectTypeInput.value = type;
+                    subjectInfo.textContent = `${type} • ${id}`;
+                    subjectDropdown.classList.add('hidden');
+                };
+
                 subjectSearch.addEventListener('input', (e) => {
                     const query = e.target.value;
-                    const results = searchEntities(query);
-                    renderEntityDropdown('connectionSubjectDropdown', results, (id, type, entity) => {
-                        subjectSearch.value = getEntityDisplayName(entity);
-                        subjectIdInput.value = id;
-                        subjectTypeInput.value = type;
-                        subjectInfo.textContent = `${type} • ${id}`;
-                        subjectDropdown.classList.add('hidden');
-                    });
+                    if (query.trim().length > 0) {
+                        // Search mode - show matching entities
+                        const results = searchEntities(query);
+                        renderEntityDropdown('connectionSubjectDropdown', results, onSubjectSelect, { searchMode: true });
+                    } else {
+                        // Drill-down mode - show hierarchical browser
+                        renderHierarchicalEntityBrowser('connectionSubjectDropdown', onSubjectSelect);
+                    }
                 });
 
                 subjectSearch.addEventListener('focus', () => {
-                    const results = searchEntities(subjectSearch.value);
-                    renderEntityDropdown('connectionSubjectDropdown', results, (id, type, entity) => {
-                        subjectSearch.value = getEntityDisplayName(entity);
-                        subjectIdInput.value = id;
-                        subjectTypeInput.value = type;
-                        subjectInfo.textContent = `${type} • ${id}`;
-                        subjectDropdown.classList.add('hidden');
-                    });
+                    const query = subjectSearch.value;
+                    if (query.trim().length > 0) {
+                        const results = searchEntities(query);
+                        renderEntityDropdown('connectionSubjectDropdown', results, onSubjectSelect, { searchMode: true });
+                    } else {
+                        renderHierarchicalEntityBrowser('connectionSubjectDropdown', onSubjectSelect);
+                    }
                 });
 
                 subjectSearch.addEventListener('blur', () => {
@@ -14568,27 +14711,34 @@
             const operandInfo = document.getElementById('connectionOperandInfo');
 
             if (operandSearch) {
+                const onOperandSelect = (id, type, entity) => {
+                    operandSearch.value = getEntityDisplayName(entity);
+                    operandIdInput.value = id;
+                    operandTypeInput.value = type;
+                    operandInfo.textContent = `${type} • ${id}`;
+                    operandDropdown.classList.add('hidden');
+                };
+
                 operandSearch.addEventListener('input', (e) => {
                     const query = e.target.value;
-                    const results = searchEntities(query);
-                    renderEntityDropdown('connectionOperandDropdown', results, (id, type, entity) => {
-                        operandSearch.value = getEntityDisplayName(entity);
-                        operandIdInput.value = id;
-                        operandTypeInput.value = type;
-                        operandInfo.textContent = `${type} • ${id}`;
-                        operandDropdown.classList.add('hidden');
-                    });
+                    if (query.trim().length > 0) {
+                        // Search mode - show matching entities
+                        const results = searchEntities(query);
+                        renderEntityDropdown('connectionOperandDropdown', results, onOperandSelect, { searchMode: true });
+                    } else {
+                        // Drill-down mode - show hierarchical browser
+                        renderHierarchicalEntityBrowser('connectionOperandDropdown', onOperandSelect);
+                    }
                 });
 
                 operandSearch.addEventListener('focus', () => {
-                    const results = searchEntities(operandSearch.value);
-                    renderEntityDropdown('connectionOperandDropdown', results, (id, type, entity) => {
-                        operandSearch.value = getEntityDisplayName(entity);
-                        operandIdInput.value = id;
-                        operandTypeInput.value = type;
-                        operandInfo.textContent = `${type} • ${id}`;
-                        operandDropdown.classList.add('hidden');
-                    });
+                    const query = operandSearch.value;
+                    if (query.trim().length > 0) {
+                        const results = searchEntities(query);
+                        renderEntityDropdown('connectionOperandDropdown', results, onOperandSelect, { searchMode: true });
+                    } else {
+                        renderHierarchicalEntityBrowser('connectionOperandDropdown', onOperandSelect);
+                    }
                 });
 
                 operandSearch.addEventListener('blur', () => {
