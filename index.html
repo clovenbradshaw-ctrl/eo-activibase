@@ -6004,22 +6004,30 @@
         function seedWorldDefaults(worldId = state.currentWorldId) {
             const locationsId = createSet('Locations', 'ph-map-pin', worldId);
             const locationsSet = state.sets.get(locationsId);
-            locationsSet.schema = [
-                { id: 'name', name: 'Location', type: 'TEXT', width: '220px' },
-                { id: 'area', name: 'Area', type: 'TEXT', width: '180px' },
-                { id: 'notes', name: 'Notes', type: 'LONG_TEXT', width: '260px' }
-            ];
+            if (locationsSet) {
+                locationsSet.schema = [
+                    { id: 'name', name: 'Location', type: 'TEXT', width: '220px' },
+                    { id: 'area', name: 'Area', type: 'TEXT', width: '180px' },
+                    { id: 'notes', name: 'Notes', type: 'LONG_TEXT', width: '260px' }
+                ];
+            }
 
             const observationsId = createSet('Observations', 'ph-binoculars', worldId);
             const observationsSet = state.sets.get(observationsId);
-            observationsSet.schema = [
-                { id: 'date', name: 'Date', type: 'DATE', width: '140px' },
-                { id: 'observer', name: 'Observer', type: 'TEXT', width: '180px' },
-                { id: 'observation', name: 'Observation', type: 'LONG_TEXT', width: '260px' }
-            ];
+            if (observationsSet) {
+                observationsSet.schema = [
+                    { id: 'date', name: 'Date', type: 'DATE', width: '140px' },
+                    { id: 'observer', name: 'Observer', type: 'TEXT', width: '180px' },
+                    { id: 'observation', name: 'Observation', type: 'LONG_TEXT', width: '260px' }
+                ];
+            }
 
-            createView(locationsId, 'Locations', { type: 'grid', sorts: [{ fieldId: 'name', direction: 'asc' }] });
-            createView(observationsId, 'Observations', { type: 'grid', sorts: [{ fieldId: 'date', direction: 'desc' }] });
+            if (locationsSet) {
+                createView(locationsId, 'Locations', { type: 'grid', sorts: [{ fieldId: 'name', direction: 'asc' }] });
+            }
+            if (observationsSet) {
+                createView(observationsId, 'Observations', { type: 'grid', sorts: [{ fieldId: 'date', direction: 'desc' }] });
+            }
 
             return { locationsId, observationsId };
         }
@@ -6512,6 +6520,10 @@
             const observationsId = worldDefaults.observationsId || createSet('Observations', 'ph-binoculars', defaultWorldId);
 
             const locationsSet = state.sets.get(locationsId);
+            if (!locationsSet) {
+                console.error('Failed to create Locations set');
+                return;
+            }
             locationsSet.schema = [
                 { id: 'name', name: 'Location', type: 'TEXT', width: '220px' },
                 { id: 'area', name: 'Area', type: 'TEXT', width: '180px' },
@@ -6539,6 +6551,10 @@
             });
 
             const observationsSet = state.sets.get(observationsId);
+            if (!observationsSet) {
+                console.error('Failed to create Observations set');
+                return;
+            }
             observationsSet.schema = [
                 { id: 'date', name: 'Date', type: 'DATE', width: '140px' },
                 { id: 'location', name: 'Location', type: 'TEXT', width: '200px' },
@@ -9624,6 +9640,10 @@
             renderViewTabs();
             if (state.currentSetId) {
                 switchSet(state.currentSetId, state.currentViewId);
+            } else {
+                // No sets in this world - navigate to dashboard
+                state.currentSpecialView = 'dashboard';
+                renderCurrentView();
             }
             // syncUrlState(); // Commented out to prevent URL manipulation
         }
