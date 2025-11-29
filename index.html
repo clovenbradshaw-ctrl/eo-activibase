@@ -4193,11 +4193,20 @@
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto modal-body">
-                <!-- Field List -->
-                <div class="space-y-2 mb-4" id="fieldManagerList"></div>
+                <!-- Search and Add Section -->
+                <div class="sticky top-0 bg-white z-10 pb-4 border-b border-gray-200 mb-4">
+                    <!-- Search Field -->
+                    <div class="mb-3">
+                        <div class="relative">
+                            <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="fieldManagerSearch" class="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Search fields...">
+                            <button id="clearFieldSearch" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden">
+                                <i class="ph ph-x"></i>
+                            </button>
+                        </div>
+                    </div>
 
-                <!-- Add Field Section -->
-                <div class="border-t border-gray-200 pt-4 mt-4">
+                    <!-- Add New Field Button -->
                     <button id="addFieldTriggerBtn" class="btn btn-primary w-full flex items-center justify-center gap-2">
                         <i class="ph ph-plus-circle"></i>
                         Add New Field
@@ -4281,6 +4290,9 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Field List -->
+                <div class="space-y-2" id="fieldManagerList"></div>
             </div>
             <div class="modal-footer flex justify-end items-center gap-3">
                 <button id="closeFieldManagerFooterBtn" class="btn btn-secondary">Close</button>
@@ -11721,6 +11733,16 @@
                 return;
             }
 
+            // Clear search field
+            const searchInput = document.getElementById('fieldManagerSearch');
+            const clearSearchBtn = document.getElementById('clearFieldSearch');
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            if (clearSearchBtn) {
+                clearSearchBtn.classList.add('hidden');
+            }
+
             // Render the field list
             renderFieldManagerList();
 
@@ -11731,7 +11753,7 @@
             openModal('fieldManagerModal');
         }
 
-        function renderFieldManagerList() {
+        function renderFieldManagerList(searchQuery = '') {
             const set = getCurrentSet();
             if (!set) return;
 
@@ -11741,9 +11763,32 @@
             const listContainer = document.getElementById('fieldManagerList');
             listContainer.innerHTML = '';
 
+            // Filter fields based on search query
+            const query = searchQuery.toLowerCase().trim();
+            let filteredSchema = set.schema;
+            if (query) {
+                filteredSchema = set.schema.filter(field => {
+                    const fieldName = field.name.toLowerCase();
+                    const fieldType = (FIELD_TYPES[field.type]?.name || field.type).toLowerCase();
+                    return fieldName.includes(query) || fieldType.includes(query);
+                });
+            }
+
             // Split fields into visible and hidden
-            const visibleFields = set.schema.filter(field => !hiddenFields.includes(field.id));
-            const hiddenFieldsList = set.schema.filter(field => hiddenFields.includes(field.id));
+            const visibleFields = filteredSchema.filter(field => !hiddenFields.includes(field.id));
+            const hiddenFieldsList = filteredSchema.filter(field => hiddenFields.includes(field.id));
+
+            // Show "no results" message if search returned no results
+            if (query && filteredSchema.length === 0) {
+                const noResults = document.createElement('div');
+                noResults.className = 'text-center py-8 text-gray-500';
+                noResults.innerHTML = `
+                    <i class="ph ph-magnifying-glass text-4xl mb-2 block"></i>
+                    <p>No fields found matching "${searchQuery}"</p>
+                `;
+                listContainer.appendChild(noResults);
+                return;
+            }
 
             // Render visible fields
             if (visibleFields.length > 0) {
@@ -12014,6 +12059,30 @@
             }
             if (closeFooterBtn) {
                 closeFooterBtn.onclick = () => closeModal('fieldManagerModal');
+            }
+
+            // Search field
+            const searchInput = document.getElementById('fieldManagerSearch');
+            const clearSearchBtn = document.getElementById('clearFieldSearch');
+
+            if (searchInput) {
+                searchInput.oninput = (e) => {
+                    const query = e.target.value;
+                    if (query.trim()) {
+                        clearSearchBtn.classList.remove('hidden');
+                    } else {
+                        clearSearchBtn.classList.add('hidden');
+                    }
+                    renderFieldManagerList(query);
+                };
+            }
+
+            if (clearSearchBtn) {
+                clearSearchBtn.onclick = () => {
+                    searchInput.value = '';
+                    clearSearchBtn.classList.add('hidden');
+                    renderFieldManagerList('');
+                };
             }
 
             // Add field trigger button
