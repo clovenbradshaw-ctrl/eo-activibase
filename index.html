@@ -4677,20 +4677,19 @@
     </div>
 
     <!-- Cell History Modal -->
-    <div id="cellHistoryModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div class="modal-header flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-bold text-gray-900" id="cellHistoryTitle">Cell History</h2>
-                    <p class="text-sm text-gray-500 mt-1" id="cellHistorySubtitle"></p>
+    <div id="cellHistoryModal" class="hidden eo-cell-modal-overlay">
+        <div class="eo-cell-modal">
+            <div class="eo-cell-modal-header">
+                <div class="eo-cell-modal-title">
+                    <h2 id="cellHistoryTitle">Cell History</h2>
+                    <p class="eo-cell-modal-subtitle" id="cellHistorySubtitle"></p>
                 </div>
-                <button class="text-gray-400 hover:text-gray-600 transition p-2" onclick="closeModal('cellHistoryModal')">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                <button class="eo-cell-modal-close" onclick="closeModal('cellHistoryModal')">
+                    <i class="ph ph-x"></i>
                 </button>
             </div>
-            <div class="p-6 overflow-auto" id="cellHistoryContent"></div>
+            <div class="eo-cell-modal-tabs" id="cellHistoryTabs"></div>
+            <div class="eo-cell-modal-content" id="cellHistoryContent"></div>
         </div>
     </div>
 
@@ -19156,6 +19155,7 @@
 
         function renderCellHistoryModal() {
             const container = document.getElementById('cellHistoryContent');
+            const tabsContainer = document.getElementById('cellHistoryTabs');
             const title = document.getElementById('cellHistoryTitle');
             const subtitle = document.getElementById('cellHistorySubtitle');
             const ctx = state.cellHistoryContext;
@@ -19166,51 +19166,57 @@
             title.textContent = `${ctx.fieldName} observations`;
             subtitle.textContent = ctx.recordName ? `Item: ${ctx.recordName}` : 'Multiple items';
 
+            // Render styled tabs
+            const tabs = [
+                { id: 'latest', label: 'Latest Value', icon: 'ph-push-pin' },
+                { id: 'observations', label: 'Observations', icon: 'ph-arrows-clockwise' },
+                { id: 'timeline', label: 'Timeline', icon: 'ph-clock' },
+                { id: 'connections', label: 'Relations', icon: 'ph-link' }
+            ];
+            tabsContainer.innerHTML = tabs.map(tab =>
+                `<button class="eo-cell-modal-tab ${ctx.activePanel === tab.id ? 'active' : ''}" onclick="setObservationPanel('${tab.id}')">
+                    <i class="ph ${tab.icon}"></i> ${tab.label}
+                </button>`
+            ).join('');
+
             const supList = (ctx.supValues || []).map((entry, index) => {
                 const context = entry.context || entry.context_schema || {};
                 const method = context.method || 'declared';
                 const scale = context.scale || 'individual';
                 const source = context.source?.system || context.source || 'observation';
                 const agent = context.agent?.name || context.agent?.type || '';
-                const methodIcons = { measured: '📏', declared: '📝', aggregated: '📊', inferred: '🔮', derived: '⚙️' };
-                const methodIcon = methodIcons[method] || '📝';
+                const methodIcons = { measured: 'ph-ruler', declared: 'ph-note-pencil', aggregated: 'ph-chart-bar', inferred: 'ph-magic-wand', derived: 'ph-gear' };
+                const methodIcon = methodIcons[method] || 'ph-note-pencil';
                 return `
-                <div class="sup-modal-card">
-                    <div class="flex items-start justify-between">
-                        <div class="flex items-start gap-3">
-                            <div class="sup-modal-card-index">${index + 1}</div>
-                            <div class="flex-1">
-                                <div class="sup-modal-card-value">${entry.val ?? entry.value ?? '—'}</div>
-                                <div class="sup-modal-card-source text-xs text-gray-500 mt-1 space-y-1">
-                                    <div class="flex items-center gap-2">
-                                        <span title="Method">${methodIcon} ${method}</span>
-                                        <span class="text-gray-300">•</span>
-                                        <span title="Scale">📐 ${scale}</span>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                        <span>${source}</span>
-                                        ${agent ? `<span class="text-gray-300">•</span><span>👤 ${agent}</span>` : ''}
-                                    </div>
-                                </div>
-                            </div>
+                <div class="eo-observation-card">
+                    <div class="eo-observation-card-header">
+                        <div class="eo-observation-card-index">${index + 1}</div>
+                        <div class="eo-observation-card-value">${entry.val ?? entry.value ?? '—'}</div>
+                    </div>
+                    <div class="eo-observation-card-meta">
+                        <div class="eo-observation-card-row">
+                            <span title="Method"><i class="ph ${methodIcon}"></i> ${method}</span>
+                            <span class="eo-observation-card-dot"></span>
+                            <span title="Scale"><i class="ph ph-arrows-out-simple"></i> ${scale}</span>
+                        </div>
+                        <div class="eo-observation-card-row">
+                            <span><i class="ph ph-database"></i> ${source}</span>
+                            ${agent ? `<span class="eo-observation-card-dot"></span><span><i class="ph ph-user"></i> ${agent}</span>` : ''}
                         </div>
                     </div>
                 </div>
             `}).join('');
             const timeline = ctx.entries.map((entry, i) => `
-                <div class="border rounded-lg p-3 ${i === ctx.index ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}" onclick="selectCellHistoryEntry(${i})">
-                    <div class="flex items-center justify-between">
-                        <div class="font-medium">${entry.data?.fieldName || ctx.fieldName}</div>
-                        <div class="text-xs text-gray-500">${new Date(entry.published).toLocaleString()}</div>
+                <div class="eo-timeline-entry ${i === ctx.index ? 'active' : ''}" onclick="selectCellHistoryEntry(${i})">
+                    <div class="eo-timeline-entry-header">
+                        <div class="eo-timeline-entry-field">${entry.data?.fieldName || ctx.fieldName}</div>
+                        <div class="eo-timeline-entry-date">${new Date(entry.published).toLocaleString()}</div>
                     </div>
-                    <div class="text-sm text-gray-600 mt-1">${entry.data?.summary || 'Updated value'}</div>
-                    <div class="text-sm mt-2 flex items-center gap-2">
-                        <span class="text-red-600">${entry.data?.oldValue ?? '—'}</span>
-                        <span>→</span>
-                        <span class="text-green-600">${entry.data?.newValue ?? '—'}</span>
+                    <div class="eo-timeline-entry-summary">${entry.data?.summary || 'Updated value'}</div>
+                    <div class="eo-timeline-entry-change">
+                        <span class="eo-timeline-old-value">${entry.data?.oldValue ?? '—'}</span>
+                        <i class="ph ph-arrow-right eo-timeline-arrow"></i>
+                        <span class="eo-timeline-new-value">${entry.data?.newValue ?? '—'}</span>
                     </div>
                 </div>
             `).join('');
@@ -19222,10 +19228,7 @@
             const latestValue = ctx.latestValue ?? selectedValue;
 
             container.innerHTML = `
-                <div class="flex items-center gap-2 mb-4">
-                    ${['latest','observations','timeline','connections'].map(tab => `<button class="btn btn-secondary btn-sm ${ctx.activePanel === tab ? 'bg-gray-200' : ''}" onclick="setObservationPanel('${tab}')">${tab === 'latest' ? '📌 Latest Value' : tab === 'observations' ? '🔁 Observations' : tab === 'timeline' ? '🕒 Timeline' : '🔗 Relations'}</button>`).join('')}
-                </div>
-                <div class="space-y-4">
+                <div class="eo-observation-content">
                     ${ctx.activePanel === 'latest' ? (() => {
                         const displayValue = renderCellValue(latestValue, { type: ctx.fieldType || 'TEXT' }, {}) || '—';
                         const valueContext = (latestValue && latestValue._sup && Array.isArray(latestValue.value) && latestValue.value[0])
@@ -19236,60 +19239,74 @@
                         const source = valueContext.source?.system || valueContext.source || ctx.sourceSetName || 'unknown';
                         const agent = valueContext.agent?.name || valueContext.agent?.type || '';
                         const definition = valueContext.definition || '';
-                        const methodIcons = { measured: '📏', declared: '📝', aggregated: '📊', inferred: '🔮', derived: '⚙️' };
-                        const methodIcon = methodIcons[method] || '📝';
+                        const methodIcons = { measured: 'ph-ruler', declared: 'ph-note-pencil', aggregated: 'ph-chart-bar', inferred: 'ph-magic-wand', derived: 'ph-gear' };
+                        const methodIcon = methodIcons[method] || 'ph-note-pencil';
                         const hasContext = valueContext.method || valueContext.scale || valueContext.source;
                         return `
-                            <div class="text-lg font-semibold mb-3">${displayValue}</div>
+                            <div class="eo-observation-value">
+                                <div class="eo-observation-value-text">${displayValue}</div>
+                            </div>
                             ${hasContext ? `
-                            <div class="bg-gray-50 rounded-lg p-3 text-sm">
-                                <div class="text-xs text-gray-500 uppercase tracking-wide mb-2">Provenance</div>
-                                <div class="space-y-2">
-                                    <div class="flex items-center gap-3">
-                                        <span class="text-gray-500 w-16">Method:</span>
-                                        <span>${methodIcon} ${method}</span>
+                            <div class="eo-provenance-section">
+                                <div class="eo-provenance-title">Provenance</div>
+                                <div class="eo-provenance-grid">
+                                    <div class="eo-provenance-item">
+                                        <span class="eo-provenance-label">Method:</span>
+                                        <span class="eo-provenance-value"><i class="ph ${methodIcon}"></i> ${method}</span>
                                     </div>
-                                    <div class="flex items-center gap-3">
-                                        <span class="text-gray-500 w-16">Scale:</span>
-                                        <span>📐 ${scale}</span>
+                                    <div class="eo-provenance-item">
+                                        <span class="eo-provenance-label">Scale:</span>
+                                        <span class="eo-provenance-value"><i class="ph ph-arrows-out-simple"></i> ${scale}</span>
                                     </div>
-                                    <div class="flex items-center gap-3">
-                                        <span class="text-gray-500 w-16">Source:</span>
-                                        <span>📋 ${source}</span>
+                                    <div class="eo-provenance-item">
+                                        <span class="eo-provenance-label">Source:</span>
+                                        <span class="eo-provenance-value"><i class="ph ph-database"></i> ${source}</span>
                                     </div>
-                                    ${agent ? `<div class="flex items-center gap-3">
-                                        <span class="text-gray-500 w-16">Agent:</span>
-                                        <span>👤 ${agent}</span>
+                                    ${agent ? `<div class="eo-provenance-item">
+                                        <span class="eo-provenance-label">Agent:</span>
+                                        <span class="eo-provenance-value"><i class="ph ph-user"></i> ${agent}</span>
                                     </div>` : ''}
-                                    ${definition ? `<div class="flex items-center gap-3">
-                                        <span class="text-gray-500 w-16">Definition:</span>
-                                        <span>${definition}</span>
+                                    ${definition ? `<div class="eo-provenance-item">
+                                        <span class="eo-provenance-label">Definition:</span>
+                                        <span class="eo-provenance-value">${definition}</span>
                                     </div>` : ''}
                                 </div>
                             </div>
-                            ` : `<div class="text-sm text-gray-400 mt-2">No provenance information available</div>`}
+                            ` : `<div class="eo-empty-state">No provenance information available</div>`}
                         `;
                     })() : ''}
                     ${ctx.activePanel === 'observations' ? `
                         <div>
                             ${supList ? `
-                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                                    <div class="flex items-center gap-2">
-                                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-                                        </svg>
-                                        <div class="flex-1">
-                                            <div class="font-semibold text-blue-900 text-sm">Multiple Records in This Cell</div>
-                                            <div class="text-xs text-blue-700">This cell contains ${ctx.supValues?.length || 0} aggregated record${(ctx.supValues?.length || 0) === 1 ? '' : 's'} from rollup</div>
-                                        </div>
+                                <div class="eo-observations-info">
+                                    <i class="ph ph-stack eo-observations-info-icon"></i>
+                                    <div>
+                                        <div class="eo-observations-info-title">Multiple Records in This Cell</div>
+                                        <div class="eo-observations-info-subtitle">This cell contains ${ctx.supValues?.length || 0} aggregated record${(ctx.supValues?.length || 0) === 1 ? '' : 's'} from rollup</div>
                                     </div>
                                 </div>
-                                ${supList}
-                            ` : '<p class="text-gray-500">No multiple observations yet.</p>'}
+                                <div class="eo-observations-list">${supList}</div>
+                            ` : '<div class="eo-empty-state">No multiple observations yet.</div>'}
                         </div>
                     ` : ''}
-                    ${ctx.activePanel === 'timeline' ? `<div class="flex items-center justify-between mb-2"><div class="text-sm text-gray-600">${ctx.entries.length} change${ctx.entries.length === 1 ? '' : 's'} found</div><div class="flex items-center gap-2"><button class="btn btn-secondary btn-sm" ${ctx.index === 0 ? 'disabled' : ''} onclick="stepCellHistory(-1)">◀ Prev</button><button class="btn btn-secondary btn-sm" ${ctx.index >= ctx.entries.length - 1 ? 'disabled' : ''} onclick="stepCellHistory(1)">Next ▶</button></div></div><div class="space-y-3">${timeline}</div>` : ''}
-                    ${ctx.activePanel === 'connections' ? `<div class="text-sm text-gray-600">Source Set: ${ctx.sourceSetName || 'Unknown'}</div>` : ''}
+                    ${ctx.activePanel === 'timeline' ? `
+                        <div class="eo-timeline-header">
+                            <div class="eo-timeline-count">${ctx.entries.length} change${ctx.entries.length === 1 ? '' : 's'} found</div>
+                            <div class="eo-timeline-nav">
+                                <button class="btn btn-secondary btn-sm" ${ctx.index === 0 ? 'disabled' : ''} onclick="stepCellHistory(-1)"><i class="ph ph-caret-left"></i> Prev</button>
+                                <button class="btn btn-secondary btn-sm" ${ctx.index >= ctx.entries.length - 1 ? 'disabled' : ''} onclick="stepCellHistory(1)">Next <i class="ph ph-caret-right"></i></button>
+                            </div>
+                        </div>
+                        <div class="eo-timeline-list">${timeline}</div>
+                    ` : ''}
+                    ${ctx.activePanel === 'connections' ? `
+                        <div class="eo-connections-section">
+                            <div class="eo-provenance-item">
+                                <span class="eo-provenance-label">Source Set:</span>
+                                <span class="eo-provenance-value"><i class="ph ph-database"></i> ${ctx.sourceSetName || 'Unknown'}</span>
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
             `;
         }

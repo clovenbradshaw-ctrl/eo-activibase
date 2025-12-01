@@ -75,6 +75,13 @@
   letter-spacing: -0.01em;
 }
 
+.eo-cell-modal-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 400;
+}
+
 .eo-cell-modal-close {
   background: #f4f5f7;
   border: 1px solid #e5e7eb;
@@ -138,6 +145,282 @@
 
 .eo-cell-modal-tab-content.active {
   display: block;
+}
+
+.eo-cell-modal-tab i {
+  margin-right: 6px;
+}
+
+/* ===== OBSERVATION CONTENT ===== */
+
+.eo-observation-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.eo-observation-value {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.eo-observation-value-text {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0c4a6e;
+  letter-spacing: -0.02em;
+}
+
+.eo-provenance-section {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.eo-provenance-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  margin-bottom: 12px;
+}
+
+.eo-provenance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.eo-provenance-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eo-provenance-label {
+  font-size: 13px;
+  color: #6b7280;
+  min-width: 70px;
+}
+
+.eo-provenance-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0b1324;
+}
+
+.eo-empty-state {
+  color: #9ca3af;
+  font-size: 14px;
+  padding: 12px 0;
+}
+
+/* ===== OBSERVATIONS TAB ===== */
+
+.eo-observations-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.eo-observations-info-icon {
+  font-size: 20px;
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.eo-observations-info-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e40af;
+  margin-bottom: 2px;
+}
+
+.eo-observations-info-subtitle {
+  font-size: 12px;
+  color: #3b82f6;
+}
+
+.eo-observations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.eo-observation-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: white;
+  transition: all 0.2s;
+}
+
+.eo-observation-card:hover {
+  border-color: #bfdbfe;
+  background: #f9fafb;
+}
+
+.eo-observation-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.eo-observation-card-index {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.eo-observation-card-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0b1324;
+  flex: 1;
+}
+
+.eo-observation-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 36px;
+}
+
+.eo-observation-card-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.eo-observation-card-row i {
+  font-size: 12px;
+  margin-right: 2px;
+}
+
+.eo-observation-card-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #d1d5db;
+}
+
+/* ===== TIMELINE TAB ===== */
+
+.eo-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.eo-timeline-count {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.eo-timeline-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.eo-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.eo-timeline-entry {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.eo-timeline-entry:hover {
+  border-color: #bfdbfe;
+  background: #f9fafb;
+}
+
+.eo-timeline-entry.active {
+  border-color: #3b82f6;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+.eo-timeline-entry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.eo-timeline-entry-field {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0b1324;
+}
+
+.eo-timeline-entry-date {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.eo-timeline-entry-summary {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 10px;
+}
+
+.eo-timeline-entry-change {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.eo-timeline-old-value {
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.eo-timeline-arrow {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.eo-timeline-new-value {
+  color: #16a34a;
+  font-weight: 500;
+}
+
+/* ===== CONNECTIONS TAB ===== */
+
+.eo-connections-section {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
 }
 
 /* ===== VALUE TAB ===== */
