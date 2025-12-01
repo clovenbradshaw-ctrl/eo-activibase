@@ -676,6 +676,74 @@
             border-color: var(--text);
         }
 
+        /* Globe menu for world options */
+        .globe-menu { position: relative; }
+        .globe-menu.open .globe-menu-panel { display: flex; }
+
+        .globe-menu-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .globe-menu-toggle i:first-child {
+            font-size: 1.1rem;
+        }
+
+        .globe-menu-toggle i:last-child {
+            font-size: 0.75rem;
+            opacity: 0.7;
+        }
+
+        .globe-menu-panel {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 10px);
+            min-width: 200px;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            box-shadow: 0 12px 40px rgba(15, 23, 42, 0.15);
+            flex-direction: column;
+            gap: 6px;
+            z-index: 15;
+        }
+
+        .globe-menu-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 2px 0;
+        }
+
+        .globe-menu-item {
+            width: 100%;
+            justify-content: flex-start;
+            gap: 10px;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            background: var(--muted-surface);
+        }
+
+        .globe-menu-item:hover {
+            background: var(--surface);
+            color: var(--text);
+            border-color: var(--text);
+        }
+
+        .globe-menu-item-highlight {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .globe-menu-item-highlight:hover {
+            background: var(--primary-dark, #3730a3);
+            color: white;
+            border-color: var(--primary-dark, #3730a3);
+        }
+
         .toolbar .sort-sequence-badge {
             display: inline-flex;
             align-items: center;
@@ -3169,23 +3237,32 @@
                     </div>
                 </div>
                 <div class="world-toolbar-actions">
-                    <button id="globalHistoryBtn" class="btn btn-secondary btn-sm">
-                        <i class="ph ph-clock-counter-clockwise"></i>
-                        Global changes
-                    </button>
-                    <button id="viewWorldJsonBtn" class="btn btn-secondary btn-sm">
-                        <i class="ph ph-code"></i>
-                        View JSON
-                    </button>
-                    <button id="importWorldBtn" class="btn btn-secondary btn-sm">
-                        <i class="ph ph-upload-simple"></i>
-                        Import world
-                    </button>
                     <input type="file" id="worldJsonInput" accept="application/json" style="display:none" />
-                    <button id="exportWorldBtn" class="btn btn-primary btn-sm">
-                        <i class="ph ph-download-simple"></i>
-                        Download world
-                    </button>
+                    <div class="globe-menu">
+                        <button id="globeMenuToggle" class="btn btn-secondary btn-sm globe-menu-toggle" title="World options">
+                            <i class="ph ph-globe-hemisphere-west"></i>
+                            <i class="ph ph-caret-down"></i>
+                        </button>
+                        <div class="globe-menu-panel" id="globeMenuPanel">
+                            <button id="importWorldBtn" class="btn btn-secondary btn-sm globe-menu-item globe-menu-item-highlight">
+                                <i class="ph ph-upload-simple"></i>
+                                Import into view
+                            </button>
+                            <div class="globe-menu-divider"></div>
+                            <button id="globalHistoryBtn" class="btn btn-secondary btn-sm globe-menu-item">
+                                <i class="ph ph-clock-counter-clockwise"></i>
+                                Global changes
+                            </button>
+                            <button id="viewWorldJsonBtn" class="btn btn-secondary btn-sm globe-menu-item">
+                                <i class="ph ph-code"></i>
+                                View JSON
+                            </button>
+                            <button id="exportWorldBtn" class="btn btn-secondary btn-sm globe-menu-item">
+                                <i class="ph ph-download-simple"></i>
+                                Download world
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -6690,6 +6767,51 @@
             };
         }
 
+        let globeMenuCleanup = null;
+        function setupGlobeMenu() {
+            if (typeof globeMenuCleanup === 'function') {
+                globeMenuCleanup();
+                globeMenuCleanup = null;
+            }
+
+            const menu = document.querySelector('.globe-menu');
+            const toggle = document.getElementById('globeMenuToggle');
+            const panel = document.getElementById('globeMenuPanel');
+            if (!menu || !toggle || !panel) return;
+
+            const closeMenu = () => menu.classList.remove('open');
+
+            const toggleHandler = (event) => {
+                event.stopPropagation();
+                menu.classList.toggle('open');
+            };
+
+            const panelHandler = (event) => {
+                event.stopPropagation();
+                if (event.target.closest('button')) closeMenu();
+            };
+
+            const clickHandler = (event) => {
+                if (!menu.contains(event.target)) closeMenu();
+            };
+
+            const keydownHandler = (event) => {
+                if (event.key === 'Escape') closeMenu();
+            };
+
+            toggle.addEventListener('click', toggleHandler);
+            panel.addEventListener('click', panelHandler);
+            document.addEventListener('click', clickHandler);
+            document.addEventListener('keydown', keydownHandler);
+
+            globeMenuCleanup = () => {
+                toggle.removeEventListener('click', toggleHandler);
+                panel.removeEventListener('click', panelHandler);
+                document.removeEventListener('click', clickHandler);
+                document.removeEventListener('keydown', keydownHandler);
+            };
+        }
+
         function handleAddRecord() {
             const set = getCurrentSet();
             if (!set) {
@@ -6856,7 +6978,7 @@
                                 </div>
                             </div>
                             <button id="tossSelectedBtn" class="btn btn-danger btn-sm" disabled>
-                                <i class="ph ph-trash"></i>
+                                <i class="ph ph-hand-fist"></i>
                                 Toss
                             </button>
                         </div>
@@ -22696,6 +22818,7 @@
         // EVENT LISTENERS
         function setupEventListeners() {
             setupToolbarMenu();
+            setupGlobeMenu();
 
             const fieldTypeTrigger = document.getElementById('fieldTypeTrigger');
             if (fieldTypeTrigger) fieldTypeTrigger.onclick = (event) => { event.preventDefault(); toggleFieldTypeDropdown(); };
