@@ -6145,6 +6145,31 @@
             return state.connectionModes?.[operator] || [];
         }
 
+        function getAllVerbs() {
+            // Returns all verbs across all operators with their operator mappings
+            const allVerbs = [];
+            const operatorCodes = Object.keys(state.connectionModes || {}).filter(k => k !== 'operators' && k !== 'meta');
+            operatorCodes.forEach(op => {
+                const verbs = state.connectionModes[op] || [];
+                verbs.forEach(verb => {
+                    allVerbs.push({ verb, operator: op });
+                });
+            });
+            return allVerbs;
+        }
+
+        function getOperatorForVerb(verb) {
+            // Find which operator a verb belongs to
+            const operatorCodes = Object.keys(state.connectionModes || {}).filter(k => k !== 'operators' && k !== 'meta');
+            for (const op of operatorCodes) {
+                const verbs = state.connectionModes[op] || [];
+                if (verbs.includes(verb)) {
+                    return op;
+                }
+            }
+            return null;
+        }
+
         function normalizeParamList(params = []) {
             if (params === undefined || params === null) return [];
             if (!Array.isArray(params)) throw new Error('Parameter lists must be arrays');
@@ -19475,7 +19500,15 @@
 
         function getConnectionBuilder() {
             if (!state.connectionBuilder) {
-                state.connectionBuilder = { targetSetId: null, targetRecordId: '', searchQuery: '', relationId: null, params: {} };
+                state.connectionBuilder = {
+                    targetSetId: null,
+                    targetRecordId: '',
+                    searchQuery: '',
+                    relationId: null,
+                    selectedOperator: null,
+                    selectedVerb: null,
+                    params: {}
+                };
             }
             return state.connectionBuilder;
         }
@@ -19488,11 +19521,33 @@
                 : (setEntries[0]?.[0] || null);
             if (builder.targetSetId !== selectedSetId) builder.targetSetId = selectedSetId;
 
+            // Get operator/verb options
+            const operatorCodes = Object.keys(state.connectionModes || {}).filter(k => k !== 'operators' && k !== 'meta');
+            const operators = state.connectionModes?.operators || {};
+
+            // Determine selected operator and verb
+            let selectedOperator = builder.selectedOperator;
+            let selectedVerb = builder.selectedVerb;
+
+            // If verb is selected but operator isn't, derive operator from verb
+            if (selectedVerb && !selectedOperator) {
+                selectedOperator = getOperatorForVerb(selectedVerb);
+                if (selectedOperator) builder.selectedOperator = selectedOperator;
+            }
+
+            // Get available verbs based on operator selection
+            const availableVerbs = selectedOperator
+                ? getModesForOperator(selectedOperator)
+                : getAllVerbs().map(v => v.verb);
+
+            // Find matching relation ID from operator+verb combo
             const formatOptions = getConnectionRelationView();
-            const sidebarRelationId = builder.relationId && state.connectionRelations.has(builder.relationId)
-                ? builder.relationId
-                : (formatOptions[0]?.id || null);
-            if (builder.relationId !== sidebarRelationId) builder.relationId = sidebarRelationId;
+            let sidebarRelationId = null;
+            if (selectedOperator && selectedVerb) {
+                const matchingRelation = formatOptions.find(rel => rel.operator === selectedOperator && rel.mode === selectedVerb);
+                sidebarRelationId = matchingRelation?.id || null;
+            }
+            builder.relationId = sidebarRelationId;
             const selectedRelation = findConnectionRelation(sidebarRelationId);
 
             const selectedSet = selectedSetId ? state.sets.get(selectedSetId) : null;
@@ -19512,6 +19567,36 @@
                 (edge.operand?.type === 'Record' && edge.operand?.id === recordId)
             );
 
+            // Get subject display name
+            const subjectName = getRecordDisplayName(recordId) || 'This record';
+            const operatorInfo = selectedOperator ? (operators[selectedOperator] || {}) : null;
+
+            // Build verb options - group by operator when no operator selected
+            let verbOptionsHtml = '<option value="">Select verb</option>';
+            if (selectedOperator) {
+                // Show only verbs for selected operator
+                verbOptionsHtml += availableVerbs.map(verb =>
+                    `<option value="${verb}" ${verb === selectedVerb ? 'selected' : ''}>${verb}</option>`
+                ).join('');
+            } else {
+                // Group verbs by operator
+                operatorCodes.forEach(op => {
+                    const opInfo = operators[op] || {};
+                    const verbs = getModesForOperator(op);
+                    if (verbs.length > 0) {
+                        verbOptionsHtml += `<optgroup label="${opInfo.symbol || ''} ${op} - ${opInfo.name || op}">`;
+                        verbOptionsHtml += verbs.map(verb =>
+                            `<option value="${verb}" data-operator="${op}" ${verb === selectedVerb ? 'selected' : ''}>${verb}</option>`
+                        ).join('');
+                        verbOptionsHtml += '</optgroup>';
+                    }
+                });
+            }
+
+            // Check if we can add the connection
+            const canAddConnection = selectedRecordId && selectedOperator && selectedVerb;
+            const needsRelationType = selectedOperator && selectedVerb && !sidebarRelationId;
+
             container.innerHTML = `
                 <div class="space-y-4">
                     <div>
@@ -19519,34 +19604,91 @@
                         <p class="text-sm text-gray-600">Link this record to other records.</p>
                     </div>
                     <div class="border border-gray-200 bg-white rounded-lg p-4 space-y-3">
-                        <label class="form-label">Select set</label>
-                        <select id="newConnectionSet" class="border rounded px-3 py-2 text-sm w-full" onchange="handleConnectionSetChange('${recordId}', this.value)">
-                            ${setEntries.length === 0 ? '<option value="">No sets available</option>' : ''}
-                            ${setEntries.map(([id, set]) => `<option value="${id}" ${id === selectedSetId ? 'selected' : ''}>${set.name || id}</option>`).join('')}
-                        </select>
-                        <label class="form-label">Search records</label>
-                        <input
-                            type="text"
-                            class="border rounded px-3 py-2 text-sm w-full"
-                            placeholder="Search by name or ID"
-                            value="${builder.searchQuery || ''}"
-                            oninput="handleConnectionSearchChange('${recordId}', this.value)"
-                            ${!selectedSetId ? 'disabled' : ''}
-                        />
-                        <label class="form-label">Connect to</label>
-                        <select id="newConnectionTarget" class="border rounded px-3 py-2 text-sm w-full" onchange="handleConnectionRecordChange('${recordId}', this.value)" ${!selectedSetId ? 'disabled' : ''}>
-                            <option value="">${selectedSetId ? 'Select a record' : 'Select a set first'}</option>
-                            ${availableRecords.length === 0 && selectedSetId ? `<option value="" disabled>${allAvailableRecords.length === 0 ? 'No records available' : 'No matches found'}</option>` : ''}
-                            ${availableRecords.map(rec => `<option value="${rec.id}" ${rec.id === selectedRecordId ? 'selected' : ''}>${getRecordDisplayName(rec.id) || selectedSet?.name || 'Record'}</option>`).join('')}
-                        </select>
-                        <label class="form-label">Relation</label>
-                        <select id="sidebarConnectionRelation" class="border rounded px-3 py-2 text-sm w-full" ${formatOptions.length === 0 ? 'disabled' : ''}>
-                            <option value="">${formatOptions.length === 0 ? 'Add a connection relation first' : 'Select a relation'}</option>
-                            ${formatOptions.map(rel => `<option value="${rel.id}" ${rel.id === sidebarRelationId ? 'selected' : ''}>${rel.operator} • ${rel.mode}</option>`).join('')}
-                        </select>
-                        <div class="text-xs text-gray-600">${selectedRelation ? `${selectedRelation.operator} / ${selectedRelation.mode}` : 'No relation selected'}</div>
+                        <!-- SPO Format: Subject - Predicate - Object -->
+
+                        <!-- Subject (current record) -->
+                        <div class="bg-gray-50 rounded p-2 text-sm">
+                            <span class="text-gray-500 text-xs uppercase tracking-wide">Subject</span>
+                            <div class="font-medium text-gray-900">${subjectName}</div>
+                        </div>
+
+                        <!-- Predicate: Operator -->
+                        <div>
+                            <label class="form-label">Operator</label>
+                            <select id="sidebarOperator" class="border rounded px-3 py-2 text-sm w-full">
+                                <option value="">Select operator</option>
+                                ${operatorCodes.map(op => {
+                                    const opInfo = operators[op] || {};
+                                    return `<option value="${op}" ${op === selectedOperator ? 'selected' : ''}>${opInfo.symbol || ''} ${op} - ${opInfo.name || op}</option>`;
+                                }).join('')}
+                            </select>
+                        </div>
+
+                        <!-- Predicate: Verb -->
+                        <div>
+                            <label class="form-label">Verb</label>
+                            <select id="sidebarVerb" class="border rounded px-3 py-2 text-sm w-full">
+                                ${verbOptionsHtml}
+                            </select>
+                            ${operatorInfo ? `<p class="text-xs text-gray-500 mt-1">${operatorInfo.description || ''}</p>` : ''}
+                        </div>
+
+                        <!-- Object: Set + Record selection -->
+                        <div class="border-t pt-3 mt-3">
+                            <span class="text-gray-500 text-xs uppercase tracking-wide">Object</span>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Select set</label>
+                            <select id="newConnectionSet" class="border rounded px-3 py-2 text-sm w-full" onchange="handleConnectionSetChange('${recordId}', this.value)">
+                                ${setEntries.length === 0 ? '<option value="">No sets available</option>' : ''}
+                                ${setEntries.map(([id, set]) => `<option value="${id}" ${id === selectedSetId ? 'selected' : ''}>${set.name || id}</option>`).join('')}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Search records</label>
+                            <input
+                                type="text"
+                                class="border rounded px-3 py-2 text-sm w-full"
+                                placeholder="Search by name or ID"
+                                value="${builder.searchQuery || ''}"
+                                oninput="handleConnectionSearchChange('${recordId}', this.value)"
+                                ${!selectedSetId ? 'disabled' : ''}
+                            />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Connect to</label>
+                            <select id="newConnectionTarget" class="border rounded px-3 py-2 text-sm w-full" onchange="handleConnectionRecordChange('${recordId}', this.value)" ${!selectedSetId ? 'disabled' : ''}>
+                                <option value="">${selectedSetId ? 'Select a record' : 'Select a set first'}</option>
+                                ${availableRecords.length === 0 && selectedSetId ? `<option value="" disabled>${allAvailableRecords.length === 0 ? 'No records available' : 'No matches found'}</option>` : ''}
+                                ${availableRecords.map(rec => `<option value="${rec.id}" ${rec.id === selectedRecordId ? 'selected' : ''}>${getRecordDisplayName(rec.id) || selectedSet?.name || 'Record'}</option>`).join('')}
+                            </select>
+                        </div>
+
+                        <!-- Preview -->
+                        ${(selectedOperator && selectedVerb && selectedRecordId) ? `
+                            <div class="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
+                                <span class="text-blue-600 font-medium">${subjectName}</span>
+                                <span class="text-blue-800"> ${selectedVerb} </span>
+                                <span class="text-blue-600 font-medium">${getRecordDisplayName(selectedRecordId) || 'Record'}</span>
+                            </div>
+                        ` : ''}
+
+                        ${needsRelationType ? `
+                            <div class="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-yellow-800">
+                                This operator/verb combo doesn't have a relation type yet.
+                                <button class="text-blue-600 underline ml-1" onclick="openModal('connectionRelationModal'); populateConnectionRelationOptions('${selectedOperator}');">Create one</button>
+                            </div>
+                        ` : ''}
+
+                        <label class="form-label">notes</label>
+                        <input type="text" id="sidebarConnectionNotes" class="border rounded px-3 py-2 text-sm w-full" placeholder="" />
+
                         <div id="sidebarConnectionParams" class="grid grid-cols-1 gap-2"></div>
-                        <button class="btn btn-primary btn-sm" onclick="createConnectionFromSidebar('${recordId}')" ${(availableRecords.length === 0 || !selectedRecordId || !sidebarRelationId) ? 'disabled' : ''}>Add Connection</button>
+
+                        <button class="btn btn-primary btn-sm" onclick="createConnectionFromSidebar('${recordId}')" ${!canAddConnection || needsRelationType ? 'disabled' : ''}>Add Connection</button>
                         ${availableRecords.length === 0
                             ? `<p class="text-xs text-gray-500">${allAvailableRecords.length === 0 ? 'Add records to the selected set to create connections.' : 'No records match your search.'}</p>`
                             : ''}
@@ -19558,10 +19700,37 @@
             `;
 
             renderConnectionParamFields('sidebarConnectionParams', sidebarRelationId, builder.params || {});
-            const sidebarRelationSelect = document.getElementById('sidebarConnectionRelation');
-            if (sidebarRelationSelect) {
-                sidebarRelationSelect.onchange = (event) => {
-                    builder.relationId = event.target.value || null;
+
+            // Attach operator change handler
+            const operatorSelect = document.getElementById('sidebarOperator');
+            if (operatorSelect) {
+                operatorSelect.onchange = (event) => {
+                    builder.selectedOperator = event.target.value || null;
+                    // Clear verb if it doesn't belong to new operator
+                    if (builder.selectedVerb && builder.selectedOperator) {
+                        const verbsForOp = getModesForOperator(builder.selectedOperator);
+                        if (!verbsForOp.includes(builder.selectedVerb)) {
+                            builder.selectedVerb = null;
+                        }
+                    }
+                    builder.params = {};
+                    renderConnectionsSidebar(container, recordId);
+                };
+            }
+
+            // Attach verb change handler
+            const verbSelect = document.getElementById('sidebarVerb');
+            if (verbSelect) {
+                verbSelect.onchange = (event) => {
+                    const selectedOption = event.target.options[event.target.selectedIndex];
+                    builder.selectedVerb = event.target.value || null;
+                    // If verb selected without operator, derive operator from verb
+                    if (builder.selectedVerb && !builder.selectedOperator) {
+                        const derivedOp = selectedOption.dataset?.operator || getOperatorForVerb(builder.selectedVerb);
+                        if (derivedOp) {
+                            builder.selectedOperator = derivedOp;
+                        }
+                    }
                     builder.params = {};
                     renderConnectionsSidebar(container, recordId);
                 };
@@ -19613,16 +19782,35 @@
             const direction = isSubject ? '→' : (isOperand ? '←' : '↔');
             const timestamp = edge.updatedAt || edge.createdAt;
 
+            // Get operator info for styling
+            const operators = state.connectionModes?.operators || {};
+            const operatorInfo = operators[edge.operator] || {};
+            const operatorSymbol = operatorInfo.symbol || edge.operator || 'CON';
+
+            // Format as SPO statement
+            const subjectLabel = isSubject ? 'This record' : renderEntityLabel(edge.subject);
+            const objectLabel = isSubject ? renderEntityLabel(otherRef) : 'This record';
+            const verb = edge.mode || 'related to';
+
             return `
                 <div class="border border-gray-200 rounded-lg p-3 bg-white">
-                    <div class="flex items-center justify-between gap-3">
-                        <div>
-                            <div class="font-semibold">${direction} ${renderEntityLabel(otherRef)}</div>
-                            <div class="text-xs text-gray-500">${edge.operator || 'CON'} • ${edge.mode || 'related to'} · ${timestamp ? getTimeAgo(timestamp) : ''}</div>
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex-1">
+                            <!-- SPO Statement Display -->
+                            <div class="text-sm mb-1">
+                                <span class="font-medium">${direction} ${renderEntityLabel(otherRef)}</span>
+                            </div>
+                            <div class="text-xs text-gray-600 bg-gray-50 rounded px-2 py-1 inline-block">
+                                <span class="font-mono text-gray-500">${operatorSymbol}</span>
+                                <span class="text-gray-700">${edge.operator || 'CON'}</span>
+                                <span class="mx-1">•</span>
+                                <span class="text-gray-800">${verb}</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-1">${timestamp ? getTimeAgo(timestamp) : ''}</div>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <button class="text-sm text-blue-600" onclick="editConnectionParameters('${edge.id}', '${recordId}')">Edit parameters</button>
-                            <button class="text-sm text-red-500" onclick="deleteConnectionFromSidebar('${edge.id}', '${recordId}')">Remove</button>
+                        <div class="flex items-center gap-2 text-xs">
+                            <button class="text-blue-600 hover:underline" onclick="editConnectionParameters('${edge.id}', '${recordId}')">Edit parameters</button>
+                            <button class="text-red-500 hover:underline" onclick="deleteConnectionFromSidebar('${edge.id}', '${recordId}')">Remove</button>
                         </div>
                     </div>
                     <div class="mt-2">
