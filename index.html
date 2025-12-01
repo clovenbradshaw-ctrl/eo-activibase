@@ -4026,12 +4026,16 @@
                         <label class="flex items-start gap-2 font-medium">
                             <input type="radio" name="viewCreationMode" value="key">
                             <div class="flex-1">
-                                <div>Create From Key</div>
+                                <div>Create From Key or Value</div>
                                 <div class="mt-2">
-                                    <select id="keyCandidateSelect" class="w-full" disabled>
+                                    <div class="relative">
+                                        <input type="text" id="keySearchInput" class="w-full" placeholder="Search for a field or value..." autocomplete="off">
+                                        <div id="keySearchResults" class="absolute z-50 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto hidden"></div>
+                                    </div>
+                                    <select id="keyCandidateSelect" class="w-full mt-2" disabled>
                                         <option value="">Scanning for identity properties…</option>
                                     </select>
-                                    <p class="form-hint">We look for reused identifiers, links, and fuzzy matches to seed the shape.</p>
+                                    <p class="form-hint">Search above or select a detected key. We look for reused identifiers, links, and fuzzy matches to seed the shape.</p>
                                 </div>
                             </div>
                         </label>
@@ -10661,7 +10665,7 @@
                     if (keySelect) {
                         keySelect.disabled = candidates.length === 0;
                         keySelect.innerHTML = candidates.length === 0
-                            ? '<option value="">No stable identity properties detected yet</option>'
+                            ? '<option value="">No auto-detected keys (use search above)</option>'
                             : candidates.map(c => `<option value="${c.setId}:${c.fieldId}">${c.fieldName} (${state.sets.get(c.setId)?.name || 'Set'})</option>`).join('');
 
                         // Re-check if key mode is selected and update disabled state
@@ -10675,6 +10679,193 @@
 
             syncIconSelector('newViewIcon');
             openModal('addViewModal');
+
+            // Initialize key/value search
+            initKeyValueSearch();
+        }
+
+        function initKeyValueSearch() {
+            const searchInput = document.getElementById('keySearchInput');
+            const resultsContainer = document.getElementById('keySearchResults');
+            const keySelect = document.getElementById('keyCandidateSelect');
+
+            if (!searchInput || !resultsContainer) return;
+
+            // Clear previous state
+            searchInput.value = '';
+            resultsContainer.innerHTML = '';
+            resultsContainer.classList.add('hidden');
+
+            let debounceTimer;
+
+            searchInput.oninput = () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    const query = searchInput.value.trim();
+                    if (query.length < 2) {
+                        resultsContainer.classList.add('hidden');
+                        return;
+                    }
+
+                    const results = searchKeysAndValues(query);
+                    renderKeyValueSearchResults(results, resultsContainer, keySelect, searchInput);
+                }, 150);
+            };
+
+            // Close dropdown when clicking outside
+            searchInput.onblur = (e) => {
+                setTimeout(() => {
+                    if (!resultsContainer.contains(document.activeElement)) {
+                        resultsContainer.classList.add('hidden');
+                    }
+                }, 200);
+            };
+
+            searchInput.onfocus = () => {
+                if (searchInput.value.trim().length >= 2) {
+                    resultsContainer.classList.remove('hidden');
+                }
+            };
+        }
+
+        function searchKeysAndValues(query) {
+            const q = query.toLowerCase();
+            const results = [];
+            const seen = new Set();
+
+            getSetsForWorld().forEach(set => {
+                if (!set || !set.schema) return;
+
+                // Search fields by name
+                set.schema.forEach(field => {
+                    if (field && field.name && field.name.toLowerCase().includes(q)) {
+                        const key = `field:${set.id}:${field.id}`;
+                        if (!seen.has(key)) {
+                            results.push({
+                                type: 'field',
+                                setId: set.id,
+                                setName: set.name,
+                                fieldId: field.id,
+                                fieldName: field.name,
+                                fieldType: field.type,
+                                label: field.name,
+                                sublabel: `Field in ${set.name}`
+                            });
+                            seen.add(key);
+                        }
+                    }
+                });
+
+                // Search unique values in fields
+                if (set.records && set.records.size > 0) {
+                    set.schema.forEach(field => {
+                        if (!field) return;
+
+                        const uniqueValues = new Map();
+                        set.records.forEach((record, recordId) => {
+                            const value = record[field.id];
+                            if (value != null && value !== '') {
+                                const valueStr = String(value);
+                                if (valueStr.toLowerCase().includes(q)) {
+                                    if (!uniqueValues.has(valueStr)) {
+                                        uniqueValues.set(valueStr, { count: 0, recordId });
+                                    }
+                                    uniqueValues.get(valueStr).count++;
+                                }
+                            }
+                        });
+
+                        // Add unique values that appear multiple times (good key candidates)
+                        uniqueValues.forEach((info, valueStr) => {
+                            const key = `value:${set.id}:${field.id}:${valueStr}`;
+                            if (!seen.has(key) && results.length < 50) {
+                                results.push({
+                                    type: 'value',
+                                    setId: set.id,
+                                    setName: set.name,
+                                    fieldId: field.id,
+                                    fieldName: field.name,
+                                    value: valueStr,
+                                    count: info.count,
+                                    label: valueStr,
+                                    sublabel: `${field.name} in ${set.name} (${info.count} records)`
+                                });
+                                seen.add(key);
+                            }
+                        });
+                    });
+                }
+            });
+
+            // Sort: fields first, then values by count
+            results.sort((a, b) => {
+                if (a.type !== b.type) return a.type === 'field' ? -1 : 1;
+                if (a.type === 'value') return (b.count || 0) - (a.count || 0);
+                return a.label.localeCompare(b.label);
+            });
+
+            return results.slice(0, 20);
+        }
+
+        function renderKeyValueSearchResults(results, container, keySelect, searchInput) {
+            if (results.length === 0) {
+                container.innerHTML = '<div class="px-3 py-2 text-sm text-gray-500">No matching fields or values found</div>';
+                container.classList.remove('hidden');
+                return;
+            }
+
+            let html = '';
+            results.forEach(result => {
+                const icon = result.type === 'field' ? '<i class="ph ph-columns"></i>' : '<i class="ph ph-hash"></i>';
+                html += `
+                    <div class="key-search-result px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0"
+                         data-set-id="${result.setId}"
+                         data-field-id="${result.fieldId}"
+                         data-type="${result.type}"
+                         data-value="${escapeHtml(result.value || '')}">
+                        <div class="flex items-center gap-2">
+                            ${icon}
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-gray-900 truncate">${escapeHtml(result.label)}</div>
+                                <div class="text-xs text-gray-500 truncate">${escapeHtml(result.sublabel)}</div>
+                            </div>
+                            <span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">${result.type}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            container.classList.remove('hidden');
+
+            // Add click handlers
+            container.querySelectorAll('.key-search-result').forEach(el => {
+                el.onclick = () => {
+                    const setId = el.dataset.setId;
+                    const fieldId = el.dataset.fieldId;
+                    const selectValue = `${setId}:${fieldId}`;
+
+                    // Update the select dropdown with this option
+                    const existingOption = Array.from(keySelect.options).find(opt => opt.value === selectValue);
+                    if (!existingOption) {
+                        const optionText = el.querySelector('.text-sm.font-medium').textContent + ' (' + el.querySelector('.text-xs.text-gray-500').textContent.split(' in ')[1]?.replace(/\).*/, ')') || '';
+                        const newOption = new Option(optionText || fieldId, selectValue, true, true);
+                        keySelect.insertBefore(newOption, keySelect.firstChild);
+                    }
+                    keySelect.value = selectValue;
+                    keySelect.disabled = false;
+
+                    // Update search input to show selection
+                    searchInput.value = el.querySelector('.text-sm.font-medium').textContent;
+
+                    // Hide results
+                    container.classList.add('hidden');
+
+                    // Auto-select the "Create From Key or Value" radio
+                    const radioKey = document.querySelector('input[name="viewCreationMode"][value="key"]');
+                    if (radioKey) radioKey.checked = true;
+                };
+            });
         }
 
         function getTabKey(setId, viewId) {
