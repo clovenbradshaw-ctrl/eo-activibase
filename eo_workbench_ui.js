@@ -283,6 +283,7 @@ function renderViewToolbar(state, setId) {
     const schemaCount = (set.schema || []).length;
     const visibleCount = (currentView?.visibleFieldIds || []).length;
     const hiddenCount = (currentView?.hiddenFields || []).length;
+    const recordCount = set.records?.size || 0;
 
     return `
         <div class="view-toolbar">
@@ -295,6 +296,10 @@ function renderViewToolbar(state, setId) {
                 <button class="toolbar-btn" id="btnAddLinkedField" title="Add field from linked set">
                     <span class="icon">🔗</span>
                     <span class="label">Linked Fields</span>
+                </button>
+                <button class="toolbar-btn highlight" id="btnJSONScrubber" title="JSON Scrubber - Explore data as cards">
+                    <span class="icon">🎴</span>
+                    <span class="label">Scrub JSON</span>
                 </button>
             </div>
             <div class="toolbar-right">
@@ -335,6 +340,131 @@ function showAvailableFieldsExplorer(state, setId) {
 }
 
 /**
+ * Show the JSON Scrubber panel
+ * Allows exploring all data as interactive cards for pivoting
+ * @param {Object} state - Global state
+ * @param {string} setId - Current set ID
+ * @param {string} mode - 'records' | 'schema' | 'record'
+ * @param {Object} record - Optional specific record to scrub
+ */
+function showJSONScrubber(state, setId, mode = 'records', record = null) {
+    const set = state.sets.get(setId);
+    const viewId = state.currentViewId;
+    const view = state.views?.get(viewId);
+
+    if (!set) {
+        console.warn('Cannot show JSON scrubber: missing set');
+        return;
+    }
+
+    // Use the EOJSONScrubber component
+    if (window.EOJSONScrubber) {
+        const scrubber = new window.EOJSONScrubber({
+            state,
+            set,
+            view,
+            onViewCreate: (newView) => {
+                // Switch to the new view
+                state.currentViewId = newView.id;
+                if (window.switchSet) {
+                    window.switchSet(setId, newView.id);
+                }
+            },
+            onFilterApply: (filter) => {
+                // Apply filter to current view
+                if (view) {
+                    if (!view.filters) view.filters = [];
+                    view.filters.push(filter);
+                    view.isDirty = true;
+                    if (window.renderCurrentView) {
+                        window.renderCurrentView();
+                    }
+                }
+            },
+            onGroupApply: (fieldId) => {
+                // Apply grouping to current view
+                if (view) {
+                    view.groups = [{ fieldId }];
+                    view.isDirty = true;
+                    if (window.renderCurrentView) {
+                        window.renderCurrentView();
+                    }
+                }
+            }
+        });
+
+        if (mode === 'record' && record) {
+            scrubber.showForRecord(record, set, state);
+        } else if (mode === 'schema') {
+            scrubber.showForSchema(set, state);
+        } else {
+            // Default: show all records aggregated
+            const records = Array.from(set.records?.values() || []);
+            scrubber.showForRecords(records, set, state);
+        }
+    } else {
+        console.warn('EOJSONScrubber not loaded');
+        alert('JSON Scrubber component not available. Please ensure eo_json_scrubber.js is loaded.');
+    }
+}
+
+/**
+ * Show JSON Scrubber mode selection menu
+ */
+function showJSONScrubberMenu(state, setId, buttonElement) {
+    const set = state.sets.get(setId);
+    if (!set) return;
+
+    const recordCount = set.records?.size || 0;
+    const schemaCount = (set.schema || []).length;
+
+    const menu = document.createElement('div');
+    menu.className = 'context-menu scrubber-menu';
+    menu.innerHTML = `
+        <div class="menu-header">Scrub Mode</div>
+        <div class="menu-item" data-mode="records">
+            <span class="icon">🎴</span>
+            <span class="label">All Records</span>
+            <span class="meta">${recordCount} records</span>
+        </div>
+        <div class="menu-item" data-mode="schema">
+            <span class="icon">🔧</span>
+            <span class="label">Schema Only</span>
+            <span class="meta">${schemaCount} fields</span>
+        </div>
+        <div class="menu-separator"></div>
+        <div class="menu-hint">Click a row in the table to scrub a single record</div>
+    `;
+
+    // Position near button
+    const rect = buttonElement.getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top = `${rect.bottom + 5}px`;
+    menu.style.left = `${rect.left}px`;
+
+    document.body.appendChild(menu);
+
+    // Handle menu item clicks
+    menu.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const mode = item.dataset.mode;
+            menu.remove();
+            showJSONScrubber(state, setId, mode);
+        });
+    });
+
+    // Close on click outside
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu(e) {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        });
+    }, 0);
+}
+
+/**
  * Attach view toolbar event listeners
  * Call this after rendering the toolbar
  */
@@ -359,6 +489,14 @@ function attachViewToolbarListeners(state, setId) {
                     modal.show(view, set, state);
                 }
             }
+        });
+    }
+
+    // JSON Scrubber button
+    const btnScrubber = document.getElementById('btnJSONScrubber');
+    if (btnScrubber) {
+        btnScrubber.addEventListener('click', (e) => {
+            showJSONScrubberMenu(state, setId, e.currentTarget);
         });
     }
 
@@ -1042,6 +1180,8 @@ if (typeof module !== 'undefined' && module.exports) {
         showSaveViewAsDialog,
         renderViewToolbar,
         showAvailableFieldsExplorer,
+        showJSONScrubber,
+        showJSONScrubberMenu,
         attachViewToolbarListeners,
         renderStructuralOperationsToolbar,
         showDedupeDialog,
@@ -1056,6 +1196,8 @@ if (typeof module !== 'undefined' && module.exports) {
 // Also expose to window for browser use
 if (typeof window !== 'undefined') {
     window.showAvailableFieldsExplorer = showAvailableFieldsExplorer;
+    window.showJSONScrubber = showJSONScrubber;
+    window.showJSONScrubberMenu = showJSONScrubberMenu;
     window.renderViewToolbar = renderViewToolbar;
     window.attachViewToolbarListeners = attachViewToolbarListeners;
 }
