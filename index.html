@@ -3383,7 +3383,7 @@
     </div>
 
     <div id="connectionRelationModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-md">
+        <div class="modal-container bg-white w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
             <div class="modal-header flex items-center justify-between">
                 <div>
                     <h2 class="text-xl font-bold text-gray-900" id="connectionRelationModalTitle">Add Relation Type</h2>
@@ -3395,7 +3395,7 @@
                     </svg>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body overflow-y-auto flex-1">
                 <form id="connectionRelationForm" class="space-y-4">
                     <div>
                         <label class="form-label">Category</label>
@@ -3413,12 +3413,90 @@
                         <label class="form-label">Description (optional)</label>
                         <input id="connectionRelationDescription" type="text" class="border rounded px-3 py-2 w-full" placeholder="When to use this relation" />
                     </div>
+
+                    <!-- Parameter Schema Section -->
+                    <div class="border-t border-gray-200 pt-4 mt-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <label class="form-label mb-0">Parameter Fields</label>
+                            <button type="button" class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1" onclick="addRelationParamField()">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                Add field
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-3">Define what data connections of this type should capture</p>
+                        <div id="relationParamFieldsList" class="space-y-3">
+                            <!-- Dynamically populated parameter fields -->
+                        </div>
+                    </div>
+
                     <input id="connectionRelationName" type="hidden" value="" />
                 </form>
             </div>
             <div class="modal-footer flex justify-end gap-2">
                 <button class="btn btn-secondary" type="button" onclick="closeModal('connectionRelationModal')">Cancel</button>
                 <button class="btn btn-primary" type="submit" form="connectionRelationForm" id="connectionRelationSubmit">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Parameter Editor Modal -->
+    <div id="connectionParamEditorModal" class="hidden fixed inset-0 bg-black bg-opacity-30 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between border-b border-gray-200 pb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Edit Connection Parameters</h2>
+                    <p class="text-sm text-gray-500" id="connectionParamEditorSubtitle">Configure this connection's properties</p>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600 transition p-1" onclick="closeConnectionParamEditor()" aria-label="Close">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body overflow-y-auto flex-1 py-4">
+                <!-- Connection summary -->
+                <div class="bg-gray-50 rounded-lg p-3 mb-4" id="connectionParamEditorSummary">
+                    <!-- Filled dynamically -->
+                </div>
+
+                <!-- Parameter fields -->
+                <form id="connectionParamEditorForm" class="space-y-4">
+                    <div id="connectionParamEditorFields">
+                        <!-- Dynamically generated parameter fields -->
+                    </div>
+                </form>
+
+                <!-- Add custom parameter -->
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <button type="button" class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1" onclick="toggleAddCustomParam()">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Add custom parameter
+                    </button>
+                    <div id="addCustomParamSection" class="hidden mt-3 p-3 bg-gray-50 rounded-lg">
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="text" id="customParamName" placeholder="Parameter name" class="border rounded px-3 py-2 text-sm" />
+                            <select id="customParamType" class="border rounded px-3 py-2 text-sm">
+                                <option value="text">Text</option>
+                                <option value="number">Number</option>
+                                <option value="select">Select</option>
+                                <option value="checkbox">Checkbox</option>
+                                <option value="date">Date</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="customParamValue" placeholder="Value" class="border rounded px-3 py-2 text-sm flex-1" />
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="addCustomParamToEditor()">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2 border-t border-gray-200 pt-4">
+                <button class="btn btn-secondary" type="button" onclick="closeConnectionParamEditor()">Cancel</button>
+                <button class="btn btn-primary" type="button" onclick="saveConnectionParams()">Save Parameters</button>
             </div>
         </div>
     </div>
@@ -6274,6 +6352,25 @@
             const optionalParams = normalizeParamList(relation.optionalParams || []);
             const worldId = relation.worldId || state.currentWorldId;
 
+            // Process parameterSchema - the new typed parameter definitions
+            // Schema format: { paramName: { type, label, required, default, options, min, max, description } }
+            const parameterSchema = relation.parameterSchema || {};
+
+            // Auto-generate schema from requiredParams/optionalParams if not provided
+            const mergedSchema = { ...parameterSchema };
+            requiredParams.forEach(name => {
+                if (!mergedSchema[name]) {
+                    mergedSchema[name] = { type: 'text', label: name, required: true };
+                } else {
+                    mergedSchema[name].required = true;
+                }
+            });
+            optionalParams.forEach(name => {
+                if (!mergedSchema[name]) {
+                    mergedSchema[name] = { type: 'text', label: name, required: false };
+                }
+            });
+
             return {
                 ...relation,
                 id: relation.id || `REL_${relation.operator}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -6283,6 +6380,7 @@
                 description: relation.description || '',
                 requiredParams,
                 optionalParams,
+                parameterSchema: mergedSchema,
                 createdAt: relation.createdAt || new Date().toISOString(),
                 worldId
             };
@@ -15264,6 +15362,19 @@
             form.querySelector('#connectionRelationDescription').value = relation.description || '';
             state.connectionRelationFormState.editingId = relation.id;
 
+            // Load parameter schema into form state
+            const schema = relation.parameterSchema || {};
+            state.connectionRelationFormState.paramFields = Object.entries(schema).map(([name, fieldDef]) => ({
+                name,
+                type: fieldDef.type || 'text',
+                label: fieldDef.label || name,
+                required: fieldDef.required || false,
+                default: fieldDef.default,
+                description: fieldDef.description || '',
+                options: fieldDef.options || []
+            }));
+            renderRelationParamFieldsList();
+
             const submit = document.getElementById('connectionRelationSubmit');
             if (submit) submit.textContent = 'Save';
             const title = document.getElementById('connectionRelationModalTitle');
@@ -15273,14 +15384,142 @@
 
         function resetConnectionRelationForm() {
             state.connectionRelationFormState.editingId = null;
+            state.connectionRelationFormState.paramFields = [];
             const form = document.getElementById('connectionRelationForm');
             if (!form) return;
             form.reset();
             populateConnectionRelationOptions();
+            renderRelationParamFieldsList();
             const submit = document.getElementById('connectionRelationSubmit');
             if (submit) submit.textContent = 'Add';
             const title = document.getElementById('connectionRelationModalTitle');
             if (title) title.textContent = 'Add Relation Type';
+        }
+
+        // Parameter field management for relation form
+        function renderRelationParamFieldsList() {
+            const container = document.getElementById('relationParamFieldsList');
+            if (!container) return;
+
+            const fields = state.connectionRelationFormState.paramFields || [];
+
+            if (fields.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-400 italic">No parameter fields defined yet</p>';
+                return;
+            }
+
+            container.innerHTML = fields.map((field, index) => `
+                <div class="bg-gray-50 rounded-lg p-3 border border-gray-200" data-param-index="${index}">
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <input type="text" class="border rounded px-2 py-1 text-sm flex-1" placeholder="Field name"
+                            value="${field.name || ''}" onchange="updateRelationParamField(${index}, 'name', this.value)" />
+                        <button type="button" class="text-gray-400 hover:text-red-500 p-1" onclick="removeRelationParamField(${index})">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <select class="border rounded px-2 py-1 text-sm" onchange="updateRelationParamField(${index}, 'type', this.value)">
+                            <option value="text" ${field.type === 'text' ? 'selected' : ''}>Text</option>
+                            <option value="number" ${field.type === 'number' ? 'selected' : ''}>Number</option>
+                            <option value="select" ${field.type === 'select' ? 'selected' : ''}>Select</option>
+                            <option value="checkbox" ${field.type === 'checkbox' ? 'selected' : ''}>Checkbox</option>
+                            <option value="date" ${field.type === 'date' ? 'selected' : ''}>Date</option>
+                            <option value="textarea" ${field.type === 'textarea' ? 'selected' : ''}>Long text</option>
+                        </select>
+                        <label class="flex items-center gap-2 text-sm">
+                            <input type="checkbox" ${field.required ? 'checked' : ''} onchange="updateRelationParamField(${index}, 'required', this.checked)" />
+                            Required
+                        </label>
+                    </div>
+                    <input type="text" class="border rounded px-2 py-1 text-sm w-full mb-2" placeholder="Label (display name)"
+                        value="${field.label || ''}" onchange="updateRelationParamField(${index}, 'label', this.value)" />
+                    <input type="text" class="border rounded px-2 py-1 text-sm w-full mb-2" placeholder="Default value (optional)"
+                        value="${field.default !== undefined ? field.default : ''}" onchange="updateRelationParamField(${index}, 'default', this.value)" />
+                    ${field.type === 'select' ? `
+                        <input type="text" class="border rounded px-2 py-1 text-sm w-full" placeholder="Options (comma-separated)"
+                            value="${(field.options || []).join(', ')}" onchange="updateRelationParamFieldOptions(${index}, this.value)" />
+                    ` : ''}
+                    <input type="text" class="border rounded px-2 py-1 text-sm w-full mt-2" placeholder="Description (optional)"
+                        value="${field.description || ''}" onchange="updateRelationParamField(${index}, 'description', this.value)" />
+                </div>
+            `).join('');
+        }
+
+        function addRelationParamField() {
+            if (!state.connectionRelationFormState.paramFields) {
+                state.connectionRelationFormState.paramFields = [];
+            }
+            state.connectionRelationFormState.paramFields.push({
+                name: '',
+                type: 'text',
+                label: '',
+                required: false,
+                default: undefined,
+                description: ''
+            });
+            renderRelationParamFieldsList();
+        }
+
+        function removeRelationParamField(index) {
+            state.connectionRelationFormState.paramFields.splice(index, 1);
+            renderRelationParamFieldsList();
+        }
+
+        function updateRelationParamField(index, key, value) {
+            if (state.connectionRelationFormState.paramFields[index]) {
+                state.connectionRelationFormState.paramFields[index][key] = value;
+            }
+        }
+
+        function updateRelationParamFieldOptions(index, value) {
+            if (state.connectionRelationFormState.paramFields[index]) {
+                state.connectionRelationFormState.paramFields[index].options = value.split(',').map(o => o.trim()).filter(Boolean);
+            }
+        }
+
+        function collectRelationParamSchema() {
+            const fields = state.connectionRelationFormState.paramFields || [];
+            const schema = {};
+            const requiredParams = [];
+            const optionalParams = [];
+
+            fields.forEach(field => {
+                if (!field.name) return;
+                const name = field.name.trim();
+                if (!name) return;
+
+                schema[name] = {
+                    type: field.type || 'text',
+                    label: field.label || name,
+                    required: field.required || false,
+                    description: field.description || ''
+                };
+
+                if (field.default !== undefined && field.default !== '') {
+                    // Convert default value based on type
+                    if (field.type === 'number') {
+                        schema[name].default = parseFloat(field.default) || 0;
+                    } else if (field.type === 'checkbox') {
+                        schema[name].default = field.default === 'true' || field.default === true;
+                    } else {
+                        schema[name].default = field.default;
+                    }
+                }
+
+                if (field.type === 'select' && field.options?.length) {
+                    schema[name].options = field.options;
+                }
+
+                if (field.required) {
+                    requiredParams.push(name);
+                } else {
+                    optionalParams.push(name);
+                }
+            });
+
+            return { parameterSchema: schema, requiredParams, optionalParams };
         }
 
         function openConnectionRelationModal(relationId = null) {
@@ -15298,12 +15537,18 @@
             const name = form.querySelector('#connectionRelationName')?.value || '';
             const description = form.querySelector('#connectionRelationDescription')?.value || '';
 
+            // Collect parameter schema from form
+            const { parameterSchema, requiredParams, optionalParams } = collectRelationParamSchema();
+
             const payload = {
                 id: state.connectionRelationFormState.editingId,
                 operator,
                 mode,
                 name,
                 description,
+                parameterSchema,
+                requiredParams,
+                optionalParams,
                 worldId: state.currentWorldId
             };
 
@@ -15335,31 +15580,93 @@
                 return;
             }
 
-            const allParams = [...relation.requiredParams, ...relation.optionalParams];
+            // Use parameterSchema if available, otherwise fall back to simple param lists
+            const schema = relation.parameterSchema || {};
+            const allParams = Object.keys(schema).length > 0
+                ? Object.keys(schema)
+                : [...relation.requiredParams, ...relation.optionalParams];
+
             if (!allParams.length) {
                 container.innerHTML = '<p class="text-sm text-gray-500">No parameters required for this relation.</p>';
                 return;
             }
 
             container.innerHTML = allParams.map(name => {
-                const required = relation.requiredParams.includes(name);
-                const value = params[name] !== undefined ? params[name] : '';
-                const safeValue = typeof value === 'object' ? JSON.stringify(value) : String(value || '');
+                const fieldSchema = schema[name] || {
+                    type: 'text',
+                    label: name,
+                    required: relation.requiredParams.includes(name)
+                };
+                const { type = 'text', label = name, required = false, options = [], min, max, step, description, placeholder } = fieldSchema;
+                const defaultValue = fieldSchema.default;
+                const value = params[name] !== undefined ? params[name] : (defaultValue !== undefined ? defaultValue : '');
+                const safeValue = typeof value === 'object' ? JSON.stringify(value) : String(value ?? '');
                 const escapedValue = safeValue
                     .replace(/&/g, '&amp;')
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;')
                     .replace(/"/g, '&quot;');
+
+                // Build the field based on type
+                let fieldHtml = '';
+                const commonAttrs = `data-param-name="${name}" data-param-required="${required ? 'true' : 'false'}" data-param-type="${type}" class="border rounded px-3 py-2 w-full text-sm"`;
+
+                switch (type) {
+                    case 'select':
+                        const optionsList = Array.isArray(options) ? options : [];
+                        fieldHtml = `
+                            <select ${commonAttrs}>
+                                <option value="">Select...</option>
+                                ${optionsList.map(opt => {
+                                    const optVal = typeof opt === 'object' ? opt.value : opt;
+                                    const optLabel = typeof opt === 'object' ? opt.label : opt;
+                                    return `<option value="${optVal}" ${String(value) === String(optVal) ? 'selected' : ''}>${optLabel}</option>`;
+                                }).join('')}
+                            </select>
+                        `;
+                        break;
+
+                    case 'number':
+                        fieldHtml = `
+                            <input type="number" ${commonAttrs} value="${escapedValue}"
+                                ${min !== undefined ? `min="${min}"` : ''}
+                                ${max !== undefined ? `max="${max}"` : ''}
+                                ${step !== undefined ? `step="${step}"` : ''} />
+                        `;
+                        break;
+
+                    case 'checkbox':
+                        const isChecked = value === true || value === 'true' || value === 1;
+                        fieldHtml = `
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" ${commonAttrs.replace('w-full', '')} ${isChecked ? 'checked' : ''} />
+                                ${description ? `<span class="text-sm text-gray-600">${description}</span>` : ''}
+                            </div>
+                        `;
+                        break;
+
+                    case 'date':
+                        fieldHtml = `<input type="date" ${commonAttrs} value="${escapedValue}" />`;
+                        break;
+
+                    case 'textarea':
+                        fieldHtml = `<textarea ${commonAttrs} rows="2">${escapedValue}</textarea>`;
+                        break;
+
+                    default: // text
+                        fieldHtml = `<input type="text" ${commonAttrs} value="${escapedValue}" ${placeholder ? `placeholder="${placeholder}"` : ''} />`;
+                }
+
+                const defaultHint = defaultValue !== undefined
+                    ? `<span class="text-xs text-gray-400 mt-0.5 block">Default: ${typeof defaultValue === 'object' ? JSON.stringify(defaultValue) : defaultValue}</span>`
+                    : '';
+
                 return `
                     <div>
-                        <label class="form-label">${name}${required ? ' *' : ''}</label>
-                        <input
-                            type="text"
-                            class="border rounded px-3 py-2 w-full"
-                            data-param-name="${name}"
-                            data-param-required="${required ? 'true' : 'false'}"
-                            value="${escapedValue}"
-                        />
+                        <label class="form-label">${label}${required ? ' <span class="text-red-500">*</span>' : ''}</label>
+                        ${fieldHtml}
+                        ${description && type !== 'checkbox' ? `<p class="text-xs text-gray-500 mt-0.5">${description}</p>` : ''}
+                        ${defaultHint}
                     </div>
                 `;
             }).join('');
@@ -20094,25 +20401,84 @@
                     </div>
                     <div class="mt-2">
                         <div class="text-xs font-semibold text-gray-600 mb-1">Parameters</div>
-                        ${renderConnectionParams(edge.params)}
+                        ${renderConnectionParams(edge.params, edge.relationId)}
                     </div>
                 </div>
             `;
         }
 
-        function renderConnectionParams(params) {
+        function renderConnectionParams(params, relationId = null) {
             if (!params || !Object.keys(params).length) {
-                return '<p class="text-xs text-gray-500">No parameters</p>';
+                return '<p class="text-xs text-gray-500 italic">No parameters set</p>';
             }
 
-            return `<dl class="text-xs text-gray-700 space-y-1">
-                ${Object.entries(params).map(([key, value]) => `
-                    <div class="flex justify-between gap-2">
-                        <dt class="font-medium text-gray-600">${key}</dt>
-                        <dd class="text-right break-all text-gray-800">${typeof value === 'object' ? JSON.stringify(value) : value}</dd>
-                    </div>
-                `).join('')}
+            // Get schema for type-aware rendering if available
+            const relation = relationId ? findConnectionRelation(relationId) : null;
+            const schema = relation?.parameterSchema || {};
+
+            return `<dl class="text-xs space-y-1.5">
+                ${Object.entries(params).map(([key, value]) => {
+                    const fieldSchema = schema[key] || {};
+                    const label = fieldSchema.label || key;
+                    const formattedValue = formatParamValue(value, fieldSchema);
+
+                    return `
+                        <div class="flex justify-between gap-2 items-start">
+                            <dt class="font-medium text-gray-600">${label}</dt>
+                            <dd class="text-right text-gray-800">${formattedValue}</dd>
+                        </div>
+                    `;
+                }).join('')}
             </dl>`;
+        }
+
+        function formatParamValue(value, schema = {}) {
+            const { type = 'text', options = [] } = schema;
+
+            if (value === null || value === undefined) {
+                return '<span class="text-gray-400 italic">not set</span>';
+            }
+
+            switch (type) {
+                case 'checkbox':
+                    return value === true || value === 'true' || value === 1
+                        ? '<span class="text-green-600">Yes</span>'
+                        : '<span class="text-gray-500">No</span>';
+
+                case 'select':
+                    // Find label for the selected value if options have label/value format
+                    if (Array.isArray(options)) {
+                        const option = options.find(opt =>
+                            typeof opt === 'object' ? opt.value === value : opt === value
+                        );
+                        if (option && typeof option === 'object' && option.label) {
+                            return `<span class="bg-gray-100 px-1.5 py-0.5 rounded">${option.label}</span>`;
+                        }
+                    }
+                    return `<span class="bg-gray-100 px-1.5 py-0.5 rounded">${value}</span>`;
+
+                case 'date':
+                    try {
+                        const date = new Date(value);
+                        return date.toLocaleDateString();
+                    } catch {
+                        return value;
+                    }
+
+                case 'number':
+                    return `<span class="font-mono">${value}</span>`;
+
+                default:
+                    if (typeof value === 'object') {
+                        return `<code class="text-xs bg-gray-100 px-1 rounded">${JSON.stringify(value)}</code>`;
+                    }
+                    // Truncate long text values
+                    const strValue = String(value);
+                    if (strValue.length > 50) {
+                        return `<span title="${strValue.replace(/"/g, '&quot;')}">${strValue.substring(0, 47)}...</span>`;
+                    }
+                    return strValue;
+            }
         }
 
         function parseConnectionParams(raw) {
@@ -20132,6 +20498,14 @@
             return parsed;
         }
 
+        // State for the connection parameter editor modal
+        const connectionParamEditorState = {
+            connectionId: null,
+            recordId: null,
+            currentParams: {},
+            customParams: []
+        };
+
         function editConnectionParameters(connectionId, recordId) {
             const existing = state.connections.get(connectionId);
             if (!existing) {
@@ -20139,22 +20513,289 @@
                 return;
             }
 
-            const currentJson = JSON.stringify(existing.params || {}, null, 2);
-            const input = prompt('Edit relationship parameters (JSON object)', currentJson);
-            if (input === null) return;
+            // Store state for the modal
+            connectionParamEditorState.connectionId = connectionId;
+            connectionParamEditorState.recordId = recordId;
+            connectionParamEditorState.currentParams = { ...(existing.params || {}) };
+            connectionParamEditorState.customParams = [];
 
-            let parsed;
-            try {
-                parsed = parseConnectionParams(input);
-            } catch (err) {
-                showToast(err.message);
+            // Get the relation to understand parameter schema
+            const relation = findConnectionRelation(existing.relationId);
+
+            // Render connection summary
+            const summaryEl = document.getElementById('connectionParamEditorSummary');
+            if (summaryEl) {
+                const operatorInfo = state.connectionModes?.operators?.[existing.operator] || {};
+                const subjectName = getRecordDisplayName(existing.subject?.id) || existing.subject?.id || 'Unknown';
+                const operandName = getRecordDisplayName(existing.operand?.id) || existing.operand?.id || 'Unknown';
+                summaryEl.innerHTML = `
+                    <div class="flex items-center gap-2 text-sm">
+                        <span class="font-medium text-gray-900">${subjectName}</span>
+                        <span class="px-2 py-0.5 rounded bg-gray-200 text-gray-700 text-xs font-mono">
+                            ${operatorInfo.symbol || ''} ${existing.mode || existing.operator}
+                        </span>
+                        <span class="font-medium text-gray-900">${operandName}</span>
+                    </div>
+                    ${relation ? `<div class="text-xs text-gray-500 mt-1">${relation.description || ''}</div>` : ''}
+                `;
+            }
+
+            // Render parameter fields
+            renderConnectionParamEditorFields(existing, relation);
+
+            // Reset custom param section
+            const customSection = document.getElementById('addCustomParamSection');
+            if (customSection) customSection.classList.add('hidden');
+
+            openModal('connectionParamEditorModal');
+        }
+
+        function renderConnectionParamEditorFields(connection, relation) {
+            const container = document.getElementById('connectionParamEditorFields');
+            if (!container) return;
+
+            const schema = relation?.parameterSchema || {};
+            const currentParams = connectionParamEditorState.currentParams || {};
+
+            // Get all parameter names - from schema, existing params, and detect custom ones
+            const schemaParamNames = Object.keys(schema);
+            const existingParamNames = Object.keys(currentParams);
+            const allParamNames = [...new Set([...schemaParamNames, ...existingParamNames])];
+
+            if (allParamNames.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-500">No parameters defined for this connection type. Use "Add custom parameter" below to add data.</p>';
                 return;
             }
 
+            container.innerHTML = allParamNames.map(paramName => {
+                const fieldSchema = schema[paramName] || { type: 'text', label: paramName, required: false };
+                const currentValue = currentParams[paramName];
+                const defaultValue = fieldSchema.default;
+                const isFromSchema = schemaParamNames.includes(paramName);
+                const isCustom = !isFromSchema;
+                const hasOverride = currentValue !== undefined && currentValue !== defaultValue;
+
+                return renderTypedParamField(paramName, fieldSchema, currentValue, defaultValue, isCustom, hasOverride);
+            }).join('');
+        }
+
+        function renderTypedParamField(paramName, schema, currentValue, defaultValue, isCustom, hasOverride) {
+            const { type = 'text', label = paramName, required = false, options = [], min, max, step, description } = schema;
+            const value = currentValue !== undefined ? currentValue : (defaultValue !== undefined ? defaultValue : '');
+            const safeValue = typeof value === 'object' ? JSON.stringify(value) : String(value ?? '');
+            const escapedValue = safeValue
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+
+            // Generate label with indicators
+            const labelHtml = `
+                <label class="form-label flex items-center gap-2">
+                    <span>${label}${required ? ' <span class="text-red-500">*</span>' : ''}</span>
+                    ${isCustom ? '<span class="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">custom</span>' : ''}
+                    ${hasOverride && !isCustom ? '<span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">modified</span>' : ''}
+                </label>
+            `;
+
+            // Generate field based on type
+            let fieldHtml = '';
+            const commonAttrs = `data-param-name="${paramName}" data-param-type="${type}" class="border rounded px-3 py-2 w-full text-sm"`;
+
+            switch (type) {
+                case 'select':
+                    const optionsList = Array.isArray(options) ? options : [];
+                    fieldHtml = `
+                        <select ${commonAttrs}>
+                            <option value="">Select...</option>
+                            ${optionsList.map(opt => {
+                                const optVal = typeof opt === 'object' ? opt.value : opt;
+                                const optLabel = typeof opt === 'object' ? opt.label : opt;
+                                return `<option value="${optVal}" ${String(value) === String(optVal) ? 'selected' : ''}>${optLabel}</option>`;
+                            }).join('')}
+                        </select>
+                    `;
+                    break;
+
+                case 'number':
+                    fieldHtml = `
+                        <input type="number" ${commonAttrs} value="${escapedValue}"
+                            ${min !== undefined ? `min="${min}"` : ''}
+                            ${max !== undefined ? `max="${max}"` : ''}
+                            ${step !== undefined ? `step="${step}"` : ''} />
+                    `;
+                    break;
+
+                case 'checkbox':
+                    const isChecked = value === true || value === 'true' || value === 1;
+                    fieldHtml = `
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" ${commonAttrs.replace('w-full', '')} ${isChecked ? 'checked' : ''} />
+                            <span class="text-sm text-gray-600">${description || ''}</span>
+                        </div>
+                    `;
+                    break;
+
+                case 'date':
+                    fieldHtml = `<input type="date" ${commonAttrs} value="${escapedValue}" />`;
+                    break;
+
+                case 'textarea':
+                    fieldHtml = `<textarea ${commonAttrs} rows="3">${escapedValue}</textarea>`;
+                    break;
+
+                default: // text
+                    fieldHtml = `<input type="text" ${commonAttrs} value="${escapedValue}" ${schema.placeholder ? `placeholder="${schema.placeholder}"` : ''} />`;
+            }
+
+            // Default value hint
+            const defaultHint = defaultValue !== undefined && !isCustom
+                ? `<span class="text-xs text-gray-400">Default: ${typeof defaultValue === 'object' ? JSON.stringify(defaultValue) : defaultValue}</span>`
+                : '';
+
+            // Remove button for custom params
+            const removeBtn = isCustom
+                ? `<button type="button" class="text-xs text-red-500 hover:text-red-700" onclick="removeCustomParamFromEditor('${paramName}')">Remove</button>`
+                : '';
+
+            return `
+                <div class="param-field-group" data-param-name="${paramName}">
+                    <div class="flex items-center justify-between">
+                        ${labelHtml}
+                        ${removeBtn}
+                    </div>
+                    ${fieldHtml}
+                    ${description && type !== 'checkbox' ? `<p class="text-xs text-gray-500 mt-1">${description}</p>` : ''}
+                    ${defaultHint}
+                </div>
+            `;
+        }
+
+        function toggleAddCustomParam() {
+            const section = document.getElementById('addCustomParamSection');
+            if (section) {
+                section.classList.toggle('hidden');
+                if (!section.classList.contains('hidden')) {
+                    document.getElementById('customParamName')?.focus();
+                }
+            }
+        }
+
+        function addCustomParamToEditor() {
+            const nameInput = document.getElementById('customParamName');
+            const typeInput = document.getElementById('customParamType');
+            const valueInput = document.getElementById('customParamValue');
+
+            const name = nameInput?.value?.trim();
+            const type = typeInput?.value || 'text';
+            let value = valueInput?.value?.trim() || '';
+
+            if (!name) {
+                showToast('Parameter name is required');
+                return;
+            }
+
+            // Check if already exists
+            if (connectionParamEditorState.currentParams.hasOwnProperty(name)) {
+                showToast('Parameter already exists');
+                return;
+            }
+
+            // Convert value based on type
+            if (type === 'number' && value) {
+                value = parseFloat(value) || 0;
+            } else if (type === 'checkbox') {
+                value = value.toLowerCase() === 'true' || value === '1';
+            }
+
+            // Add to current params
+            connectionParamEditorState.currentParams[name] = value;
+            connectionParamEditorState.customParams.push(name);
+
+            // Re-render fields
+            const connection = state.connections.get(connectionParamEditorState.connectionId);
+            const relation = connection ? findConnectionRelation(connection.relationId) : null;
+            renderConnectionParamEditorFields(connection, relation);
+
+            // Clear inputs
+            nameInput.value = '';
+            valueInput.value = '';
+            document.getElementById('addCustomParamSection')?.classList.add('hidden');
+        }
+
+        function removeCustomParamFromEditor(paramName) {
+            delete connectionParamEditorState.currentParams[paramName];
+            connectionParamEditorState.customParams = connectionParamEditorState.customParams.filter(n => n !== paramName);
+
+            // Re-render fields
+            const connection = state.connections.get(connectionParamEditorState.connectionId);
+            const relation = connection ? findConnectionRelation(connection.relationId) : null;
+            renderConnectionParamEditorFields(connection, relation);
+        }
+
+        function closeConnectionParamEditor() {
+            closeModal('connectionParamEditorModal');
+            connectionParamEditorState.connectionId = null;
+            connectionParamEditorState.recordId = null;
+            connectionParamEditorState.currentParams = {};
+            connectionParamEditorState.customParams = [];
+        }
+
+        function saveConnectionParams() {
+            const { connectionId, recordId } = connectionParamEditorState;
+            if (!connectionId) {
+                showToast('No connection selected');
+                return;
+            }
+
+            // Collect values from form fields
+            const fieldsContainer = document.getElementById('connectionParamEditorFields');
+            const params = {};
+
+            if (fieldsContainer) {
+                const inputs = fieldsContainer.querySelectorAll('[data-param-name]');
+                inputs.forEach(input => {
+                    const name = input.dataset.paramName;
+                    const type = input.dataset.paramType || 'text';
+
+                    let value;
+                    if (type === 'checkbox') {
+                        value = input.checked;
+                    } else if (type === 'number') {
+                        value = input.value ? parseFloat(input.value) : null;
+                    } else if (input.tagName === 'TEXTAREA') {
+                        value = input.value;
+                    } else {
+                        value = input.value;
+                    }
+
+                    // Only include non-empty values
+                    if (value !== null && value !== '' && value !== undefined) {
+                        params[name] = value;
+                    }
+                });
+            }
+
+            // Validate required fields
+            const connection = state.connections.get(connectionId);
+            const relation = connection ? findConnectionRelation(connection.relationId) : null;
+            if (relation?.parameterSchema) {
+                for (const [name, schema] of Object.entries(relation.parameterSchema)) {
+                    if (schema.required && (params[name] === undefined || params[name] === '')) {
+                        showToast(`Required field "${schema.label || name}" is missing`);
+                        return;
+                    }
+                }
+            }
+
+            // Update the connection
             try {
-                updateConnection(connectionId, { params: parsed });
-                renderRecordSidebar(recordId);
-                showToast('✓ Parameters updated');
+                updateConnection(connectionId, { params });
+                closeConnectionParamEditor();
+                if (recordId) {
+                    renderRecordSidebar(recordId);
+                }
+                showToast('Parameters updated');
             } catch (error) {
                 showToast(error.message);
             }
