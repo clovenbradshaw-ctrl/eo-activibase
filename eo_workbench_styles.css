@@ -800,6 +800,70 @@
     color: white;
 }
 
+/* Highlight toolbar button variant (for JSON Scrubber) */
+.toolbar-btn.highlight {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: #764ba2;
+    color: white;
+}
+
+.toolbar-btn.highlight:hover {
+    background: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
+    box-shadow: 0 2px 8px rgba(118, 75, 162, 0.3);
+}
+
+.toolbar-btn.highlight .badge {
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+}
+
+/* ============================================================================
+   JSON SCRUBBER MENU
+   ============================================================================ */
+
+.scrubber-menu {
+    min-width: 220px;
+}
+
+.scrubber-menu .menu-header {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #9ca3af;
+    padding: 10px 12px 6px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    margin: -4px -0px 4px -0px;
+    border-radius: 6px 6px 0 0;
+}
+
+.scrubber-menu .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.scrubber-menu .menu-item .label {
+    flex: 1;
+    font-weight: 500;
+}
+
+.scrubber-menu .menu-item .meta {
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+.scrubber-menu .menu-hint {
+    font-size: 11px;
+    color: #9ca3af;
+    padding: 8px 12px;
+    font-style: italic;
+    background: #f9fafb;
+    margin: 4px 0 -4px 0;
+    border-radius: 0 0 6px 6px;
+}
+
 /* ============================================================================
    RESPONSIVE DESIGN
    ============================================================================ */
