@@ -15389,13 +15389,7 @@
                 subjectDisplayName = getEntityDisplayName(subjectEntity);
             } else if (conn.subject?.id) {
                 // Try to find in records
-                for (const [setId, set] of state.sets) {
-                    const record = set.records.get(conn.subject.id);
-                    if (record) {
-                        subjectDisplayName = getRecordDisplayName(record, set);
-                        break;
-                    }
-                }
+                subjectDisplayName = getRecordDisplayName(conn.subject.id) || conn.subject.id;
             }
 
             subjectIdInput.value = conn.subject?.id || '';
@@ -15425,13 +15419,7 @@
             if (operandEntity) {
                 operandDisplayName = getEntityDisplayName(operandEntity);
             } else if (conn.operand?.id) {
-                for (const [setId, set] of state.sets) {
-                    const record = set.records.get(conn.operand.id);
-                    if (record) {
-                        operandDisplayName = getRecordDisplayName(record, set);
-                        break;
-                    }
-                }
+                operandDisplayName = getRecordDisplayName(conn.operand.id) || conn.operand.id;
             }
 
             operandIdInput.value = conn.operand?.id || '';
@@ -15682,7 +15670,7 @@
                     } else {
                         html += '<div class="entity-selection-grid">';
                         records.forEach(record => {
-                            const displayName = getRecordDisplayName(record, set);
+                            const displayName = getRecordDisplayName(record.id) || record.id;
                             const isSelected = type === 'subject'
                                 ? connectionWizardState.selectedSubject?.id === record.id
                                 : connectionWizardState.selectedOperand?.id === record.id;
@@ -15779,40 +15767,6 @@
             } else {
                 renderEntitySelectionPanel('connectionOperandPanel', 'operand', connectionWizardState.operandPath);
             }
-        }
-
-        function getRecordDisplayName(record, set) {
-            // Try to find a primary/name field
-            const schema = set?.schema || [];
-            const nameField = schema.find(f =>
-                f.isPrimary ||
-                f.name?.toLowerCase() === 'name' ||
-                f.name?.toLowerCase() === 'title' ||
-                f.id?.toLowerCase() === 'name' ||
-                f.id?.toLowerCase() === 'title'
-            );
-
-            if (nameField) {
-                const value = record[nameField.id] || record[nameField.name];
-                if (value) return String(value);
-            }
-
-            // Try first text field
-            const textField = schema.find(f => f.type === 'text' || f.type === 'TEXT');
-            if (textField) {
-                const value = record[textField.id] || record[textField.name];
-                if (value) return String(value);
-            }
-
-            // Try any field with value
-            for (const field of schema) {
-                const value = record[field.id] || record[field.name];
-                if (value && typeof value === 'string') {
-                    return value.substring(0, 50);
-                }
-            }
-
-            return record.id || 'Unnamed Record';
         }
 
         function renderRelationSelectionPanel() {
@@ -15926,7 +15880,7 @@
 
                 // Search records
                 for (const [recordId, record] of set.records) {
-                    const displayName = getRecordDisplayName(record, set);
+                    const displayName = getRecordDisplayName(recordId) || recordId;
                     if (displayName.toLowerCase().includes(lowerQuery)) {
                         results.push({
                             type: 'Record',
