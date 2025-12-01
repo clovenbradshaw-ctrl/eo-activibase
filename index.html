@@ -6662,7 +6662,10 @@
 
         function handleAddRecord() {
             const set = getCurrentSet();
-            if (!set) return;
+            if (!set) {
+                showToast('⚠ No set selected');
+                return;
+            }
 
             // Clear selection state to prevent restoration
             state.selectedCell = null;
@@ -6670,7 +6673,10 @@
             state.editingCell = null;
 
             const record = { id: `rec_${Date.now()}` };
-            set.schema.forEach(f => record[f.id] = FIELD_TYPES[f.type].defaultValue);
+            set.schema.forEach(f => {
+                const fieldType = FIELD_TYPES[f.type];
+                record[f.id] = fieldType ? fieldType.defaultValue : '';
+            });
 
             // If on a filtered view, pre-populate the record with filter values
             // so it's immediately visible after creation
@@ -6788,7 +6794,7 @@
                             ${extraControls ? `<div class="toolbar-group">${extraControls}</div>` : ''}
                         </div>
                         <div class="toolbar-group">
-                            <button id="addRecordBtn" class="btn btn-primary btn-sm">+ Add Record</button>
+                            <button id="addRecordBtn" class="btn btn-primary btn-sm" onclick="handleAddRecord()">+ Add Record</button>
                             <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
                             <button id="addLinkedFieldsBtn" class="btn btn-secondary btn-sm">
                                 <i class="ph ph-link-simple-horizontal"></i>
