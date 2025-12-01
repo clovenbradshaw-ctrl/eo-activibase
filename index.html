@@ -4849,6 +4849,7 @@
             modalStack: [],
             currentRecordTab: 'history',
             recordHistoryVisible: true,
+            expandedRecordSetId: null,
             openTabs: [],
             confirmCallback: null,
             selectOptions: [{ value: 'Option 1', color: 'blue' }],
@@ -18858,9 +18859,28 @@
         }
 
         // EXPANDED RECORD
-        function openExpandedRecord(recordId) {
-            const set = getCurrentSet();
+        function getExpandedRecordSet() {
+            // Returns the set for the currently expanded record
+            // Uses expandedRecordSetId if set (from Explore), otherwise falls back to getCurrentSet()
+            if (state.expandedRecordSetId && state.sets.has(state.expandedRecordSetId)) {
+                return state.sets.get(state.expandedRecordSetId);
+            }
+            return getCurrentSet();
+        }
+
+        function openExpandedRecord(recordId, setId = null) {
+            // Store the setId for use by other expanded record functions
+            state.expandedRecordSetId = setId;
+            const set = setId ? state.sets.get(setId) : getCurrentSet();
+            if (!set) {
+                showToast('Unable to open record: set not found', 'error');
+                return;
+            }
             const record = set.records.get(recordId);
+            if (!record) {
+                showToast('Unable to open record: record not found', 'error');
+                return;
+            }
             state.currentRecordTab = 'provenance';
             state.recordHistoryVisible = true;
             document.getElementById('expandedRecordTitle').textContent = getRecordDisplayName(record.id) || set.name || 'Record';
@@ -18871,7 +18891,7 @@
         }
 
         function openCellHistory(recordId, fieldId) {
-            openObservationModal({ recordId, fieldId, setId: getCurrentSet()?.id });
+            openObservationModal({ recordId, fieldId, setId: getExpandedRecordSet()?.id });
         }
 
         function openObservationModal({ recordId = null, fieldId = null, setId = null, keyValue = null, field = null, items = [] }) {
@@ -19155,9 +19175,9 @@
         }
 
         function renderExpandedRecordMain(recordId) {
-            const set = getCurrentSet();
+            const set = getExpandedRecordSet();
             const view = getCurrentView();
-            const record = set.records.get(recordId);
+            const record = set?.records.get(recordId);
             const container = document.getElementById('expandedRecordMain');
             container.dataset.recordId = recordId;
 
@@ -19290,8 +19310,8 @@
         }
 
         function updateRecordField(recordId, fieldId, value) {
-            const set = getCurrentSet();
-            const record = set.records.get(recordId);
+            const set = getExpandedRecordSet();
+            const record = set?.records.get(recordId);
             const oldValue = record[fieldId];
             updateRecord(recordId, fieldId, value, oldValue);
             renderExpandedRecordMain(recordId);
@@ -19346,8 +19366,8 @@
         }
 
         function renderProvenanceSidebar(container, recordId) {
-            const set = getCurrentSet();
-            const record = set.records.get(recordId);
+            const set = getExpandedRecordSet();
+            const record = set?.records.get(recordId);
 
             // Get creation event from event stream
             const creationEvent = state.eventStream.find(e =>
