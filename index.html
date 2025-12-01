@@ -6302,20 +6302,13 @@
         }
 
         function updateConnectionRelation(relationId, updates = {}) {
-            const existing = state.connectionRelations.get(relationId);
-            if (!existing) throw new Error(`Connection relation ${relationId} not found`);
-
-            const merged = validateConnectionRelationPayload({ ...existing, ...updates, id: relationId });
-            state.connectionRelations.set(relationId, { ...existing, ...merged, updatedAt: new Date().toISOString() });
-            return relationId;
+            // All relation types are immutable EO operators
+            throw new Error('Relation types are immutable and cannot be modified');
         }
 
         function deleteConnectionRelation(relationId) {
-            if (!state.connectionRelations.has(relationId)) throw new Error(`Connection relation ${relationId} not found`);
-            const inUse = Array.from(state.connections.values()).some(conn => conn.relationId === relationId);
-            if (inUse) throw new Error('Cannot delete a relation that is used by existing relationships');
-            state.connectionRelations.delete(relationId);
-            return relationId;
+            // All relation types are immutable EO operators
+            throw new Error('Relation types are immutable and cannot be deleted');
         }
 
         function getConnectionRelationView(filterFn) {
@@ -16567,10 +16560,6 @@
                                 <span class="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded">${rel.operator}</span>
                                 ${rel.description ? `<span class="text-xs text-gray-500">${rel.description}</span>` : ''}
                             </div>
-                            <div class="flex items-center gap-2">
-                                <button class="text-xs text-blue-600 hover:text-blue-800" data-relation-edit="${rel.id}">Edit</button>
-                                <button class="text-xs text-red-500 hover:text-red-700" data-relation-delete="${rel.id}">Delete</button>
-                            </div>
                         </div>
                     `).join('')}
                 </div>
@@ -16654,13 +16643,10 @@
 
                     <details class="border border-gray-200 rounded-lg bg-white">
                         <summary class="px-4 py-3 cursor-pointer text-sm font-medium text-gray-700 hover:bg-gray-50">
-                            Manage relation types (${relationTypes.length})
+                            Relation types (${relationTypes.length})
                         </summary>
                         <div class="px-4 pb-4 pt-2 border-t border-gray-100">
-                            <div class="flex items-center justify-between mb-3">
-                                <p class="text-xs text-gray-500">Define reusable relation types like "is linked to" or "filters by"</p>
-                                <button class="btn btn-secondary btn-sm" id="openRelationTypeModalBtn">+ Add Type</button>
-                            </div>
+                            <p class="text-xs text-gray-500 mb-3">Built-in EO operators for defining relationships</p>
                             ${renderRelationTypesList(relationTypes)}
                         </div>
                     </details>
