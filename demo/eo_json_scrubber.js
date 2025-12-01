@@ -41,6 +41,12 @@ class EOJSONScrubber {
         this.onFilterApply = options.onFilterApply || null;
         this.onGroupApply = options.onGroupApply || null;
         this.onClose = options.onClose || null;
+
+        // Pivot helper
+        this.pivotHelper = null;
+        if (this.state && window.EOJSONPivot) {
+            this.pivotHelper = new window.EOJSONPivot(this.state);
+        }
     }
 
     // ========================================================================
@@ -414,10 +420,10 @@ class EOJSONScrubber {
                      data-type="${valueType}">
                     <div class="card-header">
                         ${isComplex ? `<span class="card-toggle">${isChildExpanded ? '▼' : '▶'}</span>` : ''}
-                        <span class="card-key">${this.escapeHtml(key)}</span>
+                        <span class="card-key clickable-key" data-click-target="key" title="Click to pivot by key">${this.escapeHtml(key)}</span>
                         <span class="card-type-badge ${valueType}">${this.getTypeBadge(valueType, value)}</span>
                     </div>
-                    ${isAggregated ? this.renderAggregatedCardBody(value) : this.renderCardBody(value, valueType)}
+                    ${isAggregated ? this.renderAggregatedCardBody(value) : this.renderCardBody(value, valueType, true)}
                     <div class="card-actions">
                         <button class="card-action pivot-btn" data-action="pivot" title="Pivot options">
                             <i class="ph ph-funnel"></i>
@@ -484,8 +490,9 @@ class EOJSONScrubber {
     /**
      * Render card body for simple values
      */
-    renderCardBody(value, type) {
+    renderCardBody(value, type, makeClickable = false) {
         let preview = '';
+        let isClickableValue = false;
 
         if (type === 'array') {
             preview = `${value.length} item${value.length !== 1 ? 's' : ''}`;
@@ -496,11 +503,16 @@ class EOJSONScrubber {
             preview = type;
         } else {
             preview = this.formatValuePreview(value);
+            isClickableValue = makeClickable; // Primitive values can be clicked for value pivot
         }
+
+        const clickableClass = isClickableValue ? 'clickable-value' : '';
+        const clickTarget = isClickableValue ? 'data-click-target="value"' : '';
+        const titleAttr = isClickableValue ? 'title="Click to filter by this value"' : '';
 
         return `
             <div class="card-body">
-                <span class="card-value ${type}">${this.escapeHtml(preview)}</span>
+                <span class="card-value ${type} ${clickableClass}" ${clickTarget} ${titleAttr}>${this.escapeHtml(preview)}</span>
             </div>
         `;
     }
@@ -649,7 +661,7 @@ class EOJSONScrubber {
     /**
      * Show pivot menu for a card
      */
-    showPivotMenu(card, event) {
+    showPivotMenu(card, event, clickTarget = null) {
         // Remove existing menu
         this.closePivotMenu();
 
@@ -662,12 +674,16 @@ class EOJSONScrubber {
         // Get field info if available
         const fieldId = this.getFieldIdFromPath(pathParts);
 
+        // Determine if this is a key or value pivot based on click target
+        const pivotContext = clickTarget || 'general';
+
         const menu = document.createElement('div');
         menu.className = 'pivot-menu';
-        menu.innerHTML = this.renderPivotMenuContent(key, value, type, fieldId, path);
+        menu.innerHTML = this.renderPivotMenuContent(key, value, type, fieldId, path, pivotContext);
 
         // Position menu
-        const rect = event.target.closest('.card-action').getBoundingClientRect();
+        const targetElement = event.target.closest('.card-action') || event.target;
+        const rect = targetElement.getBoundingClientRect();
         menu.style.position = 'fixed';
         menu.style.top = `${rect.bottom + 5}px`;
         menu.style.left = `${rect.left}px`;
@@ -686,6 +702,7 @@ class EOJSONScrubber {
                     value,
                     type,
                     fieldId,
+                    pivotContext,
                     filterValue: opt.dataset.filterValue ? JSON.parse(opt.dataset.filterValue) : value
                 });
                 this.closePivotMenu();
@@ -705,16 +722,91 @@ class EOJSONScrubber {
     /**
      * Render pivot menu content
      */
-    renderPivotMenuContent(key, value, type, fieldId, path) {
+    renderPivotMenuContent(key, value, type, fieldId, path, pivotContext = 'general') {
         const isComplex = type === 'object' || type === 'array';
         const isPrimitive = !isComplex && value !== null && value !== undefined;
         const hasFieldId = !!fieldId;
 
-        let html = '<div class="pivot-menu-header">Pivot Actions</div>';
+        let html = '';
 
-        // Filter actions
-        html += '<div class="pivot-section">';
-        html += '<div class="pivot-section-title">Filter</div>';
+        // Show context-specific header
+        if (pivotContext === 'key') {
+            html += '<div class="pivot-menu-header">📊 Key Pivot: Explore Field</div>';
+        } else if (pivotContext === 'value') {
+            html += '<div class="pivot-menu-header">🔍 Value Pivot: Filter Data</div>';
+        } else {
+            html += '<div class="pivot-menu-header">Pivot Actions</div>';
+        }
+
+        // KEY PIVOT: Show exploratory options
+        if (pivotContext === 'key' && hasFieldId) {
+            html += '<div class="pivot-section">';
+            html += '<div class="pivot-section-title">Create View by Field</div>';
+            html += `
+                <button class="pivot-option pivot-key-action" data-action="create-key-pivot">
+                    <i class="ph ph-kanban"></i>
+                    <span><strong>Pivot by "${this.escapeHtml(key)}"</strong> - Create Kanban view grouped by this field</span>
+                </button>
+                <button class="pivot-option" data-action="create-focused-view">
+                    <i class="ph ph-eye"></i>
+                    <span>Create focused grid view on "${this.escapeHtml(key)}"</span>
+                </button>
+            `;
+            html += '</div>';
+
+            // Additional organization options
+            html += '<div class="pivot-section">';
+            html += '<div class="pivot-section-title">Apply to Current View</div>';
+            html += `
+                <button class="pivot-option" data-action="group-by">
+                    <i class="ph ph-rows"></i>
+                    <span>Group current view by ${this.escapeHtml(key)}</span>
+                </button>
+                <button class="pivot-option" data-action="sort-asc">
+                    <i class="ph ph-sort-ascending"></i>
+                    <span>Sort by ${this.escapeHtml(key)} (A→Z)</span>
+                </button>
+            `;
+            html += '</div>';
+        }
+
+        // VALUE PIVOT: Show filtering options
+        else if (pivotContext === 'value' && isPrimitive && hasFieldId) {
+            html += '<div class="pivot-section">';
+            html += '<div class="pivot-section-title">Create Filtered View</div>';
+            html += `
+                <button class="pivot-option pivot-value-action" data-action="create-value-pivot" data-filter-value="${this.escapeHtml(JSON.stringify(value))}">
+                    <i class="ph ph-funnel-simple"></i>
+                    <span><strong>Filter where "${this.escapeHtml(key)}" = "${this.formatValuePreview(value, 20)}"</strong></span>
+                </button>
+            `;
+            html += '</div>';
+
+            // Additional filter options
+            html += '<div class="pivot-section">';
+            html += '<div class="pivot-section-title">Apply Filter to Current View</div>';
+            html += `
+                <button class="pivot-option" data-action="filter-equals" data-filter-value="${this.escapeHtml(JSON.stringify(value))}">
+                    <i class="ph ph-equals"></i>
+                    <span>Filter current view: ${this.escapeHtml(key)} = "${this.formatValuePreview(value, 20)}"</span>
+                </button>
+            `;
+            if (type === 'string') {
+                html += `
+                    <button class="pivot-option" data-action="filter-contains" data-filter-value="${this.escapeHtml(JSON.stringify(value))}">
+                        <i class="ph ph-text-aa"></i>
+                        <span>Filter: ${this.escapeHtml(key)} contains "${this.formatValuePreview(value, 15)}"</span>
+                    </button>
+                `;
+            }
+            html += '</div>';
+        }
+
+        // GENERAL PIVOT: Show all options (when clicking pivot button)
+        else {
+            // Filter actions
+            html += '<div class="pivot-section">';
+            html += '<div class="pivot-section-title">Filter</div>';
 
         if (isPrimitive && hasFieldId) {
             html += `
@@ -825,6 +917,22 @@ class EOJSONScrubber {
             </button>
         `;
         html += '</div>';
+        }
+
+        // Copy actions (always available)
+        html += '<div class="pivot-section">';
+        html += '<div class="pivot-section-title">Copy</div>';
+        html += `
+            <button class="pivot-option" data-action="copy-path">
+                <i class="ph ph-path"></i>
+                <span>Copy path: ${this.escapeHtml(path)}</span>
+            </button>
+            <button class="pivot-option" data-action="copy-value">
+                <i class="ph ph-copy"></i>
+                <span>Copy value</span>
+            </button>
+        `;
+        html += '</div>';
 
         return html;
     }
@@ -836,6 +944,14 @@ class EOJSONScrubber {
         const { path, pathParts, key, value, type, fieldId, filterValue } = context;
 
         switch (action) {
+            case 'create-key-pivot':
+                this.createKeyPivot(fieldId, key);
+                break;
+
+            case 'create-value-pivot':
+                this.createValuePivot(fieldId, key, filterValue);
+                break;
+
             case 'filter-equals':
                 this.applyFilter(fieldId, 'equals', filterValue);
                 break;
@@ -1029,6 +1145,89 @@ class EOJSONScrubber {
     }
 
     /**
+     * Create key-based pivot view (exploratory, Kanban grouped by field)
+     */
+    createKeyPivot(fieldId, fieldName) {
+        if (!this.state || !this.currentSet) {
+            this.showToast('Cannot create view: no state context');
+            return;
+        }
+
+        if (!this.pivotHelper) {
+            this.showToast('Pivot helper not available');
+            return;
+        }
+
+        const view = this.pivotHelper.createKeyPivotView(
+            fieldId,
+            fieldName,
+            this.currentSet,
+            {
+                sourceRecordId: this.sourceRecordId,
+                derivedFromJSON: true
+            }
+        );
+
+        if (view) {
+            if (this.onViewCreate) {
+                this.onViewCreate(view);
+            }
+
+            // Switch to the new view
+            if (window.switchToView) {
+                window.switchToView(view.id);
+            }
+
+            this.showToast(`📊 Key pivot created: ${view.name}`);
+            this.close();
+        } else {
+            this.showToast('Failed to create key pivot view');
+        }
+    }
+
+    /**
+     * Create value-based pivot view (filtered grid by specific value)
+     */
+    createValuePivot(fieldId, fieldName, value) {
+        if (!this.state || !this.currentSet) {
+            this.showToast('Cannot create view: no state context');
+            return;
+        }
+
+        if (!this.pivotHelper) {
+            this.showToast('Pivot helper not available');
+            return;
+        }
+
+        const view = this.pivotHelper.createValuePivotView(
+            fieldId,
+            fieldName,
+            value,
+            this.currentSet,
+            {
+                sourceRecordId: this.sourceRecordId,
+                derivedFromJSON: true
+            }
+        );
+
+        if (view) {
+            if (this.onViewCreate) {
+                this.onViewCreate(view);
+            }
+
+            // Switch to the new view
+            if (window.switchToView) {
+                window.switchToView(view.id);
+            }
+
+            this.showToast(`🔍 Value pivot created: ${view.name}`);
+            this.close();
+        } else {
+            this.showToast('Failed to create value pivot view');
+        }
+    }
+
+    /**
      * Close pivot menu
      */
     closePivotMenu() {
@@ -1185,12 +1384,32 @@ class EOJSONScrubber {
         const body = this.panel?.querySelector('#scrubberBody');
         if (!body) return;
 
+        // Clickable key clicks (key pivot)
+        body.querySelectorAll('.clickable-key').forEach(keyElement => {
+            keyElement.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const card = keyElement.closest('.scrubber-card');
+                this.showPivotMenu(card, e, 'key');
+            });
+        });
+
+        // Clickable value clicks (value pivot)
+        body.querySelectorAll('.clickable-value').forEach(valueElement => {
+            valueElement.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const card = valueElement.closest('.scrubber-card');
+                this.showPivotMenu(card, e, 'value');
+            });
+        });
+
         // Card click to expand/collapse
         body.querySelectorAll('.scrubber-card').forEach(card => {
             card.addEventListener('click', (e) => {
                 // Don't trigger on action button clicks
                 if (e.target.closest('.card-actions')) return;
                 if (e.target.closest('.value-chip')) return;
+                if (e.target.closest('.clickable-key')) return;
+                if (e.target.closest('.clickable-value')) return;
 
                 const pathKey = card.dataset.path;
                 if (card.classList.contains('expandable')) {

@@ -707,6 +707,96 @@
 }
 
 /* ========================================================================
+   CLICKABLE KEYS AND VALUES (Pivot on Click)
+   ======================================================================== */
+
+.clickable-key {
+    position: relative;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    padding: 2px 6px;
+    margin: -2px -6px;
+    border-radius: 4px;
+}
+
+.clickable-key:hover {
+    background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);
+    color: #4f46e5;
+}
+
+.clickable-key::after {
+    content: '📊';
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.clickable-key:hover::after {
+    opacity: 1;
+}
+
+.clickable-value {
+    position: relative;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    padding: 2px 6px;
+    margin: -2px -6px;
+    border-radius: 4px;
+}
+
+.clickable-value:hover {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+}
+
+.clickable-value::after {
+    content: '🔍';
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.clickable-value:hover::after {
+    opacity: 1;
+}
+
+/* ========================================================================
+   PIVOT OPTION HIGHLIGHTS
+   ======================================================================== */
+
+.pivot-key-action {
+    background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);
+    border: 1px solid #c7d2fe;
+    margin: 4px 8px;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.pivot-key-action:hover {
+    background: linear-gradient(135deg, #c7d2fe 0%, #ddd6fe 100%);
+    border-color: #a78bfa;
+}
+
+.pivot-value-action {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #fcd34d;
+    margin: 4px 8px;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.pivot-value-action:hover {
+    background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+    border-color: #f59e0b;
+}
+
+/* ========================================================================
    ANIMATIONS
    ======================================================================== */
 
