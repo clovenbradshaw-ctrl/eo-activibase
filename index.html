@@ -20016,9 +20016,9 @@
                         ` : ''}
 
                         ${needsRelationType ? `
-                            <div class="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-yellow-800">
-                                This operator/verb combo doesn't have a relation type yet.
-                                <button class="text-blue-600 underline ml-1" onclick="openModal('connectionRelationModal'); populateConnectionRelationOptions('${selectedOperator}');">Create one</button>
+                            <div class="bg-blue-50 border border-blue-200 rounded p-2 text-xs text-blue-800">
+                                A relation type for this operator/verb will be auto-created.
+                                <button class="text-blue-600 underline ml-1" onclick="openModal('connectionRelationModal'); populateConnectionRelationOptions('${selectedOperator}');">Or create one manually</button>
                             </div>
                         ` : ''}
 
@@ -20027,7 +20027,7 @@
 
                         <div id="sidebarConnectionParams" class="grid grid-cols-1 gap-2"></div>
 
-                        <button class="btn btn-primary btn-sm" onclick="createConnectionFromSidebar('${recordId}')" ${!canAddConnection || needsRelationType ? 'disabled' : ''}>Add Connection</button>
+                        <button class="btn btn-primary btn-sm" onclick="createConnectionFromSidebar('${recordId}')" ${!canAddConnection ? 'disabled' : ''}>Add Connection</button>
                         ${availableRecords.length === 0
                             ? `<p class="text-xs text-gray-500">${allAvailableRecords.length === 0 ? 'Add records to the selected set to create connections.' : 'No records match your search.'}</p>`
                             : ''}
@@ -20291,9 +20291,36 @@
                 return;
             }
 
-            const relationId = builder.relationId || document.getElementById('sidebarConnectionRelation')?.value;
+            let relationId = builder.relationId || document.getElementById('sidebarConnectionRelation')?.value;
+
+            // If no relation ID exists, try to find or create one based on operator/verb
+            if (!relationId && builder.selectedOperator && builder.selectedVerb) {
+                // Look for existing relation with this operator/verb combo
+                const existingRelation = getConnectionRelationView().find(rel =>
+                    rel.operator === builder.selectedOperator && rel.mode === builder.selectedVerb
+                );
+
+                if (existingRelation) {
+                    relationId = existingRelation.id;
+                } else {
+                    // Auto-create a new relation type for this operator/verb combo
+                    relationId = addConnectionRelation({
+                        operator: builder.selectedOperator,
+                        mode: builder.selectedVerb,
+                        name: builder.selectedVerb,
+                        description: `Auto-created relation for ${builder.selectedOperator} - ${builder.selectedVerb}`
+                    });
+
+                    if (!relationId) {
+                        showToast('Failed to create connection relation');
+                        return;
+                    }
+                }
+                builder.relationId = relationId;
+            }
+
             if (!relationId) {
-                showToast('Select a connection relation');
+                showToast('Select an operator and verb for the connection');
                 return;
             }
 
