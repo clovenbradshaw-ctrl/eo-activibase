@@ -2479,6 +2479,34 @@
             letter-spacing: 0.04em;
         }
 
+        .view-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        .view-breadcrumb-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .view-breadcrumb-item.clickable {
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+
+        .view-breadcrumb-item.clickable:hover {
+            color: #3b82f6;
+        }
+
+        .view-breadcrumb-sep {
+            color: #cbd5e1;
+        }
+
         .view-stage-name { font-weight: 800; font-size: 16px; letter-spacing: -0.01em; color: #0f172a; }
         .view-stage-sub { color: #64748b; font-size: 13px; font-weight: 600; }
 
@@ -4941,7 +4969,9 @@
             changeFieldTypeDropdownOpen: false,
             changeFieldContext: null,
             expandedSets: new Set(),
-            collapsedNavSections: new Set(), // Track collapsed nav sections: 'world', 'explore', 'actions'
+            collapsedNavSections: new Set(['world', 'explore', 'recentImports']), // Start with World/Explore collapsed, Sets expanded
+            lastUsedSetId: null,
+            lastUsedViewId: null,
             draggedRecord: null,
             cellHistoryContext: null,
             setEditorContext: null,
@@ -6508,13 +6538,36 @@
             renderWorldSelector();
             renderSidebar();
             initializeNavSections();
-            // Always navigate to dashboard on initial load
-            navigateTo('dashboard');
+
+            // Navigate to first available view (data-first approach)
+            // Users start IN their data, not looking at an abstract dashboard
+            const firstView = findFirstAvailableView();
+            if (firstView) {
+                // Expand the set in sidebar so user sees context
+                state.expandedSets.add(firstView.setId);
+                switchSet(firstView.setId, firstView.viewId);
+            } else {
+                // No data yet - show import-focused dashboard
+                navigateTo('dashboard');
+            }
+
             setupEventListeners();
             setupKeyboardShortcuts();
             applyResponsiveLayout();
             window.addEventListener('resize', applyResponsiveLayout);
             // syncUrlState(); // Commented out to prevent URL manipulation
+        }
+
+        function findFirstAvailableView() {
+            // Find the first set with views in the current world
+            const setsForWorld = getSetsForWorld();
+            for (const set of setsForWorld) {
+                if (set.views && set.views.size > 0) {
+                    const firstViewId = Array.from(set.views.keys())[0];
+                    return { setId: set.id, viewId: firstViewId };
+                }
+            }
+            return null;
         }
 
         function normalizeOperatorModeDictionary(data) {
@@ -6886,9 +6939,69 @@
             });
         }
 
+        function renderViewBreadcrumb() {
+            const world = getWorld();
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!world || !set) return '';
+
+            return `
+                <div class="view-breadcrumb">
+                    <span class="view-breadcrumb-item clickable" onclick="navigateTo('dashboard')" title="Go to World overview">
+                        <i class="ph ph-globe-hemisphere-west" style="font-size: 14px;"></i>
+                        ${world.name}
+                    </span>
+                    <span class="view-breadcrumb-sep">›</span>
+                    <span class="view-breadcrumb-item">
+                        <i class="ph ph-stack" style="font-size: 14px;"></i>
+                        ${set.name}
+                    </span>
+                    ${view ? `
+                        <span class="view-breadcrumb-sep">›</span>
+                        <span class="view-breadcrumb-item">
+                            <i class="ph ph-table" style="font-size: 14px;"></i>
+                            ${view.name}
+                        </span>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function hasActiveFiltersOrSorts(view) {
+            if (!view) return false;
+            const hasFilters = view.filters && view.filters.length > 0 &&
+                view.filters.some(group => group.some(f => f.field && f.operator));
+            const hasSorts = view.sorts && view.sorts.length > 0 &&
+                view.sorts.some(s => s.fieldId);
+            return hasFilters || hasSorts;
+        }
+
+        function saveCurrentViewAs() {
+            const view = getCurrentView();
+            const set = getCurrentSet();
+            if (!view || !set) return;
+
+            const viewName = prompt('Name for this view:', `${view.name} (filtered)`);
+            if (!viewName || !viewName.trim()) return;
+
+            const newViewId = createView(set.id, viewName.trim(), {
+                type: view.type,
+                filters: JSON.parse(JSON.stringify(view.filters || [])),
+                sorts: JSON.parse(JSON.stringify(view.sorts || [])),
+                hiddenFields: [...(view.hiddenFields || [])],
+                kanbanGroupField: view.kanbanGroupField,
+                parentId: view.id // Link to parent view
+            });
+
+            state.expandedSets.add(set.id);
+            switchSet(set.id, newViewId);
+            showToast(`✓ Created view "${viewName.trim()}"`);
+        }
+
         function renderViewActions(extraControls = '') {
             const view = getCurrentView();
             const isImportView = view && view.isTemporary && view.importMetadata;
+            const hasActiveConfig = hasActiveFiltersOrSorts(view);
 
             // Add reify button for import views
             const reifyButton = isImportView ? `
@@ -6896,6 +7009,19 @@
                     <i class="ph ph-check-circle"></i>
                     Make Permanent
                 </button>
+            ` : '';
+
+            // Save as view suggestion when filters/sorts are active
+            const saveAsViewBanner = hasActiveConfig && !isImportView ? `
+                <div class="save-view-suggestion" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0.5rem 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: #1e40af;">
+                        <i class="ph ph-lightbulb" style="font-size: 16px;"></i>
+                        <span>You have filters or sorts applied.</span>
+                    </div>
+                    <button onclick="saveCurrentViewAs()" class="btn btn-sm" style="background: #3b82f6; color: white; border: none; padding: 0.25rem 0.75rem; font-size: 0.75rem;">
+                        Save as new View
+                    </button>
+                </div>
             ` : '';
 
             return `
@@ -6913,6 +7039,7 @@
                             </div>
                         </div>
                     ` : ''}
+                    ${saveAsViewBanner}
                     <div class="toolbar-row">
                         <div class="toolbar-group">
                             <div class="selection-group">
@@ -11354,6 +11481,11 @@
             if (!viewId && set.views.size > 0) {
                 state.currentViewId = Array.from(set.views.keys())[0];
             }
+            // Track last-used view for returning users
+            if (state.currentSetId && state.currentViewId) {
+                state.lastUsedSetId = state.currentSetId;
+                state.lastUsedViewId = state.currentViewId;
+            }
             if (state.currentViewId) ensureOpenTab(state.currentSetId, state.currentViewId);
             closeMobileSidebar();
             renderSidebar();
@@ -11842,6 +11974,7 @@
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
                 <div class="view-stage-header">
+                    ${renderViewBreadcrumb()}
                     <div class="view-stage-title">
                         <span class="view-stage-pill">${set.name}</span>
                         <div class="min-w-0">
@@ -12033,6 +12166,7 @@
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
                 <div class="view-stage-header">
+                    ${renderViewBreadcrumb()}
                     <div class="view-stage-title">
                         <span class="view-stage-pill">${state.sets.get(keyRef.setId)?.name || 'Key set'}</span>
                         <div class="min-w-0">
@@ -13199,6 +13333,7 @@
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
                 <div class="view-stage-header">
+                    ${renderViewBreadcrumb()}
                     <div class="view-stage-title">
                         <span class="view-stage-pill">${set.name}</span>
                         <div class="min-w-0">
@@ -13297,6 +13432,7 @@
                 const container = document.getElementById('viewContainer');
                 container.innerHTML = `
                     <div class="view-stage-header">
+                        ${renderViewBreadcrumb()}
                         <div class="view-stage-title">
                             <span class="view-stage-pill">${set.name}</span>
                             <div class="min-w-0">
@@ -13335,6 +13471,7 @@
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
                 <div class="view-stage-header">
+                    ${renderViewBreadcrumb()}
                     <div class="view-stage-title">
                         <span class="view-stage-pill">${set.name}</span>
                         <div class="min-w-0">
@@ -14200,6 +14337,7 @@
 
             container.innerHTML = `
                 <div class="view-stage-header">
+                    ${set ? renderViewBreadcrumb() : ''}
                     <div class="view-stage-title">
                         <span class="view-stage-pill">${getWorld()?.name || 'Graph'}</span>
                         <div class="min-w-0">
@@ -16957,46 +17095,117 @@
         function renderDashboardPage() {
             const container = document.getElementById('viewContainer');
             const world = getWorld();
+            const setsForWorld = getSetsForWorld();
+            const hasData = setsForWorld.length > 0;
+
+            // Build recent sets list for quick navigation
+            const recentSetsHtml = setsForWorld.slice(0, 5).map(set => {
+                const recordCount = set.records?.size || 0;
+                const viewCount = set.views?.size || 0;
+                const firstViewId = set.views?.size > 0 ? Array.from(set.views.keys())[0] : null;
+                return `
+                    <div class="dashboard-set-card" onclick="${firstViewId ? `switchSet('${set.id}', '${firstViewId}')` : `switchSet('${set.id}', null)`}"
+                         style="padding: 1rem; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.15s; background: white;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <i class="ph ${set.icon || 'ph-stack'}" style="font-size: 1.25rem; color: #6366f1;"></i>
+                            <div>
+                                <div style="font-weight: 600; color: #1e293b;">${set.name}</div>
+                                <div style="font-size: 0.875rem; color: #64748b;">${recordCount} records · ${viewCount} views</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
 
             container.innerHTML = `
-                <div style="padding: 2rem; display: flex; flex-direction: column; gap: 2.5rem;">
+                <div style="padding: 2rem; display: flex; flex-direction: column; gap: 2rem; max-width: 800px; margin: 0 auto;">
 
-                    <!-- HEADER -->
-                    <div class="dashboard-header">
-                        <h1 style="display: flex; align-items: center; gap: 0.75rem;">
-                            <i class="ph ph-globe" style="font-size: 1.5rem; color: var(--primary);"></i>
-                            ${world?.name || 'World'}
-                        </h1>
-                        <div class="dashboard-actions">
+                    ${!hasData ? `
+                        <!-- EMPTY STATE: Import-focused hero -->
+                        <div style="text-align: center; padding: 3rem 2rem;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                            <h1 style="font-size: 1.5rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">What data would you like to work with?</h1>
+                            <p style="color: #64748b; margin-bottom: 2rem;">Import a CSV, paste data, or create a new set to get started.</p>
+
+                            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                                <button onclick="openCsvImportModal()" class="btn btn-primary" style="padding: 0.75rem 1.5rem; font-size: 1rem;">
+                                    <i class="ph ph-file-csv"></i>
+                                    Import CSV
+                                </button>
+                                <button onclick="openAddSetModal()" class="btn btn-secondary" style="padding: 0.75rem 1.5rem; font-size: 1rem;">
+                                    <i class="ph ph-plus"></i>
+                                    Create Set
+                                </button>
+                            </div>
+                        </div>
+                    ` : `
+                        <!-- HAS DATA: Quick navigation -->
+                        <div style="text-align: center; padding: 1.5rem;">
+                            <h1 style="font-size: 1.25rem; font-weight: 600; color: #1e293b; margin-bottom: 0.25rem;">
+                                <i class="ph ph-globe-hemisphere-west" style="color: #6366f1;"></i>
+                                ${world?.name || 'World'}
+                            </h1>
+                            <p style="color: #64748b; font-size: 0.875rem;">Jump into your data or import more</p>
+                        </div>
+
+                        <!-- Primary action: Import more data -->
+                        <div style="display: flex; gap: 0.75rem; justify-content: center;">
+                            <button onclick="openCsvImportModal()" class="btn btn-primary btn-sm">
+                                <i class="ph ph-file-csv"></i>
+                                Import CSV
+                            </button>
+                            <button onclick="openAddSetModal()" class="btn btn-secondary btn-sm">
+                                <i class="ph ph-plus"></i>
+                                New Set
+                            </button>
+                        </div>
+
+                        <!-- Recent sets -->
+                        <div>
+                            <div style="font-weight: 600; color: #475569; margin-bottom: 0.75rem; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Your Data</div>
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                ${recentSetsHtml}
+                            </div>
+                        </div>
+                    `}
+
+                    <!-- World tools (secondary) -->
+                    <div style="border-top: 1px solid #e5e7eb; padding-top: 1.5rem; margin-top: 1rem;">
+                        <div style="font-weight: 600; color: #475569; margin-bottom: 0.75rem; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">World Tools</div>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                             <button class="btn btn-secondary btn-sm" onclick="document.getElementById('historyPanel').classList.add('open'); renderHistory();">
                                 <i class="ph ph-clock-counter-clockwise"></i>
-                                Global changes
+                                Changes
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="openJsonViewer()">
                                 <i class="ph ph-code"></i>
-                                View JSON
+                                JSON
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="document.getElementById('worldJsonInput').click()">
                                 <i class="ph ph-upload-simple"></i>
-                                Import world
+                                Import World
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="exportJSON()">
                                 <i class="ph ph-download-simple"></i>
-                                Download world
+                                Export
                             </button>
-                        </div>
-                    </div>
-
-                    <!-- CLEAN CONTENT AREA -->
-                    <div style="flex: 1; display: flex; align-items: center; justify-content: center; min-height: 400px;">
-                        <div style="text-align: center; color: var(--text-muted);">
-                            <i class="ph ph-squares-four" style="font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;"></i>
-                            <p style="font-size: 1.1rem; margin: 0;">Navigate using the sidebar to explore your world</p>
                         </div>
                     </div>
 
                 </div>
             `;
+
+            // Add hover effect for set cards
+            container.querySelectorAll('.dashboard-set-card').forEach(card => {
+                card.addEventListener('mouseenter', () => {
+                    card.style.borderColor = '#6366f1';
+                    card.style.background = '#f8fafc';
+                });
+                card.addEventListener('mouseleave', () => {
+                    card.style.borderColor = '#e5e7eb';
+                    card.style.background = 'white';
+                });
+            });
         }
 
         function renderExplorePage() {
