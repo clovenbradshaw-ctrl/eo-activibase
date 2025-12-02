@@ -77,19 +77,26 @@ function showViewMenu(state, viewId, buttonElement) {
     const menu = document.createElement('div');
     menu.className = 'context-menu view-menu';
     menu.innerHTML = `
-        <div class="menu-item" data-action="rename" data-view-id="${viewId}">
-            <span class="icon">✏️</span> Rename
+        <div class="menu-item" data-action="edit" data-view-id="${viewId}">
+            <span class="menu-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+            <span class="menu-label">Edit View</span>
         </div>
         <div class="menu-item" data-action="duplicate" data-view-id="${viewId}">
-            <span class="icon">📋</span> Duplicate
+            <span class="menu-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+            <span class="menu-label">Duplicate</span>
+        </div>
+        <div class="menu-item" data-action="history" data-view-id="${viewId}">
+            <span class="menu-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <span class="menu-label">History</span>
         </div>
         <div class="menu-separator"></div>
-        <div class="menu-item" data-action="export" data-view-id="${viewId}">
-            <span class="icon">📤</span> Export View
+        <div class="menu-item" data-action="close" data-view-id="${viewId}">
+            <span class="menu-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+            <span class="menu-label">Close Tab</span>
         </div>
-        <div class="menu-separator"></div>
         <div class="menu-item danger" data-action="delete" data-view-id="${viewId}">
-            <span class="icon">🗑️</span> Delete View
+            <span class="menu-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span>
+            <span class="menu-label">Delete View</span>
         </div>
     `;
 
@@ -100,6 +107,47 @@ function showViewMenu(state, viewId, buttonElement) {
     menu.style.left = `${rect.left}px`;
 
     document.body.appendChild(menu);
+
+    // Handle menu item clicks
+    menu.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const action = item.dataset.action;
+            const vid = item.dataset.viewId;
+            menu.remove();
+
+            switch (action) {
+                case 'edit':
+                    showEditViewDialog(state, vid);
+                    break;
+                case 'duplicate':
+                    const original = state.views?.get(vid);
+                    if (original) {
+                        const newView = cloneView(state, vid, `${original.name} (copy)`);
+                        if (newView && window.switchSet) {
+                            state.currentViewId = newView.id;
+                            window.switchSet(original.setId, newView.id);
+                        }
+                        showToast('View duplicated');
+                    }
+                    break;
+                case 'history':
+                    showViewHistory(state, vid);
+                    break;
+                case 'close':
+                    closeViewTab(state, vid);
+                    break;
+                case 'delete':
+                    if (confirm('Are you sure you want to delete this view?')) {
+                        deleteView(state, vid);
+                        if (window.renderCurrentView) {
+                            window.renderCurrentView();
+                        }
+                        showToast('View deleted');
+                    }
+                    break;
+            }
+        });
+    });
 
     // Close on click outside
     setTimeout(() => {
@@ -1133,6 +1181,327 @@ function handleSearchInput(state, query) {
 }
 
 // ============================================================================
+// VIEW HISTORY
+// ============================================================================
+
+/**
+ * Show view history modal
+ * Displays all changes related to the view including record operations (including deleted/tossed)
+ */
+function showViewHistory(state, viewId) {
+    const view = state.views?.get(viewId);
+    if (!view) return;
+
+    const events = state.eventStream || [];
+    const set = state.sets.get(view.setId);
+
+    // Collect all events related to this view
+    const viewEvents = events.filter(event => {
+        // Direct view events
+        if (event.entityType === 'View' && event.entityId === viewId) {
+            return true;
+        }
+        // Events with this view in data
+        if (event.data?.viewId === viewId) {
+            return true;
+        }
+        // Record events in this view's set
+        if (event.entityType === 'Record' && event.data?.setId === view.setId) {
+            return true;
+        }
+        // Structural operations on this view
+        if (event.entityType === 'StructuralOperation' && event.data?.viewId === viewId) {
+            return true;
+        }
+        return false;
+    });
+
+    // Sort by timestamp descending (newest first)
+    viewEvents.sort((a, b) => b.timestamp - a.timestamp);
+
+    const dialog = document.createElement('div');
+    dialog.className = 'modal-overlay';
+    dialog.innerHTML = `
+        <div class="modal history-modal">
+            <div class="modal-header">
+                <h2>
+                    <span class="history-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+                    History: ${escapeHtml(view.name)}
+                </h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="history-filters">
+                    <label class="history-filter-label">
+                        <input type="checkbox" id="history-show-records" checked>
+                        Show record changes
+                    </label>
+                    <label class="history-filter-label">
+                        <input type="checkbox" id="history-show-deleted" checked>
+                        Show deleted/tossed items
+                    </label>
+                </div>
+                <div class="history-timeline" id="history-timeline">
+                    ${renderHistoryTimeline(viewEvents, state)}
+                </div>
+                ${viewEvents.length === 0 ? '<div class="history-empty">No history recorded yet</div>' : ''}
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary modal-close">Close</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(dialog);
+
+    // Filter handlers
+    const showRecordsCheckbox = dialog.querySelector('#history-show-records');
+    const showDeletedCheckbox = dialog.querySelector('#history-show-deleted');
+    const timeline = dialog.querySelector('#history-timeline');
+
+    function updateTimeline() {
+        const showRecords = showRecordsCheckbox.checked;
+        const showDeleted = showDeletedCheckbox.checked;
+
+        const filtered = viewEvents.filter(event => {
+            if (!showRecords && event.entityType === 'Record') {
+                return false;
+            }
+            if (!showDeleted && (event.type.includes('deleted') || event.type.includes('tossed') || event.type.includes('removed'))) {
+                return false;
+            }
+            return true;
+        });
+
+        timeline.innerHTML = renderHistoryTimeline(filtered, state);
+    }
+
+    showRecordsCheckbox.addEventListener('change', updateTimeline);
+    showDeletedCheckbox.addEventListener('change', updateTimeline);
+
+    // Close handlers
+    dialog.querySelectorAll('.modal-close').forEach(btn => {
+        btn.addEventListener('click', () => dialog.remove());
+    });
+
+    dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) {
+            dialog.remove();
+        }
+    });
+}
+
+/**
+ * Render the history timeline HTML
+ */
+function renderHistoryTimeline(events, state) {
+    if (events.length === 0) {
+        return '<div class="history-empty">No events match the current filters</div>';
+    }
+
+    let html = '';
+    let lastDate = null;
+
+    events.forEach(event => {
+        const date = new Date(event.timestamp);
+        const dateStr = date.toLocaleDateString();
+
+        // Add date header if new date
+        if (dateStr !== lastDate) {
+            html += `<div class="history-date-header">${dateStr}</div>`;
+            lastDate = dateStr;
+        }
+
+        const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const { icon, label, description, className } = getEventDisplayInfo(event, state);
+
+        html += `
+            <div class="history-event ${className}">
+                <div class="history-event-icon">${icon}</div>
+                <div class="history-event-content">
+                    <div class="history-event-header">
+                        <span class="history-event-label">${label}</span>
+                        <span class="history-event-time">${timeStr}</span>
+                    </div>
+                    <div class="history-event-description">${description}</div>
+                    ${event.user ? `<div class="history-event-user">by ${escapeHtml(event.user)}</div>` : ''}
+                </div>
+            </div>
+        `;
+    });
+
+    return html;
+}
+
+/**
+ * Get display info for a history event
+ */
+function getEventDisplayInfo(event, state) {
+    const icons = {
+        view_created: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+        view_updated: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+        view_deleted: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+        record_created: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+        record_updated: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M12 8v8m-4-4h8"/></svg>',
+        record_deleted: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>',
+        record_tossed: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2"><path d="M3 6h18l-2 13H5L3 6z"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+        operation_created: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+        default: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>'
+    };
+
+    const type = event.type || 'unknown';
+    let icon = icons[type] || icons.default;
+    let label = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    let description = '';
+    let className = '';
+
+    switch (type) {
+        case 'view_created':
+            description = `View "${event.data?.name || 'Untitled'}" was created`;
+            className = 'event-success';
+            break;
+        case 'view_updated':
+            const changes = event.data?.changes?.join(', ') || 'properties';
+            description = `Updated ${changes}`;
+            className = 'event-info';
+            break;
+        case 'view_deleted':
+            description = `View "${event.data?.name || 'Untitled'}" was deleted`;
+            className = 'event-danger';
+            break;
+        case 'record_created':
+            description = `Record added to the set`;
+            className = 'event-success';
+            break;
+        case 'record_updated':
+            description = `Record was modified`;
+            className = 'event-info';
+            break;
+        case 'record_deleted':
+        case 'record_tossed':
+            description = `Record was removed from the view`;
+            className = 'event-warning';
+            label = 'Record Tossed';
+            icon = icons.record_tossed;
+            break;
+        case 'operation_created':
+            const kind = event.data?.kind || 'operation';
+            description = `${kind} operation was performed`;
+            className = 'event-purple';
+            break;
+        default:
+            description = event.data ? JSON.stringify(event.data).slice(0, 100) : 'No details';
+    }
+
+    return { icon, label, description, className };
+}
+
+/**
+ * Close a view tab without deleting the view
+ */
+function closeViewTab(state, viewId) {
+    const view = state.views?.get(viewId);
+    if (!view) return;
+
+    // Get all views for this set
+    const setViews = [];
+    if (state.views) {
+        state.views.forEach(v => {
+            if (v.setId === view.setId) {
+                setViews.push(v);
+            }
+        });
+    }
+
+    // If this is the current view, switch to another
+    if (state.currentViewId === viewId) {
+        const otherView = setViews.find(v => v.id !== viewId);
+        if (otherView) {
+            state.currentViewId = otherView.id;
+        } else {
+            state.currentViewId = null;
+        }
+    }
+
+    // We don't delete the view, just close the tab (it can be reopened)
+    // For now, this behaves like switching away
+    if (window.renderCurrentView) {
+        window.renderCurrentView();
+    }
+}
+
+/**
+ * Show edit view dialog
+ */
+function showEditViewDialog(state, viewId) {
+    const view = state.views?.get(viewId);
+    if (!view) return;
+
+    const dialog = document.createElement('div');
+    dialog.className = 'modal-overlay';
+    dialog.innerHTML = `
+        <div class="modal edit-view-modal">
+            <div class="modal-header">
+                <h2>Edit View</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>View Name</label>
+                    <input type="text" id="edit-view-name" value="${escapeHtml(view.name)}">
+                </div>
+                <div class="form-group">
+                    <label>View Type</label>
+                    <select id="edit-view-type">
+                        <option value="grid" ${view.type === 'grid' ? 'selected' : ''}>Grid</option>
+                        <option value="gallery" ${view.type === 'gallery' ? 'selected' : ''}>Gallery</option>
+                        <option value="kanban" ${view.type === 'kanban' ? 'selected' : ''}>Kanban</option>
+                        <option value="calendar" ${view.type === 'calendar' ? 'selected' : ''}>Calendar</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="edit-view-notes" rows="3" placeholder="Optional notes about this view...">${escapeHtml(view.provenance?.notes || '')}</textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary modal-close">Cancel</button>
+                <button class="btn-primary" id="btn-save-edit-view">Save Changes</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(dialog);
+
+    dialog.querySelectorAll('.modal-close').forEach(btn => {
+        btn.addEventListener('click', () => dialog.remove());
+    });
+
+    dialog.querySelector('#btn-save-edit-view').addEventListener('click', () => {
+        const name = dialog.querySelector('#edit-view-name').value.trim();
+        const type = dialog.querySelector('#edit-view-type').value;
+        const notes = dialog.querySelector('#edit-view-notes').value.trim();
+
+        updateView(state, viewId, {
+            name: name || view.name,
+            type,
+            provenance: {
+                ...view.provenance,
+                notes
+            }
+        });
+
+        dialog.remove();
+
+        if (window.renderCurrentView) {
+            window.renderCurrentView();
+        }
+
+        showToast('View updated');
+    });
+}
+
+// ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
 
@@ -1189,7 +1558,10 @@ if (typeof module !== 'undefined' && module.exports) {
         showSplitRecordDialog,
         showHarmonizeFieldsDialog,
         renderEnhancedSearchModal,
-        handleSearchInput
+        handleSearchInput,
+        showViewHistory,
+        showEditViewDialog,
+        closeViewTab
     };
 }
 
@@ -1200,4 +1572,7 @@ if (typeof window !== 'undefined') {
     window.showJSONScrubberMenu = showJSONScrubberMenu;
     window.renderViewToolbar = renderViewToolbar;
     window.attachViewToolbarListeners = attachViewToolbarListeners;
+    window.showViewHistory = showViewHistory;
+    window.showEditViewDialog = showEditViewDialog;
+    window.closeViewTab = closeViewTab;
 }

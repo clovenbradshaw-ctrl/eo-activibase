@@ -178,6 +178,43 @@
     margin: 4px 0;
 }
 
+/* View Menu - On Brand Styling */
+.view-menu {
+    min-width: 200px;
+    padding: 6px 0;
+}
+
+.view-menu .menu-item {
+    padding: 10px 14px;
+    gap: 10px;
+}
+
+.view-menu .menu-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: #6b7280;
+}
+
+.view-menu .menu-icon svg {
+    flex-shrink: 0;
+}
+
+.view-menu .menu-item:hover .menu-icon {
+    color: #374151;
+}
+
+.view-menu .menu-item.danger .menu-icon {
+    color: #dc3545;
+}
+
+.view-menu .menu-label {
+    flex: 1;
+    font-weight: 500;
+}
+
 /* ============================================================================
    MODALS
    ============================================================================ */
@@ -250,6 +287,162 @@
     padding: 24px;
     overflow-y: auto;
     flex: 1;
+}
+
+/* ============================================================================
+   HISTORY MODAL
+   ============================================================================ */
+
+.history-modal {
+    max-width: 700px;
+}
+
+.history-modal .modal-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.history-icon {
+    display: flex;
+    align-items: center;
+    color: #3b82f6;
+}
+
+.history-filters {
+    display: flex;
+    gap: 20px;
+    padding: 12px 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.history-filter-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #4b5563;
+    cursor: pointer;
+}
+
+.history-filter-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #3b82f6;
+    cursor: pointer;
+}
+
+.history-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.history-date-header {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #9ca3af;
+    letter-spacing: 0.05em;
+    padding: 16px 0 8px;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 8px;
+}
+
+.history-date-header:first-child {
+    padding-top: 0;
+}
+
+.history-event {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+}
+
+.history-event:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+}
+
+.history-event-icon {
+    display: flex;
+    align-items: flex-start;
+    padding-top: 2px;
+}
+
+.history-event-icon svg {
+    flex-shrink: 0;
+}
+
+.history-event-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.history-event-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.history-event-label {
+    font-weight: 600;
+    font-size: 14px;
+    color: #374151;
+}
+
+.history-event-time {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.history-event-description {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+.history-event-user {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
+/* Event type colors */
+.history-event.event-success {
+    border-left: 3px solid #22c55e;
+}
+
+.history-event.event-info {
+    border-left: 3px solid #3b82f6;
+}
+
+.history-event.event-warning {
+    border-left: 3px solid #f97316;
+}
+
+.history-event.event-danger {
+    border-left: 3px solid #ef4444;
+}
+
+.history-event.event-purple {
+    border-left: 3px solid #8b5cf6;
+}
+
+.history-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #9ca3af;
+    font-size: 14px;
 }
 
 .modal-footer {
