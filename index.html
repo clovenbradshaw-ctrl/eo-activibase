@@ -19199,6 +19199,8 @@
 
         function renderFilterRule(groupIndex, ruleIndex, rule) {
             const schema = getCurrentSet().schema;
+            const selectedField = schema.find(f => f.id === rule.field);
+            const inputType = getInputTypeForField(selectedField);
             return `
                 <div class="filter-rule">
                     <select onchange="updateFilterField(${groupIndex}, ${ruleIndex}, this.value)">
@@ -19206,10 +19208,24 @@
                         ${schema.map(f => `<option value="${f.id}" ${f.id === rule.field ? 'selected' : ''}>${f.name}</option>`).join('')}
                     </select>
                     <select><option>equals</option></select>
-                    <input type="text" value="${rule.value || ''}" onchange="updateFilterValue(${groupIndex}, ${ruleIndex}, this.value)">
+                    <input type="${inputType}" value="${rule.value || ''}" onchange="updateFilterValue(${groupIndex}, ${ruleIndex}, this.value)">
                     <button onclick="removeFilterRule(${groupIndex}, ${ruleIndex})" class="text-red-600">✕</button>
                 </div>
             `;
+        }
+
+        function getInputTypeForField(field) {
+            if (!field) return 'text';
+            switch (field.type) {
+                case 'DATE':
+                case 'DATETIME':
+                    return 'date';
+                case 'NUMBER':
+                case 'CURRENCY':
+                    return 'number';
+                default:
+                    return 'text';
+            }
         }
 
         function applyFilterGroups(records, filterGroups, schema) {
