@@ -16,6 +16,7 @@
     <script src="eo_graph.js"></script>
     <script src="eo_lean_context.js"></script>
     <script src="eo_provenance_extractor.js"></script>
+    <script src="eo_event_store.js"></script>
     <script src="demo/eo_rollup_engine.js"></script>
     <script src="demo/eo_linked_fields_modal.js"></script>
     <link rel="stylesheet" href="demo/eo_linked_fields_modal.css">
@@ -3187,6 +3188,9 @@
                         <div class="nav-item" id="navRelations" onclick="navigateTo('relations')">Relations</div>
                         <div class="nav-item" id="navDefinitions" onclick="navigateTo('definitions')">Definitions</div>
                         <div class="nav-item" id="navViews" onclick="navigateTo('views')">Views</div>
+                        <div class="nav-item" id="navEventStore" onclick="navigateTo('eventStore')">
+                            <i class="ph ph-clock-counter-clockwise" style="margin-right: 0.25rem;"></i>Event Store
+                        </div>
                     </div>
                 </div>
 
@@ -6552,6 +6556,15 @@
                 origin: 'manual'
             });
 
+            // Log event
+            createEvent(
+                'Create Definition',
+                'DES',
+                { type: 'Definition', id: payload.id },
+                { term: payload.term, definition: payload.definition, entity: payload.entity, summary: `Defined "${payload.term}"` },
+                { frame: 'semantic', scale: 'concept' }
+            );
+
             return payload;
         }
 
@@ -6567,6 +6580,16 @@
             };
 
             state.definitions.set(id, next);
+
+            // Log event
+            createEvent(
+                'Update Definition',
+                'SEG',
+                { type: 'Definition', id },
+                { term: next.term, updates, oldTerm: existing.term, summary: `Updated definition "${next.term}"` },
+                { frame: 'semantic', scale: 'concept' }
+            );
+
             return next;
         }
 
@@ -6574,6 +6597,16 @@
             const existing = state.definitions.get(id);
             if (!existing) throw new Error(`Definition ${id} not found`);
             state.definitions.delete(id);
+
+            // Log event
+            createEvent(
+                'Delete Definition',
+                'NUL',
+                { type: 'Definition', id },
+                { term: existing.term, summary: `Removed definition "${existing.term}"`, deleted: true },
+                { frame: 'semantic', scale: 'concept' }
+            );
+
             return existing;
         }
 
@@ -8383,6 +8416,16 @@
                 createdAt: new Date().toISOString(),
                 defaults
             });
+
+            // Log world creation event
+            createEvent(
+                'Create World',
+                'INS',
+                { type: 'World', id: resolvedWorldId },
+                { name, summary: `Created world "${name}"` },
+                { frame: 'system', scale: 'world' }
+            );
+
             return resolvedWorldId;
         }
 
@@ -8525,15 +8568,21 @@
             };
             set.views.set(viewId, viewPayload);
 
-            if (config.type === 'KEY_DERIVED') {
-                createEvent(
-                    'Create Key View',
-                    'SYN',
-                    { type: 'View', id: viewId, setId },
-                    { view: viewPayload, summary: `Generated view "${name}" from identity property` },
-                    { scale: 'collection' }
-                );
-            }
+            // Log view creation event
+            createEvent(
+                config.type === 'KEY_DERIVED' ? 'Create Key View' : 'Create View',
+                config.type === 'KEY_DERIVED' ? 'SYN' : 'INS',
+                { type: 'View', id: viewId, setId },
+                {
+                    name: name,
+                    viewType: viewPayload.type,
+                    setId: setId,
+                    summary: config.type === 'KEY_DERIVED'
+                        ? `Generated view "${name}" from identity property`
+                        : `Created ${viewPayload.type} view "${name}"`
+                },
+                { scale: 'collection' }
+            );
 
             return viewId;
         }
@@ -10504,6 +10553,11 @@
                     state.currentSetId = null;
                     state.currentViewId = null;
                     break;
+                case 'eventStore':
+                    state.currentSpecialView = 'eventStore';
+                    state.currentSetId = null;
+                    state.currentViewId = null;
+                    break;
                 case 'search':
                     // Legacy support - redirect to explore
                     navigateTo('explore');
@@ -10832,6 +10886,7 @@
                 'navDefinitions': state.currentSpecialView === 'definitions',
                 'navViews': state.currentSpecialView === 'views',
                 'navExplore': state.currentSpecialView === 'explore',
+                'navEventStore': state.currentSpecialView === 'eventStore',
                 'navSuggestedViews': state.currentSpecialView === 'suggestedViews',
                 'navSuggestedConcepts': state.currentSpecialView === 'suggestedConcepts'
             };
@@ -11649,6 +11704,12 @@
 
             if (state.currentSpecialView === 'explore') {
                 renderExplorePage();
+                updateMobileChrome();
+                return;
+            }
+
+            if (state.currentSpecialView === 'eventStore') {
+                renderEventStorePage();
                 updateMobileChrome();
                 return;
             }
@@ -17513,6 +17574,23 @@
                     card.style.background = 'white';
                 });
             });
+        }
+
+        function renderEventStorePage() {
+            const container = document.getElementById('viewContainer');
+            if (!container) return;
+
+            // Initialize event store manager if needed
+            if (!state.eventStoreManager) {
+                state.eventStoreManager = new EventStoreManager(state);
+            }
+
+            // Use the event store rendering function
+            if (typeof renderEventStoreView === 'function') {
+                renderEventStoreView(state, container);
+            } else {
+                container.innerHTML = '<div class="p-6 text-gray-500">Event store module not loaded.</div>';
+            }
         }
 
         function renderExplorePage() {
@@ -23471,6 +23549,22 @@
             a.download = `${nameToken || 'workbase'}-export.json`;
             a.click();
             URL.revokeObjectURL(url);
+
+            // Log export event
+            createEvent(
+                'Export World',
+                'INS',
+                { type: 'World', id: world?.id || 'unknown' },
+                {
+                    worldName: world?.name,
+                    setCount: worldSets.length,
+                    recordCount: worldSets.reduce((sum, s) => sum + s.records.size, 0),
+                    filename: a.download,
+                    summary: `Exported world "${world?.name}" with ${worldSets.length} sets`
+                },
+                { frame: 'system', scale: 'world' }
+            );
+
             showToast('✓ Exported data');
         }
 
@@ -23571,6 +23665,22 @@
                 state.currentWorldId = worldId;
                 state.currentSetId = Array.from(normalizedWorld.setIds)[0] || null;
                 state.currentViewId = state.currentSetId ? Array.from(state.sets.get(state.currentSetId).views.keys())[0] || null : null;
+
+                // Log import event
+                createEvent(
+                    'Import World',
+                    'INS',
+                    { type: 'World', id: worldId },
+                    {
+                        worldName: normalizedWorld.name,
+                        setCount: data.sets?.length || 0,
+                        recordCount: (data.sets || []).reduce((sum, s) => sum + (s.records?.length || 0), 0),
+                        definitionCount: data.definitions?.length || 0,
+                        connectionCount: data.connections?.length || 0,
+                        summary: `Imported world "${normalizedWorld.name}" with ${data.sets?.length || 0} sets`
+                    },
+                    { frame: 'system', scale: 'world' }
+                );
 
                 renderWorldSelector();
                 renderSidebar();
