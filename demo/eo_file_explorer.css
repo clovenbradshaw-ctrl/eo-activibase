@@ -1,0 +1,1013 @@
+/**
+ * EO File Explorer Styles
+ * File-explorer style UI for imports, sets, and views
+ */
+
+/* ============================================
+   File Explorer Container
+   ============================================ */
+
+.eo-file-explorer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-size: 13px;
+  color: var(--gray-700);
+  background: var(--gray-50);
+  border-right: 1px solid var(--gray-200);
+  overflow-y: auto;
+}
+
+/* ============================================
+   Drop Zone
+   ============================================ */
+
+.eo-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px;
+  margin: 8px;
+  border: 2px dashed var(--gray-300);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.eo-drop-zone:hover {
+  border-color: var(--blue-400);
+  background: var(--blue-50);
+  color: var(--blue-600);
+}
+
+.eo-drop-zone.eo-drop-active {
+  border-color: var(--blue-500);
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+
+.eo-drop-zone i {
+  font-size: 24px;
+}
+
+.eo-drop-zone span {
+  font-size: 12px;
+}
+
+.eo-drop-formats {
+  font-size: 10px;
+  color: var(--gray-400);
+}
+
+.eo-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   Sections
+   ============================================ */
+
+.eo-section {
+  margin-bottom: 4px;
+}
+
+.eo-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-weight: 500;
+  color: var(--gray-600);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.eo-section-header:hover {
+  background: var(--gray-100);
+}
+
+.eo-section-header i:first-child {
+  font-size: 10px;
+  color: var(--gray-400);
+}
+
+.eo-section-header i:nth-child(2) {
+  font-size: 14px;
+}
+
+.eo-count {
+  margin-left: auto;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gray-500);
+  background: var(--gray-200);
+  border-radius: 10px;
+}
+
+.eo-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--gray-400);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.eo-add-btn:hover {
+  background: var(--blue-100);
+  color: var(--blue-600);
+}
+
+.eo-section-content {
+  padding: 0 8px;
+}
+
+.eo-empty {
+  padding: 12px;
+  text-align: center;
+  color: var(--gray-400);
+  font-size: 12px;
+}
+
+/* ============================================
+   Items
+   ============================================ */
+
+.eo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 2px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.eo-item:hover {
+  background: var(--gray-100);
+}
+
+.eo-item.eo-selected {
+  background: var(--blue-100);
+  color: var(--blue-800);
+}
+
+.eo-item.eo-dragging {
+  opacity: 0.5;
+}
+
+.eo-item.eo-drag-over {
+  background: var(--blue-100);
+  box-shadow: inset 0 0 0 2px var(--blue-400);
+}
+
+.eo-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--gray-100);
+  color: var(--gray-500);
+}
+
+.eo-item.eo-selected .eo-item-icon {
+  background: var(--blue-200);
+  color: var(--blue-700);
+}
+
+.eo-import-item .eo-item-icon {
+  background: var(--green-100);
+  color: var(--green-600);
+}
+
+.eo-set-item .eo-item-icon {
+  background: var(--purple-100);
+  color: var(--purple-600);
+}
+
+.eo-view-item .eo-item-icon {
+  background: var(--amber-100);
+  color: var(--amber-600);
+}
+
+.eo-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.eo-item-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eo-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--gray-500);
+}
+
+.eo-dot {
+  color: var(--gray-300);
+}
+
+.eo-item-badges {
+  display: flex;
+  gap: 4px;
+}
+
+.eo-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gray-600);
+  background: var(--gray-200);
+  border-radius: 9px;
+}
+
+.eo-badge-link {
+  background: var(--blue-100);
+  color: var(--blue-600);
+}
+
+.eo-badge-temp {
+  background: var(--amber-100);
+  color: var(--amber-700);
+}
+
+.eo-item-actions {
+  display: none;
+  gap: 2px;
+}
+
+.eo-item:hover .eo-item-actions {
+  display: flex;
+}
+
+.eo-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--gray-400);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.eo-action-btn:hover {
+  background: var(--gray-200);
+  color: var(--gray-700);
+}
+
+.eo-action-btn:hover i.ph-trash {
+  color: var(--red-500);
+}
+
+/* Source indicators */
+.eo-item-sources {
+  display: flex;
+  gap: 2px;
+}
+
+.eo-source-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+  color: var(--green-600);
+  background: var(--green-50);
+  border-radius: 4px;
+}
+
+.eo-more {
+  font-size: 10px;
+  color: var(--gray-500);
+  padding: 0 4px;
+}
+
+/* ============================================
+   Relationships Section
+   ============================================ */
+
+.eo-relationships-section {
+  border-top: 1px solid var(--gray-200);
+  margin-top: 8px;
+  padding-top: 4px;
+}
+
+.eo-relationship-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 11px;
+}
+
+.eo-rel-from,
+.eo-rel-to {
+  flex: 1;
+  min-width: 0;
+}
+
+.eo-rel-name {
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+.eo-rel-col {
+  color: var(--gray-500);
+}
+
+.eo-rel-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: var(--gray-400);
+}
+
+.eo-rel-match {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--green-600);
+}
+
+.eo-link-btn {
+  background: var(--blue-50);
+  color: var(--blue-500);
+}
+
+.eo-link-btn:hover {
+  background: var(--blue-100);
+  color: var(--blue-600);
+}
+
+.eo-more-rels {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--gray-500);
+  text-align: center;
+}
+
+/* ============================================
+   Modal Styles
+   ============================================ */
+
+.eo-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.eo-import-preview-modal {
+  width: 90%;
+  max-width: 1000px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.eo-add-to-set-modal {
+  width: 400px;
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.eo-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.eo-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.eo-modal-title i {
+  font-size: 20px;
+  color: var(--gray-500);
+}
+
+.eo-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--gray-400);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.eo-modal-close:hover {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+
+.eo-modal-body {
+  flex: 1;
+  overflow: auto;
+  padding: 0;
+}
+
+.eo-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-top: 1px solid var(--gray-200);
+  background: var(--gray-50);
+}
+
+.eo-footer-info {
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+.eo-footer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Buttons */
+.eo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.eo-btn-primary {
+  background: var(--blue-600);
+  color: var(--white);
+}
+
+.eo-btn-primary:hover {
+  background: var(--blue-700);
+}
+
+.eo-btn-secondary {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+.eo-btn-secondary:hover {
+  background: var(--gray-200);
+}
+
+/* ============================================
+   Preview Tabs
+   ============================================ */
+
+.eo-preview-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--gray-200);
+  background: var(--gray-50);
+}
+
+.eo-preview-tab {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-600);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.eo-preview-tab:hover {
+  background: var(--gray-100);
+}
+
+.eo-preview-tab.eo-active {
+  background: var(--white);
+  color: var(--gray-900);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.eo-preview-content {
+  display: none;
+  padding: 20px;
+}
+
+.eo-preview-content.eo-active {
+  display: block;
+}
+
+/* ============================================
+   Data Table
+   ============================================ */
+
+.eo-data-table-wrapper {
+  overflow: auto;
+  max-height: 400px;
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+}
+
+.eo-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.eo-data-table th {
+  position: sticky;
+  top: 0;
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--gray-700);
+  background: var(--gray-100);
+  border-bottom: 1px solid var(--gray-200);
+  white-space: nowrap;
+}
+
+.eo-data-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--gray-100);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eo-data-table tr:hover td {
+  background: var(--gray-50);
+}
+
+.eo-data-table .eo-null,
+.eo-data-table .eo-empty {
+  color: var(--gray-400);
+  font-style: italic;
+}
+
+.eo-table-footer {
+  padding: 10px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--gray-500);
+  background: var(--gray-50);
+  border-top: 1px solid var(--gray-200);
+}
+
+/* ============================================
+   Schema Grid
+   ============================================ */
+
+.eo-schema-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.eo-schema-item {
+  padding: 12px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+}
+
+.eo-schema-item.eo-pk {
+  border-color: var(--amber-300);
+  background: var(--amber-50);
+}
+
+.eo-schema-item.eo-fk {
+  border-color: var(--blue-300);
+  background: var(--blue-50);
+}
+
+.eo-schema-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.eo-schema-name {
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.eo-schema-badge {
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 4px;
+}
+
+.eo-badge-pk {
+  background: var(--amber-200);
+  color: var(--amber-800);
+}
+
+.eo-badge-fk {
+  background: var(--blue-200);
+  color: var(--blue-800);
+}
+
+.eo-schema-type {
+  font-size: 11px;
+  color: var(--gray-600);
+  margin-bottom: 6px;
+}
+
+.eo-schema-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--gray-500);
+  margin-bottom: 6px;
+}
+
+.eo-schema-samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.eo-schema-samples code {
+  padding: 2px 6px;
+  font-size: 10px;
+  background: var(--gray-100);
+  border-radius: 4px;
+  color: var(--gray-600);
+}
+
+/* ============================================
+   Metadata
+   ============================================ */
+
+.eo-metadata-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.eo-metadata-section {
+  padding: 16px;
+  background: var(--gray-50);
+  border-radius: 8px;
+}
+
+.eo-metadata-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-700);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.eo-metadata-section dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.eo-metadata-section dt {
+  color: var(--gray-500);
+}
+
+.eo-metadata-section dd {
+  margin: 0;
+  color: var(--gray-800);
+  font-weight: 500;
+}
+
+.eo-entity-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.eo-entity-tag {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--purple-700);
+  background: var(--purple-100);
+  border-radius: 12px;
+}
+
+.eo-fk-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.eo-fk-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+}
+
+.eo-fk-list code {
+  padding: 2px 6px;
+  background: var(--gray-100);
+  border-radius: 4px;
+}
+
+.eo-fk-list em {
+  color: var(--blue-600);
+  font-style: normal;
+}
+
+.eo-confidence {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--gray-500);
+}
+
+/* ============================================
+   Quality
+   ============================================ */
+
+.eo-quality-overview {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  padding: 20px;
+  background: var(--gray-50);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.eo-quality-score {
+  text-align: center;
+}
+
+.eo-score-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--green-600);
+  background: conic-gradient(
+    var(--green-500) calc(var(--score) * 3.6deg),
+    var(--gray-200) calc(var(--score) * 3.6deg)
+  );
+  border-radius: 50%;
+  position: relative;
+}
+
+.eo-score-circle::before {
+  content: '';
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  background: var(--white);
+  border-radius: 50%;
+}
+
+.eo-score-circle span {
+  position: relative;
+  z-index: 1;
+}
+
+.eo-score-label {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--gray-600);
+}
+
+.eo-quality-metrics {
+  display: flex;
+  gap: 32px;
+}
+
+.eo-metric {
+  text-align: center;
+}
+
+.eo-metric-value {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--gray-800);
+}
+
+.eo-metric-label {
+  font-size: 11px;
+  color: var(--gray-500);
+}
+
+.eo-quality-details h4 {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.eo-completeness-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eo-completeness-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.eo-col-name {
+  width: 140px;
+  font-size: 12px;
+  color: var(--gray-700);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eo-bar-container {
+  flex: 1;
+  height: 8px;
+  background: var(--gray-200);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.eo-bar {
+  height: 100%;
+  background: var(--green-500);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.eo-pct {
+  width: 40px;
+  font-size: 11px;
+  color: var(--gray-600);
+  text-align: right;
+}
+
+/* ============================================
+   Add to Set Modal
+   ============================================ */
+
+.eo-option-group {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.eo-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.eo-option input[type="radio"] {
+  accent-color: var(--blue-600);
+}
+
+.eo-input,
+.eo-select {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  border: 1px solid var(--gray-300);
+  border-radius: 6px;
+  background: var(--white);
+  transition: border-color 0.15s ease;
+}
+
+.eo-input:focus,
+.eo-select:focus {
+  outline: none;
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px var(--blue-100);
+}
+
+.eo-input:disabled,
+.eo-select:disabled {
+  background: var(--gray-100);
+  color: var(--gray-500);
+}
+
+/* ============================================
+   Color Variables (ensure these exist)
+   ============================================ */
+
+:root {
+  --white: #ffffff;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+
+  --blue-50: #eff6ff;
+  --blue-100: #dbeafe;
+  --blue-200: #bfdbfe;
+  --blue-300: #93c5fd;
+  --blue-400: #60a5fa;
+  --blue-500: #3b82f6;
+  --blue-600: #2563eb;
+  --blue-700: #1d4ed8;
+  --blue-800: #1e40af;
+
+  --green-50: #f0fdf4;
+  --green-100: #dcfce7;
+  --green-200: #bbf7d0;
+  --green-500: #22c55e;
+  --green-600: #16a34a;
+
+  --red-500: #ef4444;
+
+  --amber-50: #fffbeb;
+  --amber-100: #fef3c7;
+  --amber-200: #fde68a;
+  --amber-300: #fcd34d;
+  --amber-600: #d97706;
+  --amber-700: #b45309;
+  --amber-800: #92400e;
+
+  --purple-100: #f3e8ff;
+  --purple-600: #9333ea;
+  --purple-700: #7c3aed;
+}
