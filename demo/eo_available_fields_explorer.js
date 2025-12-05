@@ -90,7 +90,66 @@ class EOAvailableFieldsExplorer {
         // Get existing lookups/rollups
         const computed = this.getExistingComputedFields();
 
+        // Include hidden computed fields in the hidden category
+        const hiddenComputed = this.getHiddenComputedFields();
+        hidden.push(...hiddenComputed);
+
         return { visible, hidden, available, linked, computed };
+    }
+
+    /**
+     * Get computed fields (lookups/rollups) that are hidden
+     */
+    getHiddenComputedFields() {
+        const hiddenFieldIds = this.currentView.hiddenFields || [];
+        const relationships = this.currentView.relationships || [];
+        const rollups = this.currentView.rollups || [];
+        const hiddenComputed = [];
+
+        // Find hidden lookups
+        relationships.forEach(rel => {
+            if (hiddenFieldIds.includes(rel.id)) {
+                const targetSet = this.state.sets?.get(rel.targetSetId);
+                const targetField = targetSet?.schema?.find(f => f.id === rel.targetFieldId);
+
+                hiddenComputed.push({
+                    id: rel.id,
+                    name: rel.displayName || `${targetSet?.name || 'Unknown'} – ${targetField?.name || rel.targetFieldId}`,
+                    type: 'LOOKUP',
+                    isComputed: true,
+                    computedType: 'lookup',
+                    sourceFieldId: rel.sourceFieldId,
+                    targetSetId: rel.targetSetId,
+                    targetSetName: targetSet?.name || 'Unknown',
+                    targetFieldId: rel.targetFieldId,
+                    targetFieldName: targetField?.name || rel.targetFieldId
+                });
+            }
+        });
+
+        // Find hidden rollups
+        rollups.forEach(rollup => {
+            if (hiddenFieldIds.includes(rollup.id)) {
+                const targetSet = this.state.sets?.get(rollup.targetSetId);
+                const targetField = targetSet?.schema?.find(f => f.id === rollup.targetFieldId);
+
+                hiddenComputed.push({
+                    id: rollup.id,
+                    name: rollup.displayName || `${targetSet?.name || 'Unknown'} – ${targetField?.name || rollup.targetFieldId} (${rollup.aggregation})`,
+                    type: 'ROLLUP',
+                    isComputed: true,
+                    computedType: 'rollup',
+                    sourceFieldId: rollup.sourceFieldId,
+                    targetSetId: rollup.targetSetId,
+                    targetSetName: targetSet?.name || 'Unknown',
+                    targetFieldId: rollup.targetFieldId,
+                    targetFieldName: targetField?.name || rollup.targetFieldId,
+                    aggregation: rollup.aggregation
+                });
+            }
+        });
+
+        return hiddenComputed;
     }
 
     /**
@@ -419,7 +478,9 @@ class EOAvailableFieldsExplorer {
             'LINK_RECORD': '#8b5cf6',
             'SELECT': '#ec4899',
             'FORMULA': '#6366f1',
-            'CHECKBOX': '#14b8a6'
+            'CHECKBOX': '#14b8a6',
+            'LOOKUP': '#06b6d4',
+            'ROLLUP': '#0ea5e9'
         };
 
         const typeColor = typeColors[field.type] || '#6b7280';
@@ -773,7 +834,7 @@ class EOAvailableFieldsExplorer {
     // ========== ACTIONS ==========
 
     /**
-     * Show a hidden field
+     * Show a hidden field (works for both schema and computed fields)
      */
     showField(fieldId) {
         // Remove from hiddenFields
@@ -788,6 +849,13 @@ class EOAvailableFieldsExplorer {
         if (Array.isArray(this.currentView.visibleFieldIds)) {
             if (!this.currentView.visibleFieldIds.includes(fieldId)) {
                 this.currentView.visibleFieldIds.push(fieldId);
+            }
+        }
+
+        // Add to columnOrder if not present (for computed fields)
+        if (Array.isArray(this.currentView.columnOrder)) {
+            if (!this.currentView.columnOrder.includes(fieldId)) {
+                this.currentView.columnOrder.push(fieldId);
             }
         }
 
@@ -1049,6 +1117,36 @@ class EOAvailableFieldsExplorer {
             this.panel.remove();
             this.panel = null;
         }
+    }
+
+    /**
+     * Set the filter type programmatically and refresh the view
+     * @param {string} filterType - One of: 'all', 'visible', 'hidden', 'available', 'linked'
+     */
+    setFilterType(filterType) {
+        if (!this.panel) return;
+
+        // Validate filter type
+        const validFilters = ['all', 'visible', 'hidden', 'available', 'linked'];
+        if (!validFilters.includes(filterType)) return;
+
+        this.filterType = filterType;
+
+        // Update UI - remove active class from all chips and add to the matching one
+        this.panel.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.classList.remove('active');
+            if (chip.dataset.filter === filterType) {
+                chip.classList.add('active');
+            }
+        });
+
+        // For hidden filter, also expand the hidden section by default
+        if (filterType === 'hidden') {
+            this.expandedSections.add('hidden');
+        }
+
+        // Refresh the body to show filtered results
+        this.refreshBody();
     }
 
     // ========== UTILITIES ==========
