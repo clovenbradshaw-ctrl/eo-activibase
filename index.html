@@ -25447,8 +25447,16 @@
 
             if (result.success) {
                 renderImportsInSidebar();
-                // Show the import preview modal
-                showImportPreviewModal(result.import);
+                // Auto-convert to a view by adding to a new set
+                if (state.importIntegration) {
+                    const addResult = state.importIntegration.addImportToSet(result.import.id, null, null);
+                    if (addResult.success) {
+                        renderSidebar();
+                    }
+                } else {
+                    // Fallback to showing preview modal if integration not available
+                    showImportPreviewModal(result.import);
+                }
             } else {
                 showToast(`⚠️ Import failed: ${result.error}`);
             }
