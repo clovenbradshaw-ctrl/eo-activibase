@@ -7282,7 +7282,6 @@
         function renderViewActions(extraControls = '') {
             const view = getCurrentView();
             const isImportView = view && view.isTemporary && view.importMetadata;
-            const hasActiveConfig = hasActiveFiltersOrSorts(view);
 
             // Add reify button for import views
             const reifyButton = isImportView ? `
@@ -7290,19 +7289,6 @@
                     <i class="ph ph-check-circle"></i>
                     Make Permanent
                 </button>
-            ` : '';
-
-            // Save as view suggestion when filters/sorts are active
-            const saveAsViewBanner = hasActiveConfig && !isImportView ? `
-                <div class="save-view-suggestion" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0.5rem 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: #1e40af;">
-                        <i class="ph ph-lightbulb" style="font-size: 16px;"></i>
-                        <span>You have filters or sorts applied.</span>
-                    </div>
-                    <button onclick="saveCurrentViewAs()" class="btn btn-sm" style="background: #3b82f6; color: white; border: none; padding: 0.25rem 0.75rem; font-size: 0.75rem;">
-                        Save as new View
-                    </button>
-                </div>
             ` : '';
 
             return `
@@ -7320,7 +7306,6 @@
                             </div>
                         </div>
                     ` : ''}
-                    ${saveAsViewBanner}
                     <div class="toolbar-row">
                         <div class="toolbar-group">
                             <div class="selection-group">
