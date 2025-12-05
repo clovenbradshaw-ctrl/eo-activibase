@@ -5160,6 +5160,7 @@
         const state = {
             worlds: new Map(),
             entities: new Map(),
+            views: new Map(),
             currentWorldId: null,
             sets: new Map(),
             currentSetId: null,
@@ -8693,9 +8694,13 @@
                 columnRules: config.columnRules || {},
                 columnOrder: config.columnOrder || null,
                 createdAt: Date.now(),
-                createdBy: state.currentUser.id
+                createdBy: state.currentUser.id,
+                isTemporary: config.isTemporary || false,
+                importMetadata: config.importMetadata || null
             };
             set.views.set(viewId, viewPayload);
+            // Also add to global state.views for recent imports tracking
+            state.views.set(viewId, viewPayload);
 
             if (config.type === 'KEY_DERIVED') {
                 createEvent(
