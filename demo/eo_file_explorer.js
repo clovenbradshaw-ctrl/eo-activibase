@@ -544,8 +544,9 @@ class EOFileExplorer {
 
     if (result.success) {
       this.render();
-      // Show import preview
-      this.showImportPreview(result.import.id);
+      // Auto-convert to a view by adding to a new set
+      // Pass null as setId to create a new set, and null for setName to use default name from import
+      this.onImportToSet(result.import.id, null, null);
     } else {
       console.error('Import failed:', result.error);
       if (dropZone) {
