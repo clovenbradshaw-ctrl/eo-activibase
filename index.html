@@ -3243,6 +3243,7 @@
                 <div id="actionsNavContent">
                     <div class="world-nav-children" style="padding: 0 1rem; margin-bottom: 1.5rem;">
                         <div class="nav-item" onclick="openCsvImportModal()">Import CSV</div>
+                        <div class="nav-item" onclick="openJsonImportModal()">Import JSON</div>
                         <div class="nav-item" onclick="openAddRecordModal()">+ Add Record</div>
                         <div class="nav-item" onclick="openAddSetModal()">+ Add Set</div>
                         <div class="nav-item" onclick="openAddWorldModal()">+ Add World</div>
@@ -4391,6 +4392,131 @@
         </div>
     </div>
 
+    <!-- JSON Import Modal -->
+    <div id="jsonImportModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Import JSON</h2>
+                    <p class="text-sm text-gray-500 mt-1">Choose a destination set before uploading, then map fields and preview data.</p>
+                </div>
+                <button id="closeJsonImportBtn" class="text-gray-400 hover:text-gray-600 transition p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-body space-y-4">
+                <div class="csv-helper-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="text-lg font-semibold">Destination</h3>
+                            <p class="text-sm text-gray-500">Pick an existing set or create a new one before selecting a file.</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <label class="flex items-center gap-2 font-medium">
+                            <input type="radio" name="jsonImportTargetMode" value="existing" checked>
+                            Import into existing set
+                        </label>
+                        <div id="jsonExistingSetPicker" class="pl-7 space-y-2">
+                            <select id="jsonTargetSetSelect"></select>
+                            <p class="text-xs text-gray-500">We'll map JSON keys to the selected set's fields.</p>
+                        </div>
+                        <label class="flex items-center gap-2 font-medium">
+                            <input type="radio" name="jsonImportTargetMode" value="new">
+                            Create a new set from this JSON
+                        </label>
+                        <div id="jsonNewSetFields" class="pl-7 space-y-2 hidden">
+                            <input type="text" id="jsonNewSetName" placeholder="e.g., Leads" class="w-full">
+                            <p class="text-xs text-gray-500">We'll create fields from your JSON keys automatically.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="csv-helper-grid">
+                    <div class="csv-helper-card">
+                        <label class="form-label">Upload JSON File</label>
+                        <input type="file" id="jsonFileInput" accept=".json,application/json" />
+                        <p class="form-hint">Expects an array of objects or an object with a data array. We will auto-map matching field names.</p>
+                    </div>
+                    <div class="csv-helper-card">
+                        <label class="form-label">Or Paste JSON Text</label>
+                        <textarea id="jsonTextInput" rows="5" placeholder='[{"name": "Acme", "industry": "Technology"}]'></textarea>
+                        <div class="mt-2 flex justify-end">
+                            <button id="parseJsonTextBtn" class="btn btn-secondary btn-sm">Preview JSON</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="csv-helper-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="text-lg font-semibold">Field Mapping</h3>
+                            <p class="text-sm text-gray-500">Match JSON keys to fields in the current set.</p>
+                        </div>
+                        <span class="csv-match-pill" id="jsonRowCountBadge">0 rows</span>
+                    </div>
+                    <div id="jsonMappingContainer" class="space-y-2"></div>
+                </div>
+
+                <div class="csv-helper-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="text-lg font-semibold">Preview</h3>
+                            <p class="text-sm text-gray-500">First few records with applied mapping.</p>
+                        </div>
+                        <button id="refreshJsonPreviewBtn" class="btn btn-secondary btn-sm">Refresh Preview</button>
+                    </div>
+                    <div id="jsonPreviewContainer" class="overflow-auto"></div>
+                </div>
+
+                <div class="csv-helper-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="text-lg font-semibold">Fuzzy Match Suggestions</h3>
+                            <p class="text-sm text-gray-500">We surface potential duplicates against existing records.</p>
+                        </div>
+                        <div class="text-xs text-gray-500">Score ≥ 0.6 shown</div>
+                    </div>
+                    <div id="jsonMatchSuggestions" class="space-y-2"></div>
+                </div>
+
+                <div class="csv-helper-card border-blue-200 bg-blue-50/30">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h3 class="text-lg font-semibold flex items-center gap-2">
+                                <span>Import Notes</span>
+                                <span class="text-xs font-normal text-gray-500">(Optional)</span>
+                            </h3>
+                            <p class="text-sm text-gray-500">Add context about this data import for audit trail.</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs font-medium text-gray-700 block mb-1">Source System</label>
+                                <input type="text" id="jsonProvenanceSource" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="e.g., API, Salesforce">
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-gray-700 block mb-1">Data Type</label>
+                                <input type="text" id="jsonProvenanceDataType" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="e.g., Leads, Contacts">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-gray-700 block mb-1">Notes</label>
+                            <textarea id="jsonProvenanceNotes" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" rows="2" placeholder="Any additional context about this import..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer flex justify-end gap-2">
+                <button id="cancelJsonImportBtn" class="btn btn-secondary">Cancel</button>
+                <button id="runJsonImportBtn" class="btn btn-primary">Import Records</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Provenance Review Modal (Tier 2 & 3) -->
     <div id="provenanceReviewModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
         <div class="modal-container bg-white w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -5066,6 +5192,7 @@
             lastSelectedCell: null,
             editingCell: null,
             csvImportState: { headers: [], rows: [], mappings: {}, previewRows: [], matches: [], targetMode: 'existing', targetSetId: null, newSetName: '' },
+            jsonImportState: { keys: [], rows: [], mappings: {}, previewRows: [], matches: [], targetMode: 'existing', targetSetId: null, newSetName: '', filename: '' },
             fuzzyPanelState: { threshold: 0.65, matches: [] },
             fieldTypeHistory: new Map()
         };
@@ -7028,6 +7155,7 @@
             const toolbarActions = [
                 ['popupSettingsBtn', openPopupSettingsModal],
                 ['importCsvBtn', openCsvImportModal],
+                ['importJsonBtn', openJsonImportModal],
                 ['fuzzyPanelBtn', openFuzzyPanel]
             ];
 
@@ -7187,6 +7315,10 @@
                                     <button id="importCsvBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
                                         <i class="ph ph-upload-simple"></i>
                                         Import CSV
+                                    </button>
+                                    <button id="importJsonBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
+                                        <i class="ph ph-brackets-curly"></i>
+                                        Import JSON
                                     </button>
                                     <div class="toolbar-menu-divider"></div>
                                     <button id="fuzzyPanelBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
@@ -9919,6 +10051,578 @@
             switchSet(set.id, importViewId);
             showToast(`✓ Imported ${state.csvImportState.rows.length} records`);
             closeModal('csvImportModal');
+        }
+
+        // JSON IMPORT FUNCTIONS
+        const JSON_FIELD_MATCH_THRESHOLD = 0.75;
+
+        function resetJsonImportState() {
+            const defaultSetId = state.currentSetId || Array.from(state.sets.keys())[0] || null;
+            state.jsonImportState = {
+                keys: [],
+                rows: [],
+                mappings: {},
+                previewRows: [],
+                matches: [],
+                targetMode: defaultSetId ? 'existing' : 'new',
+                targetSetId: defaultSetId,
+                newSetName: '',
+                filename: ''
+            };
+            const badge = document.getElementById('jsonRowCountBadge');
+            if (badge) badge.textContent = '0 rows';
+            const mappingEl = document.getElementById('jsonMappingContainer');
+            if (mappingEl) mappingEl.innerHTML = '<p class="text-sm text-gray-500">Load a JSON file or paste JSON text to start mapping.</p>';
+            const previewEl = document.getElementById('jsonPreviewContainer');
+            if (previewEl) previewEl.innerHTML = '<p class="text-sm text-gray-500">Preview will appear after parsing.</p>';
+            const matchesEl = document.getElementById('jsonMatchSuggestions');
+            if (matchesEl) matchesEl.innerHTML = '<p class="text-sm text-gray-500">No suggestions yet.</p>';
+            const textInput = document.getElementById('jsonTextInput');
+            if (textInput) textInput.value = '';
+            const fileInput = document.getElementById('jsonFileInput');
+            if (fileInput) fileInput.value = '';
+            populateJsonTargetSetOptions();
+            syncJsonImportTargetUi();
+        }
+
+        function populateJsonTargetSetOptions() {
+            const select = document.getElementById('jsonTargetSetSelect');
+            if (!select) return;
+            const options = getSetsForWorld().map(set => `<option value="${set.id}">${set.name}</option>`);
+            if (!options.length) {
+                select.innerHTML = '<option value="" disabled>No sets available</option>';
+                select.value = '';
+                state.jsonImportState.targetSetId = null;
+                return;
+            }
+            select.innerHTML = options.join('');
+            const desired = state.jsonImportState.targetSetId || state.currentSetId || select.options[0]?.value || '';
+            select.value = desired;
+            state.jsonImportState.targetSetId = select.value || null;
+        }
+
+        function syncJsonImportTargetUi() {
+            const mode = state.jsonImportState.targetMode;
+            document.querySelectorAll('input[name="jsonImportTargetMode"]').forEach(input => {
+                input.checked = input.value === mode;
+            });
+            document.getElementById('jsonExistingSetPicker')?.classList.toggle('hidden', mode !== 'existing');
+            document.getElementById('jsonNewSetFields')?.classList.toggle('hidden', mode !== 'new');
+            const select = document.getElementById('jsonTargetSetSelect');
+            if (select && mode === 'existing') select.value = state.jsonImportState.targetSetId || '';
+            const nameInput = document.getElementById('jsonNewSetName');
+            if (nameInput && mode === 'new') nameInput.value = state.jsonImportState.newSetName || '';
+        }
+
+        function getJsonTargetSet() {
+            if (state.jsonImportState.targetMode === 'existing') {
+                const setId = state.jsonImportState.targetSetId || state.currentSetId;
+                return setId ? state.sets.get(setId) : null;
+            }
+            return {
+                id: null,
+                name: state.jsonImportState.newSetName?.trim() || 'New Set',
+                schema: [],
+                records: new Map()
+            };
+        }
+
+        function handleJsonTargetChange() {
+            populateJsonTargetSetOptions();
+            syncJsonImportTargetUi();
+            if (state.jsonImportState.keys.length) {
+                const set = getJsonTargetSet();
+                state.jsonImportState.mappings = autoMapJsonKeys(state.jsonImportState.keys, set);
+                renderJsonMapping();
+                renderJsonPreview();
+                renderJsonMatches();
+            }
+        }
+
+        function openJsonImportModal(targetSetId = null) {
+            resetJsonImportState();
+            if (targetSetId) {
+                state.jsonImportState.targetMode = 'existing';
+                state.jsonImportState.targetSetId = targetSetId;
+                populateJsonTargetSetOptions();
+                syncJsonImportTargetUi();
+            }
+            openModal('jsonImportModal');
+        }
+
+        function handleJsonFileSelected(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            const targetSet = getJsonTargetSet();
+            if (!targetSet) {
+                showToast('⚠️ Choose a destination set first');
+                event.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const jsonText = e.target.result || '';
+                state.jsonImportState.filename = file.name;
+                try {
+                    const { keys, rows } = parseJsonContent(jsonText);
+                    handleJsonData(keys, rows);
+                } catch (err) {
+                    showToast('⚠️ Invalid JSON: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function previewJsonFromText() {
+            const text = document.getElementById('jsonTextInput')?.value || '';
+            const targetSet = getJsonTargetSet();
+            if (!targetSet) {
+                showToast('⚠️ Choose a destination set first');
+                return;
+            }
+            try {
+                const { keys, rows } = parseJsonContent(text);
+                handleJsonData(keys, rows);
+            } catch (err) {
+                showToast('⚠️ Invalid JSON: ' + err.message);
+            }
+        }
+
+        function parseJsonContent(text) {
+            if (!text || !text.trim()) return { keys: [], rows: [] };
+
+            let parsed;
+            try {
+                parsed = JSON.parse(text);
+            } catch (e) {
+                throw new Error('Could not parse JSON');
+            }
+
+            // Handle different JSON structures
+            let rows = [];
+            if (Array.isArray(parsed)) {
+                // Direct array of objects
+                rows = parsed;
+            } else if (parsed && typeof parsed === 'object') {
+                // Look for common data array properties
+                const dataKeys = ['data', 'items', 'records', 'results', 'rows', 'entries', 'list'];
+                for (const key of dataKeys) {
+                    if (Array.isArray(parsed[key])) {
+                        rows = parsed[key];
+                        break;
+                    }
+                }
+                // If no data array found, treat the object itself as a single row
+                if (rows.length === 0 && Object.keys(parsed).length > 0) {
+                    // Check if it looks like metadata wrapper vs actual data
+                    const hasNestedArrays = Object.values(parsed).some(v => Array.isArray(v));
+                    if (!hasNestedArrays) {
+                        rows = [parsed];
+                    }
+                }
+            }
+
+            if (!rows.length) {
+                throw new Error('No data found. Expected an array of objects or an object with a data array.');
+            }
+
+            // Filter to only objects
+            rows = rows.filter(row => row && typeof row === 'object' && !Array.isArray(row));
+
+            if (!rows.length) {
+                throw new Error('No valid objects found in the data.');
+            }
+
+            // Extract all unique keys from all rows
+            const keySet = new Set();
+            rows.forEach(row => {
+                Object.keys(row).forEach(key => {
+                    // Skip nested objects/arrays for simplicity, but include primitive values
+                    const value = row[key];
+                    if (value === null || value === undefined || typeof value !== 'object' || value instanceof Date) {
+                        keySet.add(key);
+                    } else if (Array.isArray(value)) {
+                        // Include arrays as they can be converted to strings
+                        keySet.add(key);
+                    }
+                });
+            });
+
+            const keys = Array.from(keySet);
+
+            // Normalize rows to have consistent keys with stringified values
+            const normalizedRows = rows.map(row => {
+                const obj = {};
+                keys.forEach(key => {
+                    let value = row[key];
+                    // Convert non-primitive values to strings
+                    if (value === null || value === undefined) {
+                        obj[key] = '';
+                    } else if (Array.isArray(value)) {
+                        obj[key] = value.join(', ');
+                    } else if (typeof value === 'object') {
+                        obj[key] = JSON.stringify(value);
+                    } else {
+                        obj[key] = String(value);
+                    }
+                });
+                return obj;
+            });
+
+            return { keys, rows: normalizedRows };
+        }
+
+        function autoMapJsonKeys(keys, set) {
+            const mappings = {};
+            const schema = set?.schema || [];
+            keys.forEach(key => {
+                const match = findBestFieldMatch(key, schema);
+                if (match && match.score >= JSON_FIELD_MATCH_THRESHOLD) {
+                    mappings[key] = match.field.id;
+                } else {
+                    mappings[key] = buildCreateFieldValue(key);
+                }
+            });
+            return mappings;
+        }
+
+        function handleJsonData(keys, rows) {
+            const set = getJsonTargetSet();
+            if (state.jsonImportState.targetMode === 'existing' && !set) {
+                showToast('⚠️ Choose a destination set first');
+                return;
+            }
+            state.jsonImportState.keys = keys;
+            state.jsonImportState.rows = rows;
+            state.jsonImportState.mappings = autoMapJsonKeys(keys, set);
+            const badge = document.getElementById('jsonRowCountBadge');
+            if (badge) badge.textContent = `${rows.length} rows`;
+            renderJsonMapping();
+            renderJsonPreview();
+            renderJsonMatches();
+        }
+
+        function renderJsonMapping() {
+            const container = document.getElementById('jsonMappingContainer');
+            const set = getJsonTargetSet();
+            if (!container || !set) return;
+            if (!state.jsonImportState.keys.length) {
+                container.innerHTML = '<p class="text-sm text-gray-500">No keys detected yet.</p>';
+                return;
+            }
+
+            container.innerHTML = state.jsonImportState.keys.map(key => {
+                const mappedField = state.jsonImportState.mappings[key] || '';
+                const createValue = buildCreateFieldValue(key);
+                const options = ['<option value="">Skip</option>']
+                    .concat(`<option value="${createValue}" ${mappedField === createValue ? 'selected' : ''}>➕ Create new field: "${key}"</option>`)
+                    .concat(set.schema.map(f => `<option value="${f.id}" ${mappedField === f.id ? 'selected' : ''}>${f.name}</option>`))
+                    .join('');
+                return `
+                    <div class="flex items-center gap-3">
+                        <div class="w-1/3 font-medium">${key}</div>
+                        <div class="flex-1">
+                            <select data-json-key="${key}" class="flex-1">${options}</select>
+                            ${isCreateFieldValue(mappedField) ? `<p class="text-xs text-amber-600 mt-1">Will create a new text field named "${key}"</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.querySelectorAll('select').forEach(select => {
+                select.onchange = (event) => {
+                    const key = event.target.dataset.jsonKey;
+                    state.jsonImportState.mappings[key] = event.target.value;
+                    renderJsonPreview();
+                    renderJsonMatches();
+                };
+            });
+        }
+
+        function buildJsonPreviewRows(limit = 5) {
+            const set = getJsonTargetSet();
+            if (!set) return [];
+            const mappedKeys = state.jsonImportState.keys
+                .map(key => [key, state.jsonImportState.mappings[key]])
+                .filter(([, fieldId]) => fieldId);
+            return state.jsonImportState.rows.slice(0, limit).map(row => {
+                const preview = { __original: row };
+                mappedKeys.forEach(([key, fieldId]) => {
+                    const field = set.schema.find(f => f.id === fieldId);
+                    let value = row[key] || '';
+                    if (['NUMBER', 'CURRENCY'].includes(field?.type)) {
+                        const numeric = parseFloat(value);
+                        value = isNaN(numeric) ? '' : numeric;
+                    }
+                    preview[fieldId] = value;
+                });
+                return preview;
+            });
+        }
+
+        function renderJsonPreview() {
+            const container = document.getElementById('jsonPreviewContainer');
+            const set = getJsonTargetSet();
+            if (!container || !set) return;
+            const mappedEntries = state.jsonImportState.keys
+                .map(key => [key, state.jsonImportState.mappings[key]])
+                .filter(([, fieldId]) => fieldId);
+            if (!mappedEntries.length || !state.jsonImportState.rows.length) {
+                container.innerHTML = '<p class="text-sm text-gray-500">Map at least one key to preview records.</p>';
+                return;
+            }
+
+            const previewRows = buildJsonPreviewRows();
+            state.jsonImportState.previewRows = previewRows;
+            const headerCells = mappedEntries.map(([key, fieldId]) => {
+                const field = set.schema.find(f => f.id === fieldId);
+                const label = field?.name || key;
+                const badge = field ? '' : '<span class="ml-2 text-xs font-semibold text-amber-600">(creates field)</span>';
+                return `<th>${label}${badge}</th>`;
+            }).join('');
+
+            const bodyRows = previewRows.map(row => {
+                const cells = mappedEntries.map(([, fieldId]) => `<td>${row[fieldId] ?? ''}</td>`).join('');
+                return `<tr>${cells}</tr>`;
+            }).join('');
+
+            container.innerHTML = `
+                <table class="csv-preview-table">
+                    <thead><tr>${headerCells}</tr></thead>
+                    <tbody>${bodyRows}</tbody>
+                </table>
+            `;
+        }
+
+        function resolveJsonPrimaryFieldFromMappings(set) {
+            const nameField = Object.entries(state.jsonImportState.mappings).find(([, fieldId]) => fieldId === 'name');
+            if (nameField) return nameField[1];
+            const textFields = set.schema.filter(f => ['TEXT', 'LONG_TEXT'].includes(f.type));
+            const mappedTextField = Object.entries(state.jsonImportState.mappings)
+                .map(([, fieldId]) => set.schema.find(f => f.id === fieldId))
+                .find(f => f && ['TEXT', 'LONG_TEXT'].includes(f.type));
+            return mappedTextField?.id || textFields[0]?.id || set.schema[0]?.id;
+        }
+
+        function renderJsonMatches() {
+            const container = document.getElementById('jsonMatchSuggestions');
+            const set = getJsonTargetSet();
+            if (!container || !set) return;
+            if (!state.jsonImportState.rows.length) {
+                container.innerHTML = '<p class="text-sm text-gray-500">Load rows to see suggestions.</p>';
+                return;
+            }
+
+            const keyFieldId = resolveJsonPrimaryFieldFromMappings(set);
+            if (!keyFieldId) {
+                container.innerHTML = '<p class="text-sm text-gray-500">Map at least one text key to find duplicates.</p>';
+                return;
+            }
+
+            const existing = Array.from(set.records.values());
+            const matches = [];
+            state.jsonImportState.rows.forEach(row => {
+                const mappedValue = Object.entries(state.jsonImportState.mappings).find(([, fieldId]) => fieldId === keyFieldId);
+                const candidateValue = mappedValue ? row[mappedValue[0]] : '';
+                let bestMatch = null;
+                existing.forEach(rec => {
+                    const score = similarityScore(candidateValue, rec[keyFieldId]);
+                    if (score >= 0.6 && (!bestMatch || score > bestMatch.score)) {
+                        bestMatch = { jsonValue: candidateValue, record: rec, score };
+                    }
+                });
+                if (bestMatch) matches.push(bestMatch);
+            });
+
+            state.jsonImportState.matches = matches;
+            if (!matches.length) {
+                container.innerHTML = '<p class="text-sm text-gray-500">No close matches detected.</p>';
+                return;
+            }
+
+            container.innerHTML = matches.slice(0, 10).map(match => `
+                <div class="fuzzy-match-row">
+                    <div class="flex-1">
+                        <div class="text-sm text-gray-500">JSON Value</div>
+                        <strong>${match.jsonValue || '(blank)'}</strong>
+                    </div>
+                    <div class="flex-1">
+                        <div class="text-sm text-gray-500">Existing Record</div>
+                        <strong>${match.record.name || match.record.id}</strong>
+                        <div class="text-xs text-gray-500">Score: <span class="fuzzy-score">${match.score.toFixed(2)}</span></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function importJsonRecords() {
+            let set = null;
+            if (state.jsonImportState.targetMode === 'existing') {
+                const setId = state.jsonImportState.targetSetId || state.currentSetId;
+                if (!setId) {
+                    showToast('⚠️ Choose a destination set first');
+                    return;
+                }
+                set = state.sets.get(setId);
+            } else {
+                const name = (state.jsonImportState.newSetName || '').trim();
+                if (!name) {
+                    showToast('⚠️ Name your new set before importing');
+                    return;
+                }
+                const setId = createSet(name, 'ph-squares-four', state.currentWorldId);
+                createView(setId, 'All ' + name, { type: 'grid' });
+                state.expandedSets.add(setId);
+                renderSidebar();
+                switchSet(setId, null);
+                set = state.sets.get(setId);
+                state.jsonImportState.targetMode = 'existing';
+                state.jsonImportState.targetSetId = setId;
+            }
+            if (!set) return;
+            const mappedKeys = Object.entries(state.jsonImportState.mappings).filter(([, fieldId]) => fieldId);
+            if (!mappedKeys.length) {
+                showToast('⚠️ Map at least one key');
+                return;
+            }
+            if (!state.jsonImportState.rows.length) {
+                showToast('⚠️ No rows to import');
+                return;
+            }
+
+            const existingFieldIds = new Set(set.schema.map(f => f.id));
+            mappedKeys
+                .filter(([, fieldId]) => isCreateFieldValue(fieldId))
+                .forEach(([key, fieldId]) => {
+                    const suggestedId = fieldId.replace(CREATE_FIELD_PREFIX, '') || slugifyFieldId(key);
+                    const fieldName = key?.trim() || 'New Field';
+                    let uniqueId = suggestedId;
+                    let counter = 1;
+                    while (existingFieldIds.has(uniqueId)) {
+                        uniqueId = `${suggestedId}_${counter++}`;
+                    }
+
+                    const newField = { id: uniqueId, name: fieldName, type: 'TEXT', width: '150px', config: {} };
+                    set.schema.push(newField);
+
+                    // Add field to all existing views of the set
+                    addFieldToAllViews(set, uniqueId);
+
+                    set.records.forEach(r => r[uniqueId] = FIELD_TYPES.TEXT.defaultValue);
+                    existingFieldIds.add(uniqueId);
+                    state.jsonImportState.mappings[key] = uniqueId;
+                });
+
+            const finalizedMappings = Object.entries(state.jsonImportState.mappings).filter(([, fieldId]) => fieldId);
+
+            // Create ONE context template for the entire import (lean approach)
+            let importTemplateId = null;
+            if (state.leanContext) {
+                const importFilename = state.jsonImportState.filename || 'import.json';
+
+                // Get provenance notes from the form
+                const sourceInput = document.getElementById('jsonProvenanceSource');
+                const dataTypeInput = document.getElementById('jsonProvenanceDataType');
+                const notesInput = document.getElementById('jsonProvenanceNotes');
+
+                const templateContext = {
+                    method: 'declared',
+                    source: sourceInput?.value?.trim() || 'json_import',
+                    agent: state.currentUser.id,
+                    timeframe: {
+                        start: new Date().toISOString().split('T')[0]
+                    },
+                    scale: 'individual',
+                    dataType: dataTypeInput?.value?.trim() || null,
+                    notes: notesInput?.value?.trim() || null,
+                    fileMetadata: {
+                        filename: importFilename,
+                        type: 'application/json'
+                    }
+                };
+
+                importTemplateId = state.leanContext.registerContextTemplate(templateContext);
+            }
+
+            state.jsonImportState.rows.forEach(row => {
+                const recordData = {};
+                finalizedMappings.forEach(([key, fieldId]) => {
+                    const field = set.schema.find(f => f.id === fieldId);
+                    let value = row[key];
+                    if (['NUMBER', 'CURRENCY'].includes(field?.type)) {
+                        const numeric = parseFloat(value);
+                        value = isNaN(numeric) ? 0 : numeric;
+                    }
+                    recordData[fieldId] = value;
+                });
+
+                // Use lean record creation if available
+                if (state.leanContext && importTemplateId) {
+                    const leanRecord = state.leanContext.createLeanRecord(set.id, recordData, importTemplateId);
+                    set.records.set(leanRecord.id, leanRecord);
+                    createEvent(
+                        'Create Record',
+                        'INS',
+                        { type: 'Record', id: leanRecord.id, setId: set.id },
+                        { setId: set.id, recordId: leanRecord.id, data: recordData, summary: 'Created record via JSON import' }
+                    );
+                } else {
+                    addRecord(set.id, recordData);
+                }
+            });
+
+            // Create batch import event (compact)
+            const importTimestamp = Date.now();
+            if (state.leanContext && importTemplateId) {
+                createEvent(
+                    'Batch Import',
+                    'INS',
+                    { type: 'Set', id: set.id },
+                    {
+                        count: state.jsonImportState.rows.length,
+                        templateId: importTemplateId,
+                        summary: `Imported ${state.jsonImportState.rows.length} records from JSON`,
+                        timestamp: importTimestamp
+                    }
+                );
+            }
+
+            // Auto-create a temporary view for this import
+            const importFileName = state.jsonImportState.filename || 'import.json';
+            const baseViewName = importFileName.replace(/\.[^/.]+$/, ''); // Remove extension
+            const viewName = `Import: ${baseViewName}`;
+
+            const importViewId = createView(set.id, viewName, {
+                type: 'grid',
+                icon: '📥',
+                isTemporary: true,
+                importMetadata: {
+                    filename: importFileName,
+                    timestamp: importTimestamp,
+                    recordCount: state.jsonImportState.rows.length,
+                    templateId: importTemplateId,
+                    expiresAt: importTimestamp + (7 * 24 * 60 * 60 * 1000) // 7 days from now
+                }
+            });
+
+            // Track this as an import view in event stream
+            createEvent(
+                'Import View Created',
+                'INS',
+                { type: 'View', id: importViewId },
+                {
+                    setId: set.id,
+                    viewName: viewName,
+                    filename: importFileName,
+                    recordCount: state.jsonImportState.rows.length,
+                    isTemporary: true,
+                    expiresAt: importTimestamp + (7 * 24 * 60 * 60 * 1000)
+                }
+            );
+
+            switchSet(set.id, importViewId);
+            showToast(`✓ Imported ${state.jsonImportState.rows.length} records from JSON`);
+            closeModal('jsonImportModal');
         }
 
         function computeFuzzyMatchesForSet(set, threshold = state.fuzzyPanelState.threshold) {
@@ -17432,12 +18136,16 @@
                         <div style="text-align: center; padding: 3rem 2rem;">
                             <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
                             <h1 style="font-size: 1.5rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">What data would you like to work with?</h1>
-                            <p style="color: #64748b; margin-bottom: 2rem;">Import a CSV, paste data, or create a new set to get started.</p>
+                            <p style="color: #64748b; margin-bottom: 2rem;">Import CSV or JSON data, or create a new set to get started.</p>
 
                             <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
                                 <button onclick="openCsvImportModal()" class="btn btn-primary" style="padding: 0.75rem 1.5rem; font-size: 1rem;">
                                     <i class="ph ph-file-csv"></i>
                                     Import CSV
+                                </button>
+                                <button onclick="openJsonImportModal()" class="btn btn-primary" style="padding: 0.75rem 1.5rem; font-size: 1rem;">
+                                    <i class="ph ph-brackets-curly"></i>
+                                    Import JSON
                                 </button>
                                 <button onclick="openAddSetModal()" class="btn btn-secondary" style="padding: 0.75rem 1.5rem; font-size: 1rem;">
                                     <i class="ph ph-plus"></i>
@@ -17460,6 +18168,10 @@
                             <button onclick="openCsvImportModal()" class="btn btn-primary btn-sm">
                                 <i class="ph ph-file-csv"></i>
                                 Import CSV
+                            </button>
+                            <button onclick="openJsonImportModal()" class="btn btn-primary btn-sm">
+                                <i class="ph ph-brackets-curly"></i>
+                                Import JSON
                             </button>
                             <button onclick="openAddSetModal()" class="btn btn-secondary btn-sm">
                                 <i class="ph ph-plus"></i>
@@ -23712,6 +24424,29 @@
             document.getElementById('csvNewSetName').oninput = (event) => {
                 state.csvImportState.newSetName = event.target.value;
             };
+
+            // JSON Import event listeners
+            document.getElementById('parseJsonTextBtn').onclick = previewJsonFromText;
+            document.getElementById('jsonFileInput').onchange = handleJsonFileSelected;
+            document.getElementById('refreshJsonPreviewBtn').onclick = renderJsonPreview;
+            document.getElementById('runJsonImportBtn').onclick = importJsonRecords;
+            document.getElementById('cancelJsonImportBtn').onclick = () => closeModal('jsonImportModal');
+            document.getElementById('closeJsonImportBtn').onclick = () => closeModal('jsonImportModal');
+
+            document.querySelectorAll('input[name="jsonImportTargetMode"]').forEach(input => {
+                input.onchange = (event) => {
+                    state.jsonImportState.targetMode = event.target.value;
+                    handleJsonTargetChange();
+                };
+            });
+            document.getElementById('jsonTargetSetSelect').onchange = (event) => {
+                state.jsonImportState.targetSetId = event.target.value || null;
+                handleJsonTargetChange();
+            };
+            document.getElementById('jsonNewSetName').oninput = (event) => {
+                state.jsonImportState.newSetName = event.target.value;
+            };
+
             document.getElementById('closeFuzzyPanelBtn').onclick = closeFuzzyPanel;
             document.getElementById('refreshFuzzyMatchesBtn').onclick = renderFuzzyPanel;
             document.getElementById('fuzzyThresholdInput').oninput = renderFuzzyPanel;
