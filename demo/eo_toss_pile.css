@@ -1,0 +1,928 @@
+/**
+ * EO Toss Pile Styles
+ *
+ * Styles for the toss pile panel, ghost cells, and related UI components
+ */
+
+/* ============================================================================
+   TOSS PILE PANEL
+   ============================================================================ */
+
+.toss-pile-panel {
+    position: fixed;
+    top: 0;
+    right: -360px;
+    width: 360px;
+    height: 100vh;
+    background: white;
+    border-left: 1px solid #e5e7eb;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.3s ease;
+}
+
+.toss-pile-panel.open {
+    right: 0;
+}
+
+.toss-pile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.toss-pile-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.toss-pile-icon {
+    font-size: 18px;
+}
+
+.toss-pile-badge {
+    background: #ef4444;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.toss-pile-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+
+.toss-pile-close:hover {
+    background: #e5e7eb;
+    color: #111827;
+}
+
+.toss-pile-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #fafafa;
+}
+
+.ghost-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #374151;
+    cursor: pointer;
+}
+
+.ghost-toggle input {
+    cursor: pointer;
+}
+
+.toss-pile-action-btn {
+    padding: 6px 12px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.toss-pile-action-btn:hover {
+    background: #2563eb;
+}
+
+.toss-pile-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+/* Empty state */
+.toss-pile-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.empty-text {
+    font-size: 16px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.empty-hint {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+/* ============================================================================
+   TOSS GROUPS
+   ============================================================================ */
+
+.toss-group {
+    margin-bottom: 20px;
+}
+
+.toss-group-header {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* ============================================================================
+   TOSS ACTIONS
+   ============================================================================ */
+
+.toss-action {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.toss-action.expanded .expand-icon {
+    transform: rotate(90deg);
+}
+
+.toss-action-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.toss-action-header:hover {
+    background: #f3f4f6;
+}
+
+.expand-icon {
+    font-size: 10px;
+    color: #9ca3af;
+    transition: transform 0.2s;
+}
+
+.action-icon {
+    font-size: 14px;
+}
+
+.action-summary {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.action-count {
+    background: #e5e7eb;
+    color: #6b7280;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.action-time {
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+.pick-up-btn {
+    background: none;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 14px;
+    cursor: pointer;
+    color: #6b7280;
+    transition: all 0.15s;
+}
+
+.pick-up-btn:hover {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+.pick-up-btn.small {
+    padding: 2px 6px;
+    font-size: 12px;
+}
+
+.pick-up-btn.tiny {
+    padding: 1px 4px;
+    font-size: 11px;
+}
+
+/* ============================================================================
+   TOSS ACTION ENTRIES
+   ============================================================================ */
+
+.toss-action-entries {
+    display: none;
+    padding: 0 12px 12px;
+}
+
+.toss-action-entries.expanded {
+    display: block;
+}
+
+.toss-record-group {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    overflow: hidden;
+}
+
+.toss-record-group.expanded .expand-icon {
+    transform: rotate(90deg);
+}
+
+.toss-record-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.toss-record-header:hover {
+    background: #f9fafb;
+}
+
+.record-label {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.record-id {
+    font-size: 11px;
+    font-family: monospace;
+    color: #9ca3af;
+}
+
+.field-count {
+    flex: 1;
+    text-align: right;
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+.toss-record-fields {
+    display: none;
+    padding: 0 10px 10px;
+    border-top: 1px solid #f3f4f6;
+}
+
+.toss-record-fields.expanded {
+    display: block;
+}
+
+/* ============================================================================
+   TOSS ENTRIES
+   ============================================================================ */
+
+.toss-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: #fafafa;
+    border-radius: 4px;
+    margin-top: 4px;
+}
+
+.entry-field {
+    font-size: 12px;
+    font-weight: 500;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
+.entry-value {
+    flex: 1;
+    font-size: 12px;
+    color: #374151;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.toss-column-entries {
+    padding-top: 8px;
+}
+
+.more-entries {
+    padding: 8px;
+    text-align: center;
+    font-size: 12px;
+    color: #3b82f6;
+    cursor: pointer;
+}
+
+.more-entries:hover {
+    text-decoration: underline;
+}
+
+/* ============================================================================
+   GHOST CELLS
+   ============================================================================ */
+
+.ghost-row {
+    opacity: 0.5;
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 4px,
+        rgba(0, 0, 0, 0.02) 4px,
+        rgba(0, 0, 0, 0.02) 8px
+    );
+    border: 1px dashed #d1d5db !important;
+}
+
+.ghost-row:hover {
+    opacity: 0.8;
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.ghost-cell {
+    color: #9ca3af;
+    font-style: italic;
+    cursor: pointer;
+}
+
+.ghost-cell:hover {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.ghost-indicator {
+    font-size: 14px;
+}
+
+.ghost-dash {
+    color: #d1d5db;
+}
+
+.ghost-value {
+    color: #6b7280;
+}
+
+.ghost-empty {
+    width: 100%;
+    height: 20px;
+}
+
+/* Tossed value indicator on existing cells */
+.has-tossed-value {
+    position: relative;
+}
+
+.tossed-value-indicator {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 10px;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 2px;
+    opacity: 0.6;
+    transition: all 0.15s;
+}
+
+.tossed-value-indicator:hover {
+    opacity: 1;
+    background: #3b82f6;
+    color: white;
+}
+
+/* ============================================================================
+   COLUMN TOSS BADGE
+   ============================================================================ */
+
+.column-toss-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: #fef3c7;
+    color: #d97706;
+    border-radius: 9px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-left: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.column-toss-badge:hover {
+    background: #fcd34d;
+    color: #92400e;
+}
+
+/* ============================================================================
+   BANNERS
+   ============================================================================ */
+
+.set-toss-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: #fef3c7;
+    border-bottom: 1px solid #fcd34d;
+    font-size: 13px;
+}
+
+.banner-icon {
+    font-size: 14px;
+}
+
+.banner-text {
+    flex: 1;
+    color: #92400e;
+    font-weight: 500;
+}
+
+.banner-view-btn {
+    padding: 4px 12px;
+    background: white;
+    border: 1px solid #fcd34d;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #92400e;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.banner-view-btn:hover {
+    background: #fef3c7;
+    border-color: #f59e0b;
+}
+
+.banner-dismiss-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #d97706;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.banner-dismiss-btn:hover {
+    color: #92400e;
+}
+
+.tossed-columns-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.tossed-columns-banner .banner-action {
+    padding: 2px 8px;
+    background: white;
+    border: 1px solid #fcd34d;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    color: #92400e;
+}
+
+.tossed-columns-banner .banner-action:hover {
+    background: #fef3c7;
+}
+
+/* ============================================================================
+   PICK UP DIALOG
+   ============================================================================ */
+
+.pick-up-modal {
+    max-width: 480px;
+}
+
+.pick-up-preview {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.preview-field {
+    font-size: 12px;
+    font-weight: 500;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.preview-value {
+    font-size: 16px;
+    color: #111827;
+    word-break: break-word;
+}
+
+.pick-up-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pick-up-option {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.pick-up-option:hover {
+    border-color: #3b82f6;
+    background: #f0f7ff;
+}
+
+.pick-up-option.selected {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.pick-up-option input[type="radio"] {
+    display: none;
+}
+
+.option-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #111827;
+}
+
+.option-hint {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.pick-up-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 10px 14px;
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #92400e;
+}
+
+.warning-icon {
+    font-size: 14px;
+}
+
+/* ============================================================================
+   TOSSED COLUMNS DIALOG
+   ============================================================================ */
+
+.tossed-columns-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tossed-column-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.column-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.column-name {
+    font-weight: 500;
+    color: #111827;
+}
+
+.column-type {
+    font-size: 11px;
+    padding: 2px 8px;
+    background: #e5e7eb;
+    color: #6b7280;
+    border-radius: 4px;
+}
+
+.column-count {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* ============================================================================
+   COLUMN TOSS POPUP
+   ============================================================================ */
+
+.column-toss-popup {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    width: 280px;
+    z-index: 10000;
+    overflow: hidden;
+}
+
+.column-toss-popup .popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.column-toss-popup .popup-header button {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #6b7280;
+    cursor: pointer;
+}
+
+.column-toss-popup .popup-content {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.column-toss-popup .popup-entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    border-radius: 4px;
+}
+
+.column-toss-popup .popup-entry:hover {
+    background: #f3f4f6;
+}
+
+.column-toss-popup .popup-entry .entry-value {
+    font-size: 13px;
+    color: #374151;
+}
+
+.column-toss-popup .popup-entry button {
+    background: none;
+    border: none;
+    font-size: 14px;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 2px 4px;
+}
+
+.column-toss-popup .popup-entry button:hover {
+    color: #3b82f6;
+}
+
+.column-toss-popup .popup-more {
+    padding: 8px;
+    text-align: center;
+    font-size: 12px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.column-toss-popup .popup-footer {
+    padding: 8px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.column-toss-popup .popup-footer button {
+    width: 100%;
+    padding: 8px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.column-toss-popup .popup-footer button:hover {
+    background: #2563eb;
+}
+
+/* ============================================================================
+   TOSS PILE TOGGLE BUTTON (for toolbar)
+   ============================================================================ */
+
+.toss-pile-toggle {
+    position: relative;
+}
+
+.toss-pile-toggle .toggle-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: #ef4444;
+    color: white;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+    .toss-pile-panel {
+        width: 100%;
+        right: -100%;
+    }
+
+    .pick-up-modal {
+        max-width: 95%;
+    }
+}
+
+/* ============================================================================
+   DARK MODE
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+    .toss-pile-panel {
+        background: #1f2937;
+        border-left-color: #374151;
+    }
+
+    .toss-pile-header {
+        background: #111827;
+        border-bottom-color: #374151;
+    }
+
+    .toss-pile-title {
+        color: #f3f4f6;
+    }
+
+    .toss-pile-toolbar {
+        background: #1a1a2e;
+        border-bottom-color: #374151;
+    }
+
+    .ghost-toggle {
+        color: #d1d5db;
+    }
+
+    .toss-group-header {
+        color: #9ca3af;
+        border-bottom-color: #374151;
+    }
+
+    .toss-action {
+        background: #111827;
+        border-color: #374151;
+    }
+
+    .toss-action-header:hover {
+        background: #1f2937;
+    }
+
+    .action-summary {
+        color: #e5e7eb;
+    }
+
+    .action-count {
+        background: #374151;
+        color: #d1d5db;
+    }
+
+    .toss-record-group {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .toss-record-header:hover {
+        background: #111827;
+    }
+
+    .toss-entry {
+        background: #111827;
+    }
+
+    .entry-value {
+        color: #e5e7eb;
+    }
+
+    .ghost-row {
+        background: repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 4px,
+            rgba(255, 255, 255, 0.02) 4px,
+            rgba(255, 255, 255, 0.02) 8px
+        );
+        border-color: #4b5563 !important;
+    }
+
+    .set-toss-banner {
+        background: #78350f;
+        border-bottom-color: #92400e;
+    }
+
+    .banner-text {
+        color: #fcd34d;
+    }
+
+    .pick-up-preview {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .preview-value {
+        color: #f3f4f6;
+    }
+
+    .pick-up-option {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .pick-up-option:hover,
+    .pick-up-option.selected {
+        background: #1e3a5f;
+    }
+
+    .option-label {
+        color: #f3f4f6;
+    }
+}

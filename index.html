@@ -22,8 +22,13 @@
     <script src="demo/eo_import_manager.js"></script>
     <script src="demo/eo_file_explorer.js"></script>
     <script src="demo/eo_import_integration.js"></script>
+    <script src="demo/eo_toss_pile.js"></script>
+    <script src="demo/eo_toss_pile_ui.js"></script>
+    <script src="demo/eo_set_management.js"></script>
     <link rel="stylesheet" href="demo/eo_linked_fields_modal.css">
     <link rel="stylesheet" href="demo/eo_file_explorer.css">
+    <link rel="stylesheet" href="demo/eo_toss_pile.css">
+    <link rel="stylesheet" href="demo/eo_set_management.css">
     <style>
         :root {
             --primary: #111827;
@@ -3364,6 +3369,9 @@
                 </div>
             </div>
         </div>
+
+        <!-- Toss Pile Panel Container -->
+        <div id="tossPilePanelContainer"></div>
     </div>
 
     <div class="mobile-bottom-bar" id="mobileBottomBar">
@@ -7404,10 +7412,21 @@
                                 <i class="ph ph-hand-fist"></i>
                                 Toss
                             </button>
+                            <button id="tossPileBtn" class="btn btn-secondary btn-sm toss-pile-toggle" onclick="TossPileUI.togglePanel()" title="View toss pile">
+                                <i class="ph ph-recycle"></i>
+                                ${getTossPileBadgeHtml()}
+                            </button>
                         </div>
                     </div>
                 </div>
             `;
+        }
+
+        function getTossPileBadgeHtml() {
+            if (typeof TossPile === 'undefined') return '';
+            const stats = TossPile.getTossPileStats(state, state.currentSetId);
+            if (stats.totalEntries === 0) return '';
+            return `<span class="toggle-badge">${stats.totalEntries}</span>`;
         }
 
         function finalizeViewStage() {
@@ -11680,6 +11699,12 @@
                         }
                     };
 
+                    setHeader.oncontextmenu = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showSetContextMenu(e, set.id);
+                    };
+
                     setsContainer.appendChild(setHeader);
 
                     // Render views under this set if expanded
@@ -12545,12 +12570,24 @@
             if (ids.length === 0) return;
 
             const message = `Are you sure you want to toss ${ids.length} selected record${ids.length === 1 ? '' : 's'}? ` +
-                'All changes are reversible while within your retention window (future thresholds may limit recovery).';
+                'Items can be restored from the toss pile.';
 
             showConfirm(message, () => {
+                // Use TossPile for soft delete with restoration capability
+                if (typeof TossPile !== 'undefined') {
+                    const action = TossPile.tossRecords(state, ids);
+                    if (action) {
+                        state.selectedRecordIds.clear();
+                        state.lastSelectedRecordId = null;
+                        renderCurrentView();
+                        showToast(`✓ ${ids.length} record${ids.length === 1 ? '' : 's'} tossed (can be restored)`);
+                        return;
+                    }
+                }
+
+                // Fallback to hard delete
                 ids.forEach(recordId => {
                     set.records.delete(recordId);
-                    // Also remove from state.entities to prevent orphaned references
                     deleteEntity(recordId);
                     createEvent(
                         'Toss Record',
@@ -12563,7 +12600,7 @@
                 state.selectedRecordIds.clear();
                 state.lastSelectedRecordId = null;
                 renderCurrentView();
-                showToast('✓ Selected records tossed (reversible while within retention)');
+                showToast('✓ Selected records tossed');
             });
         }
 
@@ -13051,6 +13088,16 @@
                 if (match) {
                     selectCell(match, previousSelection.recordId, previousSelection.fieldId);
                 }
+            }
+
+            // Render ghost rows from toss pile
+            if (typeof TossPileUI !== 'undefined') {
+                TossPileUI.renderGhostRows(state, tbody, tableSchema, view);
+            }
+
+            // Update toss pile panel if open
+            if (typeof TossPileUI !== 'undefined') {
+                TossPileUI.updateTossPilePanel();
             }
 
             wireViewStageActions();
@@ -22752,6 +22799,87 @@
             }, 0);
         }
 
+        function showSetContextMenu(e, setId) {
+            const set = state.sets.get(setId);
+            if (!set) return;
+
+            const tossPileStats = typeof TossPile !== 'undefined' ?
+                TossPile.getTossPileStats(state, setId) : null;
+
+            const items = [
+                { label: 'Manage Set...', action: () => {
+                    if (typeof SetManagement !== 'undefined') {
+                        SetManagement.openSetManagementModal(setId);
+                    } else {
+                        openAddSetModal(setId);
+                    }
+                }},
+                { label: 'Rename', action: () => openAddSetModal(setId) },
+                { label: 'Duplicate Set', action: () => duplicateSet(setId) }
+            ];
+
+            if (tossPileStats && tossPileStats.totalEntries > 0) {
+                items.push({ label: `View Toss Pile (${tossPileStats.totalEntries})`, action: () => {
+                    state.currentSetId = setId;
+                    TossPileUI.openPanel();
+                }});
+            }
+
+            items.push({ label: 'separator' });
+            items.push({ label: 'Toss Set...', action: () => {
+                if (typeof SetManagement !== 'undefined') {
+                    SetManagement.tossSet(setId);
+                }
+            }, danger: true });
+
+            showContextMenu(e, items.filter(i => i.label !== 'separator'));
+        }
+
+        function duplicateSet(setId) {
+            const set = state.sets.get(setId);
+            if (!set) return;
+
+            const newSetId = `set_${Date.now()}`;
+            const newSet = {
+                id: newSetId,
+                name: `${set.name} (Copy)`,
+                icon: set.icon,
+                worldId: set.worldId,
+                schema: JSON.parse(JSON.stringify(set.schema)),
+                records: new Map(),
+                views: new Map()
+            };
+
+            // Copy records
+            set.records.forEach((record, recordId) => {
+                const newRecordId = `rec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                newSet.records.set(newRecordId, { ...record, id: newRecordId });
+            });
+
+            // Create default view
+            const viewId = `view_${Date.now()}`;
+            newSet.views.set(viewId, {
+                id: viewId,
+                name: 'Grid View',
+                type: 'grid',
+                columns: set.schema.map(f => ({ fieldId: f.id, visible: true })),
+                filters: [],
+                sorts: [],
+                showRowNumbers: true
+            });
+
+            state.sets.set(newSetId, newSet);
+            registerEntity({ id: newSetId, type: 'Set', name: newSet.name, worldId: newSet.worldId });
+
+            createEvent('Duplicate Set', 'INS',
+                { type: 'Set', id: newSetId },
+                { sourceSetId: setId, summary: `Duplicated set "${set.name}"` }
+            );
+
+            renderSidebar();
+            showToast(`✓ Set duplicated`);
+        }
+
         function confirmDelete(type, id) {
             const messages = {
                 field: 'Delete this field? This will remove data from all records.',
@@ -24224,8 +24352,22 @@
 
         function deleteField(fieldId) {
             const set = getCurrentSet();
+            if (!set) return;
             const fieldIndex = set.schema.findIndex(f => f.id === fieldId);
             if (fieldIndex === -1) return;
+
+            // Use TossPile for soft delete with restoration capability
+            if (typeof TossPile !== 'undefined') {
+                const action = TossPile.tossColumn(state, fieldId);
+                if (action) {
+                    renderCurrentView();
+                    const valueCount = action.metadata.valueCount || 0;
+                    showToast(`✓ Column tossed (${valueCount} values can be restored)`);
+                    return;
+                }
+            }
+
+            // Fallback to hard delete if TossPile not available
             const [field] = set.schema.splice(fieldIndex, 1);
             set.records.forEach(record => delete record[fieldId]);
             createEvent(
@@ -24241,6 +24383,19 @@
 
         function tossRecord(recordId) {
             const set = getCurrentSet();
+            if (!set || !set.records.has(recordId)) return;
+
+            // Use TossPile for soft delete with restoration capability
+            if (typeof TossPile !== 'undefined') {
+                const action = TossPile.tossRecord(state, recordId);
+                if (action) {
+                    renderCurrentView();
+                    showToast('✓ Record tossed (can be restored from toss pile)');
+                    return;
+                }
+            }
+
+            // Fallback to hard delete if TossPile not available
             set.records.delete(recordId);
             if (state.selectedRecordIds) state.selectedRecordIds.delete(recordId);
             if (!state.selectedRecordIds || state.selectedRecordIds.size === 0) state.lastSelectedRecordId = null;
