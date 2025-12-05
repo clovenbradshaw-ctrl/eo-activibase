@@ -22,8 +22,13 @@
     <script src="demo/eo_import_manager.js"></script>
     <script src="demo/eo_file_explorer.js"></script>
     <script src="demo/eo_import_integration.js"></script>
+    <script src="eo_browser_tabs.js"></script>
+    <script src="eo_workbench_ui.js"></script>
+    <script src="eo_discovery.js"></script>
     <link rel="stylesheet" href="demo/eo_linked_fields_modal.css">
     <link rel="stylesheet" href="demo/eo_file_explorer.css">
+    <link rel="stylesheet" href="eo_browser_tabs.css">
+    <link rel="stylesheet" href="eo_workbench_styles.css">
     <style>
         :root {
             --primary: #111827;
@@ -3313,23 +3318,26 @@
 
         <div class="mobile-sidebar-overlay" id="mobileSidebarOverlay" onclick="closeMobileSidebar()"></div>
 
-        <!-- Header -->
+        <!-- Header - Browser-style -->
         <div class="app-header">
-            <div class="world-toolbar">
-                <div class="world-toolbar-info">
-                    <div class="world-pill">
-                        <i class="ph ph-globe-hemisphere-west"></i>
-                        <span id="currentWorldHeaderLabel">Loading world...</span>
-                    </div>
+            <!-- Browser Tab Bar -->
+            <div class="browser-tab-bar" id="browserTabBar">
+                <div class="browser-tabs-container" id="browserTabsContainer">
+                    <!-- Tabs will be rendered here dynamically -->
+                    <button class="browser-new-tab-btn" id="browserNewTabBtn" title="New tab (Ctrl+T)">
+                        <i class="ph ph-plus"></i>
+                    </button>
                 </div>
-                <div class="world-toolbar-actions">
-                    <input type="file" id="worldJsonInput" accept="application/json" style="display:none" />
+                <div class="browser-tab-actions">
                     <div class="globe-menu">
-                        <button id="globeMenuToggle" class="btn btn-secondary btn-sm globe-menu-toggle" title="World options">
+                        <button id="globeMenuToggle" class="browser-window-btn globe-menu-toggle" title="World options">
                             <i class="ph ph-globe-hemisphere-west"></i>
-                            <i class="ph ph-caret-down"></i>
                         </button>
                         <div class="globe-menu-panel" id="globeMenuPanel">
+                            <div class="globe-menu-header">
+                                <span id="currentWorldHeaderLabel">Loading world...</span>
+                            </div>
+                            <input type="file" id="worldJsonInput" accept="application/json" style="display:none" />
                             <button id="importWorldBtn" class="btn btn-secondary btn-sm globe-menu-item globe-menu-item-highlight">
                                 <i class="ph ph-upload-simple"></i>
                                 Import into view
@@ -3349,6 +3357,45 @@
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+            <!-- Omnibox Bar -->
+            <div class="browser-omnibox-bar">
+                <div class="browser-nav-buttons">
+                    <button class="browser-nav-btn" id="navBack" title="Go back" disabled>
+                        <i class="ph ph-arrow-left"></i>
+                    </button>
+                    <button class="browser-nav-btn" id="navForward" title="Go forward" disabled>
+                        <i class="ph ph-arrow-right"></i>
+                    </button>
+                    <button class="browser-nav-btn" id="navRefresh" title="Refresh">
+                        <i class="ph ph-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <div class="browser-omnibox" id="browserOmnibox">
+                    <div class="omnibox-icon">
+                        <i class="ph ph-magnifying-glass"></i>
+                    </div>
+                    <input
+                        type="text"
+                        class="omnibox-input"
+                        id="omniboxInput"
+                        placeholder="Search records, fields, views..."
+                        autocomplete="off"
+                        spellcheck="false"
+                    >
+                    <div class="omnibox-actions">
+                        <span class="omnibox-shortcut">Ctrl+K</span>
+                    </div>
+                    <div class="omnibox-dropdown" id="omniboxDropdown"></div>
+                </div>
+                <div class="browser-toolbar-actions">
+                    <button class="browser-toolbar-btn" id="btnBookmark" title="Bookmark this view">
+                        <i class="ph ph-star"></i>
+                    </button>
+                    <button class="browser-toolbar-btn" id="btnShare" title="Share">
+                        <i class="ph ph-share-network"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -12274,6 +12321,7 @@
         function renderViewTabs() {
             const container = document.getElementById('viewTabs');
             const surface = document.getElementById('viewSurface');
+            const browserContainer = document.getElementById('browserTabsContainer');
             if (!container) return;
 
             const validatedTabs = [];
@@ -12287,6 +12335,7 @@
             if (state.openTabs.length === 0) {
                 container.innerHTML = '';
                 container.classList.add('hidden');
+                if (browserContainer) browserContainer.innerHTML = renderBrowserNewTabOnly();
                 if (state.currentSpecialView) {
                     surface?.classList.remove('hidden');
                 } else {
@@ -12297,53 +12346,213 @@
 
             container.classList.remove('hidden');
             surface?.classList.remove('hidden');
-            container.innerHTML = '';
 
-            state.openTabs.forEach((tab, index) => {
+            // Render browser-style tabs if the container exists
+            if (browserContainer) {
+                renderBrowserStyleTabs(browserContainer);
+                container.innerHTML = ''; // Hide legacy tabs
+                container.classList.add('hidden');
+            } else {
+                // Legacy tab rendering
+                container.innerHTML = '';
+
+                state.openTabs.forEach((tab, index) => {
+                    const set = state.sets.get(tab.setId);
+                    const view = set?.views.get(tab.viewId);
+                    if (!set || !view) return;
+                    const isActive = state.currentSetId === tab.setId && state.currentViewId === tab.viewId;
+                    const tabKey = getTabKey(tab.setId, tab.viewId);
+
+                    const tabEl = document.createElement('div');
+                    tabEl.className = `view-tab ${isActive ? 'active' : ''}`;
+                    tabEl.dataset.tabKey = tabKey;
+                    tabEl.draggable = true;
+                    tabEl.onclick = () => switchSet(tab.setId, tab.viewId);
+                    tabEl.oncontextmenu = (e) => { e.preventDefault(); showViewTabContextMenu(e, tab.setId, tab.viewId); };
+                    tabEl.ondragstart = (e) => handleTabDragStart(e, tab);
+                    tabEl.ondragover = (e) => handleTabDragOver(e, tab);
+                    tabEl.ondragleave = () => clearTabDropIndicators();
+                    tabEl.ondrop = (e) => handleTabDrop(e, tab);
+                    tabEl.ondragend = finalizeTabDrag;
+
+                    const iconSpan = document.createElement('span');
+                    iconSpan.className = 'view-tab-icon';
+                    iconSpan.innerHTML = renderIcon(view.icon || VIEW_TYPE_ICONS[view.type]);
+
+                    const textWrap = document.createElement('div');
+                    textWrap.className = 'view-tab-text';
+                    textWrap.innerHTML = `
+                        <span class="view-tab-name">${view.name}</span>
+                        <span class="view-tab-meta">${set.name}</span>
+                    `;
+
+                    const actions = document.createElement('div');
+                    actions.className = 'view-tab-actions';
+
+                    const closeBtn = document.createElement('button');
+                    closeBtn.className = 'view-tab-btn';
+                    closeBtn.innerHTML = '<i class="ph ph-x"></i>';
+                    closeBtn.onclick = (e) => { e.stopPropagation(); closeViewTab(tab.setId, tab.viewId); };
+
+                    actions.appendChild(closeBtn);
+
+                    tabEl.appendChild(iconSpan);
+                    tabEl.appendChild(textWrap);
+                    tabEl.appendChild(actions);
+
+                    container.appendChild(tabEl);
+                });
+            }
+        }
+
+        // Render browser-style tabs
+        function renderBrowserStyleTabs(container) {
+            const tabsHtml = state.openTabs.map((tab, index) => {
                 const set = state.sets.get(tab.setId);
                 const view = set?.views.get(tab.viewId);
-                if (!set || !view) return;
+                if (!set || !view) return '';
                 const isActive = state.currentSetId === tab.setId && state.currentViewId === tab.viewId;
                 const tabKey = getTabKey(tab.setId, tab.viewId);
+                const icon = getViewTypePhIcon(view.type);
 
-                const tabEl = document.createElement('div');
-                tabEl.className = `view-tab ${isActive ? 'active' : ''}`;
-                tabEl.dataset.tabKey = tabKey;
-                tabEl.draggable = true;
-                tabEl.onclick = () => switchSet(tab.setId, tab.viewId);
-                tabEl.oncontextmenu = (e) => { e.preventDefault(); showViewTabContextMenu(e, tab.setId, tab.viewId); };
-                tabEl.ondragstart = (e) => handleTabDragStart(e, tab);
-                tabEl.ondragover = (e) => handleTabDragOver(e, tab);
-                tabEl.ondragleave = () => clearTabDropIndicators();
-                tabEl.ondrop = (e) => handleTabDrop(e, tab);
-                tabEl.ondragend = finalizeTabDrag;
-
-                const iconSpan = document.createElement('span');
-                iconSpan.className = 'view-tab-icon';
-                iconSpan.innerHTML = renderIcon(view.icon || VIEW_TYPE_ICONS[view.type]);
-
-                const textWrap = document.createElement('div');
-                textWrap.className = 'view-tab-text';
-                textWrap.innerHTML = `
-                    <span class="view-tab-name">${view.name}</span>
-                    <span class="view-tab-meta">${set.name}</span>
+                return `
+                    <div class="browser-tab ${isActive ? 'active' : ''}"
+                         data-tab-key="${tabKey}"
+                         data-set-id="${tab.setId}"
+                         data-view-id="${tab.viewId}"
+                         draggable="true">
+                        <div class="browser-tab-favicon">
+                            <i class="ph ${icon}"></i>
+                        </div>
+                        <span class="browser-tab-title">${view.name}</span>
+                        <button class="browser-tab-close" data-set-id="${tab.setId}" data-view-id="${tab.viewId}" title="Close tab">
+                            <i class="ph ph-x"></i>
+                        </button>
+                    </div>
                 `;
+            }).join('');
 
-                const actions = document.createElement('div');
-                actions.className = 'view-tab-actions';
+            container.innerHTML = tabsHtml + `
+                <button class="browser-new-tab-btn" id="browserNewTabBtn" title="New tab (Ctrl+T)">
+                    <i class="ph ph-plus"></i>
+                </button>
+            `;
 
-                const closeBtn = document.createElement('button');
-                closeBtn.className = 'view-tab-btn';
-                closeBtn.innerHTML = '<i class="ph ph-x"></i>';
-                closeBtn.onclick = (e) => { e.stopPropagation(); closeViewTab(tab.setId, tab.viewId); };
+            // Attach event listeners
+            attachBrowserTabEventListeners(container);
+        }
 
-                actions.appendChild(closeBtn);
+        function renderBrowserNewTabOnly() {
+            return `
+                <button class="browser-new-tab-btn" id="browserNewTabBtn" title="New tab (Ctrl+T)">
+                    <i class="ph ph-plus"></i>
+                </button>
+            `;
+        }
 
-                tabEl.appendChild(iconSpan);
-                tabEl.appendChild(textWrap);
-                tabEl.appendChild(actions);
+        function getViewTypePhIcon(type) {
+            const icons = {
+                grid: 'ph-table',
+                gallery: 'ph-squares-four',
+                kanban: 'ph-kanban',
+                calendar: 'ph-calendar',
+                chart: 'ph-chart-bar',
+                card: 'ph-cards-three',
+                default: 'ph-browser'
+            };
+            return icons[type] || icons.default;
+        }
 
-                container.appendChild(tabEl);
+        function attachBrowserTabEventListeners(container) {
+            // Tab click and close handlers
+            container.addEventListener('click', (e) => {
+                const closeBtn = e.target.closest('.browser-tab-close');
+                if (closeBtn) {
+                    e.stopPropagation();
+                    const setId = closeBtn.dataset.setId;
+                    const viewId = closeBtn.dataset.viewId;
+                    closeViewTab(setId, viewId);
+                    return;
+                }
+
+                const tab = e.target.closest('.browser-tab');
+                if (tab) {
+                    const setId = tab.dataset.setId;
+                    const viewId = tab.dataset.viewId;
+                    switchSet(setId, viewId);
+                }
+            });
+
+            // New tab button
+            const newTabBtn = container.querySelector('#browserNewTabBtn');
+            if (newTabBtn) {
+                newTabBtn.addEventListener('click', () => {
+                    if (state.currentSetId) {
+                        showNewViewModal();
+                    }
+                });
+            }
+
+            // Drag and drop for reordering
+            let draggedTab = null;
+
+            container.addEventListener('dragstart', (e) => {
+                const tab = e.target.closest('.browser-tab');
+                if (!tab) return;
+                draggedTab = tab;
+                tab.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const tab = e.target.closest('.browser-tab');
+                if (tab && tab !== draggedTab) {
+                    const rect = tab.getBoundingClientRect();
+                    const midpoint = rect.left + rect.width / 2;
+                    if (e.clientX < midpoint) {
+                        container.insertBefore(draggedTab, tab);
+                    } else {
+                        container.insertBefore(draggedTab, tab.nextSibling);
+                    }
+                }
+            });
+
+            container.addEventListener('dragend', (e) => {
+                if (draggedTab) {
+                    draggedTab.classList.remove('dragging');
+                    // Sync the new tab order to state
+                    const newOrder = Array.from(container.querySelectorAll('.browser-tab')).map(tab => ({
+                        setId: tab.dataset.setId,
+                        viewId: tab.dataset.viewId
+                    }));
+                    state.openTabs = newOrder;
+                    draggedTab = null;
+                }
+            });
+
+            // Middle-click to close
+            container.addEventListener('auxclick', (e) => {
+                if (e.button === 1) {
+                    const tab = e.target.closest('.browser-tab');
+                    if (tab) {
+                        e.preventDefault();
+                        const setId = tab.dataset.setId;
+                        const viewId = tab.dataset.viewId;
+                        closeViewTab(setId, viewId);
+                    }
+                }
+            });
+
+            // Context menu
+            container.addEventListener('contextmenu', (e) => {
+                const tab = e.target.closest('.browser-tab');
+                if (tab) {
+                    e.preventDefault();
+                    const setId = tab.dataset.setId;
+                    const viewId = tab.dataset.viewId;
+                    showViewTabContextMenu(e, setId, viewId);
+                }
             });
         }
 
@@ -24945,6 +25154,404 @@
             document.getElementById('closeJsonViewerBtn').onclick = () => closeModal('jsonViewerModal');
             document.getElementById('copyJsonBtn').onclick = copyJsonToClipboard;
             document.getElementById('closeSearchDataBtn').onclick = () => closeModal('searchDataModal');
+
+            // Browser Omnibox setup
+            setupBrowserOmnibox();
+        }
+
+        // ============================================================================
+        // BROWSER OMNIBOX SEARCH
+        // ============================================================================
+
+        let omniboxSearchTimeout = null;
+
+        function setupBrowserOmnibox() {
+            const input = document.getElementById('omniboxInput');
+            const dropdown = document.getElementById('omniboxDropdown');
+            const omnibox = document.getElementById('browserOmnibox');
+            const navRefresh = document.getElementById('navRefresh');
+
+            if (!input || !dropdown) return;
+
+            // Focus state
+            input.addEventListener('focus', () => {
+                omnibox?.classList.add('focused');
+                showOmniboxDropdown('');
+            });
+
+            input.addEventListener('blur', () => {
+                setTimeout(() => {
+                    omnibox?.classList.remove('focused');
+                    dropdown.classList.remove('visible');
+                }, 200);
+            });
+
+            // Input with debounce
+            input.addEventListener('input', (e) => {
+                clearTimeout(omniboxSearchTimeout);
+                omniboxSearchTimeout = setTimeout(() => {
+                    showOmniboxDropdown(e.target.value.trim());
+                }, 150);
+            });
+
+            // Keyboard navigation
+            input.addEventListener('keydown', (e) => {
+                const items = dropdown.querySelectorAll('.omnibox-result-item');
+                let activeItem = dropdown.querySelector('.omnibox-result-item.active');
+                let activeIndex = Array.from(items).indexOf(activeItem);
+
+                switch (e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        activeIndex = Math.min(activeIndex + 1, items.length - 1);
+                        setActiveOmniboxItem(items, activeIndex);
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        activeIndex = Math.max(activeIndex - 1, 0);
+                        setActiveOmniboxItem(items, activeIndex);
+                        break;
+                    case 'Enter':
+                        e.preventDefault();
+                        if (activeItem) {
+                            handleOmniboxResultClick(activeItem);
+                        } else if (items.length > 0) {
+                            handleOmniboxResultClick(items[0]);
+                        }
+                        break;
+                    case 'Escape':
+                        input.blur();
+                        dropdown.classList.remove('visible');
+                        break;
+                }
+            });
+
+            // Refresh button
+            if (navRefresh) {
+                navRefresh.addEventListener('click', () => {
+                    renderCurrentView();
+                    showToast('View refreshed');
+                });
+            }
+
+            // Global shortcut Ctrl+K
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    input?.focus();
+                    input?.select();
+                }
+                // Ctrl+T for new tab
+                if ((e.ctrlKey || e.metaKey) && e.key === 't' && !e.target.matches('input, textarea')) {
+                    e.preventDefault();
+                    if (state.currentSetId) {
+                        showNewViewModal();
+                    }
+                }
+            });
+        }
+
+        function showOmniboxDropdown(query) {
+            const dropdown = document.getElementById('omniboxDropdown');
+            if (!dropdown) return;
+
+            let html = '<div class="omnibox-results">';
+
+            if (!query) {
+                // Zero-input suggestions
+                html += renderOmniboxZeroInput();
+            } else {
+                // Search results
+                html += renderOmniboxSearchResults(query);
+            }
+
+            html += '</div>';
+            dropdown.innerHTML = html;
+            dropdown.classList.add('visible');
+
+            // Attach click handlers
+            dropdown.querySelectorAll('.omnibox-result-item').forEach(item => {
+                item.addEventListener('click', () => handleOmniboxResultClick(item));
+            });
+        }
+
+        function renderOmniboxZeroInput() {
+            let html = '';
+            const currentSet = state.sets.get(state.currentSetId);
+
+            // Quick actions
+            html += `
+                <div class="omnibox-section">
+                    <div class="omnibox-section-title">Quick Actions</div>
+                    <div class="omnibox-result-item action" data-action="new-view">
+                        <div class="omnibox-result-icon"><i class="ph ph-plus-circle"></i></div>
+                        <div class="omnibox-result-content">
+                            <div class="omnibox-result-title">Create new view</div>
+                            <div class="omnibox-result-subtitle">Add a new tab</div>
+                        </div>
+                        <div class="omnibox-result-shortcut">Ctrl+T</div>
+                    </div>
+                    <div class="omnibox-result-item action" data-action="filter">
+                        <div class="omnibox-result-icon"><i class="ph ph-funnel"></i></div>
+                        <div class="omnibox-result-content">
+                            <div class="omnibox-result-title">Add filter</div>
+                            <div class="omnibox-result-subtitle">Filter current view</div>
+                        </div>
+                    </div>
+                    <div class="omnibox-result-item action" data-action="search-data">
+                        <div class="omnibox-result-icon"><i class="ph ph-database"></i></div>
+                        <div class="omnibox-result-content">
+                            <div class="omnibox-result-title">Search all data</div>
+                            <div class="omnibox-result-subtitle">${currentSet?.records?.size || 0} records</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Recent views (open tabs)
+            if (state.openTabs.length > 0) {
+                html += `<div class="omnibox-section"><div class="omnibox-section-title">Open Tabs</div>`;
+                state.openTabs.slice(0, 5).forEach(tab => {
+                    const set = state.sets.get(tab.setId);
+                    const view = set?.views.get(tab.viewId);
+                    if (set && view) {
+                        const icon = getViewTypePhIcon(view.type);
+                        html += `
+                            <div class="omnibox-result-item view" data-type="view" data-set-id="${tab.setId}" data-view-id="${tab.viewId}">
+                                <div class="omnibox-result-icon"><i class="ph ${icon}"></i></div>
+                                <div class="omnibox-result-content">
+                                    <div class="omnibox-result-title">${view.name}</div>
+                                    <div class="omnibox-result-subtitle">${set.name}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+                html += '</div>';
+            }
+
+            // All sets
+            const allSets = Array.from(state.sets.values()).slice(0, 5);
+            if (allSets.length > 0) {
+                html += `<div class="omnibox-section"><div class="omnibox-section-title">Sets</div>`;
+                allSets.forEach(set => {
+                    const firstViewId = Array.from(set.views.keys())[0];
+                    html += `
+                        <div class="omnibox-result-item set" data-type="set" data-set-id="${set.id}" data-view-id="${firstViewId || ''}">
+                            <div class="omnibox-result-icon"><i class="ph ph-folder"></i></div>
+                            <div class="omnibox-result-content">
+                                <div class="omnibox-result-title">${set.name}</div>
+                                <div class="omnibox-result-subtitle">${set.records?.size || 0} records</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            return html;
+        }
+
+        function renderOmniboxSearchResults(query) {
+            const lowerQuery = query.toLowerCase();
+            let html = '';
+
+            const results = { sets: [], views: [], records: [], fields: [] };
+
+            // Search sets
+            state.sets.forEach(set => {
+                if (set.name.toLowerCase().includes(lowerQuery)) {
+                    const firstViewId = Array.from(set.views.keys())[0];
+                    results.sets.push({ ...set, firstViewId });
+                }
+
+                // Search views in this set
+                set.views.forEach(view => {
+                    if (view.name.toLowerCase().includes(lowerQuery)) {
+                        results.views.push({ ...view, setId: set.id, setName: set.name });
+                    }
+                });
+
+                // Search fields
+                (set.schema || []).forEach(field => {
+                    if (field.name?.toLowerCase().includes(lowerQuery) ||
+                        field.id.toLowerCase().includes(lowerQuery)) {
+                        results.fields.push({ ...field, setId: set.id, setName: set.name });
+                    }
+                });
+
+                // Search records (limit to avoid performance issues)
+                if (results.records.length < 10) {
+                    set.records?.forEach(record => {
+                        if (results.records.length >= 10) return;
+                        for (const field of (set.schema || [])) {
+                            const value = record[field.id];
+                            if (value && String(value).toLowerCase().includes(lowerQuery)) {
+                                let displayValue = record.id;
+                                for (const f of (set.schema || [])) {
+                                    if (record[f.id]) {
+                                        displayValue = String(record[f.id]).slice(0, 50);
+                                        break;
+                                    }
+                                }
+                                results.records.push({
+                                    id: record.id,
+                                    setId: set.id,
+                                    setName: set.name,
+                                    displayValue,
+                                    matchField: field.name || field.id,
+                                    matchValue: String(value).slice(0, 50)
+                                });
+                                break;
+                            }
+                        }
+                    });
+                }
+            });
+
+            const totalResults = results.sets.length + results.views.length + results.records.length + results.fields.length;
+
+            if (totalResults === 0) {
+                return `
+                    <div class="omnibox-no-results">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <p>No results for "${escapeForHtml(query)}"</p>
+                    </div>
+                `;
+            }
+
+            // Render Records
+            if (results.records.length > 0) {
+                html += `<div class="omnibox-section"><div class="omnibox-section-title">Records (${results.records.length})</div>`;
+                results.records.slice(0, 5).forEach(rec => {
+                    html += `
+                        <div class="omnibox-result-item record" data-type="record" data-record-id="${rec.id}" data-set-id="${rec.setId}">
+                            <div class="omnibox-result-icon"><i class="ph ph-file-text"></i></div>
+                            <div class="omnibox-result-content">
+                                <div class="omnibox-result-title">${escapeForHtml(rec.displayValue)}</div>
+                                <div class="omnibox-result-subtitle">${escapeForHtml(rec.matchField)}: ${escapeForHtml(rec.matchValue)}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            // Render Views
+            if (results.views.length > 0) {
+                html += `<div class="omnibox-section"><div class="omnibox-section-title">Views (${results.views.length})</div>`;
+                results.views.slice(0, 5).forEach(view => {
+                    const icon = getViewTypePhIcon(view.type);
+                    html += `
+                        <div class="omnibox-result-item view" data-type="view" data-set-id="${view.setId}" data-view-id="${view.id}">
+                            <div class="omnibox-result-icon"><i class="ph ${icon}"></i></div>
+                            <div class="omnibox-result-content">
+                                <div class="omnibox-result-title">${view.name}</div>
+                                <div class="omnibox-result-subtitle">${view.setName}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            // Render Sets
+            if (results.sets.length > 0) {
+                html += `<div class="omnibox-section"><div class="omnibox-section-title">Sets (${results.sets.length})</div>`;
+                results.sets.slice(0, 5).forEach(set => {
+                    html += `
+                        <div class="omnibox-result-item set" data-type="set" data-set-id="${set.id}" data-view-id="${set.firstViewId || ''}">
+                            <div class="omnibox-result-icon"><i class="ph ph-folder"></i></div>
+                            <div class="omnibox-result-content">
+                                <div class="omnibox-result-title">${set.name}</div>
+                                <div class="omnibox-result-subtitle">${set.records?.size || 0} records</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            // Render Fields
+            if (results.fields.length > 0) {
+                html += `<div class="omnibox-section"><div class="omnibox-section-title">Fields (${results.fields.length})</div>`;
+                results.fields.slice(0, 5).forEach(field => {
+                    html += `
+                        <div class="omnibox-result-item field" data-type="field" data-field-id="${field.id}" data-set-id="${field.setId}">
+                            <div class="omnibox-result-icon"><i class="ph ph-text-columns"></i></div>
+                            <div class="omnibox-result-content">
+                                <div class="omnibox-result-title">${field.name || field.id}</div>
+                                <div class="omnibox-result-subtitle">Field in ${field.setName}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            return html;
+        }
+
+        function setActiveOmniboxItem(items, index) {
+            items.forEach((item, i) => {
+                item.classList.toggle('active', i === index);
+            });
+            if (items[index]) {
+                items[index].scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        function handleOmniboxResultClick(item) {
+            const type = item.dataset.type;
+            const action = item.dataset.action;
+            const setId = item.dataset.setId;
+            const viewId = item.dataset.viewId;
+            const recordId = item.dataset.recordId;
+
+            const input = document.getElementById('omniboxInput');
+            const dropdown = document.getElementById('omniboxDropdown');
+            if (input) input.value = '';
+            if (dropdown) dropdown.classList.remove('visible');
+
+            if (action) {
+                switch (action) {
+                    case 'new-view':
+                        if (state.currentSetId) showNewViewModal();
+                        break;
+                    case 'filter':
+                        openFilterModal();
+                        break;
+                    case 'search-data':
+                        openModal('searchDataModal');
+                        break;
+                }
+                return;
+            }
+
+            switch (type) {
+                case 'view':
+                case 'set':
+                    if (setId) switchSet(setId, viewId || null);
+                    break;
+                case 'record':
+                    if (setId) {
+                        switchSet(setId, null);
+                        // TODO: Highlight/scroll to record
+                        showToast(`Navigated to record in set`);
+                    }
+                    break;
+                case 'field':
+                    // Could open field manager
+                    if (setId) switchSet(setId, null);
+                    break;
+            }
+        }
+
+        function escapeForHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         document.addEventListener('click', (event) => {

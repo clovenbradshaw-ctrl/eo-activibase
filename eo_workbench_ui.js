@@ -6,19 +6,72 @@
  * - View reification (save, save as, from focus)
  * - Structural operations (dedupe, merge, split, harmonize)
  * - Zero-input search/discovery surface
+ * - Browser-style tabs with omnibox search
  *
  * These components integrate with the existing EO Activibase UI.
  */
 
+// Global browser tabs instance
+let browserTabsInstance = null;
+
 // ============================================================================
-// VIEW MANAGER UI
+// VIEW MANAGER UI (Browser-style)
 // ============================================================================
 
 /**
- * Render view switcher for a set
- * Shows tabs/list of views with + New View button
+ * Render browser-style view manager with tabs and omnibox
+ * Shows Chrome-like tabs that can be dragged, reordered, and popped out
  */
 function renderViewManager(state, setId) {
+    const set = state.sets.get(setId);
+    if (!set) return '';
+
+    // Use the browser tabs component if available
+    if (typeof EOBrowserTabs !== 'undefined') {
+        if (!browserTabsInstance) {
+            browserTabsInstance = new EOBrowserTabs({
+                state,
+                setId,
+                onTabChange: (viewId) => {
+                    if (window.switchSet) {
+                        window.switchSet(setId, viewId);
+                    }
+                },
+                onTabReorder: (newOrder) => {
+                    // Save the new tab order
+                    console.log('Tab order changed:', newOrder);
+                },
+                onSearch: (query, results) => {
+                    console.log('Search:', query, results);
+                }
+            });
+        }
+
+        // Update state reference
+        browserTabsInstance.state = state;
+        browserTabsInstance.setId = setId;
+
+        return browserTabsInstance.render(state, setId);
+    }
+
+    // Fallback to legacy tab rendering
+    return renderLegacyViewManager(state, setId);
+}
+
+/**
+ * Attach browser tabs event listeners
+ * Call this after rendering the view manager
+ */
+function attachBrowserTabsListeners() {
+    if (browserTabsInstance) {
+        browserTabsInstance.attachListeners();
+    }
+}
+
+/**
+ * Legacy view manager (fallback)
+ */
+function renderLegacyViewManager(state, setId) {
     const set = state.sets.get(setId);
     if (!set) return '';
 
@@ -1174,6 +1227,8 @@ function showToast(message, duration = 3000) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         renderViewManager,
+        renderLegacyViewManager,
+        attachBrowserTabsListeners,
         showViewMenu,
         showCreateViewDialog,
         renderCreateViewFromFocusButton,
@@ -1200,4 +1255,6 @@ if (typeof window !== 'undefined') {
     window.showJSONScrubberMenu = showJSONScrubberMenu;
     window.renderViewToolbar = renderViewToolbar;
     window.attachViewToolbarListeners = attachViewToolbarListeners;
+    window.attachBrowserTabsListeners = attachBrowserTabsListeners;
+    window.renderViewManager = renderViewManager;
 }
