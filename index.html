@@ -2545,6 +2545,38 @@
         .row-selected td { background: #eef2ff; }
         .row-selected:hover td { background: #e0e7ff; }
 
+        /* Hidden fields column */
+        .hidden-fields-header {
+            width: 100px;
+            min-width: 100px;
+            text-align: center;
+            background: #fef3c7 !important;
+            border-left: 2px dashed #d97706;
+        }
+        .hidden-fields-header:hover {
+            background: #fde68a !important;
+        }
+        .hidden-fields-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #92400e;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .hidden-fields-trigger i {
+            font-size: 14px;
+        }
+        .hidden-count {
+            white-space: nowrap;
+        }
+        .hidden-fields-cell {
+            width: 100px;
+            min-width: 100px;
+            background: #fffbeb;
+            border-left: 2px dashed #d97706;
+        }
+
         .json-tab {
             padding: 12px 20px;
             font-size: 14px;
@@ -12894,6 +12926,23 @@
                 headerRow.appendChild(th);
             });
 
+            // Hidden fields column (last column)
+            const hiddenFieldsCount = getHiddenFieldsCount(view, set);
+            if (hiddenFieldsCount > 0) {
+                const hiddenHeader = document.createElement('th');
+                hiddenHeader.className = 'column-header hidden-fields-header';
+                hiddenHeader.innerHTML = `
+                    <span class="hidden-fields-trigger">
+                        <i class="ph ph-eye-slash"></i>
+                        <span class="hidden-count">${hiddenFieldsCount} hidden</span>
+                    </span>
+                `;
+                hiddenHeader.title = 'Click to manage hidden fields';
+                hiddenHeader.style.cursor = 'pointer';
+                hiddenHeader.onclick = () => openFieldsExplorerWithFilter('hidden');
+                headerRow.appendChild(hiddenHeader);
+            }
+
             const table = document.getElementById('dataTable');
             const minimumTableWidth = tableSchema.reduce((sum, field) => sum + getFieldWidth(field), 0);
             table.style.minWidth = `${Math.max(minimumTableWidth, 600)}px`;
@@ -12967,6 +13016,13 @@
                     }
                     tr.appendChild(td);
                 });
+
+                // Add empty cell for hidden fields column
+                if (hiddenFieldsCount > 0) {
+                    const hiddenTd = document.createElement('td');
+                    hiddenTd.className = 'hidden-fields-cell';
+                    tr.appendChild(hiddenTd);
+                }
 
                 tbody.appendChild(tr);
             });
@@ -14063,6 +14119,12 @@
                 { setId: set.id, fieldId, fieldName: name, fieldType: type, summary: `Added field ${name} (${FIELD_TYPES[type]?.name})` },
                 { frame: 'schema', scale: 'collection' }
             );
+
+            // Auto-create lookup fields for LINK_RECORD
+            const view = getCurrentView();
+            if (type === 'LINK_RECORD' && newField.config?.linkedSetId && view) {
+                autoCreateLookupFieldsForLink(set, view, newField);
+            }
 
             // Re-render
             renderCurrentView();
@@ -19922,6 +19984,141 @@
             }, 100);
             
             showToast('✓ Field added');
+
+            // Auto-create lookup fields for LINK_RECORD
+            if (type === 'LINK_RECORD' && newField.config?.linkedSetId) {
+                autoCreateLookupFieldsForLink(set, view, newField);
+            }
+        }
+
+        /**
+         * Auto-create lookup fields for all fields in a linked set
+         * These are added as hidden by default for a "full merge" experience
+         */
+        function autoCreateLookupFieldsForLink(set, view, linkField) {
+            const linkedSetId = linkField.config?.linkedSetId;
+            if (!linkedSetId) return;
+
+            const linkedSet = state.sets.get(linkedSetId);
+            if (!linkedSet || !linkedSet.schema) return;
+
+            // Detect cardinality - check if any values are arrays
+            let cardinality = 'one';
+            set.records.forEach(record => {
+                const value = record[linkField.id];
+                if (Array.isArray(value) && value.length > 0) {
+                    cardinality = 'many';
+                }
+            });
+
+            // Initialize view arrays if needed
+            if (!view.relationships) view.relationships = [];
+            if (!view.rollups) view.rollups = [];
+            if (!view.hiddenFields) view.hiddenFields = [];
+
+            // Get already added lookups to avoid duplicates
+            const existingLookups = view.relationships
+                .filter(r => r.sourceFieldId === linkField.id && r.targetSetId === linkedSetId)
+                .map(r => r.targetFieldId);
+            const existingRollups = view.rollups
+                .filter(r => r.sourceFieldId === linkField.id && r.targetSetId === linkedSetId)
+                .map(r => r.targetFieldId);
+
+            let addedCount = 0;
+
+            // Add lookup/rollup for each field in the linked set
+            linkedSet.schema.forEach(targetField => {
+                // Skip if already added
+                if (existingLookups.includes(targetField.id) || existingRollups.includes(targetField.id)) return;
+
+                const uniqueId = `linked_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+                if (cardinality === 'one') {
+                    // Add as lookup
+                    view.relationships.push({
+                        id: uniqueId,
+                        type: 'lookup',
+                        sourceFieldId: linkField.id,
+                        targetSetId: linkedSetId,
+                        targetFieldId: targetField.id,
+                        displayName: `${linkedSet.name} – ${targetField.name}`,
+                        createdAt: Date.now()
+                    });
+                } else {
+                    // Add as rollup with appropriate aggregation
+                    const aggregation = targetField.type === 'NUMBER' ? 'sum' :
+                                        targetField.type === 'DATE' ? 'max' : 'arrayjoin';
+                    view.rollups.push({
+                        id: uniqueId,
+                        type: 'rollup',
+                        sourceFieldId: linkField.id,
+                        targetSetId: linkedSetId,
+                        targetFieldId: targetField.id,
+                        aggregation: aggregation,
+                        displayName: `${linkedSet.name} – ${targetField.name} (${aggregation})`,
+                        createdAt: Date.now()
+                    });
+                }
+
+                // Add to hidden fields by default
+                view.hiddenFields.push(uniqueId);
+                addedCount++;
+            });
+
+            if (addedCount > 0) {
+                view.isDirty = true;
+                showToast(`✓ Auto-added ${addedCount} lookup field${addedCount !== 1 ? 's' : ''} from ${linkedSet.name} (hidden by default)`);
+            }
+        }
+
+        /**
+         * Get count of hidden fields in a view
+         * Includes both schema hidden fields and computed hidden fields (lookups/rollups)
+         */
+        function getHiddenFieldsCount(view, set) {
+            if (!view) return 0;
+
+            let count = 0;
+
+            // Count hidden schema fields
+            const hiddenFields = view.hiddenFields || [];
+            const schemaFieldIds = (set?.schema || []).map(f => f.id);
+            count += hiddenFields.filter(id => schemaFieldIds.includes(id)).length;
+
+            // Count hidden computed fields (lookups and rollups)
+            const relationships = view.relationships || [];
+            const rollups = view.rollups || [];
+            const computedIds = [...relationships.map(r => r.id), ...rollups.map(r => r.id)];
+            count += hiddenFields.filter(id => computedIds.includes(id)).length;
+
+            return count;
+        }
+
+        /**
+         * Open the fields explorer with a specific filter pre-selected
+         */
+        function openFieldsExplorerWithFilter(filterType = 'hidden') {
+            const view = getCurrentView();
+            const set = getCurrentSet();
+
+            if (!view || !set) {
+                showToast('⚠️ No active view or set');
+                return;
+            }
+
+            // Check if EOAvailableFieldsExplorer is loaded
+            if (!window.EOAvailableFieldsExplorer) {
+                showToast('⚠️ Fields Explorer not loaded');
+                return;
+            }
+
+            const explorer = new window.EOAvailableFieldsExplorer();
+            explorer.show(view, set, state);
+
+            // Pre-select the filter after a short delay to ensure DOM is ready
+            setTimeout(() => {
+                explorer.setFilterType(filterType);
+            }, 50);
         }
 
         // FILTERING (simplified for space)
