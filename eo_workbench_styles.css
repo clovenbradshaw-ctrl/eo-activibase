@@ -1869,6 +1869,30 @@
     flex-shrink: 0;
 }
 
+/* Pane Tabs Container - holds the individual tabs */
+.pane-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.pane-tabs::-webkit-scrollbar {
+    height: 4px;
+}
+
+.pane-tabs::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.pane-tabs::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 2px;
+}
+
 .pane-tabs-bar::-webkit-scrollbar {
     height: 4px;
 }
