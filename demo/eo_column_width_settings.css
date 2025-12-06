@@ -1,0 +1,610 @@
+/**
+ * EO Column Width Settings CSS
+ *
+ * Styles for column width customization features including:
+ * - Column width toolbar
+ * - Settings modal
+ * - Content overflow modes
+ * - Individual column width controls
+ */
+
+/* ============================================================================
+   COLUMN WIDTH TOOLBAR
+   ============================================================================ */
+
+.column-width-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.column-width-toolbar .toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.column-width-toolbar .toolbar-label {
+    color: #64748b;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.column-width-toolbar .toolbar-divider {
+    width: 1px;
+    height: 24px;
+    background: #e2e8f0;
+}
+
+.column-width-toolbar .toolbar-btn-group {
+    display: flex;
+    gap: 4px;
+}
+
+.column-width-toolbar .toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.column-width-toolbar .toolbar-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.column-width-toolbar .toolbar-btn.active {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+}
+
+.column-width-toolbar .toolbar-btn i {
+    font-size: 14px;
+}
+
+/* ============================================================================
+   COLUMN WIDTH SETTINGS MODAL
+   ============================================================================ */
+
+.column-width-modal {
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+.column-width-modal .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.column-width-modal .modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.column-width-modal .modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.column-width-modal .modal-close:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.column-width-modal .modal-body {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.column-width-modal .modal-body h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.column-width-modal .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px 20px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+/* ============================================================================
+   WIDTH MODE OPTIONS
+   ============================================================================ */
+
+.column-width-modes {
+    margin-bottom: 24px;
+}
+
+.mode-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mode-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.mode-option:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+}
+
+.mode-option.selected {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.mode-option input[type="radio"] {
+    margin-top: 2px;
+    cursor: pointer;
+}
+
+.mode-info {
+    flex: 1;
+}
+
+.mode-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.mode-title i {
+    font-size: 16px;
+    color: #64748b;
+}
+
+.mode-option.selected .mode-title i {
+    color: #3b82f6;
+}
+
+.mode-desc {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+/* ============================================================================
+   OVERFLOW MODE OPTIONS
+   ============================================================================ */
+
+.column-width-overflow {
+    margin-bottom: 24px;
+}
+
+.overflow-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.overflow-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.overflow-option:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+}
+
+.overflow-option.selected {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.overflow-option input[type="radio"] {
+    margin-top: 2px;
+    cursor: pointer;
+}
+
+.overflow-info {
+    flex: 1;
+}
+
+.overflow-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.overflow-title i {
+    font-size: 14px;
+    color: #64748b;
+}
+
+.overflow-option.selected .overflow-title i {
+    color: #3b82f6;
+}
+
+.overflow-desc {
+    margin-top: 2px;
+    font-size: 11px;
+    color: #64748b;
+}
+
+/* ============================================================================
+   CUSTOM WIDTH CONTROLS
+   ============================================================================ */
+
+.column-width-custom {
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.custom-widths-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.custom-width-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.custom-width-item .field-name {
+    flex: 0 0 120px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.custom-width-item .width-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.custom-width-item .width-slider {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: #e2e8f0;
+    cursor: pointer;
+    -webkit-appearance: none;
+}
+
+.custom-width-item .width-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.custom-width-item .width-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border: none;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.custom-width-item .width-input {
+    width: 70px;
+    padding: 6px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: right;
+}
+
+.custom-width-item .width-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.custom-width-item .width-unit {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.custom-width-item .btn-auto-fit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.custom-width-item .btn-auto-fit:hover {
+    background: #f1f5f9;
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+/* ============================================================================
+   UNIFORM WIDTH CONTEXT MENU
+   ============================================================================ */
+
+.uniform-width-menu {
+    min-width: 180px;
+    animation: menuFadeIn 0.15s ease;
+}
+
+.uniform-width-menu .context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+
+.uniform-width-menu .context-menu-item:hover {
+    background: #f1f5f9;
+}
+
+.uniform-width-menu .context-menu-item i {
+    font-size: 16px;
+    color: #64748b;
+}
+
+@keyframes menuFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================================================
+   TABLE OVERFLOW MODES
+   ============================================================================ */
+
+/* Clip mode (default) */
+#dataTable.overflow-clip td.cell-editable {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Wrap mode */
+#dataTable.overflow-wrap td.cell-editable {
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-word;
+    line-height: 1.5;
+}
+
+#dataTable.overflow-wrap tr {
+    vertical-align: top;
+}
+
+/* Expand mode */
+#dataTable.overflow-expand td.cell-editable {
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow: visible;
+    line-height: 1.5;
+}
+
+#dataTable.overflow-expand tr {
+    vertical-align: top;
+}
+
+/* Tooltip mode */
+#dataTable.overflow-tooltip td.cell-editable {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: default;
+}
+
+#dataTable.overflow-tooltip td.cell-editable:hover {
+    position: relative;
+}
+
+/* ============================================================================
+   VIEW ACTIONS TOOLBAR INTEGRATION
+   ============================================================================ */
+
+.view-stage-actions .column-width-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.view-stage-actions .column-width-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 180px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    padding: 6px;
+}
+
+.view-stage-actions .column-width-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+
+.view-stage-actions .column-width-dropdown-item:hover {
+    background: #f1f5f9;
+}
+
+.view-stage-actions .column-width-dropdown-item i {
+    font-size: 16px;
+    color: #64748b;
+    width: 20px;
+    text-align: center;
+}
+
+.view-stage-actions .column-width-dropdown-item.active {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.view-stage-actions .column-width-dropdown-item.active i {
+    color: #3b82f6;
+}
+
+.view-stage-actions .column-width-dropdown-divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 6px 0;
+}
+
+/* ============================================================================
+   COLUMN HEADER RESIZE INDICATOR
+   ============================================================================ */
+
+.column-header.resizing {
+    background: #f1f5f9;
+}
+
+.column-header.resizing::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -1px;
+    width: 3px;
+    height: 100%;
+    background: #3b82f6;
+}
+
+/* Active resize line */
+.resize-line {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #3b82f6;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+/* ============================================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================================ */
+
+@media (max-width: 768px) {
+    .column-width-toolbar {
+        flex-wrap: wrap;
+        padding: 8px;
+    }
+
+    .column-width-toolbar .toolbar-divider {
+        display: none;
+    }
+
+    .column-width-modal {
+        max-width: calc(100vw - 32px);
+        max-height: calc(100vh - 64px);
+    }
+
+    .overflow-options {
+        grid-template-columns: 1fr;
+    }
+
+    .custom-width-item {
+        flex-wrap: wrap;
+    }
+
+    .custom-width-item .field-name {
+        flex: 1 1 100%;
+        margin-bottom: 8px;
+    }
+
+    .custom-width-item .width-controls {
+        width: 100%;
+    }
+}
