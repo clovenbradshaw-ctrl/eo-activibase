@@ -36,6 +36,7 @@ function createViewEntity(config) {
         hiddenFields: config.hiddenFields || [],
         columnOrder: config.columnOrder || null,
         columnRules: config.columnRules || {},
+        columnDisplayNames: config.columnDisplayNames || {}, // View-specific column display names
 
         // View logic
         filters: config.filters || [],
