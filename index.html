@@ -29,6 +29,8 @@
     <link rel="stylesheet" href="demo/eo_file_explorer.css">
     <link rel="stylesheet" href="demo/eo_toss_pile.css">
     <link rel="stylesheet" href="demo/eo_set_management.css">
+    <link rel="stylesheet" href="demo/eo_chrome_tabs.css">
+    <script src="demo/eo_chrome_tabs.js"></script>
     <style>
         :root {
             --primary: #111827;
@@ -43,6 +45,137 @@
             --sidebar-collapsed-width: 64px;
             --mobile-padding: 16px;
             --mobile-bottom-bar-height: 72px;
+        }
+
+        /* Dark mode theme */
+        [data-theme="dark"] {
+            --primary: #e8eaed;
+            --primary-dark: #f8f9fa;
+            --surface: #202124;
+            --muted-surface: #292a2d;
+            --border: #3c4043;
+            --border-strong: #5f6368;
+            --text: #e8eaed;
+            --text-secondary: #9aa0a6;
+        }
+
+        [data-theme="dark"] body {
+            background: #1a1a1a;
+            color: #e8eaed;
+        }
+
+        [data-theme="dark"] .sidebar {
+            background: #202124;
+            border-color: #3c4043;
+        }
+
+        [data-theme="dark"] .main-content {
+            background: #1a1a1a;
+        }
+
+        [data-theme="dark"] .view-surface {
+            background: #202124;
+            border-color: #3c4043;
+        }
+
+        [data-theme="dark"] .view-tab {
+            color: #9aa0a6;
+        }
+
+        [data-theme="dark"] .view-tab:hover {
+            background: #35363a;
+            color: #e8eaed;
+        }
+
+        [data-theme="dark"] .view-tab.active {
+            background: linear-gradient(to bottom, #35363a 0%, #202124 100%);
+            border-color: #5f6368;
+            color: #8ab4f8;
+            border-bottom-color: #8ab4f8;
+        }
+
+        [data-theme="dark"] .view-tabs {
+            border-bottom-color: #3c4043;
+        }
+
+        [data-theme="dark"] .view-tab-meta {
+            background: #35363a;
+            color: #9aa0a6;
+        }
+
+        [data-theme="dark"] .view-stage-header {
+            background: linear-gradient(180deg, #202124 0%, #292a2d 100%);
+            border-bottom-color: #3c4043;
+        }
+
+        [data-theme="dark"] .btn-primary {
+            background: #8ab4f8;
+            color: #202124;
+        }
+
+        [data-theme="dark"] .btn-secondary {
+            background: #35363a;
+            color: #e8eaed;
+            border-color: #5f6368;
+        }
+
+        [data-theme="dark"] .input,
+        [data-theme="dark"] input,
+        [data-theme="dark"] select,
+        [data-theme="dark"] textarea {
+            background: #35363a;
+            border-color: #5f6368;
+            color: #e8eaed;
+        }
+
+        [data-theme="dark"] .modal {
+            background: #292a2d;
+            border-color: #3c4043;
+        }
+
+        [data-theme="dark"] .modal-header {
+            border-bottom-color: #3c4043;
+        }
+
+        [data-theme="dark"] .modal-footer {
+            border-top-color: #3c4043;
+        }
+
+        [data-theme="dark"] .context-menu {
+            background: #292a2d;
+            border-color: #3c4043;
+        }
+
+        [data-theme="dark"] .menu-item:hover {
+            background: #35363a;
+        }
+
+        [data-theme="dark"] .nav-item:hover {
+            background: #35363a;
+        }
+
+        [data-theme="dark"] .nav-item.active {
+            background: #35363a;
+            color: #8ab4f8;
+        }
+
+        [data-theme="dark"] .grid-table th {
+            background: #292a2d;
+            border-color: #3c4043;
+        }
+
+        [data-theme="dark"] .grid-table td {
+            border-color: #3c4043;
+        }
+
+        [data-theme="dark"] .grid-table tr:hover td {
+            background: #35363a;
+        }
+
+        [data-theme="dark"] .mobile-topbar,
+        [data-theme="dark"] .mobile-bottom-bar {
+            background: #202124;
+            border-color: #3c4043;
         }
 
         * { box-sizing: border-box; }
@@ -12336,7 +12469,25 @@
                 tabEl.dataset.tabKey = tabKey;
                 tabEl.draggable = true;
                 tabEl.onclick = () => switchSet(tab.setId, tab.viewId);
-                tabEl.oncontextmenu = (e) => { e.preventDefault(); showViewTabContextMenu(e, tab.setId, tab.viewId); };
+                // Enhanced context menu from Chrome tab system
+                tabEl.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    if (window.eoChromeTabSystem) {
+                        window.eoChromeTabSystem.showTabContextMenu(e, tab.setId, tab.viewId);
+                    } else {
+                        showViewTabContextMenu(e, tab.setId, tab.viewId);
+                    }
+                };
+                // Middle-click to close tab
+                tabEl.onauxclick = (e) => {
+                    if (e.button === 1) { // Middle click
+                        e.preventDefault();
+                        if (window.eoChromeTabSystem) {
+                            window.eoChromeTabSystem.trackClosedTab(tab.setId, tab.viewId);
+                        }
+                        closeViewTab(tab.setId, tab.viewId);
+                    }
+                };
                 tabEl.ondragstart = (e) => handleTabDragStart(e, tab);
                 tabEl.ondragover = (e) => handleTabDragOver(e, tab);
                 tabEl.ondragleave = () => clearTabDropIndicators();
@@ -12360,7 +12511,13 @@
                 const closeBtn = document.createElement('button');
                 closeBtn.className = 'view-tab-btn';
                 closeBtn.innerHTML = '<i class="ph ph-x"></i>';
-                closeBtn.onclick = (e) => { e.stopPropagation(); closeViewTab(tab.setId, tab.viewId); };
+                closeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (window.eoChromeTabSystem) {
+                        window.eoChromeTabSystem.trackClosedTab(tab.setId, tab.viewId);
+                    }
+                    closeViewTab(tab.setId, tab.viewId);
+                };
 
                 actions.appendChild(closeBtn);
 

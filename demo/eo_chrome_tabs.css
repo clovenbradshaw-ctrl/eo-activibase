@@ -1,0 +1,777 @@
+/* =============================================
+   EO Chrome-Style Tab Bar System
+   ============================================= */
+
+/* Dark mode variables */
+:root {
+    --tab-bg: #f1f3f4;
+    --tab-bg-hover: #e8eaed;
+    --tab-bg-active: #ffffff;
+    --tab-text: #5f6368;
+    --tab-text-active: #202124;
+    --tab-border: #dadce0;
+    --tab-close-hover: #e8eaed;
+    --tab-strip-bg: #dee1e6;
+    --tab-separator: #c4c7cc;
+    --tab-new-btn: #5f6368;
+    --omnibox-bg: #ffffff;
+    --omnibox-border: #dfe1e5;
+    --omnibox-text: #202124;
+    --omnibox-placeholder: #5f6368;
+    --omnibox-suggestion-hover: #f1f3f4;
+    --omnibox-suggestion-selected: #e8f0fe;
+    --floating-window-bg: #ffffff;
+    --floating-window-border: #dadce0;
+    --floating-window-header: #f1f3f4;
+}
+
+[data-theme="dark"] {
+    --tab-bg: #35363a;
+    --tab-bg-hover: #3c4043;
+    --tab-bg-active: #202124;
+    --tab-text: #9aa0a6;
+    --tab-text-active: #e8eaed;
+    --tab-border: #5f6368;
+    --tab-close-hover: #3c4043;
+    --tab-strip-bg: #292a2d;
+    --tab-separator: #5f6368;
+    --tab-new-btn: #9aa0a6;
+    --omnibox-bg: #202124;
+    --omnibox-border: #5f6368;
+    --omnibox-text: #e8eaed;
+    --omnibox-placeholder: #9aa0a6;
+    --omnibox-suggestion-hover: #35363a;
+    --omnibox-suggestion-selected: #394457;
+    --floating-window-bg: #202124;
+    --floating-window-border: #5f6368;
+    --floating-window-header: #292a2d;
+}
+
+/* Dark mode body styles */
+[data-theme="dark"] body {
+    background: #1a1a1a;
+    color: #e8eaed;
+}
+
+[data-theme="dark"] .sidebar {
+    background: #202124;
+    border-color: #3c4043;
+}
+
+[data-theme="dark"] .main-content {
+    background: #1a1a1a;
+}
+
+[data-theme="dark"] .view-surface {
+    background: #202124;
+    border-color: #3c4043;
+}
+
+/* =============================================
+   Chrome-Style Tab Strip
+   ============================================= */
+
+.chrome-tab-strip {
+    display: flex;
+    align-items: flex-end;
+    background: var(--tab-strip-bg);
+    padding: 8px 8px 0;
+    height: 44px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    position: relative;
+    user-select: none;
+    -webkit-app-region: drag;
+}
+
+.chrome-tab-strip::-webkit-scrollbar {
+    height: 0;
+    display: none;
+}
+
+/* Individual Tab */
+.chrome-tab {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 100px;
+    max-width: 240px;
+    height: 36px;
+    padding: 0 12px;
+    background: var(--tab-bg);
+    color: var(--tab-text);
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+    -webkit-app-region: no-drag;
+}
+
+.chrome-tab::before,
+.chrome-tab::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    width: 8px;
+    height: 8px;
+    pointer-events: none;
+}
+
+.chrome-tab.active::before {
+    left: -8px;
+    background: radial-gradient(circle at 0 0, transparent 8px, var(--tab-bg-active) 8px);
+}
+
+.chrome-tab.active::after {
+    right: -8px;
+    background: radial-gradient(circle at 100% 0, transparent 8px, var(--tab-bg-active) 8px);
+}
+
+.chrome-tab:hover:not(.active) {
+    background: var(--tab-bg-hover);
+}
+
+.chrome-tab.active {
+    background: var(--tab-bg-active);
+    color: var(--tab-text-active);
+    z-index: 2;
+}
+
+.chrome-tab-favicon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.chrome-tab-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chrome-tab-set-name {
+    font-size: 10px;
+    color: var(--tab-text);
+    opacity: 0.7;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+
+.chrome-tab-close {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: var(--tab-text);
+    opacity: 0;
+    transition: all 0.1s ease;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.chrome-tab:hover .chrome-tab-close,
+.chrome-tab.active .chrome-tab-close {
+    opacity: 1;
+}
+
+.chrome-tab-close:hover {
+    background: var(--tab-close-hover);
+    color: var(--tab-text-active);
+}
+
+/* Drag State */
+.chrome-tab.dragging {
+    opacity: 0.7;
+    transform: scale(0.98);
+    z-index: 100;
+}
+
+.chrome-tab.drag-over-left::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: 6px;
+    bottom: 6px;
+    width: 3px;
+    background: #2563eb;
+    border-radius: 3px;
+}
+
+.chrome-tab.drag-over-right::after {
+    content: '';
+    position: absolute;
+    right: -2px;
+    top: 6px;
+    bottom: 6px;
+    width: 3px;
+    background: #2563eb;
+    border-radius: 3px;
+}
+
+/* Tab separator line */
+.chrome-tab:not(.active):not(:hover) + .chrome-tab:not(.active):not(:hover)::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: var(--tab-separator);
+}
+
+/* New Tab Button */
+.chrome-new-tab-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tab-new-btn);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+    margin: 0 8px 4px;
+    -webkit-app-region: no-drag;
+}
+
+.chrome-new-tab-btn:hover {
+    background: var(--tab-bg-hover);
+}
+
+/* Tab Actions Bar */
+.chrome-tab-actions-bar {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    gap: 4px;
+    padding: 0 8px 4px;
+    -webkit-app-region: no-drag;
+}
+
+/* =============================================
+   Omnibox Search Bar
+   ============================================= */
+
+.omnibox-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 15vh;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+}
+
+.omnibox-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.omnibox-container {
+    width: 100%;
+    max-width: 680px;
+    background: var(--omnibox-bg);
+    border-radius: 24px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.28);
+    overflow: hidden;
+    transform: translateY(-20px) scale(0.98);
+    transition: all 0.2s ease;
+}
+
+.omnibox-overlay.active .omnibox-container {
+    transform: translateY(0) scale(1);
+}
+
+.omnibox-input-wrapper {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    gap: 12px;
+    border-bottom: 1px solid var(--omnibox-border);
+}
+
+.omnibox-icon {
+    color: #5f6368;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.omnibox-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    background: transparent;
+    color: var(--omnibox-text);
+}
+
+.omnibox-input::placeholder {
+    color: var(--omnibox-placeholder);
+}
+
+.omnibox-kbd {
+    font-size: 11px;
+    padding: 2px 6px;
+    background: #f1f3f4;
+    border-radius: 4px;
+    color: #5f6368;
+    font-family: monospace;
+}
+
+[data-theme="dark"] .omnibox-kbd {
+    background: #35363a;
+    color: #9aa0a6;
+}
+
+.omnibox-suggestions {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.omnibox-section {
+    padding: 8px 16px 4px;
+}
+
+.omnibox-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #5f6368;
+    margin-bottom: 8px;
+}
+
+.omnibox-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+
+.omnibox-item:hover,
+.omnibox-item.selected {
+    background: var(--omnibox-suggestion-hover);
+}
+
+.omnibox-item.selected {
+    background: var(--omnibox-suggestion-selected);
+}
+
+.omnibox-item-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.omnibox-item-icon.tab { background: #e8f0fe; color: #1967d2; }
+.omnibox-item-icon.set { background: #e6f4ea; color: #137333; }
+.omnibox-item-icon.view { background: #fce8e6; color: #c5221f; }
+.omnibox-item-icon.record { background: #fff7e6; color: #e37400; }
+.omnibox-item-icon.field { background: #f3e8fd; color: #8430ce; }
+.omnibox-item-icon.action { background: #e8eaed; color: #5f6368; }
+
+[data-theme="dark"] .omnibox-item-icon.tab { background: #394457; color: #8ab4f8; }
+[data-theme="dark"] .omnibox-item-icon.set { background: #2d4a32; color: #81c995; }
+[data-theme="dark"] .omnibox-item-icon.view { background: #4a2c2a; color: #f28b82; }
+[data-theme="dark"] .omnibox-item-icon.record { background: #4a3c22; color: #fdd663; }
+[data-theme="dark"] .omnibox-item-icon.field { background: #3d2f4a; color: #d7aefb; }
+[data-theme="dark"] .omnibox-item-icon.action { background: #3c4043; color: #9aa0a6; }
+
+.omnibox-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.omnibox-item-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--omnibox-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.omnibox-item-subtitle {
+    font-size: 12px;
+    color: var(--omnibox-placeholder);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.omnibox-item-shortcut {
+    font-size: 11px;
+    padding: 2px 6px;
+    background: #f1f3f4;
+    border-radius: 4px;
+    color: #5f6368;
+    font-family: monospace;
+    flex-shrink: 0;
+}
+
+[data-theme="dark"] .omnibox-item-shortcut {
+    background: #35363a;
+    color: #9aa0a6;
+}
+
+.omnibox-empty {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--omnibox-placeholder);
+}
+
+.omnibox-empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+/* =============================================
+   Floating Windows (Pop-out Tabs)
+   ============================================= */
+
+.floating-window {
+    position: fixed;
+    background: var(--floating-window-bg);
+    border: 1px solid var(--floating-window-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    z-index: 9000;
+    min-width: 400px;
+    min-height: 300px;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    resize: both;
+}
+
+.floating-window-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--floating-window-header);
+    border-bottom: 1px solid var(--floating-window-border);
+    cursor: move;
+    flex-shrink: 0;
+}
+
+.floating-window-icon {
+    font-size: 16px;
+}
+
+.floating-window-title {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--tab-text-active);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.floating-window-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.floating-window-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--tab-text);
+    transition: all 0.1s ease;
+}
+
+.floating-window-btn:hover {
+    background: var(--tab-bg-hover);
+    color: var(--tab-text-active);
+}
+
+.floating-window-btn.close:hover {
+    background: #e81123;
+    color: white;
+}
+
+.floating-window-content {
+    flex: 1;
+    overflow: auto;
+    padding: 0;
+}
+
+.floating-window-content iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* Drag Preview for Pop-out */
+.tab-popout-preview {
+    position: fixed;
+    width: 280px;
+    height: 200px;
+    background: var(--floating-window-bg);
+    border: 2px dashed #2563eb;
+    border-radius: 8px;
+    z-index: 10001;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #2563eb;
+    font-weight: 600;
+    opacity: 0.9;
+}
+
+/* =============================================
+   Tab Context Menu
+   ============================================= */
+
+.tab-context-menu {
+    position: fixed;
+    background: var(--omnibox-bg);
+    border: 1px solid var(--floating-window-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    z-index: 10001;
+    min-width: 200px;
+    padding: 6px 0;
+    font-size: 13px;
+}
+
+.tab-context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    cursor: pointer;
+    color: var(--omnibox-text);
+    transition: background 0.1s ease;
+}
+
+.tab-context-menu-item:hover {
+    background: var(--omnibox-suggestion-hover);
+}
+
+.tab-context-menu-item.danger {
+    color: #c5221f;
+}
+
+.tab-context-menu-item.danger:hover {
+    background: #fce8e6;
+}
+
+[data-theme="dark"] .tab-context-menu-item.danger:hover {
+    background: #4a2c2a;
+}
+
+.tab-context-menu-icon {
+    width: 16px;
+    text-align: center;
+}
+
+.tab-context-menu-shortcut {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--omnibox-placeholder);
+    font-family: monospace;
+}
+
+.tab-context-menu-separator {
+    height: 1px;
+    background: var(--floating-window-border);
+    margin: 6px 0;
+}
+
+/* =============================================
+   Dark Mode Toggle Button
+   ============================================= */
+
+.dark-mode-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--omnibox-bg);
+    border: 1px solid var(--floating-window-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 9999;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    font-size: 20px;
+}
+
+.dark-mode-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* =============================================
+   Responsive / Mobile
+   ============================================= */
+
+@media (max-width: 768px) {
+    .chrome-tab-strip {
+        height: 40px;
+        padding: 6px 6px 0;
+    }
+
+    .chrome-tab {
+        min-width: 80px;
+        max-width: 160px;
+        height: 32px;
+        padding: 0 8px;
+        font-size: 12px;
+    }
+
+    .chrome-tab-favicon {
+        width: 14px;
+        height: 14px;
+        font-size: 12px;
+    }
+
+    .chrome-tab-set-name {
+        display: none;
+    }
+
+    .chrome-tab-close {
+        width: 16px;
+        height: 16px;
+        font-size: 12px;
+    }
+
+    .chrome-new-tab-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 16px;
+    }
+
+    .omnibox-container {
+        max-width: 95%;
+        margin: 0 10px;
+        border-radius: 16px;
+    }
+
+    .omnibox-input-wrapper {
+        padding: 10px 16px;
+    }
+
+    .omnibox-input {
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+
+    .floating-window {
+        min-width: 300px;
+        min-height: 250px;
+    }
+
+    .dark-mode-toggle {
+        bottom: calc(var(--mobile-bottom-bar-height, 72px) + 16px);
+    }
+}
+
+/* Mobile tab overflow scroll indicator */
+.chrome-tab-strip::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 32px;
+    background: linear-gradient(to right, transparent, var(--tab-strip-bg));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.chrome-tab-strip.has-overflow::after {
+    opacity: 1;
+}
+
+/* =============================================
+   Keyboard Focus States
+   ============================================= */
+
+.chrome-tab:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: -2px;
+}
+
+.omnibox-input:focus-visible {
+    outline: none;
+}
+
+.omnibox-item:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: -2px;
+}
+
+/* =============================================
+   Animations
+   ============================================= */
+
+@keyframes tabSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.chrome-tab.new {
+    animation: tabSlideIn 0.2s ease;
+}
+
+@keyframes floatingWindowOpen {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.floating-window {
+    animation: floatingWindowOpen 0.2s ease;
+}
