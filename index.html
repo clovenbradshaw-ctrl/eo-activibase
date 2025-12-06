@@ -504,6 +504,180 @@
             flex-shrink: 0;
         }
 
+        /* Multi-location result items */
+        .global-search-result-item.has-locations {
+            position: relative;
+        }
+
+        .global-search-result-item.has-locations:hover {
+            background: #e0f2fe;
+        }
+
+        .global-search-result-item.expanded {
+            background: #e0f2fe;
+            border-bottom: none;
+        }
+
+        .global-search-expand-icon {
+            font-size: 12px;
+            color: #6b7280;
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .global-search-result-item.expanded .global-search-expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .global-search-result-locations-badge {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: #dbeafe;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #2563eb;
+            flex-shrink: 0;
+        }
+
+        .global-search-result-locations-badge i {
+            font-size: 10px;
+        }
+
+        /* Location picker dropdown */
+        .global-search-locations {
+            display: none;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 0;
+            margin: 0;
+        }
+
+        .global-search-locations.expanded {
+            display: block;
+        }
+
+        .global-search-locations-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            background: #f1f5f9;
+        }
+
+        .global-search-locations-header i {
+            color: #3b82f6;
+        }
+
+        .global-search-locations-list {
+            padding: 4px 8px 8px;
+        }
+
+        .global-search-location-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            margin: 2px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 13px;
+            color: #374151;
+            background: white;
+            border: 1px solid #e5e7eb;
+        }
+
+        .global-search-location-item:hover {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .global-search-location-item i {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .global-search-location-item:hover i {
+            color: white;
+        }
+
+        .global-search-location-item span:first-of-type {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .global-search-location-item .location-type {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            padding: 2px 6px;
+            background: #f3f4f6;
+            border-radius: 3px;
+            color: #6b7280;
+            flex-shrink: 0;
+        }
+
+        .global-search-location-item:hover .location-type {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        /* Search result highlighting */
+        .search-highlight {
+            background-color: rgba(59, 130, 246, 0.15) !important;
+            outline: 2px solid #3b82f6;
+            outline-offset: -2px;
+            border-radius: 4px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .search-highlight-pulse {
+            animation: searchHighlightPulse 0.6s ease-out 3;
+        }
+
+        @keyframes searchHighlightPulse {
+            0% {
+                outline-color: #3b82f6;
+                outline-width: 2px;
+                background-color: rgba(59, 130, 246, 0.15);
+            }
+            50% {
+                outline-color: #60a5fa;
+                outline-width: 4px;
+                background-color: rgba(59, 130, 246, 0.3);
+            }
+            100% {
+                outline-color: #3b82f6;
+                outline-width: 2px;
+                background-color: rgba(59, 130, 246, 0.15);
+            }
+        }
+
+        /* Highlight for table cells */
+        td.search-highlight,
+        th.search-highlight {
+            background-color: rgba(59, 130, 246, 0.2) !important;
+        }
+
+        /* Highlight for table rows */
+        tr.search-highlight {
+            background-color: rgba(59, 130, 246, 0.1) !important;
+        }
+
+        tr.search-highlight td {
+            background-color: transparent !important;
+        }
+
         .global-search-empty {
             padding: 32px 16px;
             text-align: center;
@@ -27178,15 +27352,54 @@
                     fields: []
                 };
 
+                // Helper to get all views for a set
+                const getViewsForSet = (setId) => {
+                    const views = [];
+                    if (state.views) {
+                        state.views.forEach(view => {
+                            if (view.setId === setId) {
+                                views.push({
+                                    viewId: view.id,
+                                    viewName: view.name,
+                                    viewType: view.type || 'grid'
+                                });
+                            }
+                        });
+                    }
+                    return views;
+                };
+
+                // Helper to get views where a field is visible
+                const getViewsForField = (setId, fieldId) => {
+                    const views = [];
+                    if (state.views) {
+                        state.views.forEach(view => {
+                            if (view.setId === setId) {
+                                const hiddenFields = view.hiddenFields || [];
+                                if (!hiddenFields.includes(fieldId)) {
+                                    views.push({
+                                        viewId: view.id,
+                                        viewName: view.name,
+                                        viewType: view.type || 'grid'
+                                    });
+                                }
+                            }
+                        });
+                    }
+                    return views;
+                };
+
                 // Search sets
                 state.sets.forEach(set => {
                     if (set.name.toLowerCase().includes(lowerQuery)) {
+                        const setViews = getViewsForSet(set.id);
                         results.sets.push({
                             type: 'set',
                             id: set.id,
                             name: set.name,
                             matchField: 'name',
-                            recordCount: set.records?.size || 0
+                            recordCount: set.records?.size || 0,
+                            locations: setViews.length > 0 ? setViews : [{ viewId: null, viewName: 'Set Overview', viewType: 'set' }]
                         });
                     }
                 });
@@ -27202,7 +27415,8 @@
                                 name: view.name,
                                 setId: view.setId,
                                 setName: set?.name || 'Unknown Set',
-                                matchField: 'name'
+                                matchField: 'name',
+                                locations: [{ viewId: view.id, viewName: view.name, viewType: view.type || 'grid' }]
                             });
                         }
                     });
@@ -27212,6 +27426,7 @@
                 state.sets.forEach(set => {
                     (set.schema || []).forEach(field => {
                         if (field.name?.toLowerCase().includes(lowerQuery) || field.id.toLowerCase().includes(lowerQuery)) {
+                            const fieldViews = getViewsForField(set.id, field.id);
                             results.fields.push({
                                 type: 'field',
                                 id: field.id,
@@ -27219,7 +27434,8 @@
                                 setId: set.id,
                                 setName: set.name,
                                 fieldType: field.type,
-                                matchField: field.name?.toLowerCase().includes(lowerQuery) ? 'name' : 'id'
+                                matchField: field.name?.toLowerCase().includes(lowerQuery) ? 'name' : 'id',
+                                locations: fieldViews.length > 0 ? fieldViews : [{ viewId: null, viewName: 'No visible views', viewType: 'hidden' }]
                             });
                         }
                     });
@@ -27246,14 +27462,19 @@
                                     const displayField = schema.find(f => f.type === 'text' || f.type === 'string') || schema[0];
                                     const displayValue = displayField ? record[displayField.id] : recordId;
 
+                                    // Get all views where this record could be seen
+                                    const recordViews = getViewsForSet(set.id);
+
                                     results.records.push({
                                         type: 'record',
                                         id: recordId,
                                         displayValue: displayValue || recordId,
                                         matchedField: field.name || field.id,
+                                        matchedFieldId: field.id,
                                         matchedValue: value,
                                         setId: set.id,
-                                        setName: set.name
+                                        setName: set.name,
+                                        locations: recordViews.length > 0 ? recordViews : [{ viewId: null, viewName: 'Record Detail', viewType: 'detail' }]
                                     });
                                     recordCount++;
                                     break; // Only add record once
@@ -27451,6 +27672,16 @@
                     field: 'ph-tag'
                 };
 
+                const viewTypeIcons = {
+                    grid: 'ph-table',
+                    gallery: 'ph-grid-four',
+                    kanban: 'ph-kanban',
+                    calendar: 'ph-calendar',
+                    set: 'ph-database',
+                    detail: 'ph-file-text',
+                    hidden: 'ph-eye-slash'
+                };
+
                 const icon = icons[item.type] || 'ph-file';
                 const highlightedName = query ? this.highlightMatch(item.name || item.displayValue, query) : (item.name || item.displayValue);
 
@@ -27472,25 +27703,67 @@
                         break;
                 }
 
-                // Create onclick handler based on type
-                let onclick = '';
-                switch (item.type) {
-                    case 'set':
-                        onclick = `GlobalSearch.navigateToSet('${item.id}')`;
-                        break;
-                    case 'view':
-                        onclick = `GlobalSearch.navigateToView('${item.setId}', '${item.id}')`;
-                        break;
-                    case 'field':
-                        onclick = `GlobalSearch.navigateToField('${item.setId}', '${item.id}')`;
-                        break;
-                    case 'record':
-                        onclick = `GlobalSearch.navigateToRecord('${item.setId}', '${item.id}')`;
-                        break;
+                const locations = item.locations || [];
+                const hasMultipleLocations = locations.length > 1;
+                const itemId = `search-result-${item.type}-${item.id}`.replace(/[^a-zA-Z0-9-]/g, '_');
+
+                // Build locations HTML if multiple locations exist
+                let locationsHtml = '';
+                if (hasMultipleLocations) {
+                    locationsHtml = `
+                        <div class="global-search-locations" id="${itemId}-locations">
+                            <div class="global-search-locations-header">
+                                <i class="ph ph-map-pin"></i>
+                                <span>Found in ${locations.length} views - choose where to go:</span>
+                            </div>
+                            <div class="global-search-locations-list">
+                                ${locations.map(loc => {
+                                    const locIcon = viewTypeIcons[loc.viewType] || 'ph-table';
+                                    const locOnclick = this.getLocationOnclick(item, loc);
+                                    return `
+                                        <div class="global-search-location-item" onclick="${locOnclick}; event.stopPropagation();">
+                                            <i class="ph ${locIcon}"></i>
+                                            <span>${this.escapeHtml(loc.viewName)}</span>
+                                            <span class="location-type">${loc.viewType}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
                 }
 
+                // Create onclick handler - if multiple locations, toggle locations dropdown
+                let onclick = '';
+                if (hasMultipleLocations) {
+                    onclick = `GlobalSearch.toggleLocations('${itemId}'); event.stopPropagation();`;
+                } else if (locations.length === 1 && locations[0].viewId) {
+                    onclick = this.getLocationOnclick(item, locations[0]);
+                } else {
+                    // Fallback to original behavior
+                    switch (item.type) {
+                        case 'set':
+                            onclick = `GlobalSearch.navigateToSet('${item.id}')`;
+                            break;
+                        case 'view':
+                            onclick = `GlobalSearch.navigateToView('${item.setId}', '${item.id}')`;
+                            break;
+                        case 'field':
+                            onclick = `GlobalSearch.navigateToField('${item.setId}', '${item.id}')`;
+                            break;
+                        case 'record':
+                            onclick = `GlobalSearch.navigateToRecord('${item.setId}', '${item.id}')`;
+                            break;
+                    }
+                }
+
+                // Show location count badge if multiple locations
+                const locationBadge = hasMultipleLocations
+                    ? `<div class="global-search-result-locations-badge"><i class="ph ph-map-pin"></i>${locations.length}</div>`
+                    : '';
+
                 return `
-                    <div class="global-search-result-item" onclick="${onclick}">
+                    <div class="global-search-result-item ${hasMultipleLocations ? 'has-locations' : ''}" id="${itemId}" onclick="${onclick}">
                         <div class="global-search-result-icon ${item.type}">
                             <i class="ph ${icon}"></i>
                         </div>
@@ -27498,9 +27771,59 @@
                             <div class="global-search-result-title">${highlightedName}</div>
                             <div class="global-search-result-meta">${meta}</div>
                         </div>
+                        ${locationBadge}
                         <div class="global-search-result-badge">${badge}</div>
+                        ${hasMultipleLocations ? '<i class="ph ph-caret-down global-search-expand-icon"></i>' : ''}
                     </div>
+                    ${locationsHtml}
                 `;
+            },
+
+            getLocationOnclick(item, location) {
+                const viewId = location.viewId;
+                const setId = item.setId || item.id;
+
+                switch (item.type) {
+                    case 'set':
+                        if (viewId) {
+                            return `GlobalSearch.navigateToViewWithHighlight('${setId}', '${viewId}', 'set', '${item.id}')`;
+                        }
+                        return `GlobalSearch.navigateToSet('${item.id}')`;
+                    case 'view':
+                        return `GlobalSearch.navigateToView('${setId}', '${item.id}')`;
+                    case 'field':
+                        if (viewId) {
+                            return `GlobalSearch.navigateToViewWithHighlight('${setId}', '${viewId}', 'field', '${item.id}')`;
+                        }
+                        return `GlobalSearch.navigateToField('${setId}', '${item.id}')`;
+                    case 'record':
+                        if (viewId) {
+                            return `GlobalSearch.navigateToViewWithHighlight('${setId}', '${viewId}', 'record', '${item.id}', '${item.matchedFieldId || ''}')`;
+                        }
+                        return `GlobalSearch.navigateToRecord('${setId}', '${item.id}')`;
+                    default:
+                        return '';
+                }
+            },
+
+            toggleLocations(itemId) {
+                const locationsEl = document.getElementById(`${itemId}-locations`);
+                const itemEl = document.getElementById(itemId);
+                if (locationsEl && itemEl) {
+                    const isExpanded = locationsEl.classList.contains('expanded');
+                    // Close all other expanded locations first
+                    document.querySelectorAll('.global-search-locations.expanded').forEach(el => {
+                        el.classList.remove('expanded');
+                    });
+                    document.querySelectorAll('.global-search-result-item.expanded').forEach(el => {
+                        el.classList.remove('expanded');
+                    });
+                    // Toggle current
+                    if (!isExpanded) {
+                        locationsEl.classList.add('expanded');
+                        itemEl.classList.add('expanded');
+                    }
+                }
             },
 
             navigateToSet(setId) {
@@ -27565,6 +27888,115 @@
                     }, 100);
                 }
                 renderSidebar();
+            },
+
+            // Navigate to a specific view with highlighting of the target element
+            navigateToViewWithHighlight(setId, viewId, highlightType, targetId, fieldId = '') {
+                this.closeResults();
+                this.clearSearch('desktop');
+                this.clearSearch('mobile');
+
+                state.expandedSets.add(setId);
+                switchSet(setId, viewId);
+                renderSidebar();
+
+                // Store highlight info in state for the renderer to use
+                state.searchHighlight = {
+                    type: highlightType,
+                    targetId: targetId,
+                    fieldId: fieldId,
+                    timestamp: Date.now()
+                };
+
+                // Apply highlighting after the view renders
+                setTimeout(() => {
+                    this.applyHighlight(highlightType, targetId, fieldId);
+                }, 150);
+            },
+
+            // Apply visual highlighting to the target element
+            applyHighlight(highlightType, targetId, fieldId) {
+                // Remove any existing highlights
+                document.querySelectorAll('.search-highlight').forEach(el => {
+                    el.classList.remove('search-highlight');
+                });
+                document.querySelectorAll('.search-highlight-pulse').forEach(el => {
+                    el.classList.remove('search-highlight-pulse');
+                });
+
+                let targetElement = null;
+                let scrollTarget = null;
+
+                switch (highlightType) {
+                    case 'field':
+                        // Find the column header with this field ID
+                        targetElement = document.querySelector(`[data-field-id="${targetId}"]`);
+                        if (!targetElement) {
+                            // Try finding by the th element in the grid header
+                            const headers = document.querySelectorAll('.eo-grid th');
+                            headers.forEach(th => {
+                                if (th.dataset.fieldId === targetId || th.textContent.includes(targetId)) {
+                                    targetElement = th;
+                                }
+                            });
+                        }
+                        scrollTarget = targetElement;
+                        break;
+
+                    case 'record':
+                        // Find the row with this record ID
+                        targetElement = document.querySelector(`tr[data-record-id="${targetId}"]`);
+                        if (!targetElement) {
+                            targetElement = document.querySelector(`[data-record-id="${targetId}"]`);
+                        }
+                        scrollTarget = targetElement;
+
+                        // If we have a specific field, also try to highlight that cell
+                        if (fieldId && targetElement) {
+                            const cell = targetElement.querySelector(`td[data-field-id="${fieldId}"]`);
+                            if (cell) {
+                                cell.classList.add('search-highlight', 'search-highlight-pulse');
+                            }
+                        }
+                        break;
+
+                    case 'set':
+                        // Highlight the entire view area briefly
+                        targetElement = document.querySelector('.main-content');
+                        break;
+                }
+
+                if (targetElement) {
+                    targetElement.classList.add('search-highlight', 'search-highlight-pulse');
+
+                    // Scroll into view
+                    if (scrollTarget) {
+                        scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                    }
+
+                    // Remove highlight after animation
+                    setTimeout(() => {
+                        targetElement.classList.remove('search-highlight-pulse');
+                        // Keep subtle highlight for a bit longer
+                        setTimeout(() => {
+                            targetElement.classList.remove('search-highlight');
+                            state.searchHighlight = null;
+                        }, 3000);
+                    }, 2000);
+                }
+
+                // Show a helpful toast
+                const typeLabels = {
+                    field: 'column',
+                    record: 'row',
+                    set: 'view'
+                };
+                const label = typeLabels[highlightType] || highlightType;
+                if (targetElement) {
+                    showToast(`Found ${label} - highlighted in view`, 'success');
+                } else {
+                    showToast(`Navigated to view`, 'info');
+                }
             },
 
             highlightMatch(text, query) {
