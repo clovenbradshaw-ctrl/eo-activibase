@@ -1855,15 +1855,15 @@
     box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
 }
 
-/* Pane Tab Bar */
+/* Pane Tab Bar - Chrome-style */
 .pane-tabs-bar {
     display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 6px 8px;
-    background: var(--muted-surface, #f4f5f7);
-    border-bottom: 1px solid var(--border, #e5e7eb);
-    min-height: 40px;
+    align-items: flex-end;
+    gap: 0;
+    padding: 8px 8px 0 8px;
+    background: var(--muted-surface, #e8eaed);
+    border-bottom: none;
+    min-height: 38px;
     overflow-x: auto;
     overflow-y: hidden;
     flex-shrink: 0;
@@ -1882,32 +1882,34 @@
     border-radius: 2px;
 }
 
-/* Pane Tab */
+/* Pane Tab - Chrome-style */
 .pane-tab {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    background: white;
-    border: 1px solid var(--border, #e5e7eb);
-    border-radius: 6px;
+    gap: 8px;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 8px 8px 0 0;
     cursor: pointer;
     font-size: 13px;
     white-space: nowrap;
-    transition: all 0.15s ease;
+    transition: background 0.15s ease;
     user-select: none;
-    max-width: 200px;
+    max-width: 240px;
+    min-width: 0;
+    position: relative;
+    color: var(--text-secondary, #5f6368);
 }
 
 .pane-tab:hover {
-    background: #f9fafb;
-    border-color: #d1d5db;
+    background: rgba(0, 0, 0, 0.04);
 }
 
 .pane-tab.active {
-    background: #111827;
-    color: white;
-    border-color: #111827;
+    background: var(--surface, #ffffff);
+    color: var(--text, #202124);
+    box-shadow: 0 -1px 0 0 var(--surface, #ffffff);
 }
 
 .pane-tab.dragging {
@@ -1922,7 +1924,7 @@
 
 .pane-tab-text {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     min-width: 0;
     flex: 1;
 }
@@ -1933,15 +1935,9 @@
     text-overflow: ellipsis;
 }
 
+/* Hide meta text for cleaner Chrome-style tabs */
 .pane-tab-meta {
-    font-size: 10px;
-    opacity: 0.6;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.pane-tab.active .pane-tab-meta {
-    opacity: 0.7;
+    display: none;
 }
 
 .pane-tab-actions {
@@ -1972,10 +1968,10 @@
 }
 
 .pane-tab.active .pane-tab-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.1);
 }
 
-/* Pane Tab Add Button */
+/* Pane Tab Add Button - Chrome-style */
 .pane-tab-add {
     display: flex;
     align-items: center;
@@ -1983,56 +1979,22 @@
     width: 28px;
     height: 28px;
     background: transparent;
-    border: 1px dashed var(--border, #e5e7eb);
-    border-radius: 6px;
+    border: none;
+    border-radius: 50%;
     cursor: pointer;
-    color: var(--text-secondary, #6b7280);
-    transition: all 0.15s ease;
+    color: var(--text-secondary, #5f6368);
+    transition: background 0.15s ease;
     flex-shrink: 0;
+    margin-left: 4px;
 }
 
 .pane-tab-add:hover {
-    background: white;
-    border-color: #3b82f6;
-    color: #3b82f6;
+    background: rgba(0, 0, 0, 0.08);
 }
 
-/* Pane Actions (right side of tab bar) */
+/* Pane Actions - Hidden by default, access via right-click context menu */
 .pane-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-left: auto;
-    padding-left: 8px;
-    border-left: 1px solid var(--border, #e5e7eb);
-}
-
-.pane-action-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    background: transparent;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    color: var(--text-secondary, #6b7280);
-    transition: all 0.15s ease;
-}
-
-.pane-action-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: var(--text, #111827);
-}
-
-.pane-action-btn[title="Pop out"]:hover {
-    color: #3b82f6;
-}
-
-.pane-action-btn[title="Split right"]:hover,
-.pane-action-btn[title="Split down"]:hover {
-    color: #10b981;
+    display: none;
 }
 
 /* Pane Content Area */
