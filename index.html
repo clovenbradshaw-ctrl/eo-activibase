@@ -11171,6 +11171,11 @@
                 type: 'grid',
                 icon: '📥',
                 isTemporary: true,
+                filters: [{
+                    field: '_provenance.importId',
+                    value: importTemplateId,
+                    operator: 'equals'
+                }],
                 importMetadata: {
                     filename: importFileName,
                     timestamp: importTimestamp,
@@ -11741,6 +11746,11 @@
                 type: 'grid',
                 icon: '📥',
                 isTemporary: true,
+                filters: [{
+                    field: '_provenance.importId',
+                    value: importTemplateId,
+                    operator: 'equals'
+                }],
                 importMetadata: {
                     filename: importFileName,
                     timestamp: importTimestamp,
