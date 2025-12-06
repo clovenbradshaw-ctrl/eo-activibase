@@ -3244,10 +3244,10 @@
                     </div>
                 </div>
 
-                <!-- DATA IMPORTS Section - File Explorer Style -->
+                <!-- IMPORTS Section - File Explorer Style -->
                 <div class="nav-section-title" style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('dataImports')">
                     <span style="display: flex; align-items: center; gap: 8px;">
-                        Data
+                        Imports
                         <i class="ph ph-upload-simple" style="font-size: 14px; opacity: 0.7; cursor: pointer; padding: 2px; border-radius: 4px;" onclick="event.stopPropagation(); triggerFileImport();" onmouseover="this.style.opacity='1'; this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.opacity='0.7'; this.style.background='transparent';" title="Import file (CSV, JSON, Excel)"></i>
                     </span>
                     <i id="dataImportsSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
@@ -3261,17 +3261,6 @@
                     <!-- Imports list -->
                     <div id="navImportsContainer" style="padding: 0 1rem; margin-bottom: 0.5rem;">
                         <!-- Imports will be populated here dynamically -->
-                    </div>
-                </div>
-
-                <!-- RECENT IMPORTS Section (legacy views) -->
-                <div class="nav-section-title" style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('recentImports')">
-                    <span>Recent Import Views</span>
-                    <i id="recentImportsSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
-                </div>
-                <div id="recentImportsNavContent">
-                    <div id="navRecentImportsContainer" style="padding: 0 1rem; margin-bottom: 0.5rem;">
-                        <!-- Recent imports will be populated here dynamically -->
                     </div>
                 </div>
 
@@ -3327,6 +3316,10 @@
                 </div>
                 <div class="world-toolbar-actions">
                     <input type="file" id="worldJsonInput" accept="application/json" style="display:none" />
+                    <button id="headerImportBtn" class="btn btn-primary btn-sm" onclick="triggerFileImport()" title="Import file (CSV, JSON, Excel)">
+                        <i class="ph ph-upload-simple"></i>
+                        Import
+                    </button>
                     <div class="globe-menu">
                         <button id="globeMenuToggle" class="btn btn-secondary btn-sm globe-menu-toggle" title="World options">
                             <i class="ph ph-globe-hemisphere-west"></i>
@@ -5248,7 +5241,7 @@
             changeFieldTypeDropdownOpen: false,
             changeFieldContext: null,
             expandedSets: new Set(),
-            collapsedNavSections: new Set(['world', 'explore', 'recentImports']), // Start with World/Explore collapsed, Sets expanded
+            collapsedNavSections: new Set(['world', 'explore']), // Start with World/Explore collapsed, Sets expanded
             lastUsedSetId: null,
             lastUsedViewId: null,
             draggedRecord: null,
@@ -11011,7 +11004,7 @@
 
         function initializeNavSections() {
             // Initialize all nav sections based on the collapsedNavSections state
-            const sections = ['world', 'explore', 'actions', 'sets'];
+            const sections = ['world', 'explore', 'dataImports', 'actions', 'sets'];
             sections.forEach(sectionName => {
                 const contentId = sectionName + 'NavContent';
                 const chevronId = sectionName + 'SectionChevron';
@@ -11411,97 +11404,6 @@
             }
         }
 
-        function getRecentImportViews() {
-            // Get all views that are marked as import views and haven't expired
-            const recentImports = [];
-            const now = Date.now();
-
-            if (state.views) {
-                state.views.forEach((view) => {
-                    if (view.isTemporary && view.importMetadata) {
-                        // Include all temporary import views (no auto-expiration)
-                        recentImports.push(view);
-                    }
-                });
-            }
-
-            // Sort by timestamp (most recent first)
-            recentImports.sort((a, b) => {
-                const timeA = a.importMetadata?.timestamp || 0;
-                const timeB = b.importMetadata?.timestamp || 0;
-                return timeB - timeA;
-            });
-
-            return recentImports;
-        }
-
-        function renderRecentImports() {
-            const container = document.getElementById('navRecentImportsContainer');
-            if (!container) return;
-
-            const recentImports = getRecentImportViews();
-
-            if (recentImports.length === 0) {
-                container.innerHTML = '<div style="color: #9ca3af; font-size: 0.875rem; padding: 0.5rem 0;">No recent imports</div>';
-                return;
-            }
-
-            container.innerHTML = '';
-            recentImports.forEach(importView => {
-                const importItem = document.createElement('div');
-                importItem.className = `view-item ${importView.id === state.currentViewId ? 'active' : ''}`;
-                importItem.style.display = 'flex';
-                importItem.style.alignItems = 'center';
-                importItem.style.justifyContent = 'space-between';
-                importItem.style.gap = '0.5rem';
-
-                const importLabel = document.createElement('div');
-                importLabel.style.display = 'flex';
-                importLabel.style.alignItems = 'center';
-                importLabel.style.flex = '1';
-                importLabel.style.minWidth = '0';
-                importLabel.innerHTML = `
-                    <span class="view-item-icon">${renderIcon(importView.icon || '📥')}</span>
-                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${importView.name}</span>
-                `;
-                importLabel.onclick = () => {
-                    switchSet(importView.setId, importView.id);
-                };
-
-                const actionsContainer = document.createElement('div');
-                actionsContainer.style.display = 'flex';
-                actionsContainer.style.gap = '4px';
-                actionsContainer.style.opacity = '0.7';
-
-                // Pin button
-                const pinBtn = document.createElement('button');
-                pinBtn.innerHTML = '<i class="ph ph-push-pin" style="font-size: 14px;"></i>';
-                pinBtn.title = 'Pin to Views';
-                pinBtn.style.cssText = 'background: none; border: none; color: #10b981; cursor: pointer; padding: 2px 4px;';
-                pinBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    pinImportToViews(importView.id);
-                };
-
-                // Remove button
-                const removeBtn = document.createElement('button');
-                removeBtn.innerHTML = '<i class="ph ph-x" style="font-size: 14px;"></i>';
-                removeBtn.title = 'Remove';
-                removeBtn.style.cssText = 'background: none; border: none; color: #ef4444; cursor: pointer; padding: 2px 4px;';
-                removeBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    removeImportView(importView.id);
-                };
-
-                actionsContainer.appendChild(pinBtn);
-                actionsContainer.appendChild(removeBtn);
-
-                importItem.appendChild(importLabel);
-                importItem.appendChild(actionsContainer);
-                container.appendChild(importItem);
-            });
-        }
-
         function pinImportToViews(viewId) {
             const view = state.views?.get(viewId);
             if (!view) return;
@@ -11649,8 +11551,8 @@
                 }
             });
 
-            // Render recent imports
-            renderRecentImports();
+            // Render imports in sidebar
+            renderImportsInSidebar();
 
             // Populate sets in nav
             const setsContainer = document.getElementById('navSetsContainer');
@@ -25619,8 +25521,8 @@
 
             if (result.success) {
                 renderImportsInSidebar();
-                // Show preview modal for dragged data (same prompting as imported data)
-                showImportPreviewModal(result.import);
+                // Automatically open the import as a tab for immediate access
+                openImportAsTab(result.import.id);
             } else {
                 showToast(`⚠️ Import failed: ${result.error}`);
             }
@@ -25640,6 +25542,19 @@
                 return;
             }
 
+            // Check which imports have open tabs
+            const getImportViewInfo = (importId) => {
+                let viewInfo = null;
+                if (state.views) {
+                    state.views.forEach((view) => {
+                        if (view.importMetadata?.importId === importId) {
+                            viewInfo = view;
+                        }
+                    });
+                }
+                return viewInfo;
+            };
+
             container.innerHTML = imports.map(imp => {
                 const formatIcons = {
                     'csv': 'ph-file-csv',
@@ -25649,9 +25564,12 @@
                 };
                 const icon = formatIcons[imp.source.format] || 'ph-file';
                 const timeAgo = getTimeAgo(imp.createdAt);
+                const viewInfo = getImportViewInfo(imp.id);
+                const isOpenAsTab = viewInfo && state.openTabs.some(tab => tab.viewId === viewInfo.id);
+                const isActive = isOpenAsTab && state.currentViewId === viewInfo?.id;
 
                 return `
-                    <div class="nav-item" style="display: flex; align-items: center; gap: 8px; padding: 6px 8px;"
+                    <div class="nav-item${isActive ? ' active' : ''}" style="display: flex; align-items: center; gap: 8px; padding: 6px 8px;${isOpenAsTab ? ' background: rgba(34, 197, 94, 0.1);' : ''}"
                          onclick="openImportAsTab('${imp.id}')"
                          draggable="true"
                          ondragstart="handleImportDragStart(event, '${imp.id}')"
@@ -25661,7 +25579,7 @@
                             <div style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                 ${imp.name}
                             </div>
-                            <div style="font-size: 10px; opacity: 0.6;">${imp.rowCount} rows · ${timeAgo}</div>
+                            <div style="font-size: 10px; opacity: 0.6;">${imp.rowCount} rows · ${timeAgo}${isOpenAsTab ? ' · <span style="color: #22c55e;">Open</span>' : ''}</div>
                         </div>
                         ${imp.usedIn.length > 0 ? `<span style="background: #334155; padding: 2px 6px; border-radius: 10px; font-size: 10px;">${imp.usedIn.length}</span>` : ''}
                     </div>
@@ -26098,6 +26016,10 @@
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button class="btn btn-secondary" onclick="closeModal('importPreviewModal')">Close</button>
+                            <button class="btn btn-secondary" onclick="closeModal('importPreviewModal'); openImportAsTab('${imp.id}')">
+                                <i class="ph ph-browser"></i>
+                                Open as Tab
+                            </button>
                             <button class="btn btn-primary" onclick="showAddImportToSetModal('${imp.id}')">
                                 <i class="ph ph-plus"></i>
                                 Add to Set
