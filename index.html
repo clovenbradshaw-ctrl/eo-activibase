@@ -2984,6 +2984,27 @@
         .view-tab.tab-drop-before::before { left: -4px; }
         .view-tab.tab-drop-after::after { right: -4px; }
 
+        .view-tab-add {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: transparent;
+            border: 1px dashed #cbd5e1;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #6b7280;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+        .view-tab-add:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+            color: #374151;
+        }
+
         .view-tab-icon {
             color: inherit;
             font-size: 16px;
@@ -12947,7 +12968,19 @@
 
             if (state.openTabs.length === 0) {
                 container.innerHTML = '';
-                container.classList.add('hidden');
+                // Still show the "+" button if there are sets available
+                const setsForWorld = getSetsForWorld();
+                if (setsForWorld.length > 0) {
+                    container.classList.remove('hidden');
+                    const addBtn = document.createElement('button');
+                    addBtn.className = 'view-tab-add';
+                    addBtn.title = 'New view';
+                    addBtn.innerHTML = '<i class="ph ph-plus"></i>';
+                    addBtn.onclick = () => handleAddViewClick();
+                    container.appendChild(addBtn);
+                } else {
+                    container.classList.add('hidden');
+                }
                 if (state.currentSpecialView) {
                     surface?.classList.remove('hidden');
                 } else {
@@ -13022,6 +13055,14 @@
 
                 container.appendChild(tabEl);
             });
+
+            // Add "New View" button at the end of tabs
+            const addBtn = document.createElement('button');
+            addBtn.className = 'view-tab-add';
+            addBtn.title = 'New view';
+            addBtn.innerHTML = '<i class="ph ph-plus"></i>';
+            addBtn.onclick = () => handleAddViewClick();
+            container.appendChild(addBtn);
         }
 
         function switchSet(setId, viewId) {
