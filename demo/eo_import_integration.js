@@ -317,13 +317,11 @@ class EOImportIntegration {
       setId: targetSet.id,
 
       // Filter to show only records from this import
-      filters: [{
-        id: 'provenance_filter_' + Date.now(),
-        type: 'provenance',
+      filters: [[{
         field: '_provenance.importId',
         operator: 'equals',
         value: imp.id
-      }],
+      }]],
 
       sorts: [],
       visibleFields: targetSet.schema.map(f => f.id),
