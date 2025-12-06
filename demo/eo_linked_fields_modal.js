@@ -35,7 +35,13 @@ class EOLinkedFieldsModal {
         this.linkedSets = this.detectLinkedSets();
 
         if (this.linkedSets.length === 0) {
-            alert('No linked sets found. Create link record fields first to use this feature.');
+            // Show a more helpful message with guidance
+            const message = 'No linked sets found.\n\n' +
+                'To use this feature:\n' +
+                '1. Add a field with type "Link Record" to this set, OR\n' +
+                '2. Add a field with type "Link Record" in another set that links to this set.\n\n' +
+                'Link Record fields create relationships between sets.';
+            alert(message);
             return;
         }
 
@@ -54,7 +60,7 @@ class EOLinkedFieldsModal {
         const linkedSets = [];
         const currentSetId = this.currentSet.id;
 
-        // Find all LINK_RECORD fields in the current set
+        // Find all LINK_RECORD fields in the current set (outgoing links)
         this.currentSet.schema.forEach(field => {
             if (field.type === 'LINK_RECORD' && field.config?.linkedSetId) {
                 const targetSetId = field.config.linkedSetId;
@@ -63,7 +69,7 @@ class EOLinkedFieldsModal {
                 if (!targetSet) return;
 
                 // Check if already added
-                if (linkedSets.find(ls => ls.setId === targetSetId)) return;
+                if (linkedSets.find(ls => ls.setId === targetSetId && ls.direction === 'outgoing')) return;
 
                 // Use configured cardinality, or detect from data as fallback
                 let cardinality = field.config?.cardinality || null;
@@ -83,9 +89,46 @@ class EOLinkedFieldsModal {
                     cardinality: cardinality, // 'one' or 'many'
                     configuredCardinality: field.config?.cardinality || null,
                     configuredLimit: field.config?.limit || null,
-                    recordCount: this.getLinkedRecordCount(currentSetId, field.id)
+                    recordCount: this.getLinkedRecordCount(currentSetId, field.id),
+                    direction: 'outgoing'
                 });
             }
+        });
+
+        // Also find sets that link TO this set (incoming links)
+        this.state.sets.forEach((otherSet, otherSetId) => {
+            if (otherSetId === currentSetId) return;
+
+            otherSet.schema.forEach(field => {
+                if (field.type === 'LINK_RECORD' && field.config?.linkedSetId === currentSetId) {
+                    // Check if already added
+                    if (linkedSets.find(ls => ls.setId === otherSetId && ls.direction === 'incoming')) return;
+
+                    // Use configured cardinality, or detect from data as fallback
+                    let cardinality = field.config?.cardinality || null;
+                    if (cardinality === 'limit') {
+                        const limit = field.config?.limit || 1;
+                        cardinality = limit > 1 ? 'many' : 'one';
+                    }
+                    if (!cardinality) {
+                        cardinality = this.detectCardinality(otherSetId, field.id, currentSetId);
+                    }
+
+                    linkedSets.push({
+                        setId: otherSetId,
+                        setName: otherSet.name,
+                        fieldId: field.id,
+                        fieldName: field.name,
+                        cardinality: cardinality,
+                        configuredCardinality: field.config?.cardinality || null,
+                        configuredLimit: field.config?.limit || null,
+                        recordCount: this.getLinkedRecordCount(otherSetId, field.id),
+                        direction: 'incoming',
+                        sourceSetId: otherSetId,
+                        sourceSetName: otherSet.name
+                    });
+                }
+            });
         });
 
         return linkedSets;

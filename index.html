@@ -6262,6 +6262,9 @@
             fieldTypeHistory: new Map()
         };
 
+        // Make state globally accessible for external modules
+        window.state = state;
+
         function registerEntity(entity) {
             if (!entity || !entity.id || !entity.type) {
                 throw new Error('Entities require an id and type');
@@ -12139,6 +12142,10 @@
 
                     setHeader.onclick = (e) => {
                         e.stopPropagation();
+                        // Save any pending cell edits before navigating
+                        if (state.editingCell) {
+                            exitEditMode(true);
+                        }
                         state.currentSetId = set.id;
                         state.currentViewId = null;
                         state.currentSpecialView = null;
@@ -12330,6 +12337,11 @@
 
         // NEW NAVIGATION HELPER FUNCTION
         function navigateTo(page, filterType = null) {
+            // Save any pending cell edits before navigating
+            if (state.editingCell) {
+                exitEditMode(true);
+            }
+
             closeMobileSidebar();
 
             switch(page) {
@@ -12632,6 +12644,10 @@
 
                     setHeader.onclick = (e) => {
                         e.stopPropagation();
+                        // Save any pending cell edits before navigating
+                        if (state.editingCell) {
+                            exitEditMode(true);
+                        }
                         if (hasViews) {
                             toggleSetExpansion(set.id);
                         } else {
@@ -17050,6 +17066,16 @@
             resetDefinitionForm();
             if (definitionId) populateDefinitionForm(definitionId);
             openModal('definitionModal');
+
+            // Attach form submit handler (in case it wasn't attached from renderDefinitionsPage)
+            const form = document.getElementById('definitionForm');
+            if (form) {
+                form.onsubmit = (event) => {
+                    event.preventDefault();
+                    handleDefinitionFormSubmit();
+                };
+            }
+
             const entityTypeSelect = document.getElementById('definitionEntityType');
             if (entityTypeSelect) entityTypeSelect.focus();
         }
@@ -20227,6 +20253,24 @@
             const selection = window.getSelection();
             selection.removeAllRanges();
             selection.addRange(range);
+
+            // Add blur handler to save changes when focus is lost
+            td.onblur = () => {
+                if (state.editingCell && state.editingCell.td === td) {
+                    exitEditMode(true);
+                }
+            };
+
+            // Add keydown handler for Enter/Escape
+            td.onkeydown = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    exitEditMode(true);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    exitEditMode(false);
+                }
+            };
         }
 
         function finalizeContentEdit(td, recordId, fieldId) {
@@ -25569,8 +25613,22 @@
         }
 
         function navigateToSet(setId) {
+            // Save any pending cell edits before navigating
+            if (state.editingCell) {
+                exitEditMode(true);
+            }
+
             state.currentSetId = setId;
-            navigateTo('data');
+            state.currentSpecialView = null;
+            state.currentViewId = null;
+
+            // Get the set and open its default view
+            const set = state.sets.get(setId);
+            if (set && set.views.size > 0) {
+                state.currentViewId = Array.from(set.views.keys())[0];
+            }
+
+            renderSidebar();
             renderCurrentView();
         }
 
@@ -26957,6 +27015,58 @@
                 if (e.key === 'Tab' && state.selectedCell && !state.editingCell) {
                     e.preventDefault();
                     navigateToNextCell(e.shiftKey ? -1 : 1);
+                }
+
+                // Handle printable characters - start editing when user types in a selected cell
+                if (state.selectedCell && !state.editingCell && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                    const isPrintable = e.key.length === 1;
+                    const isSpecialKey = ['Tab', 'Enter', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Delete', 'Backspace'].includes(e.key);
+
+                    if (isPrintable && !isSpecialKey) {
+                        const { td, recordId, fieldId } = state.selectedCell;
+                        const set = getCurrentSet();
+                        const field = set?.schema.find(f => f.id === fieldId);
+
+                        if (field && field.type !== 'FORMULA' && field.type !== 'RECORD_ID') {
+                            e.preventDefault();
+                            // For special field types, just enter edit mode
+                            if (field.type === 'SELECT' || field.type === 'LINK_RECORD' || field.type === 'CHECKBOX' || field.type === 'DATE') {
+                                enterEditMode(td, recordId, field);
+                            } else {
+                                // For text/number fields, enter edit mode with the typed character
+                                enterEditMode(td, recordId, field);
+                                // Clear the cell and insert the typed character
+                                setTimeout(() => {
+                                    if (td.contentEditable === 'true') {
+                                        td.textContent = e.key;
+                                        // Move cursor to end
+                                        const range = document.createRange();
+                                        range.selectNodeContents(td);
+                                        range.collapse(false);
+                                        const selection = window.getSelection();
+                                        selection.removeAllRanges();
+                                        selection.addRange(range);
+                                    }
+                                }, 0);
+                            }
+                        }
+                    }
+                }
+
+                // Handle Delete/Backspace to clear cell content
+                if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedCell && !state.editingCell) {
+                    e.preventDefault();
+                    const { recordId, fieldId } = state.selectedCell;
+                    const set = getCurrentSet();
+                    const record = set?.records.get(recordId);
+                    const field = set?.schema.find(f => f.id === fieldId);
+
+                    if (record && field && field.type !== 'FORMULA' && field.type !== 'RECORD_ID') {
+                        const currentValue = record[fieldId];
+                        if (currentValue !== null && currentValue !== undefined && currentValue !== '') {
+                            updateRecord(recordId, fieldId, '', currentValue);
+                        }
+                    }
                 }
             });
 
