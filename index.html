@@ -3307,6 +3307,7 @@
                     <div class="world-nav-children" style="padding: 0 1rem; margin-bottom: 1.5rem;">
                         <div class="nav-item" onclick="TossPileUI.openPanel()"><i class="ph ph-trash" style="margin-right: 6px; opacity: 0.7;"></i>Toss Pile</div>
                         <div class="nav-item" onclick="openImportsTableView()"><i class="ph ph-table" style="margin-right: 6px; opacity: 0.7;"></i>All Imports</div>
+                        <div class="nav-item" onclick="openEditHistoryModal()"><i class="ph ph-clock-counter-clockwise" style="margin-right: 6px; opacity: 0.7;"></i>Edit History</div>
                         <div class="nav-item" onclick="openAddRecordModal()">+ Add Record</div>
                         <div class="nav-item" onclick="openAddSetModal()">+ Add Set</div>
                     </div>
@@ -5074,6 +5075,36 @@
                 </button>
             </div>
             <div class="p-6 overflow-auto" id="cellHistoryContent"></div>
+        </div>
+    </div>
+
+    <!-- Edit History Modal -->
+    <div id="editHistoryModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
+        <div class="modal-container bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="modal-header flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Edit History</h2>
+                    <p class="text-sm text-gray-500 mt-1" id="editHistorySubtitle">Full audit trail of all changes</p>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600 transition p-2" onclick="closeModal('editHistoryModal')">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="border-b border-gray-200 px-6 py-3">
+                <div class="flex items-center gap-3">
+                    <input type="text" id="editHistorySearch" placeholder="Search history..." class="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2">
+                    <select id="editHistoryFilter" class="text-sm border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="all">All Changes</option>
+                        <option value="SEG">Field Changes</option>
+                        <option value="INS">Record Created</option>
+                        <option value="DES">Record Deleted</option>
+                        <option value="SYN">Structural Changes</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6" id="editHistoryContent"></div>
         </div>
     </div>
 
@@ -11797,7 +11828,10 @@
 
         function openAddViewModal(setId, viewId = null) {
             const set = state.sets.get(setId);
-            if (!set) return;
+            if (!set) {
+                showToast('⚠️ Please select a set first to add a view');
+                return;
+            }
 
             const titleEl = document.getElementById('addViewModalTitle');
             const saveBtn = document.getElementById('saveAddViewBtn');
@@ -18362,9 +18396,9 @@
                     <div style="border-top: 1px solid #e5e7eb; padding-top: 1.5rem; margin-top: 1rem;">
                         <div style="font-weight: 600; color: #475569; margin-bottom: 0.75rem; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">World Tools</div>
                         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('historyPanel').classList.add('open'); renderHistory();">
+                            <button class="btn btn-secondary btn-sm" onclick="openEditHistoryModal()">
                                 <i class="ph ph-clock-counter-clockwise"></i>
-                                Changes
+                                Edit History
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="openJsonViewer()">
                                 <i class="ph ph-code"></i>
@@ -24773,6 +24807,215 @@
             `).join('');
         }
 
+        // Edit History Modal functions
+        function openEditHistoryModal() {
+            state.editHistoryState = {
+                searchQuery: '',
+                filterOp: 'all'
+            };
+            renderEditHistoryModal();
+            openModal('editHistoryModal');
+        }
+
+        function renderEditHistoryModal() {
+            const container = document.getElementById('editHistoryContent');
+            if (!container) return;
+
+            const searchQuery = state.editHistoryState?.searchQuery?.toLowerCase() || '';
+            const filterOp = state.editHistoryState?.filterOp || 'all';
+
+            // Filter and sort events (most recent first)
+            let events = [...state.eventStream].reverse();
+
+            if (filterOp !== 'all') {
+                events = events.filter(e => e.op === filterOp);
+            }
+
+            if (searchQuery) {
+                events = events.filter(e => {
+                    const verb = (e.verb || '').toLowerCase();
+                    const summary = (e.data?.summary || '').toLowerCase();
+                    const fieldName = (e.data?.fieldName || '').toLowerCase();
+                    return verb.includes(searchQuery) || summary.includes(searchQuery) || fieldName.includes(searchQuery);
+                });
+            }
+
+            const subtitle = document.getElementById('editHistorySubtitle');
+            if (subtitle) {
+                subtitle.textContent = `${events.length} change${events.length !== 1 ? 's' : ''} recorded`;
+            }
+
+            if (events.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <i class="ph ph-clock-counter-clockwise text-4xl mb-3 opacity-50"></i>
+                        <p>No changes found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const opIcons = {
+                SEG: 'ph-pencil-simple',
+                INS: 'ph-plus-circle',
+                DES: 'ph-trash',
+                SYN: 'ph-tree-structure',
+                CON: 'ph-git-merge',
+                REC: 'ph-recycle',
+                ALT: 'ph-arrows-left-right',
+                SUP: 'ph-stack'
+            };
+
+            const opColors = {
+                SEG: 'text-blue-600 bg-blue-50',
+                INS: 'text-green-600 bg-green-50',
+                DES: 'text-red-600 bg-red-50',
+                SYN: 'text-purple-600 bg-purple-50',
+                CON: 'text-amber-600 bg-amber-50',
+                REC: 'text-teal-600 bg-teal-50',
+                ALT: 'text-indigo-600 bg-indigo-50',
+                SUP: 'text-pink-600 bg-pink-50'
+            };
+
+            container.innerHTML = events.map((e, idx) => {
+                const icon = opIcons[e.op] || 'ph-note';
+                const colorClass = opColors[e.op] || 'text-gray-600 bg-gray-50';
+                const canRevert = e.op === 'SEG' && e.data?.recordId && e.data?.fieldId && e.data?.oldValue !== undefined;
+                const setName = e.object?.setId ? (state.sets.get(e.object.setId)?.name || 'Unknown Set') : '';
+                const recordLabel = e.data?.recordId ? getRecordLabelById(e.data.recordId) : '';
+
+                return `
+                    <div class="edit-history-entry border border-gray-200 rounded-lg p-4 mb-3 hover:border-gray-300 transition-colors">
+                        <div class="flex items-start gap-3">
+                            <div class="p-2 rounded-lg ${colorClass}">
+                                <i class="ph ${icon} text-lg"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="font-semibold text-gray-900">${e.verb || 'Change'}</div>
+                                    <div class="text-xs text-gray-500">${getTimeAgo(e.published)}</div>
+                                </div>
+                                <div class="text-sm text-gray-600 mt-1">${e.data?.summary || ''}</div>
+                                ${e.data?.fieldName ? `<div class="text-xs text-gray-500 mt-1"><span class="font-medium">Field:</span> ${e.data.fieldName}</div>` : ''}
+                                ${recordLabel ? `<div class="text-xs text-gray-500"><span class="font-medium">Record:</span> ${recordLabel}</div>` : ''}
+                                ${setName ? `<div class="text-xs text-gray-500"><span class="font-medium">Set:</span> ${setName}</div>` : ''}
+                                ${e.data?.oldValue !== undefined || e.data?.newValue !== undefined ? `
+                                    <div class="mt-2 p-2 bg-gray-50 rounded-lg text-sm">
+                                        <div class="flex items-center gap-2">
+                                            ${e.data?.oldValue !== undefined ? `<span class="text-red-600 line-through">${formatHistoryValue(e.data.oldValue)}</span>` : ''}
+                                            ${e.data?.oldValue !== undefined && e.data?.newValue !== undefined ? `<span class="text-gray-400">→</span>` : ''}
+                                            ${e.data?.newValue !== undefined ? `<span class="text-green-600">${formatHistoryValue(e.data.newValue)}</span>` : ''}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                <div class="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                                    <span>Frame: ${e.frame || 'current'}</span>
+                                    <span>•</span>
+                                    <span>Scale: ${e.scale || 'individual'}</span>
+                                    <span>•</span>
+                                    <span>Op: ${e.op}</span>
+                                </div>
+                            </div>
+                            ${canRevert ? `
+                                <button class="btn btn-secondary btn-sm flex items-center gap-1" onclick="revertHistoryChange(${idx})" title="Revert this change">
+                                    <i class="ph ph-arrow-counter-clockwise"></i>
+                                    Revert
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatHistoryValue(value) {
+            if (value === null || value === undefined) return '<em class="text-gray-400">empty</em>';
+            if (typeof value === 'object') {
+                if (value._sup && Array.isArray(value.value)) {
+                    return value.value.map(v => v.val ?? v.value ?? v).join(', ');
+                }
+                return JSON.stringify(value);
+            }
+            return String(value);
+        }
+
+        function getRecordLabelById(recordId) {
+            for (const set of state.sets.values()) {
+                const record = set.records?.get(recordId);
+                if (record) {
+                    return getRecordDisplayLabel(record);
+                }
+            }
+            return recordId;
+        }
+
+        function revertHistoryChange(eventIndex) {
+            const events = [...state.eventStream].reverse();
+            const event = events[eventIndex];
+
+            if (!event || event.op !== 'SEG') {
+                showToast('⚠️ This change cannot be reverted');
+                return;
+            }
+
+            const { recordId, fieldId, oldValue } = event.data || {};
+            if (!recordId || !fieldId || oldValue === undefined) {
+                showToast('⚠️ Missing data to revert this change');
+                return;
+            }
+
+            // Find the set and record
+            let targetSet = null;
+            let targetRecord = null;
+            for (const set of state.sets.values()) {
+                const record = set.records?.get(recordId);
+                if (record) {
+                    targetSet = set;
+                    targetRecord = record;
+                    break;
+                }
+            }
+
+            if (!targetRecord) {
+                showToast('⚠️ Record not found');
+                return;
+            }
+
+            const currentValue = targetRecord[fieldId];
+            updateRecord(recordId, fieldId, oldValue, currentValue);
+
+            showToast('✓ Change reverted');
+            renderEditHistoryModal();
+            renderCurrentView();
+        }
+
+        function setupEditHistoryListeners() {
+            const searchInput = document.getElementById('editHistorySearch');
+            const filterSelect = document.getElementById('editHistoryFilter');
+
+            if (searchInput) {
+                let debounceTimer;
+                searchInput.oninput = () => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        if (state.editHistoryState) {
+                            state.editHistoryState.searchQuery = searchInput.value;
+                        }
+                        renderEditHistoryModal();
+                    }, 150);
+                };
+            }
+
+            if (filterSelect) {
+                filterSelect.onchange = () => {
+                    if (state.editHistoryState) {
+                        state.editHistoryState.filterOp = filterSelect.value;
+                    }
+                    renderEditHistoryModal();
+                };
+            }
+        }
+
         // EVENT LISTENERS
         function setupEventListeners() {
             setupToolbarMenu();
@@ -24874,6 +25117,7 @@
                 state.iconPickerPage = 1;
                 renderIconPickerOptions();
             };
+            setupEditHistoryListeners();
             document.getElementById('closeFilterBtn').onclick = () => closeModal('filterModal');
             document.getElementById('closePopupSettingsBtn').onclick = () => closeModal('popupSettingsModal');
             document.getElementById('applyFiltersBtn').onclick = applyFilters;
@@ -24941,8 +25185,7 @@
           document.getElementById('importWorldBtn').onclick = triggerWorldImport;
           document.getElementById('worldJsonInput').onchange = handleWorldFileSelected;
           document.getElementById('globalHistoryBtn').onclick = () => {
-                document.getElementById('historyPanel').classList.add('open');
-                renderHistory();
+                openEditHistoryModal();
           };
           document.getElementById('saveAddSetBtn').onclick = () => {
                 const nameInput = document.getElementById('newSetName');
@@ -25041,7 +25284,11 @@
                 if (!name) { showConfirm('Please enter a view name', () => {}); return; }
                 const set = state.sets.get(state.viewEditorContext?.setId || state.currentSetId);
                 const setId = set?.id;
-                if (!setId) return;
+                if (!setId) {
+                    showToast('⚠️ Could not find set. Please try again.');
+                    closeModal('addViewModal');
+                    return;
+                }
                 if (state.viewEditorContext?.viewId && parentId && isViewDescendant(set, parentId, state.viewEditorContext.viewId)) {
                     showConfirm('You cannot nest a view under its own descendant.', () => {});
                     return;
