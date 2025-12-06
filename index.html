@@ -1522,6 +1522,13 @@
             text-overflow: ellipsis;
         }
 
+        .lookup-array-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+        }
+
         .lookup-value-more {
             display: inline-flex;
             align-items: center;
@@ -15702,19 +15709,12 @@
                     const lookupValues = evaluateLinkedLookup(field._linkedConfig, record, state);
                     if (!lookupValues || lookupValues.length === 0) return '';
 
-                    // Get linked record IDs to provide context for superposition
-                    const linkedIdForLookup = record[field._linkedConfig.sourceFieldId];
-                    const lookupLinkedIds = Array.isArray(linkedIdForLookup) ? linkedIdForLookup : [linkedIdForLookup];
-
-                    // If multiple values from multiple linked records, display in superposition state
+                    // Display all values as an array of pills
                     if (lookupValues.length > 1) {
-                        const supEntries = lookupValues.map((val, idx) => ({
-                            val: val,
-                            context: {
-                                source: getRecordDisplayName(lookupLinkedIds[idx]) || 'linked record'
-                            }
-                        }));
-                        return renderSuperpositionCell(supEntries);
+                        const pills = lookupValues.map(val =>
+                            `<span class="lookup-value-pill">${val}</span>`
+                        ).join(' ');
+                        return `<div class="lookup-array-container">${pills}</div>`;
                     }
 
                     // Single value - display normally
