@@ -1,8 +1,9 @@
 # EO Architecture Manifest for eo-activibase
 
 **Generated:** 2025-12-06
+**Last Updated:** 2025-12-06
 **Framework Version:** EO Refactor Playbook v1.0
-**Codebase Size:** ~24,309 LOC across 46 modules
+**Codebase Size:** ~24,309 LOC across 46 modules (+ 4 new foundation modules)
 
 ---
 
@@ -747,6 +748,77 @@ operator_history:
 │  └───────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+---
+
+## Refactoring Log
+
+### 2025-12-06: Phase A & B Implementation
+
+**Phase A: Foundation Layer (COMPLETED)**
+
+| Module | Status | Description |
+|--------|--------|-------------|
+| `eo_state.js` | CREATED | Centralized state management with schema validation, subscriptions, history/undo |
+| `eo_event_bus.js` | CREATED | Cross-module event communication with typed events and middleware support |
+| `eo_types.js` | CREATED | JSDoc type definitions for IDE autocomplete and documentation |
+
+**Phase B: Consolidation (COMPLETED)**
+
+| Action | Status | Description |
+|--------|--------|-------------|
+| SUP → Context Engine | MERGED | `eo_sup_detector.js` functionality merged into `eo_context_engine.js` |
+| Integration → App Controller | CREATED | `eo_app_controller.js` consolidates all integration modules |
+
+**Phase D: Rhythms (COMPLETED)**
+
+Operational rhythms added to `eo_event_bus.js` and `eo_app_controller.js`:
+- Auto-save rhythm (30 seconds)
+- Cache cleanup rhythm (5 minutes)
+- Stability recalculation rhythm (5 minutes)
+
+**Files Modified:**
+- `demo/eo_context_engine.js` - Added SUP detection methods, backward-compatible EOSUPDetector class
+- `demo/eo_sup_detector.js` - Replaced with deprecation notice (delegates to context_engine)
+
+**Files Created:**
+- `eo_state.js` - EOStateManager class with schema, subscriptions, history
+- `eo_event_bus.js` - EOEventBus class with typed events, RhythmManager
+- `eo_types.js` - EOTypes with validators and ID generators
+- `eo_app_controller.js` - EOAppController unified coordination layer
+
+**New Architecture Diagram:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     NEW FOUNDATION LAYER                        │
+│  ┌──────────────┐  ┌─────────────────┐  ┌──────────────────┐   │
+│  │ eo_state.js  │  │ eo_event_bus.js │  │   eo_types.js    │   │
+│  │   (State)    │  │    (Events)     │  │    (Types)       │   │
+│  └──────────────┘  └─────────────────┘  └──────────────────┘   │
+│                           ↓                                     │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │            eo_app_controller.js (Coordinator)           │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                     EO CORE FRAMEWORK                           │
+│  (eo_graph, eo_lean_context, eo_provenance, eo_workbench_ui)   │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                   APPLICATION LAYER (demo/)                     │
+│  (import_manager, toss_pile, formula_engine, context_engine)   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Remaining Work (Phase C):**
+- [ ] SEG split `eo_workbench_ui.js` into ui/events/state modules
+- [ ] Wire existing modules to use new EOState and EOEventBus
+- [ ] Add integration tests for new foundation layer
 
 ---
 
