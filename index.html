@@ -4356,18 +4356,18 @@
                     </div>
                     <div class="space-y-3">
                         <label class="flex items-center gap-2 font-medium">
-                            <input type="radio" name="csvImportTargetMode" value="existing" checked>
+                            <input type="radio" name="csvImportTargetMode" value="existing">
                             Import into existing set
                         </label>
-                        <div id="csvExistingSetPicker" class="pl-7 space-y-2">
+                        <div id="csvExistingSetPicker" class="pl-7 space-y-2 hidden">
                             <select id="csvTargetSetSelect"></select>
                             <p class="text-xs text-gray-500">We'll map columns to the selected set's fields.</p>
                         </div>
                         <label class="flex items-center gap-2 font-medium">
-                            <input type="radio" name="csvImportTargetMode" value="new">
+                            <input type="radio" name="csvImportTargetMode" value="new" checked>
                             Create a new set from this CSV
                         </label>
-                        <div id="csvNewSetFields" class="pl-7 space-y-2 hidden">
+                        <div id="csvNewSetFields" class="pl-7 space-y-2">
                             <input type="text" id="csvNewSetName" placeholder="e.g., Leads" class="w-full">
                             <p class="text-xs text-gray-500">We'll create fields from your headers automatically.</p>
                         </div>
@@ -4481,18 +4481,18 @@
                     </div>
                     <div class="space-y-3">
                         <label class="flex items-center gap-2 font-medium">
-                            <input type="radio" name="jsonImportTargetMode" value="existing" checked>
+                            <input type="radio" name="jsonImportTargetMode" value="existing">
                             Import into existing set
                         </label>
-                        <div id="jsonExistingSetPicker" class="pl-7 space-y-2">
+                        <div id="jsonExistingSetPicker" class="pl-7 space-y-2 hidden">
                             <select id="jsonTargetSetSelect"></select>
                             <p class="text-xs text-gray-500">We'll map JSON keys to the selected set's fields.</p>
                         </div>
                         <label class="flex items-center gap-2 font-medium">
-                            <input type="radio" name="jsonImportTargetMode" value="new">
+                            <input type="radio" name="jsonImportTargetMode" value="new" checked>
                             Create a new set from this JSON
                         </label>
-                        <div id="jsonNewSetFields" class="pl-7 space-y-2 hidden">
+                        <div id="jsonNewSetFields" class="pl-7 space-y-2">
                             <input type="text" id="jsonNewSetName" placeholder="e.g., Leads" class="w-full">
                             <p class="text-xs text-gray-500">We'll create fields from your JSON keys automatically.</p>
                         </div>
@@ -5257,8 +5257,8 @@
             selectedCell: null,
             lastSelectedCell: null,
             editingCell: null,
-            csvImportState: { headers: [], rows: [], mappings: {}, previewRows: [], matches: [], targetMode: 'existing', targetSetId: null, newSetName: '' },
-            jsonImportState: { keys: [], rows: [], mappings: {}, previewRows: [], matches: [], targetMode: 'existing', targetSetId: null, newSetName: '', filename: '' },
+            csvImportState: { headers: [], rows: [], mappings: {}, previewRows: [], matches: [], targetMode: 'new', targetSetId: null, newSetName: '' },
+            jsonImportState: { keys: [], rows: [], mappings: {}, previewRows: [], matches: [], targetMode: 'new', targetSetId: null, newSetName: '', filename: '' },
             fuzzyPanelState: { threshold: 0.65, matches: [] },
             fieldTypeHistory: new Map()
         };
@@ -7341,7 +7341,7 @@
                                 <div>
                                     <div style="font-weight: 600; color: #d1fae5;">Temporary Import</div>
                                     <div style="font-size: 0.875rem; color: #a7f3d0;">
-                                        This is a temporary import view. Make it permanent or it will expire in ${Math.ceil((view.importMetadata.expiresAt - Date.now()) / (24 * 60 * 60 * 1000))} days.
+                                        This is a temporary import view. Make it permanent to keep it organized.
                                     </div>
                                 </div>
                             </div>
@@ -10124,8 +10124,7 @@
                     filename: importFileName,
                     timestamp: importTimestamp,
                     recordCount: state.csvImportState.rows.length,
-                    templateId: importTemplateId,
-                    expiresAt: importTimestamp + (7 * 24 * 60 * 60 * 1000) // 7 days from now
+                    templateId: importTemplateId
                 }
             });
 
@@ -10139,8 +10138,7 @@
                     viewName: viewName,
                     filename: importFileName,
                     recordCount: state.csvImportState.rows.length,
-                    isTemporary: true,
-                    expiresAt: importTimestamp + (7 * 24 * 60 * 60 * 1000)
+                    isTemporary: true
                 }
             );
 
@@ -10696,8 +10694,7 @@
                     filename: importFileName,
                     timestamp: importTimestamp,
                     recordCount: state.jsonImportState.rows.length,
-                    templateId: importTemplateId,
-                    expiresAt: importTimestamp + (7 * 24 * 60 * 60 * 1000) // 7 days from now
+                    templateId: importTemplateId
                 }
             });
 
@@ -10711,8 +10708,7 @@
                     viewName: viewName,
                     filename: importFileName,
                     recordCount: state.jsonImportState.rows.length,
-                    isTemporary: true,
-                    expiresAt: importTimestamp + (7 * 24 * 60 * 60 * 1000)
+                    isTemporary: true
                 }
             );
 
@@ -11410,11 +11406,8 @@
             if (state.views) {
                 state.views.forEach((view) => {
                     if (view.isTemporary && view.importMetadata) {
-                        // Check if it has expired (default 7 days)
-                        const expiresAt = view.importMetadata.expiresAt;
-                        if (!expiresAt || now < expiresAt) {
-                            recentImports.push(view);
-                        }
+                        // Include all temporary import views (no auto-expiration)
+                        recentImports.push(view);
                     }
                 });
             }
