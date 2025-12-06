@@ -21038,9 +21038,37 @@
                     return new Date(value).getTime() || 0;
                 case 'CHECKBOX':
                     return value ? 1 : 0;
+                case 'LINKED_LOOKUP':
+                    // Linked lookup values are strings
+                    return String(value).toLowerCase();
+                case 'LINKED_ROLLUP':
+                    // Rollup values can be numbers (SUM, COUNT, etc.) or strings (CONCAT)
+                    const agg = field._linkedConfig?.aggregation;
+                    if (agg === 'SUM' || agg === 'COUNT' || agg === 'AVG' || agg === 'MIN' || agg === 'MAX') {
+                        return Number(value) || 0;
+                    }
+                    return String(value).toLowerCase();
                 default:
                     return String(value).toLowerCase();
             }
+        }
+
+        // Helper to get field value, handling computed linked fields
+        function getFieldValue(record, field) {
+            if (!field) return undefined;
+
+            // Handle LINKED_LOOKUP fields - compute value using evaluateLinkedLookup
+            if (field.type === 'LINKED_LOOKUP' && field._linkedConfig) {
+                return evaluateLinkedLookup(field._linkedConfig, record, state);
+            }
+
+            // Handle LINKED_ROLLUP fields - compute value using rollup engine
+            if (field.type === 'LINKED_ROLLUP' && field._linkedConfig && window.EOCRollupEngine) {
+                return window.EOCRollupEngine.evaluate(field._linkedConfig, record, state);
+            }
+
+            // Regular field - get value directly from record
+            return record[field.id];
         }
 
         function applySorts(records, sorts, schema) {
@@ -21052,8 +21080,8 @@
             return [...records].sort((a, b) => {
                 for (const sort of activeSorts) {
                     const field = schemaMap.get(sort.fieldId);
-                    const aVal = getSortableValue(a[sort.fieldId], field);
-                    const bVal = getSortableValue(b[sort.fieldId], field);
+                    const aVal = getSortableValue(getFieldValue(a, field), field);
+                    const bVal = getSortableValue(getFieldValue(b, field), field);
 
                     if (aVal < bVal) return sort.direction === 'desc' ? 1 : -1;
                     if (aVal > bVal) return sort.direction === 'desc' ? -1 : 1;
