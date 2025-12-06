@@ -26863,12 +26863,30 @@
             const setId = isNew ? null : document.getElementById('existingImportSetId')?.value;
             const newSetName = isNew ? document.getElementById('newImportSetName')?.value : null;
 
+            // Validate inputs before closing modal
+            if (isNew && !newSetName?.trim()) {
+                showToast('⚠️ Please enter a name for the new set');
+                return;
+            }
+
+            if (!isNew && !setId) {
+                showToast('⚠️ Please select an existing set');
+                return;
+            }
+
             closeModal('addImportToSetModal');
 
-            const result = state.importIntegration.addImportToSet(importId, setId, newSetName);
+            try {
+                const result = state.importIntegration.addImportToSet(importId, setId, newSetName);
 
-            if (result.success) {
-                renderSidebar();
+                if (result.success) {
+                    renderSidebar();
+                } else {
+                    showToast(`⚠️ Failed to add records: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error adding import to set:', error);
+                showToast(`⚠️ Error adding records: ${error.message || 'Unknown error'}`);
             }
         }
 

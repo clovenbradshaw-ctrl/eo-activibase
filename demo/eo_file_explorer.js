@@ -868,6 +868,17 @@ class EOFileExplorer {
       const setId = isNew ? null : modal.querySelector('#existingSetId')?.value;
       const setName = isNew ? modal.querySelector('#newSetName').value : null;
 
+      // Validate inputs before closing modal
+      if (isNew && !setName?.trim()) {
+        alert('Please enter a name for the new set');
+        return;
+      }
+
+      if (!isNew && !setId) {
+        alert('Please select an existing set');
+        return;
+      }
+
       modal.remove();
       this.onImportToSet(importId, setId, setName);
     });
