@@ -15704,14 +15704,14 @@
 
                     // Get linked record IDs to provide context for superposition
                     const linkedIdForLookup = record[field._linkedConfig.sourceFieldId];
-                    const linkedRecordIds = Array.isArray(linkedIdForLookup) ? linkedIdForLookup : [linkedIdForLookup];
+                    const lookupLinkedIds = Array.isArray(linkedIdForLookup) ? linkedIdForLookup : [linkedIdForLookup];
 
                     // If multiple values from multiple linked records, display in superposition state
                     if (lookupValues.length > 1) {
                         const supEntries = lookupValues.map((val, idx) => ({
                             val: val,
                             context: {
-                                source: getRecordDisplayName(linkedRecordIds[idx]) || 'linked record'
+                                source: getRecordDisplayName(lookupLinkedIds[idx]) || 'linked record'
                             }
                         }));
                         return renderSuperpositionCell(supEntries);
