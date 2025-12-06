@@ -3418,23 +3418,29 @@
             .kanban-column { min-width: 260px; }
         }
 
-        /* NEW NAVIGATION STYLES */
+        /* NEW NAVIGATION STYLES - Tab-like appearance */
         .nav-item {
-            padding: 0.5rem;
+            padding: 0.5rem 0.75rem;
             cursor: pointer;
-            border-radius: 0.375rem;
+            border-radius: 0.5rem;
             font-size: 0.875rem;
             transition: all 0.15s ease;
-            color: #d1d5db;
+            color: #9ca3af;
+            font-weight: 500;
+            border: 1px solid transparent;
+            background: transparent;
         }
         .nav-item:hover {
-            background-color: #1C253D;
-            color: white;
+            background: rgba(55, 65, 81, 0.5);
+            border-color: rgba(75, 85, 99, 0.5);
+            color: #e5e7eb;
         }
         .nav-item.active {
-            background-color: #1C253D;
-            color: white;
-            font-weight: 500;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(59, 130, 246, 0.1));
+            border-color: rgba(59, 130, 246, 0.4);
+            color: #93c5fd;
+            font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
         }
 
         .nav-section-title {
