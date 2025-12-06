@@ -21333,8 +21333,11 @@
             const record = recordId ? targetSet?.records.get(recordId) : null;
             const schemaField = field || targetSet?.schema?.find(f => f.id === fieldId) || { id: fieldId, name: fieldId, type: 'TEXT' };
 
+            // Include all event types that affect this cell: SEG (field changes), NUL (deletions), ALT (alternations)
             const entries = state.eventStream
-                .filter(e => e.op === 'SEG' && e.data?.fieldId === schemaField.id && (!recordId || e.data?.recordId === recordId))
+                .filter(e => ['SEG', 'NUL', 'ALT', 'INS'].includes(e.op) &&
+                    (e.data?.fieldId === schemaField.id || e.data?.fieldName === schemaField.name) &&
+                    (!recordId || e.data?.recordId === recordId || e.object?.id === recordId))
                 .sort((a, b) => new Date(a.published) - new Date(b.published));
 
             const supValues = [];
@@ -21411,20 +21414,33 @@
                     </div>
                 </div>
             `}).join('');
-            const timeline = ctx.entries.map((entry, i) => `
-                <div class="border rounded-lg p-3 ${i === ctx.index ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}" onclick="selectCellHistoryEntry(${i})">
+            const opIcons = { SEG: '✏️', NUL: '🗑️', ALT: '🔄', INS: '➕', DES: '📝', SYN: '🔗', CON: '🔌', REC: '⚙️', SUP: '📚' };
+            const opLabels = { SEG: 'Updated', NUL: 'Deleted', ALT: 'Changed', INS: 'Created', DES: 'Defined', SYN: 'Merged', CON: 'Connected', REC: 'Reconfigured', SUP: 'Superposition' };
+            const timeline = ctx.entries.map((entry, i) => {
+                const opIcon = opIcons[entry.op] || '📝';
+                const opLabel = opLabels[entry.op] || entry.op;
+                const isDeleted = entry.op === 'NUL' || (entry.data?.newValue === null || entry.data?.newValue === '' || entry.data?.newValue === undefined);
+                const oldVal = entry.data?.oldValue ?? '—';
+                const newVal = entry.data?.newValue ?? '—';
+                return `
+                <div class="border rounded-lg p-3 ${i === ctx.index ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'} cursor-pointer hover:border-blue-300 transition" onclick="selectCellHistoryEntry(${i})">
                     <div class="flex items-center justify-between">
-                        <div class="font-medium">${entry.data?.fieldName || ctx.fieldName}</div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">${opIcon}</span>
+                            <span class="font-medium">${entry.data?.fieldName || ctx.fieldName}</span>
+                            <span class="text-xs px-2 py-0.5 rounded ${entry.op === 'NUL' ? 'bg-red-100 text-red-700' : entry.op === 'INS' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">${opLabel}</span>
+                        </div>
                         <div class="text-xs text-gray-500">${new Date(entry.published).toLocaleString()}</div>
                     </div>
-                    <div class="text-sm text-gray-600 mt-1">${entry.data?.summary || 'Updated value'}</div>
+                    <div class="text-sm text-gray-600 mt-1">${entry.data?.summary || (isDeleted ? 'Value cleared' : 'Value updated')}</div>
                     <div class="text-sm mt-2 flex items-center gap-2">
-                        <span class="text-red-600">${entry.data?.oldValue ?? '—'}</span>
-                        <span>→</span>
-                        <span class="text-green-600">${entry.data?.newValue ?? '—'}</span>
+                        <span class="${oldVal !== '—' ? 'text-red-600 line-through' : 'text-gray-400'}">${oldVal}</span>
+                        <span class="text-gray-400">→</span>
+                        <span class="${isDeleted ? 'text-gray-400 italic' : 'text-green-600'}">${isDeleted && newVal === '—' ? '(empty)' : newVal}</span>
                     </div>
+                    ${entry.actor?.id ? `<div class="text-xs text-gray-400 mt-2">by ${entry.actor.name || entry.actor.id}</div>` : ''}
                 </div>
-            `).join('');
+            `}).join('');
 
             const activeEntry = ctx.entries[ctx.index] || {};
             const selectedValue = ctx.selectedValueSource === 'old'
@@ -21439,68 +21455,207 @@
                 <div class="space-y-4">
                     ${ctx.activePanel === 'latest' ? (() => {
                         const displayValue = renderCellValue(latestValue, { type: ctx.fieldType || 'TEXT' }, {}) || '—';
+                        // Try to get context from SUP values, or fall back to basic provenance from events
                         const valueContext = (latestValue && latestValue._sup && Array.isArray(latestValue.value) && latestValue.value[0])
                             ? (latestValue.value[0].context || latestValue.value[0].context_schema || {})
                             : {};
-                        const method = valueContext.method || 'declared';
+                        // Get basic provenance from the most recent event if no SUP context
+                        const lastEvent = ctx.entries.length > 0 ? ctx.entries[ctx.entries.length - 1] : null;
+                        const method = valueContext.method || (lastEvent?.data?.method) || 'declared';
                         const scale = valueContext.scale || 'individual';
-                        const source = valueContext.source?.system || valueContext.source || ctx.sourceSetName || 'unknown';
-                        const agent = valueContext.agent?.name || valueContext.agent?.type || '';
+                        const source = valueContext.source?.system || valueContext.source || ctx.sourceSetName || (lastEvent?.data?.source) || 'manual entry';
+                        const agent = valueContext.agent?.name || valueContext.agent?.type || lastEvent?.actor?.name || lastEvent?.actor?.id || '';
                         const definition = valueContext.definition || '';
+                        const lastModified = lastEvent?.published ? new Date(lastEvent.published).toLocaleString() : null;
                         const methodIcons = { measured: '📏', declared: '📝', aggregated: '📊', inferred: '🔮', derived: '⚙️' };
                         const methodIcon = methodIcons[method] || '📝';
-                        const hasContext = valueContext.method || valueContext.scale || valueContext.source;
+                        // Always show basic provenance even if minimal
+                        const hasValue = latestValue !== null && latestValue !== undefined && latestValue !== '';
                         return `
                             <div class="text-lg font-semibold mb-3">${displayValue}</div>
-                            ${hasContext ? `
                             <div class="bg-gray-50 rounded-lg p-3 text-sm">
                                 <div class="text-xs text-gray-500 uppercase tracking-wide mb-2">Provenance</div>
                                 <div class="space-y-2">
                                     <div class="flex items-center gap-3">
-                                        <span class="text-gray-500 w-16">Method:</span>
+                                        <span class="text-gray-500 w-20">Field:</span>
+                                        <span class="font-medium">${ctx.fieldName}</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-gray-500 w-20">Method:</span>
                                         <span>${methodIcon} ${method}</span>
                                     </div>
                                     <div class="flex items-center gap-3">
-                                        <span class="text-gray-500 w-16">Scale:</span>
+                                        <span class="text-gray-500 w-20">Scale:</span>
                                         <span>📐 ${scale}</span>
                                     </div>
                                     <div class="flex items-center gap-3">
-                                        <span class="text-gray-500 w-16">Source:</span>
+                                        <span class="text-gray-500 w-20">Source:</span>
                                         <span>📋 ${source}</span>
                                     </div>
                                     ${agent ? `<div class="flex items-center gap-3">
-                                        <span class="text-gray-500 w-16">Agent:</span>
+                                        <span class="text-gray-500 w-20">Agent:</span>
                                         <span>👤 ${agent}</span>
                                     </div>` : ''}
+                                    ${lastModified ? `<div class="flex items-center gap-3">
+                                        <span class="text-gray-500 w-20">Modified:</span>
+                                        <span>🕒 ${lastModified}</span>
+                                    </div>` : ''}
                                     ${definition ? `<div class="flex items-center gap-3">
-                                        <span class="text-gray-500 w-16">Definition:</span>
+                                        <span class="text-gray-500 w-20">Definition:</span>
                                         <span>${definition}</span>
+                                    </div>` : ''}
+                                    ${ctx.entries.length > 0 ? `<div class="flex items-center gap-3">
+                                        <span class="text-gray-500 w-20">Changes:</span>
+                                        <span>${ctx.entries.length} recorded observation${ctx.entries.length === 1 ? '' : 's'}</span>
                                     </div>` : ''}
                                 </div>
                             </div>
-                            ` : `<div class="text-sm text-gray-400 mt-2">No provenance information available</div>`}
                         `;
                     })() : ''}
-                    ${ctx.activePanel === 'observations' ? `
+                    ${ctx.activePanel === 'observations' ? (() => {
+                        // Build a list of all observations as first-class objects
+                        const allObservations = [];
+
+                        // Add current value as an observation
+                        if (latestValue !== null && latestValue !== undefined && latestValue !== '') {
+                            allObservations.push({
+                                value: latestValue?._sup ? (latestValue.value?.[0]?.value ?? latestValue.value) : latestValue,
+                                type: 'current',
+                                timestamp: ctx.entries.length > 0 ? ctx.entries[ctx.entries.length - 1]?.published : new Date().toISOString(),
+                                source: ctx.sourceSetName || 'current',
+                                context: latestValue?._sup && latestValue.value?.[0] ? (latestValue.value[0].context || latestValue.value[0].context_schema || {}) : {}
+                            });
+                        }
+
+                        // Add SUP values as observations
+                        (ctx.supValues || []).forEach((entry, idx) => {
+                            if (idx === 0 && allObservations.length > 0) return; // Skip first if it's the current value
+                            allObservations.push({
+                                value: entry.val ?? entry.value,
+                                type: 'superposition',
+                                timestamp: entry.timestamp || entry.context?.timestamp,
+                                source: entry.context?.source?.system || entry.context?.source || 'aggregated',
+                                context: entry.context || entry.context_schema || {}
+                            });
+                        });
+
+                        // Add historical values from events as observations
+                        ctx.entries.forEach(event => {
+                            if (event.data?.newValue !== undefined) {
+                                allObservations.push({
+                                    value: event.data.newValue,
+                                    type: event.op === 'NUL' ? 'deleted' : event.op === 'INS' ? 'created' : 'historical',
+                                    timestamp: event.published,
+                                    source: event.actor?.name || event.actor?.id || 'user',
+                                    context: { method: 'declared', agent: event.actor },
+                                    op: event.op
+                                });
+                            }
+                        });
+
+                        // Remove duplicates by value+timestamp
+                        const seen = new Set();
+                        const uniqueObs = allObservations.filter(obs => {
+                            const key = `${JSON.stringify(obs.value)}-${obs.timestamp}`;
+                            if (seen.has(key)) return false;
+                            seen.add(key);
+                            return true;
+                        });
+
+                        const opLabels = { current: 'Current', superposition: 'SUP', historical: 'Historical', deleted: 'Deleted', created: 'Created' };
+                        const opColors = { current: 'bg-green-100 text-green-700', superposition: 'bg-purple-100 text-purple-700', historical: 'bg-gray-100 text-gray-700', deleted: 'bg-red-100 text-red-700', created: 'bg-blue-100 text-blue-700' };
+
+                        return `
                         <div>
-                            ${supList ? `
-                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                                    <div class="flex items-center gap-2">
-                                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-                                        </svg>
-                                        <div class="flex-1">
-                                            <div class="font-semibold text-blue-900 text-sm">Multiple Records in This Cell</div>
-                                            <div class="text-xs text-blue-700">This cell contains ${ctx.supValues?.length || 0} aggregated record${(ctx.supValues?.length || 0) === 1 ? '' : 's'} from rollup</div>
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                    </svg>
+                                    <div class="flex-1">
+                                        <div class="font-semibold text-gray-900 text-sm">All Observations</div>
+                                        <div class="text-xs text-gray-600">This cell has ${uniqueObs.length} recorded observation${uniqueObs.length === 1 ? '' : 's'}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            ${uniqueObs.length > 0 ? uniqueObs.map((obs, idx) => {
+                                const methodIcons = { measured: '📏', declared: '📝', aggregated: '📊', inferred: '🔮', derived: '⚙️' };
+                                const method = obs.context?.method || 'declared';
+                                const methodIcon = methodIcons[method] || '📝';
+                                const displayValue = obs.value === null || obs.value === '' ? '(empty)' : (typeof obs.value === 'object' ? JSON.stringify(obs.value) : String(obs.value));
+                                return `
+                                <div class="sup-modal-card mb-3">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex items-start gap-3">
+                                            <div class="sup-modal-card-index">${idx + 1}</div>
+                                            <div class="flex-1">
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <span class="sup-modal-card-value ${obs.type === 'deleted' ? 'line-through text-gray-400' : ''}">${displayValue}</span>
+                                                    <span class="text-xs px-2 py-0.5 rounded ${opColors[obs.type] || 'bg-gray-100 text-gray-700'}">${opLabels[obs.type] || obs.type}</span>
+                                                </div>
+                                                <div class="sup-modal-card-source text-xs text-gray-500 mt-1 space-y-1">
+                                                    <div class="flex items-center gap-2">
+                                                        <span title="Method">${methodIcon} ${method}</span>
+                                                        <span class="text-gray-300">•</span>
+                                                        <span title="Source">📋 ${obs.source}</span>
+                                                    </div>
+                                                    ${obs.timestamp ? `<div class="flex items-center gap-2">
+                                                        <span title="Timestamp">🕒 ${new Date(obs.timestamp).toLocaleString()}</span>
+                                                    </div>` : ''}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                ${supList}
-                            ` : '<p class="text-gray-500">No multiple observations yet.</p>'}
+                            `}).join('') : '<p class="text-gray-500">No observations recorded yet.</p>'}
+                        </div>
+                        `;
+                    })() : ''}
+                    ${ctx.activePanel === 'timeline' ? `
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="text-sm text-gray-600">${ctx.entries.length} change${ctx.entries.length === 1 ? '' : 's'} recorded</div>
+                            ${ctx.entries.length > 1 ? `<div class="flex items-center gap-2">
+                                <button class="btn btn-secondary btn-sm" ${ctx.index === 0 ? 'disabled' : ''} onclick="stepCellHistory(-1)">◀ Prev</button>
+                                <span class="text-xs text-gray-500">${ctx.index + 1} / ${ctx.entries.length}</span>
+                                <button class="btn btn-secondary btn-sm" ${ctx.index >= ctx.entries.length - 1 ? 'disabled' : ''} onclick="stepCellHistory(1)">Next ▶</button>
+                            </div>` : ''}
+                        </div>
+                        ${ctx.entries.length === 0 ? `
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+                                <div class="text-3xl mb-2">📭</div>
+                                <div class="text-sm text-gray-600 mb-1">No changes recorded yet</div>
+                                <div class="text-xs text-gray-400">Changes to this cell will appear here as observations</div>
+                            </div>
+                        ` : `<div class="space-y-3">${timeline}</div>`}
+                    ` : ''}
+                    ${ctx.activePanel === 'connections' ? `
+                        <div class="space-y-4">
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                <div class="text-xs text-gray-500 uppercase tracking-wide mb-2">Field Context</div>
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-gray-500 w-20">Field:</span>
+                                        <span class="font-medium">${ctx.fieldName}</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-gray-500 w-20">Type:</span>
+                                        <span>${ctx.fieldType || 'TEXT'}</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-gray-500 w-20">Source Set:</span>
+                                        <span>${ctx.sourceSetName || 'Unknown'}</span>
+                                    </div>
+                                    ${ctx.recordId ? `<div class="flex items-center gap-3">
+                                        <span class="text-gray-500 w-20">Record:</span>
+                                        <span class="font-mono text-xs">${ctx.recordId}</span>
+                                    </div>` : ''}
+                                </div>
+                            </div>
+                            <div class="text-xs text-gray-400 text-center">
+                                Linked records and field relationships will appear here
+                            </div>
                         </div>
                     ` : ''}
-                    ${ctx.activePanel === 'timeline' ? `<div class="flex items-center justify-between mb-2"><div class="text-sm text-gray-600">${ctx.entries.length} change${ctx.entries.length === 1 ? '' : 's'} found</div><div class="flex items-center gap-2"><button class="btn btn-secondary btn-sm" ${ctx.index === 0 ? 'disabled' : ''} onclick="stepCellHistory(-1)">◀ Prev</button><button class="btn btn-secondary btn-sm" ${ctx.index >= ctx.entries.length - 1 ? 'disabled' : ''} onclick="stepCellHistory(1)">Next ▶</button></div></div><div class="space-y-3">${timeline}</div>` : ''}
-                    ${ctx.activePanel === 'connections' ? `<div class="text-sm text-gray-600">Source Set: ${ctx.sourceSetName || 'Unknown'}</div>` : ''}
                 </div>
             `;
         }
@@ -21781,20 +21936,36 @@
         }
 
         function renderHistorySidebar(container, recordId) {
-            const history = state.eventStream.filter(e => e.object?.id === recordId && e.op === 'SEG');
+            // Include all event types that affect this record: SEG (field changes), NUL (deletions), ALT, INS
+            const history = state.eventStream.filter(e =>
+                ['SEG', 'NUL', 'ALT', 'INS'].includes(e.op) &&
+                (e.object?.id === recordId || e.data?.recordId === recordId)
+            );
+            const opIcons = { SEG: '✏️', NUL: '🗑️', ALT: '🔄', INS: '➕' };
+            const opLabels = { SEG: 'Updated', NUL: 'Deleted', ALT: 'Changed', INS: 'Created' };
             container.innerHTML = `
                 <h3 class="font-semibold mb-4">Change History</h3>
-                ${history.length === 0 ? '<p class="text-gray-500">No changes yet</p>' : ''}
-                ${history.map(e => `
+                ${history.length === 0 ? '<p class="text-gray-500">No changes recorded yet</p>' : ''}
+                ${history.map(e => {
+                    const opIcon = opIcons[e.op] || '📝';
+                    const opLabel = opLabels[e.op] || e.op;
+                    const isDeleted = e.op === 'NUL' || (e.data?.newValue === null || e.data?.newValue === '');
+                    const oldVal = e.data?.oldValue ?? '—';
+                    const newVal = e.data?.newValue ?? '—';
+                    return `
                     <div class="history-entry">
-                        <div class="font-medium">${e.data?.fieldName || 'Field change'}</div>
+                        <div class="flex items-center gap-2">
+                            <span>${opIcon}</span>
+                            <span class="font-medium">${e.data?.fieldName || e.data?.summary || 'Field change'}</span>
+                            <span class="text-xs px-1.5 py-0.5 rounded ${e.op === 'NUL' ? 'bg-red-100 text-red-700' : e.op === 'INS' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">${opLabel}</span>
+                        </div>
                         <div class="text-sm text-gray-500">${getTimeAgo(e.published)}</div>
                         <div class="text-sm mt-1">
-                            <span class="text-red-600">${e.data?.oldValue}</span> →
-                            <span class="text-green-600">${e.data?.newValue}</span>
+                            <span class="${oldVal !== '—' ? 'text-red-600 line-through' : 'text-gray-400'}">${oldVal}</span> →
+                            <span class="${isDeleted ? 'text-gray-400 italic' : 'text-green-600'}">${isDeleted && newVal === '—' ? '(empty)' : newVal}</span>
                         </div>
                     </div>
-                `).join('')}
+                `}).join('')}
             `;
         }
 
