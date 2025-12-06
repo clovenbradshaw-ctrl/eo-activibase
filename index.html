@@ -13525,7 +13525,7 @@
                                 <div class="pane-empty-text">No views open in this pane</div>
                                 <button class="pane-empty-action" onclick="handleAddViewToPane('${pane.id}')">Open a View</button>
                             </div>
-                        ` : `<div class="view-surface"><div id="viewContainer-${pane.id}"></div></div>`}
+                        ` : `<div class="view-surface"><div id="${isActive ? 'viewContainer' : 'viewContainer-' + pane.id}"></div></div>`}
                     </div>
                     <!-- Drop zone indicators -->
                     <div class="drop-zone-indicator left" data-zone="left" data-label="Split Left"></div>
