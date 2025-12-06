@@ -166,6 +166,7 @@ class EOImportIntegration {
       schema,
       records: new Map(),
       views: new Map(),
+      profiles: new Map([['default', { id: 'default', name: 'All Fields', visibleFields: [] }]]),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
 
