@@ -333,8 +333,7 @@ class EOImportIntegration {
         importId: imp.id,
         filename: imp.name,
         timestamp: importTimestamp,
-        recordCount: records.length,
-        expiresAt: importTimestamp + (7 * 24 * 60 * 60 * 1000) // 7 days
+        recordCount: records.length
       },
 
       createdAt: new Date().toISOString()
