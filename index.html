@@ -12334,39 +12334,19 @@
 
             switch(page) {
                 case 'dashboard':
-                    state.currentSpecialView = 'dashboard';
-                    state.currentSetId = null;
-                    state.currentViewId = null;
-                    break;
+                case 'relations':
+                case 'definitions':
+                case 'views':
+                case 'explore':
+                    switchToSpecialTab(page);
+                    return;
                 case 'entities':
-                    state.currentSpecialView = 'entities';
-                    state.currentSetId = null;
-                    state.currentViewId = null;
                     if (filterType) {
                         state.entityFormState = state.entityFormState || {};
                         state.entityFormState.selectedType = filterType;
                     }
-                    break;
-                case 'relations':
-                    state.currentSpecialView = 'relations';
-                    state.currentSetId = null;
-                    state.currentViewId = null;
-                    break;
-                case 'definitions':
-                    state.currentSpecialView = 'definitions';
-                    state.currentSetId = null;
-                    state.currentViewId = null;
-                    break;
-                case 'views':
-                    state.currentSpecialView = 'views';
-                    state.currentSetId = null;
-                    state.currentViewId = null;
-                    break;
-                case 'explore':
-                    state.currentSpecialView = 'explore';
-                    state.currentSetId = null;
-                    state.currentViewId = null;
-                    break;
+                    switchToSpecialTab('entities');
+                    return;
                 case 'search':
                     // Legacy support - redirect to explore
                     navigateTo('explore');
@@ -12375,11 +12355,6 @@
                     console.warn('Unknown navigation target:', page);
                     return;
             }
-
-            renderSidebar();
-            renderCurrentView();
-            updateMobileChrome();
-            // syncUrlState(); // Commented out to prevent URL manipulation
         }
 
         // Helper functions for navigation actions
@@ -13018,37 +12993,66 @@
             });
         }
 
-        function getTabKey(setId, viewId) {
+        function getTabKey(setId, viewId, specialView = null) {
+            if (specialView) return `special::${specialView}`;
             return `${setId || ''}::${viewId || ''}`;
         }
+
+        // Icons and labels for special view tabs
+        const SPECIAL_VIEW_CONFIG = {
+            dashboard: { icon: 'ph-house', label: 'Dashboard' },
+            entities: { icon: 'ph-cube', label: 'Entities' },
+            relations: { icon: 'ph-tree-structure', label: 'Relations' },
+            definitions: { icon: 'ph-book-open', label: 'Definitions' },
+            views: { icon: 'ph-layout', label: 'Views' },
+            explore: { icon: 'ph-compass', label: 'Explore' }
+        };
 
         function ensureOpenTab(setId, viewId) {
             const set = state.sets.get(setId);
             const view = set?.views.get(viewId);
             if (!set || !view) return;
             const key = getTabKey(setId, viewId);
-            const exists = state.openTabs.some(tab => getTabKey(tab.setId, tab.viewId) === key);
+            const exists = state.openTabs.some(tab => getTabKey(tab.setId, tab.viewId, tab.specialView) === key);
             if (!exists) {
                 state.openTabs.push({ setId, viewId });
             }
             renderViewTabs();
         }
 
-        function closeViewTab(setId, viewId) {
-            const key = getTabKey(setId, viewId);
-            const index = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId) === key);
+        function ensureOpenSpecialTab(specialView) {
+            if (!SPECIAL_VIEW_CONFIG[specialView]) return;
+            const key = getTabKey(null, null, specialView);
+            const exists = state.openTabs.some(tab => getTabKey(tab.setId, tab.viewId, tab.specialView) === key);
+            if (!exists) {
+                state.openTabs.push({ specialView });
+            }
+            renderViewTabs();
+        }
+
+        function closeViewTab(setId, viewId, specialView = null) {
+            const key = getTabKey(setId, viewId, specialView);
+            const index = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId, tab.specialView) === key);
             if (index === -1) return;
-            const closingActive = state.currentSetId === setId && state.currentViewId === viewId;
+
+            const closingActive = specialView
+                ? state.currentSpecialView === specialView
+                : (state.currentSetId === setId && state.currentViewId === viewId);
             const fallback = closingActive ? (state.openTabs[index + 1] || state.openTabs[index - 1]) : null;
             state.openTabs.splice(index, 1);
             renderViewTabs();
 
             if (closingActive) {
                 if (fallback) {
-                    switchSet(fallback.setId, fallback.viewId);
+                    if (fallback.specialView) {
+                        switchToSpecialTab(fallback.specialView);
+                    } else {
+                        switchSet(fallback.setId, fallback.viewId);
+                    }
                 } else {
                     state.currentSetId = null;
                     state.currentViewId = null;
+                    state.currentSpecialView = null;
                     renderSidebar();
                     renderCurrentView();
                     updateMobileChrome();
@@ -13220,8 +13224,8 @@
         }
 
         function reorderOpenTabs(dragKey, targetKey, position) {
-            const fromIndex = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId) === dragKey);
-            const targetIndex = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId) === targetKey);
+            const fromIndex = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId, tab.specialView) === dragKey);
+            const targetIndex = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId, tab.specialView) === targetKey);
             if (fromIndex === -1 || targetIndex === -1 || dragKey === targetKey) return;
 
             const [dragged] = state.openTabs.splice(fromIndex, 1);
@@ -13238,7 +13242,7 @@
         }
 
         function handleTabDragStart(event, tab) {
-            const key = getTabKey(tab.setId, tab.viewId);
+            const key = getTabKey(tab.setId, tab.viewId, tab.specialView);
             tabDragState.draggingKey = key;
             tabDragState.dropKey = null;
             tabDragState.dropPosition = null;
@@ -13251,7 +13255,7 @@
             if (!tabDragState.draggingKey) return;
             event.preventDefault();
 
-            const targetKey = getTabKey(targetTab.setId, targetTab.viewId);
+            const targetKey = getTabKey(targetTab.setId, targetTab.viewId, targetTab.specialView);
             if (targetKey === tabDragState.draggingKey) return;
 
             const rect = event.currentTarget.getBoundingClientRect();
@@ -13272,7 +13276,7 @@
         function handleTabDrop(event, targetTab) {
             if (!tabDragState.draggingKey) return;
             event.preventDefault();
-            const targetKey = getTabKey(targetTab.setId, targetTab.viewId);
+            const targetKey = getTabKey(targetTab.setId, targetTab.viewId, targetTab.specialView);
             const position = tabDragState.dropPosition || 'after';
             reorderOpenTabs(tabDragState.draggingKey, targetKey, position);
             finalizeTabDrag();
@@ -13283,11 +13287,16 @@
             const surface = document.getElementById('viewSurface');
             if (!container) return;
 
+            // Validate tabs - keep special views and valid set views
             const validatedTabs = [];
             state.openTabs.forEach(tab => {
-                const set = state.sets.get(tab.setId);
-                const view = set?.views.get(tab.viewId);
-                if (set && view) validatedTabs.push(tab);
+                if (tab.specialView && SPECIAL_VIEW_CONFIG[tab.specialView]) {
+                    validatedTabs.push(tab);
+                } else {
+                    const set = state.sets.get(tab.setId);
+                    const view = set?.views.get(tab.viewId);
+                    if (set && view) validatedTabs.push(tab);
+                }
             });
             state.openTabs = validatedTabs;
 
@@ -13319,64 +13328,101 @@
             container.innerHTML = '';
 
             state.openTabs.forEach((tab, index) => {
-                const set = state.sets.get(tab.setId);
-                const view = set?.views.get(tab.viewId);
-                if (!set || !view) return;
-                const isActive = state.currentSetId === tab.setId && state.currentViewId === tab.viewId;
-                const tabKey = getTabKey(tab.setId, tab.viewId);
-
+                const tabKey = getTabKey(tab.setId, tab.viewId, tab.specialView);
                 const tabEl = document.createElement('div');
-                const isImportView = view.isTemporary && view.importMetadata;
-                tabEl.className = `view-tab ${isActive ? 'active' : ''} ${isImportView ? 'import-view-tab' : ''}`;
-                tabEl.dataset.tabKey = tabKey;
-                tabEl.draggable = true;
-                tabEl.onclick = () => switchSet(tab.setId, tab.viewId);
-                tabEl.oncontextmenu = (e) => { e.preventDefault(); showViewTabContextMenu(e, tab.setId, tab.viewId); };
-                tabEl.ondragstart = (e) => handleTabDragStart(e, tab);
-                tabEl.ondragover = (e) => handleTabDragOver(e, tab);
-                tabEl.ondragleave = () => clearTabDropIndicators();
-                tabEl.ondrop = (e) => handleTabDrop(e, tab);
-                tabEl.ondragend = finalizeTabDrag;
 
-                const iconSpan = document.createElement('span');
-                iconSpan.className = 'view-tab-icon';
-                iconSpan.innerHTML = renderIcon(view.icon || VIEW_TYPE_ICONS[view.type]);
+                // Handle special view tabs
+                if (tab.specialView) {
+                    const config = SPECIAL_VIEW_CONFIG[tab.specialView];
+                    const isActive = state.currentSpecialView === tab.specialView;
 
-                const textWrap = document.createElement('div');
-                textWrap.className = 'view-tab-text';
-                textWrap.innerHTML = `
-                    <span class="view-tab-name">${view.name}</span>
-                    <span class="view-tab-meta">${set.name}</span>
-                `;
+                    tabEl.className = `view-tab special-view-tab ${isActive ? 'active' : ''}`;
+                    tabEl.dataset.tabKey = tabKey;
+                    tabEl.draggable = true;
+                    tabEl.onclick = () => switchToSpecialTab(tab.specialView);
+                    tabEl.oncontextmenu = (e) => { e.preventDefault(); showSpecialTabContextMenu(e, tab.specialView); };
+                    tabEl.ondragstart = (e) => handleTabDragStart(e, tab);
+                    tabEl.ondragover = (e) => handleTabDragOver(e, tab);
+                    tabEl.ondragleave = () => clearTabDropIndicators();
+                    tabEl.ondrop = (e) => handleTabDrop(e, tab);
+                    tabEl.ondragend = finalizeTabDrag;
 
-                const actions = document.createElement('div');
-                actions.className = 'view-tab-actions';
+                    const iconSpan = document.createElement('span');
+                    iconSpan.className = 'view-tab-icon';
+                    iconSpan.innerHTML = `<i class="ph ${config.icon}"></i>`;
 
-                // Add save button for import views
-                if (isImportView) {
-                    const saveBtn = document.createElement('button');
-                    saveBtn.className = 'view-tab-btn view-tab-save-btn';
-                    saveBtn.title = 'Save as permanent view';
-                    saveBtn.innerHTML = '<i class="ph ph-floppy-disk"></i>';
-                    saveBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        // Switch to this tab first, then show the save dialog
-                        switchSet(tab.setId, tab.viewId);
-                        setTimeout(() => showSaveImportAsViewDialog(), 50);
-                    };
-                    actions.appendChild(saveBtn);
+                    const textWrap = document.createElement('div');
+                    textWrap.className = 'view-tab-text';
+                    textWrap.innerHTML = `<span class="view-tab-name">${config.label}</span>`;
+
+                    const actions = document.createElement('div');
+                    actions.className = 'view-tab-actions';
+                    const closeBtn = document.createElement('button');
+                    closeBtn.className = 'view-tab-btn';
+                    closeBtn.innerHTML = '<i class="ph ph-x"></i>';
+                    closeBtn.onclick = (e) => { e.stopPropagation(); closeViewTab(null, null, tab.specialView); };
+                    actions.appendChild(closeBtn);
+
+                    tabEl.appendChild(iconSpan);
+                    tabEl.appendChild(textWrap);
+                    tabEl.appendChild(actions);
+                } else {
+                    // Handle regular set view tabs
+                    const set = state.sets.get(tab.setId);
+                    const view = set?.views.get(tab.viewId);
+                    if (!set || !view) return;
+                    const isActive = state.currentSetId === tab.setId && state.currentViewId === tab.viewId && !state.currentSpecialView;
+                    const isImportView = view.isTemporary && view.importMetadata;
+
+                    tabEl.className = `view-tab ${isActive ? 'active' : ''} ${isImportView ? 'import-view-tab' : ''}`;
+                    tabEl.dataset.tabKey = tabKey;
+                    tabEl.draggable = true;
+                    tabEl.onclick = () => switchSet(tab.setId, tab.viewId);
+                    tabEl.oncontextmenu = (e) => { e.preventDefault(); showViewTabContextMenu(e, tab.setId, tab.viewId); };
+                    tabEl.ondragstart = (e) => handleTabDragStart(e, tab);
+                    tabEl.ondragover = (e) => handleTabDragOver(e, tab);
+                    tabEl.ondragleave = () => clearTabDropIndicators();
+                    tabEl.ondrop = (e) => handleTabDrop(e, tab);
+                    tabEl.ondragend = finalizeTabDrag;
+
+                    const iconSpan = document.createElement('span');
+                    iconSpan.className = 'view-tab-icon';
+                    iconSpan.innerHTML = renderIcon(view.icon || VIEW_TYPE_ICONS[view.type]);
+
+                    const textWrap = document.createElement('div');
+                    textWrap.className = 'view-tab-text';
+                    textWrap.innerHTML = `
+                        <span class="view-tab-name">${view.name}</span>
+                        <span class="view-tab-meta">${set.name}</span>
+                    `;
+
+                    const actions = document.createElement('div');
+                    actions.className = 'view-tab-actions';
+
+                    // Add save button for import views
+                    if (isImportView) {
+                        const saveBtn = document.createElement('button');
+                        saveBtn.className = 'view-tab-btn view-tab-save-btn';
+                        saveBtn.title = 'Save as permanent view';
+                        saveBtn.innerHTML = '<i class="ph ph-floppy-disk"></i>';
+                        saveBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            switchSet(tab.setId, tab.viewId);
+                            setTimeout(() => showSaveImportAsViewDialog(), 50);
+                        };
+                        actions.appendChild(saveBtn);
+                    }
+
+                    const closeBtn = document.createElement('button');
+                    closeBtn.className = 'view-tab-btn';
+                    closeBtn.innerHTML = '<i class="ph ph-x"></i>';
+                    closeBtn.onclick = (e) => { e.stopPropagation(); closeViewTab(tab.setId, tab.viewId); };
+                    actions.appendChild(closeBtn);
+
+                    tabEl.appendChild(iconSpan);
+                    tabEl.appendChild(textWrap);
+                    tabEl.appendChild(actions);
                 }
-
-                const closeBtn = document.createElement('button');
-                closeBtn.className = 'view-tab-btn';
-                closeBtn.innerHTML = '<i class="ph ph-x"></i>';
-                closeBtn.onclick = (e) => { e.stopPropagation(); closeViewTab(tab.setId, tab.viewId); };
-
-                actions.appendChild(closeBtn);
-
-                tabEl.appendChild(iconSpan);
-                tabEl.appendChild(textWrap);
-                tabEl.appendChild(actions);
 
                 container.appendChild(tabEl);
             });
@@ -13415,6 +13461,61 @@
             renderCurrentView();
             updateMobileChrome();
             // syncUrlState(); // Commented out to prevent URL manipulation
+        }
+
+        function switchToSpecialTab(specialView) {
+            if (!SPECIAL_VIEW_CONFIG[specialView]) return;
+            state.currentSpecialView = specialView;
+            state.currentSetId = null;
+            state.currentViewId = null;
+            ensureOpenSpecialTab(specialView);
+            closeMobileSidebar();
+            renderSidebar();
+            renderViewTabs();
+            renderCurrentView();
+            updateMobileChrome();
+        }
+
+        function showSpecialTabContextMenu(event, specialView) {
+            const config = SPECIAL_VIEW_CONFIG[specialView];
+            if (!config) return;
+
+            // Remove any existing context menu
+            document.querySelectorAll('.view-tab-context-menu').forEach(menu => menu.remove());
+
+            const menu = document.createElement('div');
+            menu.className = 'context-menu view-tab-context-menu';
+            menu.innerHTML = `
+                <div class="menu-item" data-action="close">
+                    <span class="icon"><i class="ph ph-x"></i></span> Close Tab
+                </div>
+            `;
+
+            menu.style.position = 'fixed';
+            menu.style.top = `${event.clientY}px`;
+            menu.style.left = `${event.clientX}px`;
+            menu.style.zIndex = '10000';
+
+            document.body.appendChild(menu);
+
+            menu.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const action = item.dataset.action;
+                    menu.remove();
+                    if (action === 'close') {
+                        closeViewTab(null, null, specialView);
+                    }
+                });
+            });
+
+            setTimeout(() => {
+                document.addEventListener('click', function closeMenu(e) {
+                    if (!menu.contains(e.target)) {
+                        menu.remove();
+                        document.removeEventListener('click', closeMenu);
+                    }
+                });
+            }, 0);
         }
 
         function getCurrentSet() { return state.sets.get(state.currentSetId); }
