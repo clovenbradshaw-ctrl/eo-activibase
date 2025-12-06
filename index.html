@@ -20833,13 +20833,25 @@
             }
         }
 
+        // Helper to get nested property values using dot notation (e.g., '_provenance.importId')
+        function getNestedValue(obj, path) {
+            if (!path || !obj) return undefined;
+            const parts = path.split('.');
+            let value = obj;
+            for (const part of parts) {
+                if (value === null || value === undefined) return undefined;
+                value = value[part];
+            }
+            return value;
+        }
+
         function applyFilterGroups(records, filterGroups, schema) {
             return records.filter(record => {
                 return filterGroups.some(group => {
                     const operator = group.operator || 'AND';
                     const rules = group.filter(r => r.field);
-                    if (operator === 'AND') return rules.every(rule => record[rule.field] === rule.value);
-                    else return rules.some(rule => record[rule.field] === rule.value);
+                    if (operator === 'AND') return rules.every(rule => getNestedValue(record, rule.field) === rule.value);
+                    else return rules.some(rule => getNestedValue(record, rule.field) === rule.value);
                 });
             });
         }
