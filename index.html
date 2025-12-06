@@ -2606,6 +2606,13 @@
         .btn-danger { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); box-shadow: none; }
         .btn-danger:hover { background: #fef2f2; border-color: #ef4444; color: #ef4444; }
         .btn-sm { padding: 5px 10px; font-size: 13px; }
+
+        /* Ghost toggle button */
+        #ghostToggleBtn { position: relative; }
+        #ghostToggleBtn.ghost-visible { color: var(--text); }
+        #ghostToggleBtn.ghost-hidden { color: var(--text-secondary); opacity: 0.7; }
+        #ghostToggleBtn.ghost-visible:hover { background: var(--muted-surface); }
+        #ghostToggleBtn.ghost-hidden:hover { background: var(--muted-surface); opacity: 1; }
         
         /* BADGES */
         .badge {
@@ -8085,6 +8092,9 @@
                                 <i class="ph ph-hand-fist"></i>
                                 Toss
                             </button>
+                            <button id="ghostToggleBtn" class="btn btn-secondary btn-sm ${getGhostToggleClass()}" onclick="toggleGhostVisibility()" title="${getGhostToggleTitle()}">
+                                <i class="ph ph-eye${getGhostToggleIcon()}"></i>
+                            </button>
                             <button id="tossPileBtn" class="btn btn-secondary btn-sm toss-pile-toggle" onclick="TossPileUI.togglePanel()" title="View toss pile">
                                 <i class="ph ph-recycle"></i>
                                 ${getTossPileBadgeHtml()}
@@ -8100,6 +8110,44 @@
             const stats = TossPile.getTossPileStats(state, state.currentSetId);
             if (stats.totalEntries === 0) return '';
             return `<span class="toggle-badge">${stats.totalEntries}</span>`;
+        }
+
+        function isGhostVisible() {
+            if (typeof TossPile === 'undefined') return false;
+            const pile = TossPile.init(state);
+            return pile.settings.showGhosts;
+        }
+
+        function getGhostToggleClass() {
+            return isGhostVisible() ? 'ghost-visible' : 'ghost-hidden';
+        }
+
+        function getGhostToggleIcon() {
+            return isGhostVisible() ? '' : '-slash';
+        }
+
+        function getGhostToggleTitle() {
+            return isGhostVisible() ? 'Hide ghost data' : 'Show ghost data';
+        }
+
+        function toggleGhostVisibility() {
+            if (typeof TossPile === 'undefined' || typeof TossPileUI === 'undefined') return;
+            const newState = !isGhostVisible();
+            TossPile.setGhostVisibility(state, newState);
+            renderCurrentView();
+            updateGhostToggleButton();
+        }
+
+        function updateGhostToggleButton() {
+            const btn = document.getElementById('ghostToggleBtn');
+            if (!btn) return;
+            const visible = isGhostVisible();
+            btn.className = `btn btn-secondary btn-sm ${visible ? 'ghost-visible' : 'ghost-hidden'}`;
+            btn.title = visible ? 'Hide ghost data' : 'Show ghost data';
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = `ph ph-eye${visible ? '' : '-slash'}`;
+            }
         }
 
         function finalizeViewStage() {
