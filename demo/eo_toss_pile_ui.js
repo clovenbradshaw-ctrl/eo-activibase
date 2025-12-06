@@ -35,12 +35,12 @@
                     <button class="toss-pile-close" onclick="TossPileUI.closePanel()">×</button>
                 </div>
                 <div class="toss-pile-toolbar">
-                    <label class="ghost-toggle">
-                        <input type="checkbox" ${pile.settings.showGhosts ? 'checked' : ''}
-                               onchange="TossPileUI.toggleGhosts(this.checked)">
-                        <span>Show ghosts</span>
-                    </label>
                     ${stats.totalEntries > 0 ? `
+                        <label class="ghost-toggle">
+                            <input type="checkbox" ${pile.settings.showGhosts ? 'checked' : ''}
+                                   onchange="TossPileUI.toggleGhosts(this.checked)">
+                            <span>Show ghosts</span>
+                        </label>
                         <button class="toss-pile-action-btn" onclick="TossPileUI.pickUpAll()">
                             Pick Up All
                         </button>
