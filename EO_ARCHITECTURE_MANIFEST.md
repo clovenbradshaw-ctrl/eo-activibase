@@ -815,10 +815,59 @@ Operational rhythms added to `eo_event_bus.js` and `eo_app_controller.js`:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Remaining Work (Phase C):**
-- [ ] SEG split `eo_workbench_ui.js` into ui/events/state modules
+### 2025-12-06: Phase C Implementation
+
+**Phase C: Segmentation (COMPLETED)**
+
+| Action | Status | Description |
+|--------|--------|-------------|
+| SEG workbench_ui | COMPLETED | Split into 3 focused modules + facade |
+
+**Files Created:**
+- `eo_workbench_ui_core.js` - Pure rendering functions (escapeHtml, renderViewManager, renderViewToolbar, renderEnhancedSearchModal, etc.)
+- `eo_workbench_ui_dialogs.js` - Modal dialog components (showViewMenu, showCreateViewDialog, showDedupeDialog, showMergeRecordsDialog, showHarmonizeFieldsDialog, etc.)
+- `eo_workbench_ui_events.js` - Event handlers (attachViewToolbarListeners, showAvailableFieldsExplorer, showJSONScrubber, handleSearchInput, etc.)
+
+**Files Modified:**
+- `eo_workbench_ui.js` - Converted to facade module that re-exports from sub-modules for backward compatibility
+
+**SEG Architecture:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    WORKBENCH UI (SEG Split)                     │
+│                                                                 │
+│  ┌───────────────────┐  ┌───────────────────┐  ┌─────────────┐ │
+│  │ workbench_ui_core │  │workbench_ui_dialogs│  │ _ui_events │ │
+│  │                   │  │                    │  │            │ │
+│  │ • escapeHtml      │  │ • showViewMenu     │  │ • attach*  │ │
+│  │ • showToast       │  │ • showCreateView   │  │ • handle*  │ │
+│  │ • renderView*     │  │ • showDedupe       │  │ • show*    │ │
+│  │ • renderToolbar   │  │ • showMerge        │  │            │ │
+│  │ • renderSearch    │  │ • showHarmonize    │  │            │ │
+│  └───────────────────┘  └───────────────────┘  └─────────────┘ │
+│                           ↓                                     │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │              eo_workbench_ui.js (FACADE)                │   │
+│  │         Re-exports all functions for compatibility      │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Script Loading Order:**
+```html
+<!-- Load sub-modules first -->
+<script src="eo_workbench_ui_core.js"></script>
+<script src="eo_workbench_ui_dialogs.js"></script>
+<script src="eo_workbench_ui_events.js"></script>
+<!-- Then load facade -->
+<script src="eo_workbench_ui.js"></script>
+```
+
+**Remaining Work:**
 - [ ] Wire existing modules to use new EOState and EOEventBus
 - [ ] Add integration tests for new foundation layer
+- [ ] Update index.html script loading order
 
 ---
 
