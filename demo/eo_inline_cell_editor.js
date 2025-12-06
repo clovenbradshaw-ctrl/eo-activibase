@@ -320,6 +320,56 @@ class EOInlineCellEditor {
   }
 
   /**
+   * Normalize a date value to ISO format (YYYY-MM-DD) for native date inputs.
+   * Handles various common date formats and returns empty string for invalid dates.
+   */
+  normalizeDateToISO(value) {
+    if (!value) return '';
+
+    // Already in ISO format (YYYY-MM-DD)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return value;
+    }
+
+    // Try parsing with Date object
+    const date = new Date(value);
+    if (!isNaN(date.getTime())) {
+      // Return in YYYY-MM-DD format
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    // Try common date formats
+    // MM/DD/YYYY or M/D/YYYY
+    let match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (match) {
+      const [, month, day, year] = match;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+
+    // DD/MM/YYYY (European format - try if month > 12)
+    match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (match) {
+      const [, first, second, year] = match;
+      if (parseInt(first) > 12) {
+        return `${year}-${second.padStart(2, '0')}-${first.padStart(2, '0')}`;
+      }
+    }
+
+    // YYYY/MM/DD
+    match = value.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+    if (match) {
+      const [, year, month, day] = match;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+
+    // Return empty if we can't parse
+    return '';
+  }
+
+  /**
    * Create appropriate input element based on field type
    */
   createInputElement(fieldType, currentValue) {
@@ -336,7 +386,8 @@ class EOInlineCellEditor {
       case 'date':
         input = document.createElement('input');
         input.type = 'date';
-        input.value = currentValue;
+        // Normalize date to ISO format for the native date input
+        input.value = this.normalizeDateToISO(currentValue);
         break;
 
       case 'checkbox':
