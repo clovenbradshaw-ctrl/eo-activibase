@@ -6586,6 +6586,22 @@
                 defaultValue: '',
                 icon: 'ph-function',
                 needsConfig: true
+            },
+            LINKED_LOOKUP: {
+                id: 'LINKED_LOOKUP',
+                name: 'Linked Lookup',
+                description: 'Values pulled from linked records',
+                defaultValue: '',
+                icon: 'ph-magnifying-glass',
+                isDerived: true
+            },
+            LINKED_ROLLUP: {
+                id: 'LINKED_ROLLUP',
+                name: 'Linked Rollup',
+                description: 'Aggregated values from linked records',
+                defaultValue: '',
+                icon: 'ph-chart-line-up',
+                isDerived: true
             }
         };
 
@@ -22234,6 +22250,9 @@
 
             dropdown.innerHTML = '';
             Object.values(FIELD_TYPES).forEach(optionType => {
+                // Skip derived types (not user-selectable)
+                if (optionType.isDerived) return;
+
                 const option = document.createElement('div');
                 option.className = `field-type-option ${optionType.id === selectedType ? 'selected' : ''}`;
                 option.dataset.typeId = optionType.id;
