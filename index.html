@@ -9556,7 +9556,12 @@
                 .filter(id => id !== '__recordId' || view?.showRecordId)
                 .map(id => id === '__recordId' ? getRecordIdFieldDefinition() : schema.find(f => f.id === id))
                 .filter(Boolean)
-                .filter(field => !visibilitySet.has(field.id));
+                .filter(field => !visibilitySet.has(field.id))
+                .map(field => ({
+                    ...field,
+                    // Use view-specific display name if available, otherwise fall back to field name
+                    name: view?.columnDisplayNames?.[field.id] || field.name
+                }));
 
             // Add linked fields (lookups and rollups) from view
             const linkedFields = [];
@@ -9567,7 +9572,7 @@
                     if (rel.type === 'lookup') {
                         linkedFields.push({
                             id: rel.id,
-                            name: rel.displayName || `Linked: ${rel.targetFieldId}`,
+                            name: view?.columnDisplayNames?.[rel.id] || rel.displayName || `Linked: ${rel.targetFieldId}`,
                             type: 'LINKED_LOOKUP',
                             _linkedConfig: rel,
                             width: '150px'
@@ -9581,7 +9586,7 @@
                 view.rollups.forEach(rollup => {
                     linkedFields.push({
                         id: rollup.id,
-                        name: rollup.displayName || `Rollup: ${rollup.targetFieldId}`,
+                        name: view?.columnDisplayNames?.[rollup.id] || rollup.displayName || `Rollup: ${rollup.targetFieldId}`,
                         type: 'LINKED_ROLLUP',
                         _linkedConfig: rollup,
                         width: '150px'
@@ -9618,6 +9623,7 @@
                 showRowNumbers: config.showRowNumbers !== undefined ? config.showRowNumbers : true,
                 identifierField: defaultIdentifier,
                 columnRules: config.columnRules || {},
+                columnDisplayNames: config.columnDisplayNames || {},
                 columnOrder: config.columnOrder || null,
                 createdAt: Date.now(),
                 createdBy: state.currentUser.id,
@@ -23732,8 +23738,12 @@
             const currentView = getCurrentView();
             const isIdentifier = currentView?.identifierField === field.id;
             const isRecordIdField = field.id === '__recordId';
+            const hasCustomDisplayName = currentView?.columnDisplayNames?.[field.id];
 
             showContextMenu(e, [
+                { label: 'Edit Display Name…', action: () => editColumnDisplayName(field) },
+                hasCustomDisplayName ? { label: 'Reset Display Name', action: () => resetColumnDisplayName(field.id) } : null,
+                { label: 'separator' },
                 { label: 'Create View from Column', action: () => createViewFromColumn(field) },
                 // Don't allow setting Record ID as the identifier field - it's static
                 !isRecordIdField ? { label: isIdentifier ? 'Clear Identifier' : 'Use as Identifier', action: () => setIdentifierField(isIdentifier ? null : field.id) } : null,
@@ -23742,6 +23752,112 @@
                 { label: 'Hide Field', action: () => hideField(field.id) },
                 { label: 'Delete Field', action: () => confirmDelete('field', field.id), danger: true }
             ].filter(Boolean));
+        }
+
+        function editColumnDisplayName(field) {
+            const view = getCurrentView();
+            const set = getCurrentSet();
+            if (!view || !set) return;
+
+            // Get the column header element
+            const th = document.querySelector(`th.column-header[data-field-id="${field.id}"]`);
+            if (!th) return;
+
+            const columnTitle = th.querySelector('.column-title');
+            if (!columnTitle) return;
+
+            // Get current display name (could be custom or original field name)
+            const currentDisplayName = view.columnDisplayNames?.[field.id] || field.name;
+
+            // Store original HTML for restoration
+            const originalHTML = columnTitle.innerHTML;
+
+            // Create inline input
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentDisplayName;
+            input.className = 'column-display-name-input';
+            input.style.cssText = 'width: 100%; font-size: inherit; font-weight: inherit; padding: 2px 4px; border: 1px solid var(--accent); border-radius: 3px; background: var(--bg); color: var(--fg);';
+
+            // Replace content with input
+            columnTitle.innerHTML = '';
+            columnTitle.appendChild(input);
+            input.focus();
+            input.select();
+
+            const saveDisplayName = () => {
+                const newName = input.value.trim();
+                if (newName && newName !== currentDisplayName) {
+                    // Initialize columnDisplayNames if it doesn't exist
+                    if (!view.columnDisplayNames) {
+                        view.columnDisplayNames = {};
+                    }
+
+                    // Get the original field name for comparison
+                    const originalFieldName = set.schema?.find(f => f.id === field.id)?.name || field.name;
+
+                    // If new name equals original field name, remove the custom display name
+                    if (newName === originalFieldName) {
+                        delete view.columnDisplayNames[field.id];
+                    } else {
+                        view.columnDisplayNames[field.id] = newName;
+                    }
+
+                    createEvent(
+                        'Update Column Display Name',
+                        'UPD',
+                        { type: 'View', id: view.id, setId: set.id },
+                        { fieldId: field.id, oldName: currentDisplayName, newName, summary: `Changed column display name from "${currentDisplayName}" to "${newName}"` },
+                        { scale: 'collection' }
+                    );
+
+                    renderCurrentView();
+                    showToast(`Column renamed to "${newName}"`);
+                } else {
+                    // Restore original HTML if no change
+                    columnTitle.innerHTML = originalHTML;
+                }
+            };
+
+            const cancelEdit = () => {
+                columnTitle.innerHTML = originalHTML;
+            };
+
+            input.addEventListener('blur', saveDisplayName);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveDisplayName();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelEdit();
+                }
+            });
+        }
+
+        function resetColumnDisplayName(fieldId) {
+            const view = getCurrentView();
+            const set = getCurrentSet();
+            if (!view || !set) return;
+
+            if (view.columnDisplayNames?.[fieldId]) {
+                const oldName = view.columnDisplayNames[fieldId];
+                delete view.columnDisplayNames[fieldId];
+
+                // Get the original field name
+                const originalName = set.schema?.find(f => f.id === fieldId)?.name || fieldId;
+
+                createEvent(
+                    'Reset Column Display Name',
+                    'UPD',
+                    { type: 'View', id: view.id, setId: set.id },
+                    { fieldId, oldName, newName: originalName, summary: `Reset column display name to "${originalName}"` },
+                    { scale: 'collection' }
+                );
+
+                renderCurrentView();
+                showToast(`Column name reset to "${originalName}"`);
+            }
         }
 
         function setIdentifierField(fieldId) {
@@ -23800,10 +23916,26 @@
             menu.className = 'context-menu';
             menu.style.top = `${e.clientY}px`;
             menu.style.left = `${e.clientX}px`;
-            menu.innerHTML = items.map(item => `<div class="context-menu-item ${item.danger ? 'danger' : ''}">${item.label}</div>`).join('');
-            menu.querySelectorAll('.context-menu-item').forEach((el, i) => {
-                el.onclick = () => { items[i].action(); menu.remove(); };
+
+            // Filter out null/separator items for action binding, but render separators
+            const actionItems = items.filter(item => item && item.label !== 'separator');
+
+            menu.innerHTML = items.map(item => {
+                if (!item || item.label === 'separator') {
+                    return '<div class="context-menu-separator"></div>';
+                }
+                return `<div class="context-menu-item ${item.danger ? 'danger' : ''}">${item.label}</div>`;
+            }).join('');
+
+            // Bind click handlers only to actual menu items
+            let actionIndex = 0;
+            menu.querySelectorAll('.context-menu-item').forEach((el) => {
+                const item = actionItems[actionIndex++];
+                if (item && item.action) {
+                    el.onclick = () => { item.action(); menu.remove(); };
+                }
             });
+
             document.body.appendChild(menu);
             setTimeout(() => {
                 document.addEventListener('click', function close() { menu.remove(); document.removeEventListener('click', close); });
@@ -23843,7 +23975,7 @@
                 }
             }, danger: true });
 
-            showContextMenu(e, items.filter(i => i.label !== 'separator'));
+            showContextMenu(e, items);
         }
 
         function duplicateSet(setId) {
