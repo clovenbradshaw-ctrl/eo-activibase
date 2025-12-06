@@ -8280,9 +8280,6 @@
             const addFieldBtn = document.getElementById('addFieldBtn');
             if (addFieldBtn) addFieldBtn.onclick = openAddFieldModal;
 
-            const addLinkedFieldsBtn = document.getElementById('addLinkedFieldsBtn');
-            if (addLinkedFieldsBtn) addLinkedFieldsBtn.onclick = openLinkedFieldsModal;
-
             const filterBtn = document.getElementById('filterBtn');
             if (filterBtn) filterBtn.onclick = openFilterModal;
 
@@ -8432,10 +8429,6 @@
                         <div class="toolbar-group">
                             <button id="addRecordBtn" class="btn btn-primary btn-sm" onclick="handleAddRecord()">+ Add Record</button>
                             <button id="addFieldBtn" class="btn btn-secondary btn-sm">+ Add Field</button>
-                            <button id="addLinkedFieldsBtn" class="btn btn-secondary btn-sm">
-                                <i class="ph ph-link-simple-horizontal"></i>
-                                Add Linked Fields
-                            </button>
                             <button class="btn btn-secondary btn-sm" onclick="openFieldManager()">
                                 <i class="ph ph-gear-six text-sm"></i>
                                 <span class="ml-1">Fields</span>
@@ -21803,27 +21796,6 @@
 
           openModal('addFieldModal');
       }
-
-        function openLinkedFieldsModal() {
-            const view = getCurrentView();
-            const set = getCurrentSet();
-
-            if (!view || !set) {
-                showToast('⚠️ No active view or set');
-                return;
-            }
-
-            // Check if EOLinkedFieldsModal is loaded
-            if (!window.EOLinkedFieldsModal) {
-                showToast('⚠️ Linked Fields Modal not loaded');
-                console.error('EOLinkedFieldsModal class not found. Check if demo/eo_linked_fields_modal.js is loaded.');
-                return;
-            }
-
-            // Create and show modal
-            const modal = new window.EOLinkedFieldsModal();
-            modal.show(view, set, state);
-        }
 
         function renderFieldTypeGrid(selectedType) {
             const trigger = document.getElementById('fieldTypeTrigger');
