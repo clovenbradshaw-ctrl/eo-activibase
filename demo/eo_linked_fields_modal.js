@@ -65,8 +65,15 @@ class EOLinkedFieldsModal {
                 // Check if already added
                 if (linkedSets.find(ls => ls.setId === targetSetId)) return;
 
-                // Determine cardinality by analyzing actual data
-                const cardinality = this.detectCardinality(currentSetId, field.id, targetSetId);
+                // Use configured cardinality, or detect from data as fallback
+                let cardinality = field.config?.cardinality || null;
+                if (cardinality === 'limit') {
+                    const limit = field.config?.limit || 1;
+                    cardinality = limit > 1 ? 'many' : 'one';
+                }
+                if (!cardinality) {
+                    cardinality = this.detectCardinality(currentSetId, field.id, targetSetId);
+                }
 
                 linkedSets.push({
                     setId: targetSetId,
@@ -74,6 +81,8 @@ class EOLinkedFieldsModal {
                     fieldId: field.id,
                     fieldName: field.name,
                     cardinality: cardinality, // 'one' or 'many'
+                    configuredCardinality: field.config?.cardinality || null,
+                    configuredLimit: field.config?.limit || null,
                     recordCount: this.getLinkedRecordCount(currentSetId, field.id)
                 });
             }

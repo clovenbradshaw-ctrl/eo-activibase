@@ -230,6 +230,17 @@ class EOAvailableFieldsExplorer {
      * Detect cardinality of a link field
      */
     detectCardinality(linkField) {
+        // Use configured cardinality if available
+        if (linkField.config?.cardinality) {
+            const cardinality = linkField.config.cardinality;
+            if (cardinality === 'limit') {
+                const limit = linkField.config?.limit || 1;
+                return limit > 1 ? 'many' : 'one';
+            }
+            return cardinality;
+        }
+
+        // Fallback: detect from data
         const records = Array.from(this.currentSet.records?.values() || []);
         for (const record of records) {
             const value = record[linkField.id];
