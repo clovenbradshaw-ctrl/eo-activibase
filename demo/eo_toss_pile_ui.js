@@ -246,7 +246,7 @@
             // Checkbox cell
             const selectTd = document.createElement('td');
             selectTd.className = 'row-select-cell ghost-cell';
-            selectTd.innerHTML = '<span class="ghost-indicator">👻</span>';
+            selectTd.innerHTML = '<span class="ghost-indicator">◌</span>';
             tr.appendChild(selectTd);
 
             // Row number cell
