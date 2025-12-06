@@ -7332,11 +7332,11 @@
             const view = getCurrentView();
             const isImportView = view && view.isTemporary && view.importMetadata;
 
-            // Add reify button for import views
-            const reifyButton = isImportView ? `
-                <button id="reifyRecordsBtn" class="btn btn-success btn-sm" style="background: #10b981; border-color: #10b981;">
-                    <i class="ph ph-check-circle"></i>
-                    Make Permanent
+            // Add save/reify buttons for import views
+            const saveViewButton = isImportView ? `
+                <button id="saveImportViewBtn" class="btn btn-success btn-sm" style="background: #10b981; border-color: #10b981;" onclick="showSaveImportAsViewDialog()">
+                    <i class="ph ph-floppy-disk"></i>
+                    Save as View
                 </button>
             ` : '';
 
@@ -7349,10 +7349,14 @@
                                 <div>
                                     <div style="font-weight: 600; color: #d1fae5;">Temporary Import</div>
                                     <div style="font-size: 0.875rem; color: #a7f3d0;">
-                                        This is a temporary import view. Make it permanent to keep it organized.
+                                        This is a temporary import view. Click "Save as View" to keep it organized.
                                     </div>
                                 </div>
                             </div>
+                            <button class="btn btn-sm" style="background: #10b981; color: #064e3b; border: none; font-weight: 600;" onclick="showSaveImportAsViewDialog()">
+                                <i class="ph ph-floppy-disk"></i>
+                                Save as View
+                            </button>
                         </div>
                     ` : ''}
                     <div class="toolbar-row">
@@ -7364,7 +7368,7 @@
                                 </div>
                             </div>
                             <div class="view-stage-inline-actions">
-                                ${reifyButton}
+                                ${saveViewButton}
                                 <button id="filterBtn" class="btn btn-secondary btn-sm">
                                     <i class="ph ph-funnel-simple"></i>
                                     Filter
@@ -25647,7 +25651,7 @@
 
                 return `
                     <div class="nav-item" style="display: flex; align-items: center; gap: 8px; padding: 6px 8px;"
-                         onclick="showImportPreviewModal(state.importManager.getImport('${imp.id}'))"
+                         onclick="openImportAsTab('${imp.id}')"
                          draggable="true"
                          ondragstart="handleImportDragStart(event, '${imp.id}')"
                          ondragend="handleImportDragEnd(event)">
@@ -25697,6 +25701,212 @@
          */
         function handleImportDragEnd(e) {
             e.target.style.opacity = '1';
+        }
+
+        /**
+         * Open import as a tab (instead of modal)
+         * Creates a temporary staging set if needed
+         */
+        function openImportAsTab(importId) {
+            const imp = state.importManager?.getImport(importId);
+            if (!imp) {
+                showToast('⚠️ Import not found');
+                return;
+            }
+
+            // Check if there's already a view for this import
+            let existingView = null;
+            if (state.views) {
+                state.views.forEach((view) => {
+                    if (view.importMetadata?.importId === importId) {
+                        existingView = view;
+                    }
+                });
+            }
+
+            if (existingView) {
+                // Switch to existing view
+                switchSet(existingView.setId, existingView.id);
+                return;
+            }
+
+            // Create a new staging set + view for this import
+            if (!state.importIntegration) {
+                showToast('⚠️ Import system not initialized');
+                return;
+            }
+
+            // Use the import filename as the set name
+            const setName = imp.fileMetadata?.filenameAnalysis?.baseName || imp.name.replace(/\.[^/.]+$/, '');
+
+            // Add import to a new set (this creates the set, records, and view)
+            const result = state.importIntegration.addImportToSet(importId, null, setName);
+
+            if (result.success) {
+                renderSidebar();
+                // The switchSet is already called by addImportToSet
+            } else {
+                showToast(`⚠️ Failed to open import: ${result.error}`);
+            }
+        }
+
+        /**
+         * Show save import as view dialog
+         * Allows user to save a temporary import view permanently
+         */
+        function showSaveImportAsViewDialog() {
+            const view = getCurrentView();
+            const set = getCurrentSet();
+
+            if (!view || !view.isTemporary || !view.importMetadata) {
+                showToast('⚠️ This view is not a temporary import');
+                return;
+            }
+
+            const allSets = Array.from(state.sets.values()).filter(s => s.id !== set.id);
+            const suggestedName = view.name.replace('Import: ', '');
+
+            const dialog = document.createElement('div');
+            dialog.className = 'modal-overlay';
+            dialog.id = 'saveImportViewDialog';
+            dialog.style.display = 'flex';
+
+            dialog.innerHTML = `
+                <div class="modal" style="width: 450px;">
+                    <div class="modal-header">
+                        <div class="modal-title-group">
+                            <div class="modal-icon" style="background: #10b981;">
+                                <i class="ph ph-floppy-disk"></i>
+                            </div>
+                            <h2>Save as View</h2>
+                        </div>
+                        <button class="modal-close" onclick="closeModal('saveImportViewDialog')">
+                            <i class="ph ph-x"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                            Save this import as a permanent view to keep it organized in your workspace.
+                        </p>
+
+                        <div class="form-group">
+                            <label>View Name</label>
+                            <input type="text" id="saveImportViewName" class="input" value="${escapeHtml(suggestedName)}" placeholder="Enter view name">
+                        </div>
+
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label>Location</label>
+                            <div style="margin-top: 0.5rem;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 0.5rem;">
+                                    <input type="radio" name="saveLocation" value="current" checked>
+                                    <span>Keep in current set (<strong>${escapeHtml(set.name)}</strong>)</span>
+                                </label>
+                                ${allSets.length > 0 ? `
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="radio" name="saveLocation" value="move">
+                                        <span>Move to different set:</span>
+                                    </label>
+                                    <select id="moveToSetId" class="input" style="margin-left: 24px; margin-top: 0.5rem; width: calc(100% - 24px);" disabled>
+                                        ${allSets.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                    </select>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeModal('saveImportViewDialog')">Cancel</button>
+                        <button class="btn btn-primary" onclick="executeSaveImportAsView()">
+                            <i class="ph ph-floppy-disk"></i>
+                            Save View
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(dialog);
+
+            // Handle radio button changes
+            dialog.querySelectorAll('input[name="saveLocation"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    const moveSelect = dialog.querySelector('#moveToSetId');
+                    if (moveSelect) {
+                        moveSelect.disabled = radio.value !== 'move';
+                    }
+                });
+            });
+
+            // Focus the name input
+            setTimeout(() => {
+                dialog.querySelector('#saveImportViewName')?.focus();
+            }, 100);
+        }
+
+        /**
+         * Execute saving import as permanent view
+         */
+        function executeSaveImportAsView() {
+            const view = getCurrentView();
+            const set = getCurrentSet();
+
+            if (!view || !view.isTemporary) return;
+
+            const viewName = document.getElementById('saveImportViewName')?.value.trim() || view.name.replace('Import: ', '');
+            const saveLocation = document.querySelector('input[name="saveLocation"]:checked')?.value || 'current';
+            const moveToSetId = document.getElementById('moveToSetId')?.value;
+
+            // Update view properties
+            view.name = viewName;
+            view.isTemporary = false;
+            const importMetadata = view.importMetadata;
+            delete view.importMetadata;
+
+            // If moving to a different set, we need to move the records too
+            if (saveLocation === 'move' && moveToSetId && moveToSetId !== set.id) {
+                const targetSet = state.sets.get(moveToSetId);
+                if (targetSet) {
+                    // Move records that came from this import
+                    const recordsToMove = [];
+                    set.records.forEach((record, recordId) => {
+                        if (record._provenance?.importId === importMetadata?.importId) {
+                            recordsToMove.push({ id: recordId, record });
+                        }
+                    });
+
+                    // Add records to target set
+                    recordsToMove.forEach(({ id, record }) => {
+                        targetSet.records.set(id, record);
+                        set.records.delete(id);
+                    });
+
+                    // Move view to target set
+                    set.views.delete(view.id);
+                    view.setId = targetSet.id;
+                    targetSet.views.set(view.id, { id: view.id });
+
+                    // Update visible fields for new set
+                    view.visibleFields = targetSet.schema.map(f => f.id);
+
+                    showToast(`✓ Moved ${recordsToMove.length} records to ${targetSet.name}`);
+                }
+            }
+
+            // Log the event
+            createEvent(
+                'Import Saved as View',
+                'UPD',
+                { type: 'View', id: view.id },
+                {
+                    setId: view.setId,
+                    viewName: view.name,
+                    wasMoved: saveLocation === 'move'
+                }
+            );
+
+            closeModal('saveImportViewDialog');
+            showToast(`✓ Saved view "${viewName}"`);
+            renderSidebar();
+            renderViewTabs();
+            renderCurrentView();
         }
 
         /**
@@ -26047,7 +26257,7 @@
 
                     return `
                         <tr style="border-bottom: 1px solid #1e293b; cursor: pointer;"
-                            onclick="document.getElementById('importsTableModal').remove(); showImportPreviewModal(state.importManager.getImport('${imp.id}'))"
+                            onclick="document.getElementById('importsTableModal').remove(); openImportAsTab('${imp.id}')"
                             onmouseover="this.style.background='#1e293b'"
                             onmouseout="this.style.background='transparent'">
                             <td style="padding: 12px;">
@@ -26121,6 +26331,9 @@
         window.handleImportDragStart = handleImportDragStart;
         window.handleImportDragEnd = handleImportDragEnd;
         window.openImportsTableView = openImportsTableView;
+        window.openImportAsTab = openImportAsTab;
+        window.showSaveImportAsViewDialog = showSaveImportAsViewDialog;
+        window.executeSaveImportAsView = executeSaveImportAsView;
 
         // INITIALIZE
         document.addEventListener('DOMContentLoaded', async () => {
