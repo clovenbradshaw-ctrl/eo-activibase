@@ -282,6 +282,356 @@
             min-width: auto;
         }
 
+        /* Global Search Bar - Browser URL Bar Style */
+        .global-search-container {
+            flex: 1;
+            max-width: 600px;
+            min-width: 280px;
+            position: relative;
+        }
+
+        .global-search-bar {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            height: 42px;
+            padding: 0 14px;
+            background: var(--muted-surface);
+            border: 1.5px solid var(--border);
+            border-radius: 21px;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .global-search-bar:hover {
+            border-color: #cbd5e1;
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .global-search-bar:focus-within {
+            border-color: #3b82f6;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .global-search-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            font-size: 18px;
+            margin-right: 10px;
+            transition: color 0.2s ease;
+        }
+
+        .global-search-bar:focus-within .global-search-icon {
+            color: #3b82f6;
+        }
+
+        .global-search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            color: var(--text);
+            outline: none;
+            font-family: inherit;
+        }
+
+        .global-search-input::placeholder {
+            color: #9ca3af;
+        }
+
+        .global-search-shortcut {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            padding: 3px 6px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #6b7280;
+            margin-left: 8px;
+        }
+
+        .global-search-clear {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            border: none;
+            cursor: pointer;
+            color: #6b7280;
+            font-size: 12px;
+            margin-left: 8px;
+            transition: all 0.15s ease;
+        }
+
+        .global-search-clear:hover {
+            background: #d1d5db;
+            color: #374151;
+        }
+
+        .global-search-bar.has-value .global-search-clear {
+            display: flex;
+        }
+
+        .global-search-bar.has-value .global-search-shortcut {
+            display: none;
+        }
+
+        /* Search Results Dropdown */
+        .global-search-results {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+            max-height: 480px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .global-search-results.active {
+            display: block;
+        }
+
+        .global-search-results-header {
+            padding: 12px 16px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #9ca3af;
+            border-bottom: 1px solid var(--border);
+            background: #f9fafb;
+            position: sticky;
+            top: 0;
+        }
+
+        .global-search-section {
+            padding: 8px 0;
+        }
+
+        .global-search-section-title {
+            padding: 8px 16px 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #9ca3af;
+        }
+
+        .global-search-result-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: background 0.1s ease;
+        }
+
+        .global-search-result-item:hover,
+        .global-search-result-item.focused {
+            background: #f1f5f9;
+        }
+
+        .global-search-result-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: #e0e7ff;
+            color: #4f46e5;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .global-search-result-icon.set { background: #dbeafe; color: #2563eb; }
+        .global-search-result-icon.view { background: #fae8ff; color: #a855f7; }
+        .global-search-result-icon.record { background: #d1fae5; color: #059669; }
+        .global-search-result-icon.field { background: #fef3c7; color: #d97706; }
+
+        .global-search-result-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .global-search-result-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .global-search-result-title mark {
+            background: #fef08a;
+            color: inherit;
+            border-radius: 2px;
+            padding: 0 1px;
+        }
+
+        .global-search-result-meta {
+            font-size: 12px;
+            color: #9ca3af;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .global-search-result-badge {
+            padding: 3px 8px;
+            background: #f3f4f6;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #6b7280;
+            flex-shrink: 0;
+        }
+
+        .global-search-empty {
+            padding: 32px 16px;
+            text-align: center;
+            color: #9ca3af;
+        }
+
+        .global-search-empty-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .global-search-empty-text {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .global-search-empty-hint {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .global-search-loading {
+            padding: 24px 16px;
+            text-align: center;
+            color: #9ca3af;
+        }
+
+        .global-search-loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e5e7eb;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Global Search Responsive Styles */
+        @media (max-width: 900px) {
+            .global-search-container {
+                max-width: 400px;
+                min-width: 200px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .global-search-container {
+                max-width: 300px;
+                min-width: 160px;
+            }
+            .global-search-bar {
+                height: 38px;
+                padding: 0 12px;
+            }
+            .global-search-input {
+                font-size: 13px;
+            }
+            .global-search-shortcut {
+                display: none;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .global-search-container {
+                flex: 0 1 auto;
+                max-width: none;
+                min-width: auto;
+            }
+            .global-search-bar {
+                width: 44px;
+                border-radius: 50%;
+                padding: 0;
+                justify-content: center;
+            }
+            .global-search-bar .global-search-input,
+            .global-search-bar .global-search-clear,
+            .global-search-bar .global-search-shortcut {
+                display: none;
+            }
+            .global-search-bar .global-search-icon {
+                margin-right: 0;
+            }
+            .global-search-bar:focus-within {
+                width: 100%;
+                border-radius: 21px;
+                padding: 0 12px;
+                position: absolute;
+                left: 0;
+                right: 0;
+                z-index: 100;
+            }
+            .global-search-bar:focus-within .global-search-input {
+                display: block;
+            }
+            .global-search-bar:focus-within .global-search-icon {
+                margin-right: 10px;
+            }
+            .global-search-bar:focus-within .global-search-clear {
+                display: flex;
+            }
+        }
+
+        /* Mobile search bar in topbar */
+        .mobile-search-container {
+            flex: 1;
+            max-width: 100%;
+            position: relative;
+            margin: 0 8px;
+        }
+
+        .mobile-search-container .global-search-bar {
+            width: 100%;
+            height: 40px;
+        }
+
+        .mobile-search-container .global-search-results {
+            position: fixed;
+            top: 60px;
+            left: 8px;
+            right: 8px;
+            max-height: calc(100vh - 140px);
+        }
+
         .view-toolbar-note {
             padding: 10px 18px;
             color: var(--text-secondary);
@@ -3194,7 +3544,26 @@
         <button class="mobile-icon-btn" onclick="toggleSidebar()" aria-label="Toggle navigation">
             <i class="ph ph-list"></i>
         </button>
-        <div class="mobile-topbar-title" id="mobileTopbarTitle">EO</div>
+        <!-- Mobile Search Bar -->
+        <div class="mobile-search-container" id="mobileSearchContainer">
+            <div class="global-search-bar" id="mobileSearchBar">
+                <span class="global-search-icon">
+                    <i class="ph ph-magnifying-glass"></i>
+                </span>
+                <input
+                    type="text"
+                    class="global-search-input"
+                    id="mobileSearchInput"
+                    placeholder="Search..."
+                    autocomplete="off"
+                    spellcheck="false"
+                />
+                <button class="global-search-clear" id="mobileSearchClear" title="Clear search">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div class="global-search-results" id="mobileSearchResults"></div>
+        </div>
         <button class="mobile-icon-btn" onclick="triggerPrimaryAction()" aria-label="Add record">
             <i class="ph ph-plus"></i>
         </button>
@@ -3315,6 +3684,31 @@
                         <span id="currentWorldHeaderLabel">Loading world...</span>
                     </div>
                 </div>
+
+                <!-- Global Search Bar -->
+                <div class="global-search-container" id="globalSearchContainer">
+                    <div class="global-search-bar" id="globalSearchBar">
+                        <span class="global-search-icon">
+                            <i class="ph ph-magnifying-glass"></i>
+                        </span>
+                        <input
+                            type="text"
+                            class="global-search-input"
+                            id="globalSearchInput"
+                            placeholder="Search everything in this world..."
+                            autocomplete="off"
+                            spellcheck="false"
+                        />
+                        <button class="global-search-clear" id="globalSearchClear" title="Clear search">
+                            <i class="ph ph-x"></i>
+                        </button>
+                        <span class="global-search-shortcut" id="globalSearchShortcut">
+                            <span>/</span>
+                        </span>
+                    </div>
+                    <div class="global-search-results" id="globalSearchResults"></div>
+                </div>
+
                 <div class="world-toolbar-actions">
                     <input type="file" id="worldJsonInput" accept="application/json" style="display:none" />
                     <button id="headerImportBtn" class="btn btn-primary btn-sm" onclick="triggerFileImport()" title="Import file (CSV, JSON, Excel)">
@@ -6908,6 +7302,7 @@
             setupEventListeners();
             setupKeyboardShortcuts();
             applyResponsiveLayout();
+            GlobalSearch.init();
             window.addEventListener('resize', applyResponsiveLayout);
             // syncUrlState(); // Commented out to prevent URL manipulation
         }
@@ -26504,6 +26899,621 @@
         window.openImportAsTab = openImportAsTab;
         window.showSaveImportAsViewDialog = showSaveImportAsViewDialog;
         window.executeSaveImportAsView = executeSaveImportAsView;
+
+        // ============================================================================
+        // GLOBAL SEARCH BAR
+        // ============================================================================
+
+        const GlobalSearch = {
+            searchTimeout: null,
+            focusedIndex: -1,
+            results: [],
+            isOpen: false,
+
+            init() {
+                // Desktop search elements
+                const input = document.getElementById('globalSearchInput');
+                const clearBtn = document.getElementById('globalSearchClear');
+                const searchBar = document.getElementById('globalSearchBar');
+                const resultsContainer = document.getElementById('globalSearchResults');
+
+                // Mobile search elements
+                const mobileInput = document.getElementById('mobileSearchInput');
+                const mobileClearBtn = document.getElementById('mobileSearchClear');
+                const mobileSearchBar = document.getElementById('mobileSearchBar');
+                const mobileResultsContainer = document.getElementById('mobileSearchResults');
+
+                // Setup desktop search
+                if (input) {
+                    input.addEventListener('input', (e) => this.handleInput(e, 'desktop'));
+                    input.addEventListener('focus', () => this.handleFocus('desktop'));
+                    input.addEventListener('keydown', (e) => this.handleKeydown(e, 'desktop'));
+                }
+                clearBtn?.addEventListener('click', () => this.clearSearch('desktop'));
+
+                // Setup mobile search
+                if (mobileInput) {
+                    mobileInput.addEventListener('input', (e) => this.handleInput(e, 'mobile'));
+                    mobileInput.addEventListener('focus', () => this.handleFocus('mobile'));
+                    mobileInput.addEventListener('keydown', (e) => this.handleKeydown(e, 'mobile'));
+                }
+                mobileClearBtn?.addEventListener('click', () => this.clearSearch('mobile'));
+
+                // Click outside to close
+                document.addEventListener('click', (e) => {
+                    const desktopContainer = document.getElementById('globalSearchContainer');
+                    const mobileContainer = document.getElementById('mobileSearchContainer');
+                    if (desktopContainer && !desktopContainer.contains(e.target)) {
+                        this.closeResults('desktop');
+                    }
+                    if (mobileContainer && !mobileContainer.contains(e.target)) {
+                        this.closeResults('mobile');
+                    }
+                });
+
+                // Global keyboard shortcut (/ to focus search)
+                document.addEventListener('keydown', (e) => {
+                    // Don't trigger if already in an input or textarea
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                        return;
+                    }
+                    if (e.key === '/') {
+                        e.preventDefault();
+                        // Focus the visible search input
+                        const isMobile = window.innerWidth <= 1024;
+                        const targetInput = isMobile ? mobileInput : input;
+                        if (targetInput) {
+                            targetInput.focus();
+                            targetInput.select();
+                        }
+                    }
+                });
+
+                console.log('✓ Global Search initialized');
+            },
+
+            getElements(mode = 'desktop') {
+                if (mode === 'mobile') {
+                    return {
+                        input: document.getElementById('mobileSearchInput'),
+                        searchBar: document.getElementById('mobileSearchBar'),
+                        resultsContainer: document.getElementById('mobileSearchResults')
+                    };
+                }
+                return {
+                    input: document.getElementById('globalSearchInput'),
+                    searchBar: document.getElementById('globalSearchBar'),
+                    resultsContainer: document.getElementById('globalSearchResults')
+                };
+            },
+
+            currentMode: 'desktop',
+
+            handleInput(e, mode = 'desktop') {
+                this.currentMode = mode;
+                const query = e.target.value.trim();
+                const { searchBar } = this.getElements(mode);
+
+                // Toggle has-value class
+                if (query.length > 0) {
+                    searchBar?.classList.add('has-value');
+                } else {
+                    searchBar?.classList.remove('has-value');
+                }
+
+                // Debounce search
+                clearTimeout(this.searchTimeout);
+                this.searchTimeout = setTimeout(() => {
+                    if (query.length > 0) {
+                        this.performSearch(query, mode);
+                    } else {
+                        this.showZeroInputResults(mode);
+                    }
+                }, 150);
+            },
+
+            handleFocus(mode = 'desktop') {
+                this.currentMode = mode;
+                const { input } = this.getElements(mode);
+                const query = input?.value.trim() || '';
+
+                if (query.length > 0) {
+                    this.performSearch(query, mode);
+                } else {
+                    this.showZeroInputResults(mode);
+                }
+            },
+
+            handleKeydown(e, mode = 'desktop') {
+                const { resultsContainer } = this.getElements(mode);
+                const items = resultsContainer?.querySelectorAll('.global-search-result-item') || [];
+
+                switch (e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        this.focusedIndex = Math.min(this.focusedIndex + 1, items.length - 1);
+                        this.updateFocusedItem(items);
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        this.focusedIndex = Math.max(this.focusedIndex - 1, -1);
+                        this.updateFocusedItem(items);
+                        break;
+                    case 'Enter':
+                        e.preventDefault();
+                        if (this.focusedIndex >= 0 && items[this.focusedIndex]) {
+                            items[this.focusedIndex].click();
+                        }
+                        break;
+                    case 'Escape':
+                        e.preventDefault();
+                        this.closeResults(mode);
+                        const { input } = this.getElements(mode);
+                        input?.blur();
+                        break;
+                }
+            },
+
+            updateFocusedItem(items) {
+                items.forEach((item, index) => {
+                    item.classList.toggle('focused', index === this.focusedIndex);
+                });
+                if (this.focusedIndex >= 0 && items[this.focusedIndex]) {
+                    items[this.focusedIndex].scrollIntoView({ block: 'nearest' });
+                }
+            },
+
+            performSearch(query, mode = 'desktop') {
+                const lowerQuery = query.toLowerCase();
+                const results = {
+                    sets: [],
+                    views: [],
+                    records: [],
+                    fields: []
+                };
+
+                // Search sets
+                state.sets.forEach(set => {
+                    if (set.name.toLowerCase().includes(lowerQuery)) {
+                        results.sets.push({
+                            type: 'set',
+                            id: set.id,
+                            name: set.name,
+                            matchField: 'name',
+                            recordCount: set.records?.size || 0
+                        });
+                    }
+                });
+
+                // Search views
+                if (state.views) {
+                    state.views.forEach(view => {
+                        if (view.name.toLowerCase().includes(lowerQuery)) {
+                            const set = state.sets.get(view.setId);
+                            results.views.push({
+                                type: 'view',
+                                id: view.id,
+                                name: view.name,
+                                setId: view.setId,
+                                setName: set?.name || 'Unknown Set',
+                                matchField: 'name'
+                            });
+                        }
+                    });
+                }
+
+                // Search fields across all sets
+                state.sets.forEach(set => {
+                    (set.schema || []).forEach(field => {
+                        if (field.name?.toLowerCase().includes(lowerQuery) || field.id.toLowerCase().includes(lowerQuery)) {
+                            results.fields.push({
+                                type: 'field',
+                                id: field.id,
+                                name: field.name || field.id,
+                                setId: set.id,
+                                setName: set.name,
+                                fieldType: field.type,
+                                matchField: field.name?.toLowerCase().includes(lowerQuery) ? 'name' : 'id'
+                            });
+                        }
+                    });
+                });
+
+                // Search records - search through ALL field values
+                const recordLimit = 20; // Limit to prevent performance issues
+                let recordCount = 0;
+
+                state.sets.forEach(set => {
+                    if (recordCount >= recordLimit) return;
+
+                    const schema = set.schema || [];
+                    set.records.forEach((record, recordId) => {
+                        if (recordCount >= recordLimit) return;
+
+                        // Check each field value
+                        for (const field of schema) {
+                            const value = record[field.id];
+                            if (value !== undefined && value !== null) {
+                                const strValue = String(value).toLowerCase();
+                                if (strValue.includes(lowerQuery)) {
+                                    // Get display name for the record (first text field or ID)
+                                    const displayField = schema.find(f => f.type === 'text' || f.type === 'string') || schema[0];
+                                    const displayValue = displayField ? record[displayField.id] : recordId;
+
+                                    results.records.push({
+                                        type: 'record',
+                                        id: recordId,
+                                        displayValue: displayValue || recordId,
+                                        matchedField: field.name || field.id,
+                                        matchedValue: value,
+                                        setId: set.id,
+                                        setName: set.name
+                                    });
+                                    recordCount++;
+                                    break; // Only add record once
+                                }
+                            }
+                        }
+                    });
+                });
+
+                this.results = results;
+                this.renderResults(results, query, mode);
+            },
+
+            showZeroInputResults(mode = 'desktop') {
+                // Show recent items and suggestions
+                const results = {
+                    recent: [],
+                    sets: [],
+                    views: []
+                };
+
+                // Get recent items from event stream
+                const events = state.eventStream || [];
+                const seen = new Set();
+                for (let i = events.length - 1; i >= 0 && results.recent.length < 5; i--) {
+                    const event = events[i];
+                    if (!event.entityType || !event.entityId) continue;
+
+                    const key = `${event.entityType}:${event.entityId}`;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+
+                    if (event.entityType === 'View') {
+                        const view = state.views?.get(event.entityId);
+                        if (view) {
+                            const set = state.sets.get(view.setId);
+                            results.recent.push({
+                                type: 'view',
+                                id: view.id,
+                                name: view.name,
+                                setId: view.setId,
+                                setName: set?.name || 'Unknown'
+                            });
+                        }
+                    } else if (event.entityType === 'Set') {
+                        const set = state.sets.get(event.entityId);
+                        if (set) {
+                            results.recent.push({
+                                type: 'set',
+                                id: set.id,
+                                name: set.name,
+                                recordCount: set.records?.size || 0
+                            });
+                        }
+                    }
+                }
+
+                // Add all sets
+                state.sets.forEach(set => {
+                    results.sets.push({
+                        type: 'set',
+                        id: set.id,
+                        name: set.name,
+                        recordCount: set.records?.size || 0
+                    });
+                });
+
+                // Add all views (limited)
+                if (state.views) {
+                    let viewCount = 0;
+                    state.views.forEach(view => {
+                        if (viewCount >= 8) return;
+                        const set = state.sets.get(view.setId);
+                        results.views.push({
+                            type: 'view',
+                            id: view.id,
+                            name: view.name,
+                            setId: view.setId,
+                            setName: set?.name || 'Unknown'
+                        });
+                        viewCount++;
+                    });
+                }
+
+                this.renderZeroInputResults(results, mode);
+            },
+
+            renderZeroInputResults(data, mode = 'desktop') {
+                const { resultsContainer: container } = this.getElements(mode);
+                if (!container) return;
+
+                let html = '<div class="global-search-results-header">Quick Access</div>';
+
+                // Recent items
+                if (data.recent.length > 0) {
+                    html += '<div class="global-search-section">';
+                    html += '<div class="global-search-section-title">Recently Viewed</div>';
+                    data.recent.forEach(item => {
+                        html += this.renderResultItem(item);
+                    });
+                    html += '</div>';
+                }
+
+                // All sets
+                if (data.sets.length > 0) {
+                    html += '<div class="global-search-section">';
+                    html += '<div class="global-search-section-title">Sets</div>';
+                    data.sets.forEach(item => {
+                        html += this.renderResultItem(item);
+                    });
+                    html += '</div>';
+                }
+
+                // Views
+                if (data.views.length > 0) {
+                    html += '<div class="global-search-section">';
+                    html += '<div class="global-search-section-title">Views</div>';
+                    data.views.forEach(item => {
+                        html += this.renderResultItem(item);
+                    });
+                    html += '</div>';
+                }
+
+                container.innerHTML = html;
+                this.openResults(mode);
+            },
+
+            renderResults(results, query, mode = 'desktop') {
+                const { resultsContainer: container } = this.getElements(mode);
+                if (!container) return;
+
+                const totalCount = results.sets.length + results.views.length + results.records.length + results.fields.length;
+
+                if (totalCount === 0) {
+                    container.innerHTML = `
+                        <div class="global-search-empty">
+                            <div class="global-search-empty-icon"><i class="ph ph-magnifying-glass"></i></div>
+                            <div class="global-search-empty-text">No results found</div>
+                            <div class="global-search-empty-hint">Try different keywords or check your spelling</div>
+                        </div>
+                    `;
+                    this.openResults(mode);
+                    return;
+                }
+
+                let html = `<div class="global-search-results-header">${totalCount} result${totalCount !== 1 ? 's' : ''} for "${this.escapeHtml(query)}"</div>`;
+
+                // Render by category
+                if (results.sets.length > 0) {
+                    html += '<div class="global-search-section">';
+                    html += '<div class="global-search-section-title">Sets</div>';
+                    results.sets.forEach(item => {
+                        html += this.renderResultItem(item, query);
+                    });
+                    html += '</div>';
+                }
+
+                if (results.views.length > 0) {
+                    html += '<div class="global-search-section">';
+                    html += '<div class="global-search-section-title">Views</div>';
+                    results.views.forEach(item => {
+                        html += this.renderResultItem(item, query);
+                    });
+                    html += '</div>';
+                }
+
+                if (results.fields.length > 0) {
+                    html += '<div class="global-search-section">';
+                    html += '<div class="global-search-section-title">Fields</div>';
+                    results.fields.forEach(item => {
+                        html += this.renderResultItem(item, query);
+                    });
+                    html += '</div>';
+                }
+
+                if (results.records.length > 0) {
+                    html += '<div class="global-search-section">';
+                    html += '<div class="global-search-section-title">Records</div>';
+                    results.records.forEach(item => {
+                        html += this.renderResultItem(item, query);
+                    });
+                    html += '</div>';
+                }
+
+                container.innerHTML = html;
+                this.focusedIndex = -1;
+                this.openResults(mode);
+            },
+
+            renderResultItem(item, query = '') {
+                const icons = {
+                    set: 'ph-database',
+                    view: 'ph-table',
+                    record: 'ph-file-text',
+                    field: 'ph-tag'
+                };
+
+                const icon = icons[item.type] || 'ph-file';
+                const highlightedName = query ? this.highlightMatch(item.name || item.displayValue, query) : (item.name || item.displayValue);
+
+                let meta = '';
+                let badge = item.type.charAt(0).toUpperCase() + item.type.slice(1);
+
+                switch (item.type) {
+                    case 'set':
+                        meta = `${item.recordCount} record${item.recordCount !== 1 ? 's' : ''}`;
+                        break;
+                    case 'view':
+                        meta = `in ${item.setName}`;
+                        break;
+                    case 'field':
+                        meta = `${item.fieldType || 'field'} in ${item.setName}`;
+                        break;
+                    case 'record':
+                        meta = `${item.matchedField}: "${this.truncate(String(item.matchedValue), 30)}" in ${item.setName}`;
+                        break;
+                }
+
+                // Create onclick handler based on type
+                let onclick = '';
+                switch (item.type) {
+                    case 'set':
+                        onclick = `GlobalSearch.navigateToSet('${item.id}')`;
+                        break;
+                    case 'view':
+                        onclick = `GlobalSearch.navigateToView('${item.setId}', '${item.id}')`;
+                        break;
+                    case 'field':
+                        onclick = `GlobalSearch.navigateToField('${item.setId}', '${item.id}')`;
+                        break;
+                    case 'record':
+                        onclick = `GlobalSearch.navigateToRecord('${item.setId}', '${item.id}')`;
+                        break;
+                }
+
+                return `
+                    <div class="global-search-result-item" onclick="${onclick}">
+                        <div class="global-search-result-icon ${item.type}">
+                            <i class="ph ${icon}"></i>
+                        </div>
+                        <div class="global-search-result-content">
+                            <div class="global-search-result-title">${highlightedName}</div>
+                            <div class="global-search-result-meta">${meta}</div>
+                        </div>
+                        <div class="global-search-result-badge">${badge}</div>
+                    </div>
+                `;
+            },
+
+            navigateToSet(setId) {
+                this.closeResults();
+                this.clearSearch('desktop');
+                this.clearSearch('mobile');
+
+                // Expand set in sidebar and switch to it
+                state.expandedSets.add(setId);
+                const set = state.sets.get(setId);
+                if (set && set.views && set.views.size > 0) {
+                    const firstViewId = Array.from(set.views.keys())[0];
+                    switchSet(setId, firstViewId);
+                } else {
+                    switchSet(setId);
+                }
+                renderSidebar();
+            },
+
+            navigateToView(setId, viewId) {
+                this.closeResults();
+                this.clearSearch('desktop');
+                this.clearSearch('mobile');
+
+                state.expandedSets.add(setId);
+                switchSet(setId, viewId);
+                renderSidebar();
+            },
+
+            navigateToField(setId, fieldId) {
+                this.closeResults();
+                this.clearSearch('desktop');
+                this.clearSearch('mobile');
+
+                // Navigate to the set and highlight the field somehow
+                state.expandedSets.add(setId);
+                const set = state.sets.get(setId);
+                if (set && set.views && set.views.size > 0) {
+                    const firstViewId = Array.from(set.views.keys())[0];
+                    switchSet(setId, firstViewId);
+                    // TODO: Could scroll to or highlight the field column
+                }
+                renderSidebar();
+                showToast(`Field "${fieldId}" is in this view`, 'info');
+            },
+
+            navigateToRecord(setId, recordId) {
+                this.closeResults();
+                this.clearSearch('desktop');
+                this.clearSearch('mobile');
+
+                state.expandedSets.add(setId);
+                const set = state.sets.get(setId);
+                if (set && set.views && set.views.size > 0) {
+                    const firstViewId = Array.from(set.views.keys())[0];
+                    switchSet(setId, firstViewId);
+                    // Trigger record detail view if available
+                    setTimeout(() => {
+                        if (typeof openRecordDetail === 'function') {
+                            openRecordDetail(recordId);
+                        }
+                    }, 100);
+                }
+                renderSidebar();
+            },
+
+            highlightMatch(text, query) {
+                if (!query || !text) return this.escapeHtml(text);
+                const escaped = this.escapeHtml(text);
+                const regex = new RegExp(`(${this.escapeRegex(query)})`, 'gi');
+                return escaped.replace(regex, '<mark>$1</mark>');
+            },
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            },
+
+            escapeRegex(string) {
+                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            },
+
+            truncate(text, length) {
+                if (text.length <= length) return text;
+                return text.substring(0, length) + '...';
+            },
+
+            openResults(mode = 'desktop') {
+                const { resultsContainer: container } = this.getElements(mode);
+                container?.classList.add('active');
+                this.isOpen = true;
+            },
+
+            closeResults(mode) {
+                // If no mode specified, close both
+                if (!mode) {
+                    document.getElementById('globalSearchResults')?.classList.remove('active');
+                    document.getElementById('mobileSearchResults')?.classList.remove('active');
+                } else {
+                    const { resultsContainer: container } = this.getElements(mode);
+                    container?.classList.remove('active');
+                }
+                this.isOpen = false;
+                this.focusedIndex = -1;
+            },
+
+            clearSearch(mode = 'desktop') {
+                const { input, searchBar } = this.getElements(mode);
+                if (input) {
+                    input.value = '';
+                }
+                searchBar?.classList.remove('has-value');
+                this.closeResults(mode);
+            }
+        };
+
+        // Expose GlobalSearch to window
+        window.GlobalSearch = GlobalSearch;
 
         // INITIALIZE
         document.addEventListener('DOMContentLoaded', async () => {
