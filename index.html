@@ -1862,6 +1862,83 @@
             border-radius: 2px;
         }
 
+        /* Multi-select dropdown styles */
+        .custom-select-dropdown.multi-select { max-height: 450px; }
+
+        .multi-select-header {
+            padding: 10px 12px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .multi-select-count {
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .multi-select-footer { justify-content: space-between; }
+
+        .multi-select-footer .done-btn {
+            background: #3b82f6 !important;
+            color: white !important;
+            border-color: #3b82f6 !important;
+        }
+
+        .multi-select-footer .done-btn:hover {
+            background: #2563eb !important;
+            border-color: #2563eb !important;
+        }
+
+        .custom-select-option.multi-option {
+            padding: 10px 12px;
+        }
+
+        .custom-select-option.multi-option.selected {
+            background: #eff6ff;
+            color: #1e40af;
+        }
+
+        .multi-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #d1d5db;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .multi-checkbox.checked {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+        }
+
+        .multi-checkbox i { font-size: 12px; }
+
+        /* Modal multi-linked record styles */
+        .modal-linked-option {
+            transition: background-color 0.1s;
+        }
+
+        .modal-linked-option:hover {
+            background-color: #f3f4f6;
+        }
+
+        .modal-linked-option.bg-blue-50 {
+            background-color: #eff6ff;
+        }
+
+        .modal-linked-checkbox {
+            transition: all 0.15s;
+        }
+
         /* SEARCH FOCUS PANEL */
         .search-shell {
             display: flex;
@@ -15565,17 +15642,23 @@
                     const lookupValues = evaluateLinkedLookup(field._linkedConfig, record, state);
                     if (!lookupValues || lookupValues.length === 0) return '';
 
-                    // Display values as pills (matching superposition/linked record style)
-                    const maxLookupVisible = 3;
-                    const visibleLookups = lookupValues.slice(0, maxLookupVisible);
-                    const hiddenLookupCount = Math.max(0, lookupValues.length - maxLookupVisible);
+                    // Get linked record IDs to provide context for superposition
+                    const linkedIdForLookup = record[field._linkedConfig.sourceFieldId];
+                    const linkedRecordIds = Array.isArray(linkedIdForLookup) ? linkedIdForLookup : [linkedIdForLookup];
 
-                    const lookupPills = visibleLookups
-                        .map(val => `<span class="lookup-value-pill" title="${val}">${val}</span>`)
-                        .join('');
-                    const lookupMorePill = hiddenLookupCount > 0 ? `<span class="lookup-value-more">+${hiddenLookupCount}</span>` : '';
+                    // If multiple values from multiple linked records, display in superposition state
+                    if (lookupValues.length > 1) {
+                        const supEntries = lookupValues.map((val, idx) => ({
+                            val: val,
+                            context: {
+                                source: getRecordDisplayName(linkedRecordIds[idx]) || 'linked record'
+                            }
+                        }));
+                        return renderSuperpositionCell(supEntries);
+                    }
 
-                    return `<div class="lookup-value-container">${lookupPills}${lookupMorePill}</div>`;
+                    // Single value - display normally
+                    return `<span class="lookup-value-pill">${lookupValues[0]}</span>`;
                 case 'LINKED_ROLLUP':
                     // Render linked rollup field
                     if (!field._linkedConfig) return '';
@@ -21572,7 +21655,237 @@
                 return;
             }
 
-            showEnhancedSelectDropdown(td, recordId, field, options);
+            // Check cardinality to determine if multi-select is allowed
+            const cardinality = field.config?.cardinality || 'many';
+            const limit = field.config?.limit || null;
+            const allowMultiple = cardinality === 'many' || (cardinality === 'limit' && limit > 1);
+
+            if (allowMultiple) {
+                showMultiLinkedRecordDropdown(td, recordId, field, options, limit);
+            } else {
+                showEnhancedSelectDropdown(td, recordId, field, options);
+            }
+        }
+
+        function showMultiLinkedRecordDropdown(td, recordId, field, options, limit) {
+            const set = getCurrentSet();
+            const record = set.records.get(recordId);
+            const currentValue = record[field.id];
+            // Normalize to array
+            const selectedIds = Array.isArray(currentValue) ? [...currentValue] : (currentValue ? [currentValue] : []);
+
+            document.querySelectorAll('.custom-select-dropdown').forEach(d => d.remove());
+
+            const dropdown = document.createElement('div');
+            dropdown.className = 'custom-select-dropdown multi-select';
+
+            const rect = td.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            const dropdownHeight = Math.min(450, options.length * 44 + 150);
+
+            if (spaceBelow >= dropdownHeight || spaceBelow > spaceAbove) {
+                dropdown.style.top = `${rect.bottom + 4}px`;
+            } else {
+                dropdown.style.bottom = `${window.innerHeight - rect.top + 4}px`;
+            }
+            dropdown.style.left = `${rect.left}px`;
+            dropdown.style.minWidth = `${Math.max(rect.width, 280)}px`;
+
+            const limitInfo = limit ? ` (max ${limit})` : '';
+            dropdown.innerHTML = `
+                <div class="multi-select-header">
+                    <span class="multi-select-count">${selectedIds.length} selected${limitInfo}</span>
+                </div>
+                <input
+                    type="text"
+                    class="custom-select-search"
+                    placeholder="Search records..."
+                    autocomplete="off"
+                    spellcheck="false"
+                >
+                <div class="custom-select-options"></div>
+                <div class="custom-select-footer multi-select-footer">
+                    <button class="clear-btn">Clear All</button>
+                    <button class="done-btn">Done</button>
+                </div>
+            `;
+
+            document.body.appendChild(dropdown);
+
+            const searchInput = dropdown.querySelector('.custom-select-search');
+            const optionsContainer = dropdown.querySelector('.custom-select-options');
+            const clearBtn = dropdown.querySelector('.clear-btn');
+            const doneBtn = dropdown.querySelector('.done-btn');
+            const countSpan = dropdown.querySelector('.multi-select-count');
+
+            let filteredOptions = [...options];
+
+            function updateCount() {
+                countSpan.textContent = `${selectedIds.length} selected${limitInfo}`;
+            }
+
+            function toggleSelection(value) {
+                const idx = selectedIds.indexOf(value);
+                if (idx >= 0) {
+                    // Deselect
+                    selectedIds.splice(idx, 1);
+                } else {
+                    // Check limit
+                    if (limit && selectedIds.length >= limit) {
+                        showToast(`⚠️ Maximum ${limit} records allowed`);
+                        return;
+                    }
+                    selectedIds.push(value);
+                }
+                updateCount();
+                renderOptions(searchInput.value);
+            }
+
+            function renderOptions(query = '') {
+                filteredOptions = query.trim() === ''
+                    ? [...options]
+                    : options.filter(opt => opt.label.toLowerCase().includes(query.toLowerCase()));
+
+                if (filteredOptions.length === 0) {
+                    optionsContainer.innerHTML = `
+                        <div class="custom-select-empty">
+                            <div class="custom-select-empty-icon">🔍</div>
+                            <div>No matches found</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                optionsContainer.innerHTML = filteredOptions.map((opt) => {
+                    const isSelected = selectedIds.includes(opt.value);
+
+                    let displayLabel = opt.label;
+                    if (query.trim() !== '') {
+                        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                        displayLabel = opt.label.replace(regex, '<span class="search-match">$1</span>');
+                    }
+
+                    return `
+                        <div
+                            class="custom-select-option multi-option ${isSelected ? 'selected' : ''}"
+                            data-value="${opt.value}"
+                        >
+                            <div class="multi-checkbox ${isSelected ? 'checked' : ''}">
+                                ${isSelected ? '<i class="ph-bold ph-check"></i>' : ''}
+                            </div>
+                            <div class="custom-select-option-icon" style="background: ${opt.color || '#f3f4f6'}">
+                                ${opt.icon || ''}
+                            </div>
+                            <div class="custom-select-option-text">${displayLabel}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                optionsContainer.querySelectorAll('.custom-select-option').forEach(el => {
+                    el.onclick = () => toggleSelection(el.dataset.value);
+                });
+            }
+
+            function saveAndClose() {
+                const originalValue = record[field.id];
+                const newValue = selectedIds.length === 0 ? null : (selectedIds.length === 1 ? selectedIds[0] : [...selectedIds]);
+                if (JSON.stringify(newValue) !== JSON.stringify(originalValue)) {
+                    updateRecord(recordId, field.id, newValue, originalValue);
+                }
+                dropdown.remove();
+                exitEditMode();
+            }
+
+            searchInput.oninput = (e) => renderOptions(e.target.value);
+
+            searchInput.onkeydown = (e) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    dropdown.remove();
+                    exitEditMode(false);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveAndClose();
+                }
+            };
+
+            clearBtn.onclick = () => {
+                selectedIds.length = 0;
+                updateCount();
+                renderOptions(searchInput.value);
+            };
+
+            doneBtn.onclick = saveAndClose;
+
+            setTimeout(() => {
+                document.addEventListener('click', function closeDropdown(e) {
+                    if (!dropdown.contains(e.target) && e.target !== td) {
+                        saveAndClose();
+                        document.removeEventListener('click', closeDropdown);
+                    }
+                });
+            }, 0);
+
+            renderOptions();
+            searchInput.focus();
+        }
+
+        function toggleModalLinkedRecord(element) {
+            const container = element.closest('.modal-multi-linked-record');
+            if (!container) return;
+
+            const recordId = container.dataset.recordId;
+            const fieldId = container.dataset.fieldId;
+            const limit = container.dataset.limit ? parseInt(container.dataset.limit) : null;
+            const value = element.dataset.value;
+
+            const set = getCurrentSet();
+            const record = set.records.get(recordId);
+            const field = set.schema.find(f => f.id === fieldId);
+
+            // Get current selected values
+            let currentValue = record[fieldId];
+            let selectedIds = Array.isArray(currentValue) ? [...currentValue] : (currentValue ? [currentValue] : []);
+
+            const idx = selectedIds.indexOf(value);
+            if (idx >= 0) {
+                // Deselect
+                selectedIds.splice(idx, 1);
+            } else {
+                // Check limit
+                if (limit && selectedIds.length >= limit) {
+                    showToast(`Maximum ${limit} records allowed`);
+                    return;
+                }
+                selectedIds.push(value);
+            }
+
+            // Update the record
+            const newValue = selectedIds.length === 0 ? null : (selectedIds.length === 1 ? selectedIds[0] : selectedIds);
+            updateRecord(recordId, fieldId, newValue, currentValue);
+
+            // Re-render the modal
+            if (!document.getElementById('expandedRecordModal').classList.contains('hidden')) {
+                renderExpandedRecordMain(recordId);
+            }
+        }
+
+        function filterModalLinkedRecords(containerId, query) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const options = container.querySelectorAll('.modal-linked-option');
+            const normalizedQuery = query.trim().toLowerCase();
+
+            options.forEach(opt => {
+                const label = opt.dataset.label?.toLowerCase() || '';
+                if (normalizedQuery === '' || label.includes(normalizedQuery)) {
+                    opt.style.display = '';
+                } else {
+                    opt.style.display = 'none';
+                }
+            });
         }
 
         function filterLinkedRecordSelect(selectId, query) {
@@ -23497,6 +23810,40 @@
                             ? '<p class="text-xs text-gray-500 mt-1">Add records to the linked set to select one.</p>'
                             : '';
 
+                    // Check cardinality for multi-select
+                    const cardinality = field.config?.cardinality || 'many';
+                    const limit = field.config?.limit || null;
+                    const allowMultiple = cardinality === 'many' || (cardinality === 'limit' && limit > 1);
+
+                    if (allowMultiple) {
+                        // Multi-select mode
+                        const selectedIds = Array.isArray(value) ? value : (value ? [value] : []);
+                        const limitInfo = limit ? ` (max ${limit})` : '';
+                        const containerId = `modal-linked-${recordId}-${field.id}`;
+                        return `
+                            <div class="space-y-2 modal-multi-linked-record" id="${containerId}" data-record-id="${recordId}" data-field-id="${field.id}" data-limit="${limit || ''}">
+                                <div class="text-xs text-gray-500">${selectedIds.length} selected${limitInfo}</div>
+                                <input type="text" class="border rounded px-3 py-2 text-sm w-full modal-linked-search" placeholder="Search linked records..." ${!linkedSet ? 'disabled' : ''} oninput="filterModalLinkedRecords('${containerId}', this.value)">
+                                <div class="border rounded max-h-48 overflow-y-auto modal-linked-options">
+                                    ${options.map(opt => {
+                                        const isSelected = selectedIds.includes(opt.id);
+                                        return `
+                                            <div class="modal-linked-option p-2 cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${isSelected ? 'bg-blue-50' : ''}"
+                                                 data-value="${opt.id}" data-label="${opt.label.replace(/"/g, '&quot;')}" onclick="toggleModalLinkedRecord(this)">
+                                                <div class="modal-linked-checkbox w-4 h-4 border-2 rounded flex items-center justify-center ${isSelected ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-300'}">
+                                                    ${isSelected ? '<i class="ph-bold ph-check text-xs"></i>' : ''}
+                                                </div>
+                                                <span class="text-sm">${opt.label}</span>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                                ${hint}
+                            </div>
+                        `;
+                    }
+
+                    // Single select mode
                     return `
                         <div class="space-y-1">
                             <input type="text" class="border rounded px-3 py-2 text-sm w-full" placeholder="Search linked records..." ${!linkedSet ? 'disabled' : ''} oninput="filterLinkedRecordSelect('${selectId}', this.value)">
