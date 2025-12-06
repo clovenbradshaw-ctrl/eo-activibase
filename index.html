@@ -1449,6 +1449,89 @@
             box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
         }
 
+        /* LINKED RECORD PILLS */
+        .linked-record-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .linked-record-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            color: #166534;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 6px;
+            border: 1px solid #86efac;
+            box-shadow: 0 1px 2px rgba(34, 197, 94, 0.08);
+            white-space: nowrap;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .linked-record-pill:hover {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            border-color: #4ade80;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(34, 197, 94, 0.15);
+        }
+
+        .linked-record-more {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            color: #4b5563;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+        }
+
+        /* LOOKUP FIELD PILLS */
+        .lookup-value-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .lookup-value-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            color: #1e40af;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 6px;
+            border: 1px solid #bfdbfe;
+            box-shadow: 0 1px 2px rgba(59, 130, 246, 0.08);
+            white-space: nowrap;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .lookup-value-more {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            color: #4b5563;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+        }
+
         /* ROLLUP MODAL CARDS */
         .sup-modal-card {
             background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
@@ -4674,6 +4757,27 @@
                         <label class="form-label">Link to Set</label>
                         <select id="linkToSet"></select>
                         <p class="form-hint">Select which set to link to</p>
+
+                        <label class="form-label mt-4">Cardinality</label>
+                        <div class="flex gap-2 mb-2">
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                                <input type="radio" name="linkCardinality" value="one" class="accent-blue-600">
+                                <span class="text-sm font-medium">One</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                                <input type="radio" name="linkCardinality" value="many" checked class="accent-blue-600">
+                                <span class="text-sm font-medium">Many</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                                <input type="radio" name="linkCardinality" value="limit" class="accent-blue-600">
+                                <span class="text-sm font-medium">Limit</span>
+                            </label>
+                        </div>
+                        <div id="linkLimitInput" class="hidden">
+                            <label class="form-label text-sm">Maximum records</label>
+                            <input type="number" id="linkLimit" min="1" max="100" value="3" class="w-20 px-2 py-1 border border-gray-300 rounded text-sm">
+                        </div>
+                        <p class="form-hint">How many records can be linked</p>
                     </div>
                 </div>
                 <div id="formulaConfig" class="config-section">
@@ -5629,6 +5733,27 @@
                                 <label class="form-label">Link to Set</label>
                                 <select id="fieldManagerLinkToSet"></select>
                                 <p class="form-hint">Select which set to link to</p>
+
+                                <label class="form-label mt-4">Cardinality</label>
+                                <div class="flex gap-2 mb-2">
+                                    <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                                        <input type="radio" name="fieldManagerLinkCardinality" value="one" class="accent-blue-600">
+                                        <span class="text-sm font-medium">One</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                                        <input type="radio" name="fieldManagerLinkCardinality" value="many" checked class="accent-blue-600">
+                                        <span class="text-sm font-medium">Many</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                                        <input type="radio" name="fieldManagerLinkCardinality" value="limit" class="accent-blue-600">
+                                        <span class="text-sm font-medium">Limit</span>
+                                    </label>
+                                </div>
+                                <div id="fieldManagerLinkLimitInput" class="hidden">
+                                    <label class="form-label text-sm">Maximum records</label>
+                                    <input type="number" id="fieldManagerLinkLimit" min="1" max="100" value="3" class="w-20 px-2 py-1 border border-gray-300 rounded text-sm">
+                                </div>
+                                <p class="form-hint">How many records can be linked</p>
                             </div>
                         </div>
                         <div id="fieldManagerFormulaConfig" class="config-section">
@@ -6093,7 +6218,13 @@
                 description: 'Connect records across sets with relationships',
                 defaultValue: '',
                 icon: 'ph-link-simple-horizontal',
-                needsConfig: true
+                needsConfig: true,
+                cardinalityOptions: [
+                    { id: 'one', name: 'One', description: 'Link to exactly one record' },
+                    { id: 'many', name: 'Many', description: 'Link to unlimited records' },
+                    { id: 'limit', name: 'Limit', description: 'Link to a specific number of records' }
+                ],
+                defaultCardinality: 'many'
             },
             LOOKUP: {
                 id: 'LOOKUP',
@@ -13971,41 +14102,43 @@
                 targetFieldId
             } = lookupConfig;
 
-            // Get linked record ID from source field
+            // Get linked record ID(s) from source field
             const linkedRecordId = record[sourceFieldId];
 
-            if (!linkedRecordId) return '';
+            if (!linkedRecordId) return [];
 
-            // Handle array of IDs (take first one for lookup)
-            const recordId = Array.isArray(linkedRecordId) ? linkedRecordId[0] : linkedRecordId;
+            // Handle both single IDs and arrays
+            const recordIds = Array.isArray(linkedRecordId) ? linkedRecordId : [linkedRecordId];
+            const validIds = recordIds.filter(id => id && typeof id === 'string');
 
-            if (!recordId || typeof recordId !== 'string') return '';
+            if (validIds.length === 0) return [];
 
             // Get target set
             const targetSet = state.sets.get(targetSetId);
-            if (!targetSet) return '';
+            if (!targetSet) return [];
 
-            // Get linked record
-            const linkedRecord = targetSet.records.get(recordId);
-            if (!linkedRecord) return '';
-
-            // Get value from target field
-            const value = linkedRecord[targetFieldId];
-
-            // Format value based on target field type
             const targetField = targetSet.schema.find(f => f.id === targetFieldId);
-            if (!targetField) return String(value || '');
 
-            // Prevent recursion for linked field types
-            if (targetField.type === 'LINKED_LOOKUP' || targetField.type === 'LINKED_ROLLUP') {
-                return String(value || '');
-            }
+            // Get values from all linked records
+            const values = validIds.map(recordId => {
+                const linkedRecord = targetSet.records.get(recordId);
+                if (!linkedRecord) return null;
 
-            // Use existing renderCellValue logic for proper formatting
-            // Create a temporary element to extract text content
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = renderCellValue(value, targetField, linkedRecord);
-            return tempDiv.textContent || tempDiv.innerText || '';
+                const value = linkedRecord[targetFieldId];
+                if (value === undefined || value === null || value === '') return null;
+
+                // Prevent recursion for linked field types
+                if (targetField?.type === 'LINKED_LOOKUP' || targetField?.type === 'LINKED_ROLLUP') {
+                    return String(value);
+                }
+
+                // Format value based on target field type using temporary element
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = renderCellValue(value, targetField || { type: 'TEXT', id: targetFieldId }, linkedRecord);
+                return tempDiv.textContent || tempDiv.innerText || String(value);
+            }).filter(v => v !== null);
+
+            return values;
         }
 
         function renderCellValue(value, field, record) {
@@ -14072,8 +14205,22 @@
                     return value ? '✅' : '⬜';
                 case 'LINK_RECORD':
                     if (!value) return '';
-                    const linkedName = getRecordDisplayName(value) || field.config?.linkedSetId && state.sets.get(field.config.linkedSetId)?.name || 'Linked Record';
-                    return `<button class="text-blue-600 hover:underline" onclick="event.stopPropagation(); openLinkedRecord('${value}')">${linkedName}</button>`;
+                    // Handle both single values and arrays
+                    const linkedRecordIds = Array.isArray(value) ? value : [value];
+                    if (linkedRecordIds.length === 0) return '';
+
+                    const maxVisible = 3;
+                    const visibleIds = linkedRecordIds.slice(0, maxVisible);
+                    const hiddenCount = Math.max(0, linkedRecordIds.length - maxVisible);
+
+                    const pills = visibleIds.map(recordId => {
+                        const displayName = getRecordDisplayName(recordId) || field.config?.linkedSetId && state.sets.get(field.config?.linkedSetId)?.name || 'Record';
+                        return `<button class="linked-record-pill" onclick="event.stopPropagation(); openLinkedRecord('${recordId}')" title="${displayName}">${displayName}</button>`;
+                    }).join('');
+
+                    const morePill = hiddenCount > 0 ? `<span class="linked-record-more">+${hiddenCount}</span>` : '';
+
+                    return `<div class="linked-record-container">${pills}${morePill}</div>`;
                 case 'LOOKUP':
                     if (!value) return '';
                     const lookupName = getRecordDisplayName(value) || 'Record';
@@ -14101,10 +14248,20 @@
                 case 'LINKED_LOOKUP':
                     // Render linked lookup field
                     if (!field._linkedConfig) return '';
-                    const lookupValue = evaluateLinkedLookup(field._linkedConfig, record, state);
-                    if (!lookupValue) return '';
-                    // Display as plain text or link depending on value type
-                    return `<span class="text-gray-700">${lookupValue}</span>`;
+                    const lookupValues = evaluateLinkedLookup(field._linkedConfig, record, state);
+                    if (!lookupValues || lookupValues.length === 0) return '';
+
+                    // Display values as pills (matching superposition/linked record style)
+                    const maxLookupVisible = 3;
+                    const visibleLookups = lookupValues.slice(0, maxLookupVisible);
+                    const hiddenLookupCount = Math.max(0, lookupValues.length - maxLookupVisible);
+
+                    const lookupPills = visibleLookups
+                        .map(val => `<span class="lookup-value-pill" title="${val}">${val}</span>`)
+                        .join('');
+                    const lookupMorePill = hiddenLookupCount > 0 ? `<span class="lookup-value-more">+${hiddenLookupCount}</span>` : '';
+
+                    return `<div class="lookup-value-container">${lookupPills}${lookupMorePill}</div>`;
                 case 'LINKED_ROLLUP':
                     // Render linked rollup field
                     if (!field._linkedConfig) return '';
@@ -14742,10 +14899,29 @@
                 renderFieldManagerSelectOptions();
             } else if (typeId === 'LINK_RECORD') {
                 document.getElementById('fieldManagerLinkToRecordConfig').classList.add('visible');
+                // Set up cardinality radio event listeners
+                setupLinkCardinalityListeners('fieldManagerLinkCardinality', 'fieldManagerLinkLimitInput');
             } else if (typeId === 'FORMULA') {
                 document.getElementById('fieldManagerFormulaConfig').classList.add('visible');
                 initFieldManagerFormulaAutocomplete();
             }
+        }
+
+        // Setup cardinality radio listeners to show/hide limit input
+        function setupLinkCardinalityListeners(radioName, limitContainerId) {
+            const radios = document.querySelectorAll(`input[name="${radioName}"]`);
+            const limitContainer = document.getElementById(limitContainerId);
+            if (!radios.length || !limitContainer) return;
+
+            radios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    if (radio.value === 'limit') {
+                        limitContainer.classList.remove('hidden');
+                    } else {
+                        limitContainer.classList.add('hidden');
+                    }
+                });
+            });
         }
 
         function renderFieldManagerTypeGrid(selectedType) {
@@ -14915,7 +15091,10 @@
                     showToast('⚠ Please select a set to link to');
                     return;
                 }
-                newField.config = { linkedSetId };
+                const cardinalityRadio = document.querySelector('input[name="fieldManagerLinkCardinality"]:checked');
+                const cardinality = cardinalityRadio?.value || 'many';
+                const limit = cardinality === 'limit' ? parseInt(document.getElementById('fieldManagerLinkLimit')?.value || '3', 10) : null;
+                newField.config = { linkedSetId, cardinality, limit };
             } else if (type === 'FORMULA') {
                 const formula = document.getElementById('fieldManagerFormulaInput')?.value.trim();
                 if (!formula) {
@@ -20543,6 +20722,7 @@
                 renderSelectOptions();
             } else if (typeId === 'LINK_RECORD') {
                 document.getElementById('linkToRecordConfig').classList.add('visible');
+                setupLinkCardinalityListeners('linkCardinality', 'linkLimitInput');
             } else if (typeId === 'FORMULA') {
                 document.getElementById('formulaConfig').classList.add('visible');
                 initFormulaAutocomplete();
@@ -20768,7 +20948,10 @@
             } else if (type === 'LINK_RECORD') {
                 const linkedSetId = document.getElementById('linkToSet').value;
                 if (!linkedSetId) { showConfirm('Select a set to link to', () => {}); return; }
-                newField.config = { linkedSetId };
+                const cardinalityRadio = document.querySelector('input[name="linkCardinality"]:checked');
+                const cardinality = cardinalityRadio?.value || 'many';
+                const limit = cardinality === 'limit' ? parseInt(document.getElementById('linkLimit')?.value || '3', 10) : null;
+                newField.config = { linkedSetId, cardinality, limit };
             } else if (type === 'FORMULA') {
                 const formula = document.getElementById('formulaInput').value.trim();
                 const format = document.getElementById('formulaFormat').value;
@@ -20832,14 +21015,24 @@
             const linkedSet = state.sets.get(linkedSetId);
             if (!linkedSet || !linkedSet.schema) return;
 
-            // Detect cardinality - check if any values are arrays
-            let cardinality = 'one';
-            set.records.forEach(record => {
-                const value = record[linkField.id];
-                if (Array.isArray(value) && value.length > 0) {
-                    cardinality = 'many';
-                }
-            });
+            // Use configured cardinality, or detect from data as fallback
+            let cardinality = linkField.config?.cardinality || 'many';
+
+            // If cardinality is 'limit' with a value > 1, treat as 'many' for lookup/rollup purposes
+            if (cardinality === 'limit') {
+                const limit = linkField.config?.limit || 1;
+                cardinality = limit > 1 ? 'many' : 'one';
+            }
+
+            // Fallback: detect from existing data if not configured
+            if (!linkField.config?.cardinality) {
+                set.records.forEach(record => {
+                    const value = record[linkField.id];
+                    if (Array.isArray(value) && value.length > 1) {
+                        cardinality = 'many';
+                    }
+                });
+            }
 
             // Initialize view arrays if needed
             if (!view.relationships) view.relationships = [];
