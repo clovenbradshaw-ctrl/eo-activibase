@@ -145,9 +145,23 @@ const EOCRollupEngine = {
     },
 
     /**
-     * Min aggregation
+     * Min aggregation (handles both numbers and dates)
      */
     min(values) {
+        // Check if values appear to be dates
+        const dateValues = values
+            .map(v => ({ original: v, timestamp: this.toTimestamp(v) }))
+            .filter(item => item.timestamp !== null);
+
+        if (dateValues.length > 0) {
+            // Find the minimum timestamp and return the original date value
+            const minItem = dateValues.reduce((min, item) =>
+                item.timestamp < min.timestamp ? item : min
+            );
+            return minItem.original;
+        }
+
+        // Fall back to numeric comparison
         const numbers = values
             .map(v => this.toNumber(v))
             .filter(n => !isNaN(n));
@@ -158,9 +172,23 @@ const EOCRollupEngine = {
     },
 
     /**
-     * Max aggregation
+     * Max aggregation (handles both numbers and dates)
      */
     max(values) {
+        // Check if values appear to be dates
+        const dateValues = values
+            .map(v => ({ original: v, timestamp: this.toTimestamp(v) }))
+            .filter(item => item.timestamp !== null);
+
+        if (dateValues.length > 0) {
+            // Find the maximum timestamp and return the original date value
+            const maxItem = dateValues.reduce((max, item) =>
+                item.timestamp > max.timestamp ? item : max
+            );
+            return maxItem.original;
+        }
+
+        // Fall back to numeric comparison
         const numbers = values
             .map(v => this.toNumber(v))
             .filter(n => !isNaN(n));
@@ -205,6 +233,56 @@ const EOCRollupEngine = {
             return isNaN(parsed) ? NaN : parsed;
         }
         return NaN;
+    },
+
+    /**
+     * Convert value to timestamp for date comparisons
+     * Returns null if the value is not a valid date
+     */
+    toTimestamp(value) {
+        if (!value) return null;
+
+        // If it's already a Date object
+        if (value instanceof Date) {
+            const ts = value.getTime();
+            return isNaN(ts) ? null : ts;
+        }
+
+        // If it's a string, try to parse as date
+        if (typeof value === 'string') {
+            // Skip if it looks like just a number (not a date)
+            if (/^\d+(\.\d+)?$/.test(value.trim())) {
+                return null;
+            }
+
+            // Try parsing the date
+            const date = new Date(value);
+            const ts = date.getTime();
+
+            // Validate: reject if invalid or if the timestamp is suspiciously small
+            // (which would indicate a number was parsed, not a date)
+            if (isNaN(ts)) return null;
+
+            // Check if the parsed year is reasonable (1900-2100)
+            const year = date.getFullYear();
+            if (year < 1900 || year > 2100) return null;
+
+            return ts;
+        }
+
+        // If it's a number, check if it could be a timestamp (milliseconds since epoch)
+        if (typeof value === 'number') {
+            // Timestamps are typically > 1 billion (year ~2001)
+            // Years are typically < 10000
+            if (value > 100000000000) {
+                // Likely a millisecond timestamp
+                return value;
+            }
+            // Not a date
+            return null;
+        }
+
+        return null;
     },
 
     /**
