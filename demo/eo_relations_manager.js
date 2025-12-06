@@ -281,8 +281,41 @@
                 description: ''
             },
             onSave: (data) => {
-                // Add relation logic here
-                console.log('Adding relation:', data);
+                // Validate required fields
+                if (!data.source || !data.type || !data.target) {
+                    if (global.showToast) {
+                        global.showToast('Please fill in source, relation type, and target');
+                    } else {
+                        alert('Please fill in source, relation type, and target');
+                    }
+                    return;
+                }
+
+                // Create new relation
+                const relationId = `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const newRelation = {
+                    id: relationId,
+                    source: data.source,
+                    type: data.type,
+                    target: data.target,
+                    operator: data.operator || 'CON',
+                    description: data.description || '',
+                    worldId: currentWorldId,
+                    createdAt: new Date().toISOString()
+                };
+
+                // Add to state
+                if (!global.state.relations) {
+                    global.state.relations = new Map();
+                }
+                global.state.relations.set(relationId, newRelation);
+                relations.push(newRelation);
+
+                // Show success message
+                if (global.showToast) {
+                    global.showToast('✓ Relation added');
+                }
+
                 closeModal();
                 refreshPage();
             }
@@ -300,8 +333,42 @@
             title: 'Edit Relation',
             relation: { ...relation },
             onSave: (data) => {
-                // Update relation logic here
-                console.log('Updating relation:', relationId, data);
+                // Validate required fields
+                if (!data.source || !data.type || !data.target) {
+                    if (global.showToast) {
+                        global.showToast('Please fill in source, relation type, and target');
+                    } else {
+                        alert('Please fill in source, relation type, and target');
+                    }
+                    return;
+                }
+
+                // Update relation in state
+                const existingRelation = global.state.relations?.get(relationId);
+                if (existingRelation) {
+                    const updatedRelation = {
+                        ...existingRelation,
+                        source: data.source,
+                        type: data.type,
+                        target: data.target,
+                        operator: data.operator || 'CON',
+                        description: data.description || '',
+                        updatedAt: new Date().toISOString()
+                    };
+                    global.state.relations.set(relationId, updatedRelation);
+
+                    // Update in local array
+                    const idx = relations.findIndex(r => r.id === relationId);
+                    if (idx >= 0) {
+                        relations[idx] = updatedRelation;
+                    }
+                }
+
+                // Show success message
+                if (global.showToast) {
+                    global.showToast('✓ Relation updated');
+                }
+
                 closeModal();
                 refreshPage();
             }
@@ -523,8 +590,22 @@
 
         const confirmed = confirm(`Delete relation "${relation.source} → ${relation.type} → ${relation.target}"?`);
         if (confirmed) {
-            // Delete relation logic here
-            console.log('Deleting relation:', relationId);
+            // Delete from state
+            if (global.state.relations) {
+                global.state.relations.delete(relationId);
+            }
+
+            // Remove from local array
+            const idx = relations.findIndex(r => r.id === relationId);
+            if (idx >= 0) {
+                relations.splice(idx, 1);
+            }
+
+            // Show success message
+            if (global.showToast) {
+                global.showToast('✓ Relation deleted');
+            }
+
             refreshPage();
         }
     }

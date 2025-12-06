@@ -11,6 +11,11 @@
 (function(global) {
     'use strict';
 
+    // Helper to get the global state object
+    function getState() {
+        return global.state;
+    }
+
     // ============================================================================
     // PANEL RENDERING
     // ============================================================================
@@ -390,6 +395,7 @@
      * Show pick up dialog for an entry
      */
     function showPickUpDialog(entryId) {
+        const state = getState();
         const related = TossPile.getRelatedEntries(state, entryId);
         if (!related) return;
 
@@ -463,6 +469,7 @@
      * Execute the pick up based on dialog selection
      */
     function executePickUp(entryId) {
+        const state = getState();
         const mode = document.querySelector('#pickUpDialog input[name="pickUpMode"]:checked')?.value || 'single';
         const related = TossPile.getRelatedEntries(state, entryId);
         if (!related) return;
@@ -504,6 +511,7 @@
     // ============================================================================
 
     function showTossedColumns() {
+        const state = getState();
         const ghostData = TossPile.getGhostData(state, state.currentSetId);
         const columns = Array.from(ghostData.columns.values());
 
@@ -552,6 +560,7 @@
     }
 
     function pickUpColumn(fieldId) {
+        const state = getState();
         const pile = TossPile.init(state);
         const entries = Array.from(pile.entries.values())
             .filter(e => e.fieldId === fieldId && e.status === 'tossed');
@@ -609,6 +618,7 @@
     }
 
     function pickUpColumnValues(fieldId) {
+        const state = getState();
         const pile = TossPile.init(state);
         const entries = Array.from(pile.entries.values())
             .filter(e => e.fieldId === fieldId && e.status === 'tossed');
@@ -628,6 +638,7 @@
     // ============================================================================
 
     function openPanel() {
+        const state = getState();
         TossPile.toggleTossPilePanel(state, true);
         updateTossPilePanel();
         const panel = document.getElementById('tossPilePanel');
@@ -635,12 +646,14 @@
     }
 
     function closePanel() {
+        const state = getState();
         TossPile.toggleTossPilePanel(state, false);
         const panel = document.getElementById('tossPilePanel');
         if (panel) panel.classList.remove('open');
     }
 
     function togglePanel() {
+        const state = getState();
         const isOpen = TossPile.toggleTossPilePanel(state);
         updateTossPilePanel();
         const panel = document.getElementById('tossPilePanel');
@@ -648,6 +661,7 @@
     }
 
     function updateTossPilePanel() {
+        const state = getState();
         const container = document.getElementById('tossPilePanelContainer');
         if (container) {
             container.innerHTML = renderTossPilePanel(state);
@@ -655,6 +669,7 @@
     }
 
     function toggleGhosts(visible) {
+        const state = getState();
         TossPile.setGhostVisibility(state, visible);
         renderCurrentView();
     }
@@ -691,6 +706,7 @@
     // ============================================================================
 
     function pickUpEntry(entryId) {
+        const state = getState();
         const result = TossPile.pickUpEntry(state, entryId);
         if (result) {
             renderCurrentView();
@@ -700,6 +716,7 @@
     }
 
     function pickUpAction(actionId) {
+        const state = getState();
         const result = TossPile.pickUpAction(state, actionId);
         if (result) {
             renderCurrentView();
@@ -709,6 +726,7 @@
     }
 
     function pickUpRecord(actionId, recordId) {
+        const state = getState();
         const result = TossPile.pickUpRecord(state, actionId, recordId);
         if (result) {
             renderCurrentView();
@@ -718,6 +736,7 @@
     }
 
     function pickUpAll() {
+        const state = getState();
         const actions = TossPile.getTossActionsForSet(state, state.currentSetId);
         let totalRestored = 0;
 
@@ -737,6 +756,7 @@
     }
 
     function pickUpAllColumns() {
+        const state = getState();
         const ghostData = TossPile.getGhostData(state, state.currentSetId);
         const pile = TossPile.init(state);
         let totalRestored = 0;
