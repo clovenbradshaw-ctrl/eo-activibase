@@ -4205,31 +4205,39 @@
         </div>
     </div>
 
-    <div id="addViewModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-xl">
+    <div id="addViewModal" class="hidden modal-overlay add-view-modal-overlay">
+        <div class="modal add-view-modal">
             <div class="modal-header">
-                <h2 id="addViewModalTitle" class="text-xl font-bold text-gray-900">Create View</h2>
+                <div class="modal-title-group">
+                    <div class="modal-icon">
+                        <i class="ph ph-plus"></i>
+                    </div>
+                    <h2 id="addViewModalTitle">Create View</h2>
+                </div>
+                <button class="modal-close" id="closeAddViewModalBtn" aria-label="Close">
+                    <i class="ph ph-x"></i>
+                </button>
             </div>
-            <div class="modal-body space-y-4">
-                <div>
+            <div class="modal-body">
+                <div class="form-group">
                     <label class="form-label">View Name</label>
                     <input type="text" id="newViewName" placeholder="e.g., Active Items">
                 </div>
-                <div>
+                <div class="form-group">
                     <label class="form-label">View Icon</label>
                     <div id="newViewIconSelector" class="icon-selector" role="button" tabindex="0">
                         <div id="newViewIconPreview" class="icon-selector-icon" aria-hidden="true"></div>
                         <div class="icon-selector-text">
-                            <div class="icon-selector-label">Choose an icon visually</div>
+                            <div class="icon-selector-label">Choose an icon</div>
                             <div id="newViewIconToken" class="icon-selector-token"></div>
                         </div>
-                        <span class="icon-selector-chevron">▼</span>
+                        <i class="ph ph-caret-down icon-selector-chevron"></i>
                     </div>
                     <input type="hidden" id="newViewIcon" value="ph-table">
                 </div>
-                <div>
+                <div class="form-group">
                     <label class="form-label">View Type</label>
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="view-type-grid">
                         <label class="view-type-option">
                             <input type="radio" name="newViewType" value="grid" checked>
                             <div class="view-type-option-content">
@@ -4260,40 +4268,43 @@
                         </label>
                     </div>
                 </div>
-                <div>
+                <div class="form-group">
                     <label class="form-label">Nest Under</label>
                     <select id="newViewParent"></select>
                     <p class="form-hint">Optionally place this view under another view</p>
                 </div>
-                <div>
+                <div class="form-group">
                     <label class="form-label">How do you want to start?</label>
-                    <div class="space-y-3">
-                        <label class="flex items-center gap-2 font-medium">
+                    <div class="creation-mode-options">
+                        <label class="creation-mode-option">
                             <input type="radio" name="viewCreationMode" value="blank" checked>
-                            Blank View
+                            <span>Blank View</span>
                         </label>
-                        <label class="flex items-start gap-2 font-medium">
+                        <label class="creation-mode-option expanded">
                             <input type="radio" name="viewCreationMode" value="key">
-                            <div class="flex-1">
-                                <div>Create From Key or Value</div>
-                                <div class="mt-2">
+                            <div class="creation-mode-content">
+                                <span>Create From Key or Value</span>
+                                <div class="creation-mode-fields">
                                     <div class="relative">
-                                        <input type="text" id="keySearchInput" class="w-full" placeholder="Search for a field or value..." autocomplete="off">
-                                        <div id="keySearchResults" class="absolute z-50 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto hidden"></div>
+                                        <input type="text" id="keySearchInput" placeholder="Search for a field or value..." autocomplete="off">
+                                        <div id="keySearchResults" class="key-search-dropdown hidden"></div>
                                     </div>
-                                    <select id="keyCandidateSelect" class="w-full mt-2" disabled>
+                                    <select id="keyCandidateSelect" disabled>
                                         <option value="">Scanning for identity properties…</option>
                                     </select>
-                                    <p class="form-hint">Search above or select a detected key. We look for reused identifiers, links, and fuzzy matches to seed the shape.</p>
+                                    <p class="form-hint">Search above or select a detected key.</p>
                                 </div>
                             </div>
                         </label>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer flex justify-end gap-2">
-                <button id="cancelAddViewBtn" class="btn btn-secondary">Cancel</button>
-                <button id="saveAddViewBtn" class="btn btn-primary">Create</button>
+            <div class="modal-footer">
+                <button id="cancelAddViewBtn" class="btn-secondary">Cancel</button>
+                <button id="saveAddViewBtn" class="btn-primary">
+                    <i class="ph ph-plus"></i>
+                    Create View
+                </button>
             </div>
         </div>
     </div>
@@ -12089,17 +12100,17 @@
             menu.className = 'context-menu view-tab-context-menu';
             menu.innerHTML = `
                 <div class="menu-item" data-action="edit">
-                    <span class="icon">✏️</span> Edit View
+                    <span class="icon"><i class="ph ph-pencil-simple"></i></span> Edit View
                 </div>
                 <div class="menu-item" data-action="duplicate">
-                    <span class="icon">📋</span> Duplicate
+                    <span class="icon"><i class="ph ph-copy"></i></span> Duplicate
                 </div>
                 <div class="menu-separator"></div>
                 <div class="menu-item" data-action="close">
-                    <span class="icon">✕</span> Close Tab
+                    <span class="icon"><i class="ph ph-x"></i></span> Close Tab
                 </div>
                 <div class="menu-item danger" data-action="delete">
-                    <span class="icon">🗑️</span> Delete View
+                    <span class="icon"><i class="ph ph-trash"></i></span> Delete View
                 </div>
             `;
 
@@ -12161,13 +12172,20 @@
             dialog.innerHTML = `
                 <div class="modal edit-view-modal">
                     <div class="modal-header">
-                        <h2>Edit View</h2>
-                        <button class="modal-close">×</button>
+                        <div class="modal-title-group">
+                            <div class="modal-icon">
+                                <i class="ph ph-pencil-simple"></i>
+                            </div>
+                            <h2>Edit View</h2>
+                        </div>
+                        <button class="modal-close" aria-label="Close">
+                            <i class="ph ph-x"></i>
+                        </button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
                             <label>View Name</label>
-                            <input type="text" id="edit-view-name" placeholder="Untitled view" value="${view.name}">
+                            <input type="text" id="edit-view-name" placeholder="Enter view name..." value="${escapeHtml(view.name)}">
                         </div>
                         <div class="form-group">
                             <label>Icon</label>
@@ -12177,14 +12195,17 @@
                                     <div class="icon-selector-label">Choose an icon</div>
                                     <div id="editViewIconToken" class="icon-selector-token">${view.icon || VIEW_TYPE_ICONS[view.type]}</div>
                                 </div>
-                                <span class="icon-selector-chevron">▼</span>
+                                <i class="ph ph-caret-down icon-selector-chevron"></i>
                             </div>
                             <input type="hidden" id="edit-view-icon" value="${view.icon || VIEW_TYPE_ICONS[view.type]}">
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button class="btn-secondary modal-close">Cancel</button>
-                        <button class="btn-primary" id="btn-save-view">Save Changes</button>
+                        <button class="btn-primary" id="btn-save-view">
+                            <i class="ph ph-check"></i>
+                            Save Changes
+                        </button>
                     </div>
                 </div>
             `;
@@ -25080,6 +25101,7 @@
                 }
             };
             document.getElementById('cancelAddViewBtn').onclick = () => { state.viewEditorContext = null; closeModal('addViewModal'); };
+            document.getElementById('closeAddViewModalBtn').onclick = () => { state.viewEditorContext = null; closeModal('addViewModal'); };
             const viewCreationModes = document.querySelectorAll('input[name="viewCreationMode"]');
             viewCreationModes.forEach(radio => {
                 radio.onchange = (e) => {
