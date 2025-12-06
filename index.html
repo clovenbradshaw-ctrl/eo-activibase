@@ -17,6 +17,8 @@
     <script src="eo_graph.js"></script>
     <script src="eo_lean_context.js"></script>
     <script src="eo_provenance_extractor.js"></script>
+    <script src="eo_view_management.js"></script>
+    <script src="eo_layout_management.js"></script>
     <script src="demo/eo_rollup_engine.js"></script>
     <script src="demo/eo_linked_fields_modal.js"></script>
     <script src="demo/eo_import_manager.js"></script>
@@ -4272,16 +4274,52 @@
 
         <!-- Main Content -->
         <div class="app-main">
-            <div class="view-workspace">
+            <!-- Layout Container - supports flexible multi-pane layouts -->
+            <div class="layout-container" id="layoutContainer">
+                <!-- Layout will be rendered dynamically by renderLayout() -->
+                <!-- Default single-pane fallback for initial load -->
+                <div class="layout-pane focused" id="pane-main" data-pane-id="pane-main">
+                    <div class="pane-tabs-bar">
+                        <div class="pane-tabs" id="viewTabs"></div>
+                        <button class="pane-tab-add" onclick="handleAddViewClick()" title="New view">
+                            <i class="ph ph-plus"></i>
+                        </button>
+                        <div class="pane-actions">
+                            <button class="pane-action-btn" onclick="splitActivePane('horizontal')" title="Split right">
+                                <i class="ph ph-split-horizontal"></i>
+                            </button>
+                            <button class="pane-action-btn" onclick="splitActivePane('vertical')" title="Split down">
+                                <i class="ph ph-split-vertical"></i>
+                            </button>
+                            <button class="pane-action-btn" onclick="popOutActiveTab()" title="Pop out">
+                                <i class="ph ph-arrow-square-out"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="pane-content">
+                        <div class="view-surface" id="viewSurface">
+                            <div id="viewContainer"></div>
+                        </div>
+                    </div>
+                    <!-- Drop zone indicators for drag and drop -->
+                    <div class="drop-zone-indicator left" data-label="Split Left"></div>
+                    <div class="drop-zone-indicator right" data-label="Split Right"></div>
+                    <div class="drop-zone-indicator top" data-label="Split Above"></div>
+                    <div class="drop-zone-indicator bottom" data-label="Split Below"></div>
+                    <div class="drop-zone-indicator center" data-label="Add to Tabs"></div>
+                </div>
+            </div>
+            <!-- Legacy wrapper for backward compatibility -->
+            <div class="view-workspace hidden" id="legacyViewWorkspace">
                 <div class="view-tabs-rail">
-                    <div id="viewTabs" class="view-tabs hidden"></div>
+                    <div id="legacyViewTabs" class="view-tabs hidden"></div>
                     <button id="importTabBtn" class="import-tab-btn" onclick="triggerFileImport()" title="Import file (CSV, JSON, Excel)">
                         <i class="ph ph-upload-simple"></i>
                         <span>Import</span>
                     </button>
                 </div>
-                <div class="view-surface" id="viewSurface">
-                    <div id="viewContainer"></div>
+                <div class="view-surface">
+                    <div id="legacyViewContainer"></div>
                 </div>
             </div>
         </div>
@@ -7853,6 +7891,12 @@
                 state.importManager.addListener((event, data) => {
                     renderImportsInSidebar();
                 });
+            }
+
+            // Initialize Layout System for flexible tab layouts
+            if (typeof EOLayout !== 'undefined') {
+                initializeLayoutSystem();
+                console.log('✓ Layout System initialized');
             }
 
             initializeOperatorRules();
@@ -13278,7 +13322,945 @@
             finalizeTabDrag();
         }
 
+        // ============================================================================
+        // FLEXIBLE LAYOUT SYSTEM
+        // ============================================================================
+
+        // Layout drag state for cross-pane dragging
+        const layoutDragState = {
+            dragging: false,
+            draggedTab: null,
+            sourcePaneId: null,
+            targetPaneId: null,
+            dropZone: null
+        };
+
+        // Divider resize state
+        const dividerResizeState = {
+            resizing: false,
+            splitId: null,
+            direction: null,
+            startPos: 0,
+            startRatio: 0
+        };
+
+        /**
+         * Initialize the layout system
+         */
+        function initializeLayoutSystem() {
+            if (typeof EOLayout === 'undefined') {
+                console.warn('EOLayout not loaded, using legacy tab system');
+                return;
+            }
+
+            // Initialize layout state
+            EOLayout.initializeLayout(state);
+
+            // Migrate existing openTabs to layout
+            if (state.openTabs && state.openTabs.length > 0) {
+                const mainPane = EOLayout.findPaneById(state.layout.root, 'pane-main');
+                if (mainPane) {
+                    mainPane.tabs = [...state.openTabs];
+                    // Set active tab based on current view
+                    const activeIndex = mainPane.tabs.findIndex(
+                        t => t.setId === state.currentSetId && t.viewId === state.currentViewId
+                    );
+                    mainPane.activeTabIndex = activeIndex >= 0 ? activeIndex : 0;
+                }
+            }
+
+            // Set up global event listeners for drag and resize
+            document.addEventListener('mousemove', handleLayoutMouseMove);
+            document.addEventListener('mouseup', handleLayoutMouseUp);
+
+            console.log('Layout system initialized');
+        }
+
+        /**
+         * Render the entire layout tree
+         */
+        function renderLayout() {
+            if (!state.layout) {
+                initializeLayoutSystem();
+            }
+
+            const container = document.getElementById('layoutContainer');
+            if (!container) return;
+
+            // Render the layout tree
+            container.innerHTML = renderLayoutNode(state.layout.root);
+
+            // Update active pane focus
+            updatePaneFocus();
+
+            // Re-attach event listeners
+            attachLayoutEventListeners();
+        }
+
+        /**
+         * Recursively render a layout node (pane or split)
+         */
+        function renderLayoutNode(node) {
+            if (!node) return '';
+
+            if (node.type === 'pane') {
+                return renderPaneHTML(node);
+            }
+
+            if (node.type === 'split') {
+                const ratioPercent = (node.ratio * 100).toFixed(2);
+                return `
+                    <div class="layout-split ${node.direction}" data-split-id="${node.id}" style="--split-ratio: ${node.ratio}">
+                        ${renderLayoutNode(node.first)}
+                        <div class="layout-divider"
+                             data-split-id="${node.id}"
+                             data-direction="${node.direction}"
+                             onmousedown="startDividerResize(event, '${node.id}', '${node.direction}')"></div>
+                        ${renderLayoutNode(node.second)}
+                    </div>
+                `;
+            }
+
+            return '';
+        }
+
+        /**
+         * Render a single pane's HTML
+         */
+        function renderPaneHTML(pane) {
+            const isActive = state.layout?.activePaneId === pane.id;
+            const tabs = pane.tabs || [];
+            const activeTabIndex = pane.activeTabIndex || 0;
+
+            // Render tabs
+            let tabsHTML = '';
+            tabs.forEach((tab, index) => {
+                const set = state.sets.get(tab.setId);
+                const view = set?.views.get(tab.viewId);
+                if (!set || !view) return;
+
+                const isActiveTab = index === activeTabIndex;
+                const isImportView = view.isTemporary && view.importMetadata;
+                const viewIcon = view.icon || VIEW_TYPE_ICONS[view.type] || 'ph-table';
+
+                tabsHTML += `
+                    <div class="pane-tab ${isActiveTab ? 'active' : ''} ${isImportView ? 'import-view-tab' : ''}"
+                         data-pane-id="${pane.id}"
+                         data-tab-index="${index}"
+                         data-set-id="${tab.setId}"
+                         data-view-id="${tab.viewId}"
+                         draggable="true"
+                         onclick="handlePaneTabClick('${pane.id}', ${index})"
+                         oncontextmenu="showPaneTabContextMenu(event, '${pane.id}', ${index})"
+                         ondragstart="handlePaneTabDragStart(event, '${pane.id}', ${index})"
+                         ondragend="handlePaneTabDragEnd(event)">
+                        <span class="pane-tab-icon">${renderIcon(viewIcon)}</span>
+                        <div class="pane-tab-text">
+                            <span class="pane-tab-name">${escapeHtml(view.name)}</span>
+                            <span class="pane-tab-meta">${escapeHtml(set.name)}</span>
+                        </div>
+                        <div class="pane-tab-actions">
+                            ${isImportView ? `
+                                <button class="pane-tab-btn" title="Save as permanent view" onclick="event.stopPropagation(); saveImportView('${pane.id}', ${index})">
+                                    <i class="ph ph-floppy-disk"></i>
+                                </button>
+                            ` : ''}
+                            <button class="pane-tab-btn" onclick="event.stopPropagation(); closePaneTab('${pane.id}', ${index})">
+                                <i class="ph ph-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            return `
+                <div class="layout-pane ${isActive ? 'focused' : ''}"
+                     id="${pane.id}"
+                     data-pane-id="${pane.id}"
+                     ondragover="handlePaneDragOver(event, '${pane.id}')"
+                     ondragleave="handlePaneDragLeave(event, '${pane.id}')"
+                     ondrop="handlePaneDrop(event, '${pane.id}')"
+                     onclick="focusPaneById('${pane.id}')">
+                    <div class="pane-tabs-bar">
+                        <div class="pane-tabs">${tabsHTML}</div>
+                        <button class="pane-tab-add" onclick="event.stopPropagation(); handleAddViewToPane('${pane.id}')" title="New view">
+                            <i class="ph ph-plus"></i>
+                        </button>
+                        <div class="pane-actions">
+                            <button class="pane-action-btn" onclick="event.stopPropagation(); splitPaneById('${pane.id}', 'horizontal')" title="Split right">
+                                <i class="ph ph-split-horizontal"></i>
+                            </button>
+                            <button class="pane-action-btn" onclick="event.stopPropagation(); splitPaneById('${pane.id}', 'vertical')" title="Split down">
+                                <i class="ph ph-split-vertical"></i>
+                            </button>
+                            <button class="pane-action-btn" onclick="event.stopPropagation(); popOutPaneTab('${pane.id}')" title="Pop out">
+                                <i class="ph ph-arrow-square-out"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="pane-content" id="pane-content-${pane.id}">
+                        ${tabs.length === 0 ? `
+                            <div class="pane-empty">
+                                <i class="ph ph-squares-four pane-empty-icon"></i>
+                                <div class="pane-empty-text">No views open in this pane</div>
+                                <button class="pane-empty-action" onclick="handleAddViewToPane('${pane.id}')">Open a View</button>
+                            </div>
+                        ` : `<div class="view-surface"><div id="viewContainer-${pane.id}"></div></div>`}
+                    </div>
+                    <!-- Drop zone indicators -->
+                    <div class="drop-zone-indicator left" data-zone="left" data-label="Split Left"></div>
+                    <div class="drop-zone-indicator right" data-zone="right" data-label="Split Right"></div>
+                    <div class="drop-zone-indicator top" data-zone="top" data-label="Split Above"></div>
+                    <div class="drop-zone-indicator bottom" data-zone="bottom" data-label="Split Below"></div>
+                    <div class="drop-zone-indicator center" data-zone="center" data-label="Add to Tabs"></div>
+                </div>
+            `;
+        }
+
+        /**
+         * Update pane focus visual state
+         */
+        function updatePaneFocus() {
+            document.querySelectorAll('.layout-pane').forEach(pane => {
+                const paneId = pane.dataset.paneId;
+                if (paneId === state.layout?.activePaneId) {
+                    pane.classList.add('focused');
+                } else {
+                    pane.classList.remove('focused');
+                }
+            });
+        }
+
+        /**
+         * Attach event listeners after layout render
+         */
+        function attachLayoutEventListeners() {
+            // Tab drag events are handled inline via HTML attributes
+            // Additional listeners can be added here if needed
+        }
+
+        // ============================================================================
+        // PANE TAB INTERACTIONS
+        // ============================================================================
+
+        /**
+         * Handle click on a pane tab
+         */
+        function handlePaneTabClick(paneId, tabIndex) {
+            if (!state.layout) return;
+
+            const pane = EOLayout.findPaneById(state.layout.root, paneId);
+            if (!pane || tabIndex >= pane.tabs.length) return;
+
+            // Update active tab in pane
+            pane.activeTabIndex = tabIndex;
+            state.layout.activePaneId = paneId;
+
+            // Update global state
+            const tab = pane.tabs[tabIndex];
+            if (tab) {
+                state.currentSetId = tab.setId;
+                state.currentViewId = tab.viewId;
+                state.currentSpecialView = null;
+
+                // Update openTabs for backward compatibility
+                ensureOpenTab(tab.setId, tab.viewId);
+            }
+
+            // Re-render
+            renderLayout();
+            renderPaneContent(paneId);
+            renderSidebar();
+        }
+
+        /**
+         * Close a tab in a pane
+         */
+        function closePaneTab(paneId, tabIndex) {
+            if (!state.layout) return;
+
+            const pane = EOLayout.findPaneById(state.layout.root, paneId);
+            if (!pane || tabIndex >= pane.tabs.length) return;
+
+            const tab = pane.tabs[tabIndex];
+
+            // Remove from pane
+            pane.tabs.splice(tabIndex, 1);
+
+            // Adjust active index
+            if (pane.activeTabIndex >= pane.tabs.length) {
+                pane.activeTabIndex = Math.max(0, pane.tabs.length - 1);
+            }
+
+            // Also remove from openTabs for backward compatibility
+            if (tab) {
+                const openTabIndex = state.openTabs.findIndex(
+                    t => t.setId === tab.setId && t.viewId === tab.viewId
+                );
+                if (openTabIndex !== -1) {
+                    state.openTabs.splice(openTabIndex, 1);
+                }
+            }
+
+            // If pane is empty and not the main pane, collapse it
+            if (pane.tabs.length === 0 && pane.id !== 'pane-main') {
+                EOLayout.collapseEmptyPane(state, paneId, null);
+            }
+
+            // Update current view if we closed the active tab
+            if (pane.tabs.length > 0) {
+                const newActiveTab = pane.tabs[pane.activeTabIndex];
+                if (newActiveTab) {
+                    state.currentSetId = newActiveTab.setId;
+                    state.currentViewId = newActiveTab.viewId;
+                }
+            } else if (paneId === state.layout.activePaneId) {
+                // Find another pane with tabs
+                const allPanes = EOLayout.getAllPanes(state.layout.root);
+                const paneWithTabs = allPanes.find(p => p.tabs.length > 0);
+                if (paneWithTabs) {
+                    state.layout.activePaneId = paneWithTabs.id;
+                    const tab = paneWithTabs.tabs[paneWithTabs.activeTabIndex];
+                    if (tab) {
+                        state.currentSetId = tab.setId;
+                        state.currentViewId = tab.viewId;
+                    }
+                }
+            }
+
+            // Log event
+            EOLayout.emitLayoutEvent(state, EOLayout.LAYOUT_EVENT_TYPES.TAB_CLOSED, {
+                paneId,
+                setId: tab?.setId,
+                viewId: tab?.viewId
+            });
+
+            renderLayout();
+            renderPaneContent(state.layout.activePaneId);
+            renderSidebar();
+        }
+
+        /**
+         * Render content for a specific pane
+         */
+        function renderPaneContent(paneId) {
+            const pane = EOLayout.findPaneById(state.layout.root, paneId);
+            if (!pane) return;
+
+            // Get container - use main viewContainer if this is the active pane
+            let container;
+            if (paneId === state.layout.activePaneId) {
+                container = document.getElementById('viewContainer');
+            }
+            if (!container) {
+                container = document.getElementById(`viewContainer-${paneId}`);
+            }
+            if (!container) return;
+
+            if (pane.tabs.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const tab = pane.tabs[pane.activeTabIndex];
+            if (!tab) return;
+
+            // Update state for rendering
+            state.currentSetId = tab.setId;
+            state.currentViewId = tab.viewId;
+
+            // Call existing render function
+            renderCurrentView();
+        }
+
+        // ============================================================================
+        // SPLIT OPERATIONS
+        // ============================================================================
+
+        /**
+         * Split a pane by ID
+         */
+        function splitPaneById(paneId, direction) {
+            if (!state.layout || typeof EOLayout === 'undefined') return;
+
+            const newPane = EOLayout.splitPane(state, paneId, direction);
+            if (newPane) {
+                renderLayout();
+            }
+        }
+
+        /**
+         * Split the currently active pane
+         */
+        function splitActivePane(direction) {
+            if (!state.layout) return;
+            splitPaneById(state.layout.activePaneId, direction);
+        }
+
+        /**
+         * Focus a pane by ID
+         */
+        function focusPaneById(paneId) {
+            if (!state.layout) return;
+
+            const pane = EOLayout.findPaneById(state.layout.root, paneId);
+            if (!pane) return;
+
+            state.layout.activePaneId = paneId;
+
+            // Update current view based on pane's active tab
+            if (pane.tabs.length > 0) {
+                const tab = pane.tabs[pane.activeTabIndex];
+                if (tab) {
+                    state.currentSetId = tab.setId;
+                    state.currentViewId = tab.viewId;
+                }
+            }
+
+            updatePaneFocus();
+            renderPaneContent(paneId);
+        }
+
+        // ============================================================================
+        // DIVIDER RESIZE
+        // ============================================================================
+
+        /**
+         * Start resizing a divider
+         */
+        function startDividerResize(event, splitId, direction) {
+            event.preventDefault();
+
+            // Find the split
+            const splitEl = document.querySelector(`[data-split-id="${splitId}"].layout-split`);
+            if (!splitEl) return;
+
+            const divider = event.target;
+            divider.classList.add('dragging');
+
+            dividerResizeState.resizing = true;
+            dividerResizeState.splitId = splitId;
+            dividerResizeState.direction = direction;
+            dividerResizeState.startPos = direction === 'horizontal' ? event.clientX : event.clientY;
+
+            // Get current ratio from style
+            const currentRatio = parseFloat(getComputedStyle(splitEl).getPropertyValue('--split-ratio')) || 0.5;
+            dividerResizeState.startRatio = currentRatio;
+            dividerResizeState.splitRect = splitEl.getBoundingClientRect();
+        }
+
+        /**
+         * Handle mouse move for divider resize
+         */
+        function handleLayoutMouseMove(event) {
+            if (dividerResizeState.resizing) {
+                event.preventDefault();
+
+                const { splitId, direction, startPos, startRatio, splitRect } = dividerResizeState;
+                const splitEl = document.querySelector(`[data-split-id="${splitId}"].layout-split`);
+                if (!splitEl) return;
+
+                // Calculate new ratio
+                let delta, totalSize;
+                if (direction === 'horizontal') {
+                    delta = event.clientX - startPos;
+                    totalSize = splitRect.width;
+                } else {
+                    delta = event.clientY - startPos;
+                    totalSize = splitRect.height;
+                }
+
+                const ratioDelta = delta / totalSize;
+                const newRatio = Math.max(0.1, Math.min(0.9, startRatio + ratioDelta));
+
+                // Update visual
+                splitEl.style.setProperty('--split-ratio', newRatio);
+            }
+        }
+
+        /**
+         * Handle mouse up for divider resize
+         */
+        function handleLayoutMouseUp(event) {
+            if (dividerResizeState.resizing) {
+                const { splitId, direction, startPos, startRatio, splitRect } = dividerResizeState;
+                const divider = document.querySelector(`.layout-divider[data-split-id="${splitId}"]`);
+                if (divider) {
+                    divider.classList.remove('dragging');
+                }
+
+                // Calculate final ratio
+                let delta, totalSize;
+                if (direction === 'horizontal') {
+                    delta = event.clientX - startPos;
+                    totalSize = splitRect.width;
+                } else {
+                    delta = event.clientY - startPos;
+                    totalSize = splitRect.height;
+                }
+
+                const ratioDelta = delta / totalSize;
+                const newRatio = Math.max(0.1, Math.min(0.9, startRatio + ratioDelta));
+
+                // Update state
+                EOLayout.resizeSplit(state, splitId, newRatio);
+
+                // Reset resize state
+                dividerResizeState.resizing = false;
+                dividerResizeState.splitId = null;
+                dividerResizeState.direction = null;
+            }
+        }
+
+        // ============================================================================
+        // DRAG AND DROP BETWEEN PANES
+        // ============================================================================
+
+        /**
+         * Handle drag start for a pane tab
+         */
+        function handlePaneTabDragStart(event, paneId, tabIndex) {
+            const pane = EOLayout.findPaneById(state.layout.root, paneId);
+            if (!pane) return;
+
+            const tab = pane.tabs[tabIndex];
+            if (!tab) return;
+
+            layoutDragState.dragging = true;
+            layoutDragState.draggedTab = { ...tab, tabIndex };
+            layoutDragState.sourcePaneId = paneId;
+
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', JSON.stringify({
+                type: 'pane-tab',
+                paneId,
+                tabIndex,
+                setId: tab.setId,
+                viewId: tab.viewId
+            }));
+
+            event.target.classList.add('dragging');
+        }
+
+        /**
+         * Handle drag end for a pane tab
+         */
+        function handlePaneTabDragEnd(event) {
+            event.target.classList.remove('dragging');
+
+            // Hide all drop zones
+            document.querySelectorAll('.drop-zone-indicator').forEach(zone => {
+                zone.classList.remove('visible');
+            });
+            document.querySelectorAll('.layout-pane').forEach(pane => {
+                pane.classList.remove('drag-over');
+            });
+
+            layoutDragState.dragging = false;
+            layoutDragState.draggedTab = null;
+            layoutDragState.sourcePaneId = null;
+            layoutDragState.targetPaneId = null;
+            layoutDragState.dropZone = null;
+        }
+
+        /**
+         * Handle drag over a pane
+         */
+        function handlePaneDragOver(event, paneId) {
+            if (!layoutDragState.dragging) return;
+
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+
+            const paneEl = document.getElementById(paneId);
+            if (!paneEl) return;
+
+            paneEl.classList.add('drag-over');
+            layoutDragState.targetPaneId = paneId;
+
+            // Determine which drop zone based on mouse position
+            const rect = paneEl.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const w = rect.width;
+            const h = rect.height;
+
+            // Calculate zone (edges vs center)
+            const edgeThreshold = 0.25;
+            let zone = 'center';
+
+            if (x < w * edgeThreshold) zone = 'left';
+            else if (x > w * (1 - edgeThreshold)) zone = 'right';
+            else if (y < h * edgeThreshold) zone = 'top';
+            else if (y > h * (1 - edgeThreshold)) zone = 'bottom';
+
+            layoutDragState.dropZone = zone;
+
+            // Show appropriate drop zone indicator
+            paneEl.querySelectorAll('.drop-zone-indicator').forEach(indicator => {
+                const indicatorZone = indicator.dataset.zone;
+                if (indicatorZone === zone) {
+                    indicator.classList.add('visible');
+                } else {
+                    indicator.classList.remove('visible');
+                }
+            });
+        }
+
+        /**
+         * Handle drag leave from a pane
+         */
+        function handlePaneDragLeave(event, paneId) {
+            const paneEl = document.getElementById(paneId);
+            if (!paneEl) return;
+
+            // Only remove if truly leaving (not entering a child)
+            if (!paneEl.contains(event.relatedTarget)) {
+                paneEl.classList.remove('drag-over');
+                paneEl.querySelectorAll('.drop-zone-indicator').forEach(zone => {
+                    zone.classList.remove('visible');
+                });
+            }
+        }
+
+        /**
+         * Handle drop on a pane
+         */
+        function handlePaneDrop(event, targetPaneId) {
+            event.preventDefault();
+
+            if (!layoutDragState.dragging || !layoutDragState.draggedTab) return;
+
+            const { draggedTab, sourcePaneId, dropZone } = layoutDragState;
+            const { setId, viewId } = draggedTab;
+
+            // Hide indicators
+            document.querySelectorAll('.drop-zone-indicator').forEach(zone => {
+                zone.classList.remove('visible');
+            });
+            document.querySelectorAll('.layout-pane').forEach(pane => {
+                pane.classList.remove('drag-over');
+            });
+
+            if (dropZone === 'center') {
+                // Add to target pane's tabs
+                if (sourcePaneId === targetPaneId) {
+                    // Same pane, just reorder - do nothing for now
+                    return;
+                }
+
+                EOLayout.moveTabToPane(state, sourcePaneId, setId, viewId, targetPaneId);
+            } else {
+                // Create split
+                const direction = (dropZone === 'left' || dropZone === 'right') ? 'horizontal' : 'vertical';
+                const tabToMove = { setId, viewId };
+
+                // First, remove from source pane
+                const sourcePane = EOLayout.findPaneById(state.layout.root, sourcePaneId);
+                if (sourcePane) {
+                    const tabIdx = sourcePane.tabs.findIndex(t => t.setId === setId && t.viewId === viewId);
+                    if (tabIdx !== -1) {
+                        sourcePane.tabs.splice(tabIdx, 1);
+                        if (sourcePane.activeTabIndex >= sourcePane.tabs.length) {
+                            sourcePane.activeTabIndex = Math.max(0, sourcePane.tabs.length - 1);
+                        }
+                    }
+                }
+
+                // Create split
+                const newPane = EOLayout.splitPane(state, targetPaneId, direction);
+                if (newPane) {
+                    // Determine which pane gets the tab based on drop zone
+                    if (dropZone === 'left' || dropZone === 'top') {
+                        // Tab goes to new pane (first child)
+                        newPane.tabs = [{ setId, viewId }];
+                        newPane.activeTabIndex = 0;
+                    } else {
+                        // Tab goes to new pane (second child)
+                        newPane.tabs = [{ setId, viewId }];
+                        newPane.activeTabIndex = 0;
+                    }
+
+                    state.layout.activePaneId = newPane.id;
+                    state.currentSetId = setId;
+                    state.currentViewId = viewId;
+                }
+
+                // Check if source pane is empty
+                if (sourcePane && sourcePane.tabs.length === 0 && sourcePane.id !== 'pane-main') {
+                    EOLayout.collapseEmptyPane(state, sourcePaneId, null);
+                }
+            }
+
+            // Update backward compatibility
+            ensureOpenTab(setId, viewId);
+
+            // Log event
+            EOLayout.emitLayoutEvent(state, EOLayout.LAYOUT_EVENT_TYPES.TAB_MOVED, {
+                fromPaneId: sourcePaneId,
+                toPaneId: targetPaneId,
+                setId,
+                viewId,
+                dropZone
+            });
+
+            renderLayout();
+            renderPaneContent(state.layout.activePaneId);
+            renderSidebar();
+        }
+
+        // ============================================================================
+        // POP OUT (PORTAL) FUNCTIONALITY
+        // ============================================================================
+
+        /**
+         * Pop out the active tab from a pane
+         */
+        function popOutPaneTab(paneId) {
+            if (!state.layout || typeof EOLayout === 'undefined') return;
+
+            const pane = EOLayout.findPaneById(state.layout.root, paneId);
+            if (!pane || pane.tabs.length === 0) return;
+
+            const tab = pane.tabs[pane.activeTabIndex];
+            if (!tab) return;
+
+            EOLayout.popOutTab(state, paneId, tab.setId, tab.viewId);
+
+            // Update openTabs
+            const openTabIndex = state.openTabs.findIndex(
+                t => t.setId === tab.setId && t.viewId === tab.viewId
+            );
+            if (openTabIndex !== -1) {
+                state.openTabs.splice(openTabIndex, 1);
+            }
+
+            renderLayout();
+            renderSidebar();
+        }
+
+        /**
+         * Pop out the active tab from the active pane
+         */
+        function popOutActiveTab() {
+            if (!state.layout) return;
+            popOutPaneTab(state.layout.activePaneId);
+        }
+
+        // ============================================================================
+        // PANE TAB CONTEXT MENU
+        // ============================================================================
+
+        /**
+         * Show context menu for a pane tab
+         */
+        function showPaneTabContextMenu(event, paneId, tabIndex) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const pane = EOLayout.findPaneById(state.layout.root, paneId);
+            if (!pane) return;
+
+            const tab = pane.tabs[tabIndex];
+            if (!tab) return;
+
+            const set = state.sets.get(tab.setId);
+            const view = set?.views.get(tab.viewId);
+            if (!set || !view) return;
+
+            // Remove existing menu
+            document.querySelector('.layout-context-menu')?.remove();
+
+            const menu = document.createElement('div');
+            menu.className = 'layout-context-menu';
+            menu.innerHTML = `
+                <div class="layout-context-menu-item" onclick="editViewFromContextMenu('${tab.viewId}')">
+                    <i class="ph ph-pencil-simple"></i>
+                    Edit View
+                </div>
+                <div class="layout-context-menu-item" onclick="duplicateViewFromContextMenu('${tab.viewId}')">
+                    <i class="ph ph-copy"></i>
+                    Duplicate View
+                </div>
+                <div class="layout-context-menu-divider"></div>
+                <div class="layout-context-menu-item" onclick="splitPaneWithTab('${paneId}', ${tabIndex}, 'horizontal')">
+                    <i class="ph ph-split-horizontal"></i>
+                    Split Right
+                </div>
+                <div class="layout-context-menu-item" onclick="splitPaneWithTab('${paneId}', ${tabIndex}, 'vertical')">
+                    <i class="ph ph-split-vertical"></i>
+                    Split Down
+                </div>
+                <div class="layout-context-menu-item" onclick="popOutSpecificTab('${paneId}', ${tabIndex})">
+                    <i class="ph ph-arrow-square-out"></i>
+                    Pop Out
+                </div>
+                <div class="layout-context-menu-divider"></div>
+                <div class="layout-context-menu-item" onclick="closePaneTab('${paneId}', ${tabIndex})">
+                    <i class="ph ph-x"></i>
+                    Close Tab
+                </div>
+                <div class="layout-context-menu-item danger" onclick="deleteViewFromContextMenu('${tab.viewId}', '${paneId}', ${tabIndex})">
+                    <i class="ph ph-trash"></i>
+                    Delete View
+                </div>
+            `;
+
+            // Position menu
+            menu.style.left = `${event.clientX}px`;
+            menu.style.top = `${event.clientY}px`;
+
+            document.body.appendChild(menu);
+
+            // Close on click outside
+            setTimeout(() => {
+                document.addEventListener('click', function closeMenu(e) {
+                    if (!menu.contains(e.target)) {
+                        menu.remove();
+                        document.removeEventListener('click', closeMenu);
+                    }
+                });
+            }, 0);
+        }
+
+        /**
+         * Split a pane and move a specific tab to the new pane
+         */
+        function splitPaneWithTab(paneId, tabIndex, direction) {
+            document.querySelector('.layout-context-menu')?.remove();
+
+            const pane = EOLayout.findPaneById(state.layout.root, paneId);
+            if (!pane) return;
+
+            const tab = pane.tabs[tabIndex];
+            if (!tab) return;
+
+            const newPane = EOLayout.splitPane(state, paneId, direction, tab);
+            if (newPane) {
+                state.layout.activePaneId = newPane.id;
+                state.currentSetId = tab.setId;
+                state.currentViewId = tab.viewId;
+                renderLayout();
+                renderPaneContent(newPane.id);
+            }
+        }
+
+        /**
+         * Pop out a specific tab
+         */
+        function popOutSpecificTab(paneId, tabIndex) {
+            document.querySelector('.layout-context-menu')?.remove();
+
+            const pane = EOLayout.findPaneById(state.layout.root, paneId);
+            if (!pane) return;
+
+            const tab = pane.tabs[tabIndex];
+            if (!tab) return;
+
+            EOLayout.popOutTab(state, paneId, tab.setId, tab.viewId);
+            renderLayout();
+        }
+
+        /**
+         * Edit view from context menu
+         */
+        function editViewFromContextMenu(viewId) {
+            document.querySelector('.layout-context-menu')?.remove();
+            openEditViewModal(viewId);
+        }
+
+        /**
+         * Duplicate view from context menu
+         */
+        function duplicateViewFromContextMenu(viewId) {
+            document.querySelector('.layout-context-menu')?.remove();
+            duplicateView(viewId);
+        }
+
+        /**
+         * Delete view from context menu
+         */
+        function deleteViewFromContextMenu(viewId, paneId, tabIndex) {
+            document.querySelector('.layout-context-menu')?.remove();
+
+            if (confirm('Are you sure you want to delete this view? This action cannot be undone.')) {
+                closePaneTab(paneId, tabIndex);
+                deleteView(state, viewId);
+                renderSidebar();
+            }
+        }
+
+        // ============================================================================
+        // ADD VIEW TO PANE
+        // ============================================================================
+
+        /**
+         * Handle adding a view to a specific pane
+         */
+        function handleAddViewToPane(paneId) {
+            // For now, use the existing add view flow
+            // Store target pane for the callback
+            state._targetPaneId = paneId;
+            handleAddViewClick();
+        }
+
+        /**
+         * Open a view in a pane (called from sidebar or elsewhere)
+         */
+        function openViewInPane(setId, viewId, paneId = null) {
+            if (!state.layout) {
+                initializeLayoutSystem();
+            }
+
+            const targetPaneId = paneId || state.layout.activePaneId || 'pane-main';
+            const pane = EOLayout.findPaneById(state.layout.root, targetPaneId);
+            if (!pane) return;
+
+            // Check if view is already open somewhere
+            const existingLocation = EOLayout.findPaneContainingView(state.layout, setId, viewId);
+            if (existingLocation) {
+                // Focus existing
+                state.layout.activePaneId = existingLocation.pane.id;
+                existingLocation.pane.activeTabIndex = existingLocation.tabIndex;
+                state.currentSetId = setId;
+                state.currentViewId = viewId;
+            } else {
+                // Add to pane
+                pane.tabs.push({ setId, viewId });
+                pane.activeTabIndex = pane.tabs.length - 1;
+                state.currentSetId = setId;
+                state.currentViewId = viewId;
+
+                // Also add to openTabs for backward compatibility
+                ensureOpenTab(setId, viewId);
+            }
+
+            EOLayout.emitLayoutEvent(state, EOLayout.LAYOUT_EVENT_TYPES.TAB_OPENED, {
+                paneId: targetPaneId,
+                setId,
+                viewId
+            });
+
+            renderLayout();
+            renderPaneContent(state.layout.activePaneId);
+            renderSidebar();
+        }
+
+        // ============================================================================
+        // BACKWARD COMPATIBILITY WRAPPER
+        // ============================================================================
+
+        /**
+         * Render view tabs - wrapper that uses layout system if available
+         */
         function renderViewTabs() {
+            // Use the new layout system if available
+            if (state.layout && typeof EOLayout !== 'undefined') {
+                renderLayout();
+                return;
+            }
+
+            // Legacy fallback for when layout system isn't loaded
             const container = document.getElementById('viewTabs');
             const surface = document.getElementById('viewSurface');
             if (!container) return;
@@ -13409,6 +14391,26 @@
                 state.lastUsedViewId = state.currentViewId;
             }
             if (state.currentViewId) ensureOpenTab(state.currentSetId, state.currentViewId);
+
+            // Sync with layout system if available
+            if (state.layout && typeof EOLayout !== 'undefined') {
+                const targetPaneId = state.layout.activePaneId || 'pane-main';
+                const pane = EOLayout.findPaneById(state.layout.root, targetPaneId);
+                if (pane) {
+                    // Check if view is already in this pane
+                    const existingIdx = pane.tabs.findIndex(
+                        t => t.setId === state.currentSetId && t.viewId === state.currentViewId
+                    );
+                    if (existingIdx !== -1) {
+                        pane.activeTabIndex = existingIdx;
+                    } else {
+                        // Add to active pane
+                        pane.tabs.push({ setId: state.currentSetId, viewId: state.currentViewId });
+                        pane.activeTabIndex = pane.tabs.length - 1;
+                    }
+                }
+            }
+
             closeMobileSidebar();
             renderSidebar();
             renderViewTabs();
