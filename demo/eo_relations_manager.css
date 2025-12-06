@@ -1,0 +1,875 @@
+/**
+ * EO Relations Manager Styles
+ *
+ * Page-level component for managing relations.
+ * Follows design patterns from existing set management and modal components.
+ */
+
+/* ============================================================================
+   MAIN CONTAINER
+   ============================================================================ */
+
+.relations-manager {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #ffffff;
+}
+
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
+.relations-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.relations-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.world-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.world-badge i {
+    font-size: 14px;
+}
+
+.relations-title-group {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.relations-title {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.relations-count {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.relations-header-right {
+    display: flex;
+    gap: 10px;
+}
+
+/* Buttons */
+.btn-import {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-import:hover {
+    background: #059669;
+}
+
+.btn-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: #111827;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-add:hover {
+    background: #1f2937;
+}
+
+/* ============================================================================
+   FILTER TABS
+   ============================================================================ */
+
+.relations-filter-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 12px 24px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    overflow-x: auto;
+}
+
+.filter-tab {
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.filter-tab:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.filter-tab.active {
+    background: white;
+    color: #3b82f6;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================================================
+   RELATIONS LIST
+   ============================================================================ */
+
+.relations-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px;
+}
+
+.relation-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 16px 20px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.relation-item:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Operator-based colors */
+.relation-item.operator-nul { border-left-color: #9ca3af; }
+.relation-item.operator-des { border-left-color: #f59e0b; }
+.relation-item.operator-ins { border-left-color: #10b981; }
+.relation-item.operator-seg { border-left-color: #ef4444; }
+.relation-item.operator-con { border-left-color: #3b82f6; }
+.relation-item.operator-alt { border-left-color: #8b5cf6; }
+.relation-item.operator-syn { border-left-color: #06b6d4; }
+.relation-item.operator-sup { border-left-color: #ec4899; }
+.relation-item.operator-rec { border-left-color: #84cc16; }
+
+.relation-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.relation-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.relation-source,
+.relation-target {
+    font-weight: 600;
+    color: #111827;
+}
+
+.relation-connector {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.relation-dash {
+    color: #9ca3af;
+}
+
+.relation-type {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.relation-type:hover {
+    text-decoration: underline;
+}
+
+.relation-arrow {
+    color: #9ca3af;
+}
+
+.relation-description {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.relation-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: 16px;
+}
+
+.btn-text {
+    padding: 6px 12px;
+    background: none;
+    border: none;
+    color: #3b82f6;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+.btn-text:hover {
+    color: #2563eb;
+}
+
+.btn-text.danger {
+    color: #ef4444;
+}
+
+.btn-text.danger:hover {
+    color: #dc2626;
+}
+
+/* ============================================================================
+   EMPTY STATE
+   ============================================================================ */
+
+.relations-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 80px 24px;
+    text-align: center;
+    color: #6b7280;
+}
+
+.relations-empty i {
+    font-size: 64px;
+    color: #d1d5db;
+}
+
+.relations-empty p {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.relations-empty .hint {
+    font-size: 14px;
+    color: #9ca3af;
+}
+
+/* ============================================================================
+   RELATION TYPES ACCORDION
+   ============================================================================ */
+
+.relation-types-accordion {
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.accordion-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px 24px;
+    background: none;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+}
+
+.accordion-toggle:hover {
+    background: #e5e7eb;
+}
+
+.accordion-toggle.open {
+    background: #e5e7eb;
+}
+
+.relation-types-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 20px 24px;
+    background: #ffffff;
+    border-top: 1px solid #e5e7eb;
+}
+
+.type-group {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.type-group-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.operator-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    text-transform: uppercase;
+}
+
+.operator-badge.operator-nul { background: #9ca3af; }
+.operator-badge.operator-des { background: #f59e0b; }
+.operator-badge.operator-ins { background: #10b981; }
+.operator-badge.operator-seg { background: #ef4444; }
+.operator-badge.operator-con { background: #3b82f6; }
+.operator-badge.operator-alt { background: #8b5cf6; }
+.operator-badge.operator-syn { background: #06b6d4; }
+.operator-badge.operator-sup { background: #ec4899; }
+.operator-badge.operator-rec { background: #84cc16; }
+
+.type-count {
+    font-size: 12px;
+    font-weight: 400;
+    color: #6b7280;
+}
+
+.type-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.type-chip {
+    display: inline-block;
+    padding: 4px 10px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 12px;
+    color: #374151;
+}
+
+.type-more {
+    display: inline-block;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+/* ============================================================================
+   MODAL STYLES (Using existing patterns)
+   ============================================================================ */
+
+.relations-manager .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+    animation: modalFadeIn 0.2s ease;
+}
+
+.relations-manager .modal {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+    max-width: 520px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    animation: modalSlideUp 0.25s ease;
+}
+
+.relations-manager .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.relations-manager .modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.relations-manager .modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: #f4f5f7;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #4b5563;
+    font-size: 16px;
+    transition: all 0.15s;
+}
+
+.relations-manager .modal-close:hover {
+    background: #e5e7eb;
+    color: #111827;
+}
+
+.relations-manager .modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.relations-manager .form-group {
+    margin-bottom: 20px;
+}
+
+.relations-manager .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.relations-manager .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.relations-manager .form-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    box-sizing: border-box;
+}
+
+.relations-manager .form-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.relations-manager .form-textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.relations-manager .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 0 0 12px 12px;
+}
+
+.relations-manager .btn-secondary {
+    padding: 10px 20px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.relations-manager .btn-secondary:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+}
+
+.relations-manager .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    background: #3b82f6;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: white;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.relations-manager .btn-primary:hover {
+    background: #2563eb;
+}
+
+.relations-manager .btn-primary:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* Import Zone */
+.import-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 40px 24px;
+    border: 2px dashed #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.import-zone:hover,
+.import-zone.dragover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.import-zone i {
+    font-size: 48px;
+    color: #9ca3af;
+}
+
+.import-zone p {
+    margin: 0;
+    font-size: 14px;
+    color: #374151;
+}
+
+.import-zone .hint {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.import-options {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #374151;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+/* ============================================================================
+   ANIMATIONS
+   ============================================================================ */
+
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modalSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================================================
+   DARK MODE
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+    .relations-manager {
+        background: #111827;
+    }
+
+    .relations-header {
+        border-bottom-color: #374151;
+    }
+
+    .relations-title {
+        color: #f9fafb;
+    }
+
+    .relations-filter-tabs {
+        background: #1f2937;
+        border-bottom-color: #374151;
+    }
+
+    .filter-tab {
+        color: #9ca3af;
+    }
+
+    .filter-tab:hover {
+        background: #374151;
+        color: #e5e7eb;
+    }
+
+    .filter-tab.active {
+        background: #374151;
+        color: #60a5fa;
+    }
+
+    .relation-item {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .relation-item:hover {
+        border-color: #4b5563;
+    }
+
+    .relation-source,
+    .relation-target {
+        color: #f9fafb;
+    }
+
+    .relation-types-accordion {
+        border-top-color: #374151;
+        background: #1f2937;
+    }
+
+    .accordion-toggle {
+        color: #e5e7eb;
+    }
+
+    .accordion-toggle:hover,
+    .accordion-toggle.open {
+        background: #374151;
+    }
+
+    .relation-types-panel {
+        background: #111827;
+        border-top-color: #374151;
+    }
+
+    .type-group {
+        background: #1f2937;
+    }
+
+    .type-group-header {
+        color: #e5e7eb;
+    }
+
+    .type-chip {
+        background: #374151;
+        border-color: #4b5563;
+        color: #e5e7eb;
+    }
+
+    .relations-manager .modal {
+        background: #1f2937;
+    }
+
+    .relations-manager .modal-header {
+        border-bottom-color: #374151;
+    }
+
+    .relations-manager .modal-header h2 {
+        color: #f9fafb;
+    }
+
+    .relations-manager .modal-close {
+        background: #374151;
+        border-color: #4b5563;
+        color: #9ca3af;
+    }
+
+    .relations-manager .modal-close:hover {
+        background: #4b5563;
+        color: #f9fafb;
+    }
+
+    .relations-manager .form-group label {
+        color: #e5e7eb;
+    }
+
+    .relations-manager .form-input {
+        background: #374151;
+        border-color: #4b5563;
+        color: #f9fafb;
+    }
+
+    .relations-manager .form-input:focus {
+        border-color: #3b82f6;
+    }
+
+    .relations-manager .modal-footer {
+        background: #111827;
+        border-top-color: #374151;
+    }
+
+    .relations-manager .btn-secondary {
+        background: #374151;
+        border-color: #4b5563;
+        color: #e5e7eb;
+    }
+
+    .relations-manager .btn-secondary:hover {
+        background: #4b5563;
+    }
+
+    .import-zone {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .import-zone:hover,
+    .import-zone.dragover {
+        background: #1e3a5f;
+        border-color: #3b82f6;
+    }
+
+    .import-zone p {
+        color: #e5e7eb;
+    }
+
+    .checkbox-label {
+        color: #e5e7eb;
+    }
+
+    .relations-empty p {
+        color: #e5e7eb;
+    }
+
+    .relations-empty i {
+        color: #4b5563;
+    }
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+    .relations-header {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .relations-header-right {
+        width: 100%;
+    }
+
+    .btn-import,
+    .btn-add {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .relations-filter-tabs {
+        padding: 12px 16px;
+    }
+
+    .filter-tab {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .relations-list {
+        padding: 12px 16px;
+    }
+
+    .relation-item {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .relation-actions {
+        margin-left: 0;
+        align-self: flex-end;
+    }
+
+    .relation-types-panel {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .relations-title {
+        font-size: 20px;
+    }
+
+    .relation-main {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .relation-connector {
+        padding-left: 8px;
+    }
+}
