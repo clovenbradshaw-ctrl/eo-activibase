@@ -19948,8 +19948,11 @@
             const field = set.schema.find(f => f.id === fieldId);
             const currentValue = record[fieldId];
 
-            let newValue = td.textContent.trim();
-            if (field.type === 'NUMBER' || field.type === 'CURRENCY') {
+            const rawTextValue = td.textContent.trim();
+
+            // For number/currency: only convert non-empty values, pass empty as '' to trigger toss
+            let newValue = rawTextValue;
+            if (rawTextValue !== '' && (field.type === 'NUMBER' || field.type === 'CURRENCY')) {
                 newValue = parseFloat(newValue) || 0;
             }
 
@@ -20224,6 +20227,17 @@
           const set = getCurrentSet();
           const record = set.records.get(recordId);
           const field = set.schema.find(f => f.id === fieldId);
+
+          // If clearing a field that had value, treat as toss
+          const hasOldValue = oldValue !== null && oldValue !== undefined && oldValue !== '';
+          const isClearing = newValue === null || newValue === undefined || newValue === '';
+          if (hasOldValue && isClearing && typeof TossPile !== 'undefined' && TossPile.tossCell) {
+              TossPile.tossCell(state, recordId, fieldId);
+              renderCurrentView();
+              showToast(`✓ Cleared ${field.name}`);
+              return;
+          }
+
           record[fieldId] = newValue;
             createEvent(
                 'Update Cell',
