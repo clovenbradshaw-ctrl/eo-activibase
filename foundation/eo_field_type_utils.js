@@ -40,7 +40,8 @@
             'LOOKUP': 'ph-arrow-square-out',
             'LINKED_RECORD': 'ph-link-simple',
             'LINK_RECORD': 'ph-link-simple',
-            'JSON': 'ph-brackets-curly'
+            'JSON': 'ph-brackets-curly',
+            'MULTI_FIELD': 'ph-stack'
         };
     };
 
@@ -67,7 +68,8 @@
             'LOOKUP': '#22d3ee',
             'LINKED_RECORD': '#8b5cf6',
             'LINK_RECORD': '#8b5cf6',
-            'JSON': '#64748b'
+            'JSON': '#64748b',
+            'MULTI_FIELD': '#059669'
         };
     };
 
@@ -206,7 +208,8 @@
             'MULTI_SELECT': 'Multi-Select',
             'LONG_TEXT': 'Long Text',
             'URL': 'URL',
-            'JSON': 'JSON'
+            'JSON': 'JSON',
+            'MULTI_FIELD': 'Multi-Field'
         };
 
         if (specialNames[type]) {
