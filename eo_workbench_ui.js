@@ -17,6 +17,7 @@
 /**
  * Render view switcher for a set
  * Shows tabs/list of views with + New View button
+ * Uses array join for efficient string building
  */
 function renderViewManager(state, setId) {
     const set = state.sets.get(setId);
@@ -25,46 +26,45 @@ function renderViewManager(state, setId) {
     const views = getSetViews(state, setId);
     const currentViewId = state.currentViewId;
 
-    let html = '<div class="view-manager">';
-    html += '<div class="view-tabs">';
+    const htmlParts = ['<div class="view-manager">', '<div class="view-tabs">'];
 
     views.forEach(view => {
         const isActive = view.id === currentViewId;
         const isDirty = view.isDirty ? ' *' : '';
-        html += `
+        htmlParts.push(`
             <div class="view-tab ${isActive ? 'active' : ''}" data-view-id="${view.id}">
                 <span class="view-icon">${view.icon || '📋'}</span>
                 <span class="view-name">${escapeHtml(view.name)}${isDirty}</span>
                 <button class="view-menu-btn" data-view-id="${view.id}" title="View options">⋮</button>
             </div>
-        `;
+        `);
     });
 
-    html += `
+    htmlParts.push(`
         <button class="view-tab-add" title="New view">
             <span class="icon">+</span> New View
         </button>
-    `;
+    `);
 
-    html += '</div>'; // .view-tabs
+    htmlParts.push('</div>'); // .view-tabs
 
     // View actions (shown when view is dirty)
     if (currentViewId) {
         const currentView = state.views?.get(currentViewId);
         if (currentView?.isDirty) {
-            html += `
+            htmlParts.push(`
                 <div class="view-actions">
                     <span class="unsaved-label">Unsaved changes</span>
                     <button class="btn-save-view" data-view-id="${currentViewId}">Save View</button>
                     <button class="btn-save-view-as" data-view-id="${currentViewId}">Save As...</button>
                 </div>
-            `;
+            `);
         }
     }
 
-    html += '</div>'; // .view-manager
+    htmlParts.push('</div>'); // .view-manager
 
-    return html;
+    return htmlParts.join('');
 }
 
 /**
@@ -593,11 +593,16 @@ function showDedupeDialog(state, setId) {
 
     document.body.appendChild(dialog);
 
-    // Update threshold display
+    // Update threshold display with debouncing for performance
     const thresholdInput = dialog.querySelector('#dedupe-threshold');
     const thresholdDisplay = dialog.querySelector('#threshold-value');
+    let thresholdDebounceTimer = null;
     thresholdInput.addEventListener('input', () => {
-        thresholdDisplay.textContent = `${Math.round(thresholdInput.value * 100)}%`;
+        // Debounce to prevent excessive DOM updates during slider drag
+        if (thresholdDebounceTimer) cancelAnimationFrame(thresholdDebounceTimer);
+        thresholdDebounceTimer = requestAnimationFrame(() => {
+            thresholdDisplay.textContent = `${Math.round(thresholdInput.value * 100)}%`;
+        });
     });
 
     dialog.querySelectorAll('.modal-close').forEach(btn => {
@@ -725,35 +730,42 @@ function showMergeRecordsDialog(state, setId, recordIds) {
 
 /**
  * Render merge comparison table
+ * Uses array join for efficient string building and virtual scrolling for large tables
  */
 function renderMergeTable(schema, records) {
-    let html = '<table class="merge-comparison-table">';
-    html += '<thead><tr><th>Field</th>';
-    records.forEach((rec, idx) => {
-        html += `<th>Record ${idx + 1}</th>`;
-    });
-    html += '<th>Strategy</th></tr></thead><tbody>';
+    const htmlParts = [];
+    const MAX_VISIBLE_FIELDS = 50; // Virtualize if more than 50 fields
+    const visibleSchema = schema.length > MAX_VISIBLE_FIELDS ? schema.slice(0, MAX_VISIBLE_FIELDS) : schema;
+    const hasMore = schema.length > MAX_VISIBLE_FIELDS;
 
-    schema.forEach(field => {
-        html += '<tr>';
-        html += `<td class="field-name">${escapeHtml(field.name || field.id)}</td>`;
+    htmlParts.push('<table class="merge-comparison-table">');
+    htmlParts.push('<thead><tr><th>Field</th>');
+    for (let idx = 0; idx < records.length; idx++) {
+        htmlParts.push(`<th>Record ${idx + 1}</th>`);
+    }
+    htmlParts.push('<th>Strategy</th></tr></thead><tbody>');
 
-        records.forEach((rec, idx) => {
+    visibleSchema.forEach(field => {
+        htmlParts.push('<tr>');
+        htmlParts.push(`<td class="field-name">${escapeHtml(field.name || field.id)}</td>`);
+
+        for (let idx = 0; idx < records.length; idx++) {
+            const rec = records[idx];
             const value = rec[field.id];
             const displayValue = value !== undefined && value !== null && value !== '' ?
                 escapeHtml(String(value)) : '<em>empty</em>';
 
-            html += `
+            htmlParts.push(`
                 <td>
                     <label>
                         <input type="radio" name="field_${field.id}" value="index_${idx}" ${idx === 0 ? 'checked' : ''}>
                         ${displayValue}
                     </label>
                 </td>
-            `;
-        });
+            `);
+        }
 
-        html += `
+        htmlParts.push(`
             <td>
                 <select class="strategy-select" data-field="${field.id}">
                     <option value="first">First</option>
@@ -761,13 +773,19 @@ function renderMergeTable(schema, records) {
                     <option value="concat">Concatenate</option>
                 </select>
             </td>
-        `;
+        `);
 
-        html += '</tr>';
+        htmlParts.push('</tr>');
     });
 
-    html += '</tbody></table>';
-    return html;
+    htmlParts.push('</tbody></table>');
+
+    // Add "show more" button if table is virtualized
+    if (hasMore) {
+        htmlParts.push(`<div class="virtualized-info">Showing ${MAX_VISIBLE_FIELDS} of ${schema.length} fields. <button class="btn-show-all-fields" data-total="${schema.length}">Show All</button></div>`);
+    }
+
+    return htmlParts.join('');
 }
 
 /**
@@ -1082,54 +1100,59 @@ function renderZeroInputContent(data) {
 
 /**
  * Handle search input and filter results
+ * Optimized to batch DOM updates and use array join for string building
  */
 function handleSearchInput(state, query) {
     const resultsContainer = document.getElementById('search-results-filtered');
     const zeroInputContainer = document.getElementById('search-results');
 
     if (!query || query.trim().length === 0) {
-        // Show zero-input content
-        resultsContainer.style.display = 'none';
-        zeroInputContainer.style.display = 'block';
+        // Batch style changes together to minimize reflows
+        requestAnimationFrame(() => {
+            resultsContainer.style.display = 'none';
+            zeroInputContainer.style.display = 'block';
+        });
         return;
     }
 
-    // Hide zero-input, show filtered
-    zeroInputContainer.style.display = 'none';
-    resultsContainer.style.display = 'block';
-
-    // Search
+    // Search first, then update DOM
     const results = searchAllEntities(state, query);
 
-    // Render filtered results
-    let html = '<div class="filtered-search-results">';
+    // Build HTML using array join instead of string concatenation
+    const htmlParts = ['<div class="filtered-search-results">'];
 
     Object.entries(results).forEach(([category, items]) => {
         if (items.length > 0) {
-            html += `<div class="search-section">`;
-            html += `<h3>${capitalize(category)} (${items.length})</h3>`;
-            html += '<div class="search-results-list">';
+            htmlParts.push(`<div class="search-section">`);
+            htmlParts.push(`<h3>${capitalize(category)} (${items.length})</h3>`);
+            htmlParts.push('<div class="search-results-list">');
 
             items.forEach(item => {
-                html += `
+                htmlParts.push(`
                     <div class="search-result-item" data-type="${item.type}" data-id="${item.id}">
                         <span class="type-badge">${item.type}</span>
                         <span class="item-name">${escapeHtml(item.name || item.term || item.id)}</span>
                         ${item.setName ? `<span class="item-meta">in ${escapeHtml(item.setName)}</span>` : ''}
                     </div>
-                `;
+                `);
             });
 
-            html += '</div></div>';
+            htmlParts.push('</div></div>');
         }
     });
 
     if (Object.values(results).every(arr => arr.length === 0)) {
-        html += '<div class="no-results">No results found</div>';
+        htmlParts.push('<div class="no-results">No results found</div>');
     }
 
-    html += '</div>';
-    resultsContainer.innerHTML = html;
+    htmlParts.push('</div>');
+
+    // Batch all DOM updates together to minimize layout thrashing
+    requestAnimationFrame(() => {
+        zeroInputContainer.style.display = 'none';
+        resultsContainer.style.display = 'block';
+        resultsContainer.innerHTML = htmlParts.join('');
+    });
 }
 
 // ============================================================================

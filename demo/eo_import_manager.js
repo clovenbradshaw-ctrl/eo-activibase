@@ -570,6 +570,7 @@ class EOImportManager {
 
   /**
    * Analyze schema from rows
+   * Uses sampling for large datasets to improve performance
    */
   analyzeSchema(rows, headers) {
     const columns = {};
@@ -594,8 +595,21 @@ class EOImportManager {
       };
     });
 
-    // Analyze each row
-    rows.forEach((row, rowIdx) => {
+    // Sample-based analysis for large datasets (analyze first 1000 rows for type detection)
+    const sampleSize = Math.min(rows.length, 1000);
+    const sampleRows = rows.slice(0, sampleSize);
+    const sampleRatio = rows.length / sampleSize;
+
+    // Pre-compile regex patterns for type detection (avoid creating in loop)
+    const numericRegex = /^-?\d*\.?\d+$/;
+    const dateIsoRegex = /^\d{4}-\d{2}-\d{2}/;
+    const booleanValues = new Set(['true', 'false', 'yes', 'no', '1', '0', 'y', 'n']);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const urlRegex = /^https?:\/\//;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    // Analyze sampled rows
+    sampleRows.forEach((row, rowIdx) => {
       headers.forEach(header => {
         const value = row[header];
         const col = columns[header];
@@ -622,35 +636,40 @@ class EOImportManager {
         col.minLength = Math.min(col.minLength, strValue.length);
         col.maxLength = Math.max(col.maxLength, strValue.length);
 
-        // Type detection
+        // Type detection (using pre-compiled regex)
         if (strValue) {
-          // Numeric
-          if (col.isNumeric && !/^-?\d*\.?\d+$/.test(strValue.replace(/[,$%]/g, ''))) {
-            col.isNumeric = false;
+          // Numeric - clean and test
+          if (col.isNumeric) {
+            const cleanValue = strValue.replace(/[,$%]/g, '');
+            if (!numericRegex.test(cleanValue)) {
+              col.isNumeric = false;
+            }
           }
 
-          // Date
-          if (col.isDate && isNaN(Date.parse(strValue)) && !/^\d{4}-\d{2}-\d{2}/.test(strValue)) {
-            col.isDate = false;
+          // Date - check ISO format first (faster), then Date.parse
+          if (col.isDate) {
+            if (!dateIsoRegex.test(strValue) && isNaN(Date.parse(strValue))) {
+              col.isDate = false;
+            }
           }
 
           // Boolean
-          if (col.isBoolean && !['true', 'false', 'yes', 'no', '1', '0', 'y', 'n'].includes(strValue.toLowerCase())) {
+          if (col.isBoolean && !booleanValues.has(strValue.toLowerCase())) {
             col.isBoolean = false;
           }
 
           // Email
-          if (col.isEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(strValue)) {
+          if (col.isEmail && !emailRegex.test(strValue)) {
             col.isEmail = false;
           }
 
           // URL
-          if (col.isUrl && !/^https?:\/\//.test(strValue)) {
+          if (col.isUrl && !urlRegex.test(strValue)) {
             col.isUrl = false;
           }
 
           // UUID
-          if (col.isUuid && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strValue)) {
+          if (col.isUuid && !uuidRegex.test(strValue)) {
             col.isUuid = false;
           }
 
@@ -659,6 +678,13 @@ class EOImportManager {
         }
       });
     });
+
+    // Adjust null counts for sampling ratio if we sampled
+    if (sampleRatio > 1) {
+      headers.forEach(header => {
+        columns[header].nullCount = Math.round(columns[header].nullCount * sampleRatio);
+      });
+    }
 
     // Determine inferred types
     const inferredTypes = {};
@@ -895,11 +921,19 @@ class EOImportManager {
 
     const completeness = totalCells > 0 ? ((totalCells - nullCells) / totalCells) : 1;
 
-    // Check for duplicate rows
+    // Check for duplicate rows using efficient composite key hash
     const rowHashes = new Set();
     let duplicateCount = 0;
+    const keys = Object.keys(rows[0] || {});
     rows.forEach(row => {
-      const hash = JSON.stringify(row);
+      // Build a simple hash from key values instead of full JSON.stringify
+      // This is much faster for large rows with many columns
+      let hash = '';
+      for (let i = 0; i < keys.length; i++) {
+        const val = row[keys[i]];
+        hash += (val === null || val === undefined) ? '\x00' : String(val);
+        hash += '\x01'; // Separator to avoid collision between adjacent values
+      }
       if (rowHashes.has(hash)) {
         duplicateCount++;
       } else {

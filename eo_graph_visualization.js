@@ -58,6 +58,16 @@ class EOGraphVisualization {
         this.simulation = null;
         this.animationFrame = null;
 
+        // Quadtree for spatial partitioning (improves O(n²) to O(n log n))
+        this.quadtree = null;
+
+        // Performance: Throttle mousemove to ~60fps
+        this._lastMouseMoveTime = 0;
+        this._mouseMoveThrottleMs = 16; // ~60fps
+
+        // Store bound event handlers for cleanup
+        this._boundHandlers = {};
+
         this._init();
     }
 
@@ -234,6 +244,147 @@ class EOGraphVisualization {
         this.animationFrame = requestAnimationFrame(simulate);
     }
 
+    /**
+     * Build a simple quadtree for spatial partitioning
+     * Reduces O(n²) force calculations to O(n log n)
+     */
+    _buildQuadtree() {
+        const bounds = {
+            x: 0,
+            y: 0,
+            width: this.options.width,
+            height: this.options.height
+        };
+
+        // Simple quadtree node structure
+        const createNode = (bounds, depth = 0) => ({
+            bounds,
+            depth,
+            points: [],
+            children: null,
+            centerOfMass: null,
+            totalMass: 0
+        });
+
+        const insert = (node, point, maxDepth = 8, maxPoints = 4) => {
+            if (!this._pointInBounds(point, node.bounds)) return;
+
+            if (node.children) {
+                // Insert into appropriate child
+                for (const child of node.children) {
+                    insert(child, point, maxDepth, maxPoints);
+                }
+            } else if (node.points.length < maxPoints || node.depth >= maxDepth) {
+                node.points.push(point);
+            } else {
+                // Subdivide
+                const { x, y, width, height } = node.bounds;
+                const hw = width / 2, hh = height / 2;
+                node.children = [
+                    createNode({ x, y, width: hw, height: hh }, node.depth + 1),
+                    createNode({ x: x + hw, y, width: hw, height: hh }, node.depth + 1),
+                    createNode({ x, y: y + hh, width: hw, height: hh }, node.depth + 1),
+                    createNode({ x: x + hw, y: y + hh, width: hw, height: hh }, node.depth + 1)
+                ];
+                // Reinsert existing points
+                for (const p of node.points) {
+                    for (const child of node.children) {
+                        insert(child, p, maxDepth, maxPoints);
+                    }
+                }
+                node.points = [];
+                // Insert new point
+                for (const child of node.children) {
+                    insert(child, point, maxDepth, maxPoints);
+                }
+            }
+        };
+
+        const computeMass = (node) => {
+            if (node.children) {
+                let totalMass = 0, cx = 0, cy = 0;
+                for (const child of node.children) {
+                    computeMass(child);
+                    if (child.totalMass > 0) {
+                        cx += child.centerOfMass.x * child.totalMass;
+                        cy += child.centerOfMass.y * child.totalMass;
+                        totalMass += child.totalMass;
+                    }
+                }
+                if (totalMass > 0) {
+                    node.centerOfMass = { x: cx / totalMass, y: cy / totalMass };
+                    node.totalMass = totalMass;
+                }
+            } else if (node.points.length > 0) {
+                let cx = 0, cy = 0;
+                for (const p of node.points) {
+                    cx += p.x;
+                    cy += p.y;
+                }
+                node.centerOfMass = { x: cx / node.points.length, y: cy / node.points.length };
+                node.totalMass = node.points.length;
+            }
+        };
+
+        const root = createNode(bounds);
+        this.nodePositions.forEach((pos, id) => {
+            insert(root, { x: pos.x, y: pos.y, id });
+        });
+        computeMass(root);
+        return root;
+    }
+
+    _pointInBounds(point, bounds) {
+        return point.x >= bounds.x && point.x < bounds.x + bounds.width &&
+               point.y >= bounds.y && point.y < bounds.y + bounds.height;
+    }
+
+    /**
+     * Calculate repulsion using Barnes-Hut approximation with quadtree
+     */
+    _calculateRepulsionWithQuadtree(nodeId, pos, qtNode, theta = 0.7) {
+        if (!qtNode || qtNode.totalMass === 0) return { fx: 0, fy: 0 };
+
+        const dx = (qtNode.centerOfMass?.x || 0) - pos.x;
+        const dy = (qtNode.centerOfMass?.y || 0) - pos.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+        // Check if we can use the center of mass approximation
+        const size = Math.max(qtNode.bounds.width, qtNode.bounds.height);
+        if (qtNode.children && size / dist > theta) {
+            // Node is too close, recurse into children
+            let fx = 0, fy = 0;
+            for (const child of qtNode.children) {
+                const force = this._calculateRepulsionWithQuadtree(nodeId, pos, child, theta);
+                fx += force.fx;
+                fy += force.fy;
+            }
+            return { fx, fy };
+        } else {
+            // Use center of mass approximation or direct calculation
+            if (qtNode.points) {
+                let fx = 0, fy = 0;
+                for (const point of qtNode.points) {
+                    if (point.id === nodeId) continue;
+                    const pdx = pos.x - point.x;
+                    const pdy = pos.y - point.y;
+                    const pdist = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
+                    const force = 5000 / (pdist * pdist);
+                    fx += (pdx / pdist) * force;
+                    fy += (pdy / pdist) * force;
+                }
+                return { fx, fy };
+            } else if (qtNode.totalMass > 0) {
+                const force = 5000 * qtNode.totalMass / (dist * dist);
+                return {
+                    fx: -(dx / dist) * force,
+                    fy: -(dy / dist) * force
+                };
+            }
+        }
+        return { fx: 0, fy: 0 };
+    }
+
     _simulationStep() {
         const nodes = Array.from(this.graph.nodes.values());
         const edges = Array.from(this.graph.edges.values());
@@ -247,25 +398,44 @@ class EOGraphVisualization {
             }
         });
 
+        // Build quadtree for efficient repulsion calculation (O(n log n) instead of O(n²))
+        const useQuadtree = nodes.length > 50; // Only use quadtree for larger graphs
+        let quadtree = null;
+        if (useQuadtree) {
+            quadtree = this._buildQuadtree();
+        }
+
         // Repulsion between nodes
-        for (let i = 0; i < nodes.length; i++) {
-            for (let j = i + 1; j < nodes.length; j++) {
-                const posA = this.nodePositions.get(nodes[i].id);
-                const posB = this.nodePositions.get(nodes[j].id);
-                if (!posA || !posB) continue;
+        if (useQuadtree && quadtree) {
+            // Barnes-Hut approximation
+            nodes.forEach(node => {
+                const pos = this.nodePositions.get(node.id);
+                if (!pos) return;
+                const force = this._calculateRepulsionWithQuadtree(node.id, pos, quadtree);
+                pos.fx += force.fx;
+                pos.fy += force.fy;
+            });
+        } else {
+            // Direct O(n²) for small graphs (simpler and still fast)
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const posA = this.nodePositions.get(nodes[i].id);
+                    const posB = this.nodePositions.get(nodes[j].id);
+                    if (!posA || !posB) continue;
 
-                const dx = posB.x - posA.x;
-                const dy = posB.y - posA.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const force = 5000 / (dist * dist);
+                    const dx = posB.x - posA.x;
+                    const dy = posB.y - posA.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const force = 5000 / (dist * dist);
 
-                const fx = (dx / dist) * force;
-                const fy = (dy / dist) * force;
+                    const fx = (dx / dist) * force;
+                    const fy = (dy / dist) * force;
 
-                posA.fx -= fx;
-                posA.fy -= fy;
-                posB.fx += fx;
-                posB.fy += fy;
+                    posA.fx -= fx;
+                    posA.fy -= fy;
+                    posB.fx += fx;
+                    posB.fy += fy;
+                }
             }
         }
 
@@ -585,11 +755,30 @@ class EOGraphVisualization {
     // =========================================================================
 
     _bindEvents() {
-        this.canvas.addEventListener('mousedown', (e) => this._onMouseDown(e));
-        this.canvas.addEventListener('mousemove', (e) => this._onMouseMove(e));
-        this.canvas.addEventListener('mouseup', (e) => this._onMouseUp(e));
-        this.canvas.addEventListener('wheel', (e) => this._onWheel(e));
-        this.canvas.addEventListener('dblclick', (e) => this._onDoubleClick(e));
+        // Store bound handlers for cleanup
+        this._boundHandlers.mousedown = (e) => this._onMouseDown(e);
+        this._boundHandlers.mousemove = (e) => this._onMouseMoveThrottled(e);
+        this._boundHandlers.mouseup = (e) => this._onMouseUp(e);
+        this._boundHandlers.wheel = (e) => this._onWheel(e);
+        this._boundHandlers.dblclick = (e) => this._onDoubleClick(e);
+
+        this.canvas.addEventListener('mousedown', this._boundHandlers.mousedown);
+        this.canvas.addEventListener('mousemove', this._boundHandlers.mousemove);
+        this.canvas.addEventListener('mouseup', this._boundHandlers.mouseup);
+        this.canvas.addEventListener('wheel', this._boundHandlers.wheel);
+        this.canvas.addEventListener('dblclick', this._boundHandlers.dblclick);
+    }
+
+    /**
+     * Throttled mousemove handler to prevent performance issues
+     */
+    _onMouseMoveThrottled(e) {
+        const now = performance.now();
+        if (now - this._lastMouseMoveTime < this._mouseMoveThrottleMs) {
+            return; // Skip this event, too soon after last one
+        }
+        this._lastMouseMoveTime = now;
+        this._onMouseMove(e);
     }
 
     _getMousePos(e) {
@@ -886,12 +1075,27 @@ class EOGraphVisualization {
     }
 
     /**
-     * Destroy the visualization
+     * Destroy the visualization and clean up event listeners
      */
     destroy() {
         if (this.animationFrame) {
             cancelAnimationFrame(this.animationFrame);
         }
+
+        // Remove event listeners to prevent memory leaks
+        if (this.canvas && this._boundHandlers) {
+            this.canvas.removeEventListener('mousedown', this._boundHandlers.mousedown);
+            this.canvas.removeEventListener('mousemove', this._boundHandlers.mousemove);
+            this.canvas.removeEventListener('mouseup', this._boundHandlers.mouseup);
+            this.canvas.removeEventListener('wheel', this._boundHandlers.wheel);
+            this.canvas.removeEventListener('dblclick', this._boundHandlers.dblclick);
+        }
+
+        // Clear references
+        this._boundHandlers = {};
+        this.nodePositions.clear();
+        this.quadtree = null;
+
         this.container.innerHTML = '';
     }
 }

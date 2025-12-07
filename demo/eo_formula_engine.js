@@ -15,6 +15,14 @@
 class EOFormulaEngine {
   constructor() {
     this.functions = this.initializeFunctions();
+    // Formula parsing cache - avoids re-parsing the same formula for each record
+    this.parseCache = new Map();
+    this.parseCacheMaxSize = 1000;
+    // Pre-compiled regex patterns for performance
+    this._whitespaceRegex = /\s/;
+    this._digitRegex = /[0-9]/;
+    this._alphaRegex = /[a-zA-Z_]/;
+    this._alphaNumericRegex = /[a-zA-Z0-9_]/;
   }
 
   /**
@@ -155,9 +163,21 @@ class EOFormulaEngine {
 
   /**
    * Evaluate a formula with given field values
+   * Uses cached parse results to avoid re-parsing the same formula
    */
   evaluate(formula, record = {}) {
-    const parseResult = this.parse(formula);
+    // Check parse cache first
+    let parseResult = this.parseCache.get(formula);
+    if (!parseResult) {
+      parseResult = this.parse(formula);
+      // Cache the result (with size limit)
+      if (this.parseCache.size >= this.parseCacheMaxSize) {
+        // Remove oldest entry (first key)
+        const firstKey = this.parseCache.keys().next().value;
+        this.parseCache.delete(firstKey);
+      }
+      this.parseCache.set(formula, parseResult);
+    }
 
     if (!parseResult.valid) {
       throw new Error(`Formula parse error: ${parseResult.error}`);
@@ -239,11 +259,42 @@ class EOFormulaEngine {
   }
 
   evaluateFunction(name, args, record) {
-    const func = this.functions[name.toUpperCase()];
+    const funcName = name.toUpperCase();
+    const func = this.functions[funcName];
     if (!func) {
       throw new Error(`Unknown function: ${name}`);
     }
 
+    // Short-circuit evaluation for IF, AND, OR functions
+    if (funcName === 'IF') {
+      const condition = this.evaluateNode(args[0], record);
+      // Only evaluate the branch that will be used
+      return condition
+        ? this.evaluateNode(args[1], record)
+        : (args[2] ? this.evaluateNode(args[2], record) : null);
+    }
+
+    if (funcName === 'AND') {
+      // Short-circuit: return false as soon as we find a falsy value
+      for (const arg of args) {
+        if (!this.evaluateNode(arg, record)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    if (funcName === 'OR') {
+      // Short-circuit: return true as soon as we find a truthy value
+      for (const arg of args) {
+        if (this.evaluateNode(arg, record)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // For other functions, evaluate all arguments
     const evaluatedArgs = args.map(arg => this.evaluateNode(arg, record));
     return func(...evaluatedArgs);
   }
@@ -303,12 +354,14 @@ class EOFormulaEngine {
     if (!cell.values || cell.values.length === 0) return null;
     if (cell.values.length === 1) return cell.values[0].value;
 
-    // Simple strategy: use most recent value
-    const sorted = [...cell.values].sort((a, b) =>
-      new Date(b.timestamp) - new Date(a.timestamp)
-    );
+    // Use reduce to find most recent value in O(n) instead of O(n log n) sort
+    const mostRecent = cell.values.reduce((latest, current) => {
+      const currentTime = new Date(current.timestamp).getTime();
+      const latestTime = new Date(latest.timestamp).getTime();
+      return currentTime > latestTime ? current : latest;
+    });
 
-    return sorted[0].value;
+    return mostRecent.value;
   }
 
   // Parsing methods
@@ -551,7 +604,7 @@ class EOFormulaEngine {
   }
 
   skipWhitespace() {
-    while (!this.isAtEnd() && /\s/.test(this.peek())) {
+    while (!this.isAtEnd() && this._whitespaceRegex.test(this.peek())) {
       this.advance();
     }
   }
@@ -561,15 +614,15 @@ class EOFormulaEngine {
   }
 
   isDigit(char) {
-    return /[0-9]/.test(char);
+    return this._digitRegex.test(char);
   }
 
   isAlpha(char) {
-    return /[a-zA-Z_]/.test(char);
+    return this._alphaRegex.test(char);
   }
 
   isAlphaNumeric(char) {
-    return /[a-zA-Z0-9_]/.test(char);
+    return this._alphaNumericRegex.test(char);
   }
 
   toNumber(value) {

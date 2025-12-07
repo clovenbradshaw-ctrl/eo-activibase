@@ -146,56 +146,84 @@ const EOCRollupEngine = {
 
     /**
      * Min aggregation (handles both numbers and dates)
+     * Optimized to avoid creating intermediate arrays
      */
     min(values) {
-        // Check if values appear to be dates
-        const dateValues = values
-            .map(v => ({ original: v, timestamp: this.toTimestamp(v) }))
-            .filter(item => item.timestamp !== null);
+        let minTimestamp = Infinity;
+        let minDateValue = null;
+        let hasDate = false;
 
-        if (dateValues.length > 0) {
-            // Find the minimum timestamp and return the original date value
-            const minItem = dateValues.reduce((min, item) =>
-                item.timestamp < min.timestamp ? item : min
-            );
-            return minItem.original;
+        // Single pass to find min date
+        for (const v of values) {
+            const ts = this.toTimestamp(v);
+            if (ts !== null) {
+                hasDate = true;
+                if (ts < minTimestamp) {
+                    minTimestamp = ts;
+                    minDateValue = v;
+                }
+            }
         }
 
-        // Fall back to numeric comparison
-        const numbers = values
-            .map(v => this.toNumber(v))
-            .filter(n => !isNaN(n));
+        if (hasDate) {
+            return minDateValue;
+        }
 
-        if (numbers.length === 0) return null;
+        // Fall back to numeric comparison - single pass
+        let minNum = Infinity;
+        let hasNumber = false;
+        for (const v of values) {
+            const n = this.toNumber(v);
+            if (!isNaN(n)) {
+                hasNumber = true;
+                if (n < minNum) {
+                    minNum = n;
+                }
+            }
+        }
 
-        return Math.min(...numbers);
+        return hasNumber ? minNum : null;
     },
 
     /**
      * Max aggregation (handles both numbers and dates)
+     * Optimized to avoid creating intermediate arrays
      */
     max(values) {
-        // Check if values appear to be dates
-        const dateValues = values
-            .map(v => ({ original: v, timestamp: this.toTimestamp(v) }))
-            .filter(item => item.timestamp !== null);
+        let maxTimestamp = -Infinity;
+        let maxDateValue = null;
+        let hasDate = false;
 
-        if (dateValues.length > 0) {
-            // Find the maximum timestamp and return the original date value
-            const maxItem = dateValues.reduce((max, item) =>
-                item.timestamp > max.timestamp ? item : max
-            );
-            return maxItem.original;
+        // Single pass to find max date
+        for (const v of values) {
+            const ts = this.toTimestamp(v);
+            if (ts !== null) {
+                hasDate = true;
+                if (ts > maxTimestamp) {
+                    maxTimestamp = ts;
+                    maxDateValue = v;
+                }
+            }
         }
 
-        // Fall back to numeric comparison
-        const numbers = values
-            .map(v => this.toNumber(v))
-            .filter(n => !isNaN(n));
+        if (hasDate) {
+            return maxDateValue;
+        }
 
-        if (numbers.length === 0) return null;
+        // Fall back to numeric comparison - single pass
+        let maxNum = -Infinity;
+        let hasNumber = false;
+        for (const v of values) {
+            const n = this.toNumber(v);
+            if (!isNaN(n)) {
+                hasNumber = true;
+                if (n > maxNum) {
+                    maxNum = n;
+                }
+            }
+        }
 
-        return Math.max(...numbers);
+        return hasNumber ? maxNum : null;
     },
 
     /**

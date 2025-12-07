@@ -896,9 +896,8 @@ function writePortalDocument(state, portal) {
 </html>
     `;
 
-    portalWindow.document.open();
-    portalWindow.document.write(html);
-    portalWindow.document.close();
+    // Use innerHTML instead of deprecated document.write for better performance
+    portalWindow.document.documentElement.innerHTML = html;
 }
 
 /**
