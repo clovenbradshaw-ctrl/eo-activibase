@@ -648,12 +648,11 @@
                 name: `Import: ${imp.name}`,
                 type: 'grid',
                 setId: targetSet.id,
-                filters: [{
-                    type: 'provenance',
+                filters: [[{
                     field: '_provenance.importId',
                     operator: 'equals',
                     value: imp.id
-                }],
+                }]],
                 sorts: [],
                 visibleFields: targetSet.schema.map(f => f.id),
                 createdAt: new Date().toISOString()
