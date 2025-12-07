@@ -73,12 +73,25 @@ class EOLinkColumnModal {
      * Render the modal
      */
     render() {
+        // Get the link field type styling
+        const linkTypeColor = window.EOFieldTypeUtils?.getFieldTypeColor('LINKED_RECORD')
+            || window.EO_CONSTANTS?.FIELD_TYPE_COLORS?.['LINKED_RECORD']
+            || '#8b5cf6';
+        const linkIconClass = window.EOFieldTypeUtils?.getFieldTypeIcon('LINKED_RECORD')
+            || window.EO_CONSTANTS?.FIELD_TYPE_ICONS?.['LINKED_RECORD']
+            || 'ph-link-simple';
+
         const modalHTML = `
             <div class="eo-link-modal-overlay" id="eoLinkColumnModal">
                 <div class="eo-link-modal">
                     <div class="eo-link-modal-header">
                         <div>
-                            <h2 class="modal-title">🔗 Create Link Column</h2>
+                            <h2 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                                <span style="background-color: ${linkTypeColor}20; color: ${linkTypeColor}; padding: 6px; border-radius: 6px; display: inline-flex;">
+                                    <i class="ph ${linkIconClass}" style="font-size: 18px;"></i>
+                                </span>
+                                Create Link Column
+                            </h2>
                             <p class="modal-subtitle">
                                 Connect <strong>${this.escapeHtml(this.currentSet.name)}</strong> to another set
                             </p>

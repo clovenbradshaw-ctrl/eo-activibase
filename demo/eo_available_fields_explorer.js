@@ -482,19 +482,13 @@ class EOAvailableFieldsExplorer {
      * Render a single field row
      */
     renderFieldRow(field, actions = [], section) {
-        const typeColors = {
-            'TEXT': '#3b82f6',
-            'NUMBER': '#10b981',
-            'DATE': '#f59e0b',
-            'LINK_RECORD': '#8b5cf6',
-            'SELECT': '#ec4899',
-            'FORMULA': '#6366f1',
-            'CHECKBOX': '#14b8a6',
-            'LOOKUP': '#06b6d4',
-            'ROLLUP': '#0ea5e9'
-        };
-
-        const typeColor = typeColors[field.type] || '#6b7280';
+        // Use centralized field type utilities
+        const typeColor = window.EOFieldTypeUtils?.getFieldTypeColor(field.type)
+            || window.EO_CONSTANTS?.FIELD_TYPE_COLORS?.[field.type]
+            || '#6b7280';
+        const iconClass = window.EOFieldTypeUtils?.getFieldTypeIcon(field.type)
+            || window.EO_CONSTANTS?.FIELD_TYPE_ICONS?.[field.type]
+            || 'ph-text-aa';
         const sampleValuesHtml = field.sampleValues?.length > 0
             ? `<div class="field-samples">
                  <span class="samples-label">Values:</span>
@@ -523,7 +517,8 @@ class EOAvailableFieldsExplorer {
                 <div class="field-main">
                     <div class="field-header">
                         <span class="field-name">${this.escapeHtml(field.name || field.id)}</span>
-                        <span class="field-type-badge" style="background-color: ${typeColor}20; color: ${typeColor}">
+                        <span class="field-type-badge" style="background-color: ${typeColor}20; color: ${typeColor}; display: inline-flex; align-items: center; gap: 4px;">
+                            <i class="ph ${iconClass}" style="font-size: 12px;"></i>
                             ${field.type}
                         </span>
                     </div>
@@ -604,6 +599,14 @@ class EOAvailableFieldsExplorer {
      * Render a linked field row
      */
     renderLinkedFieldRow(field, linkedSet) {
+        // Use centralized field type utilities
+        const typeColor = window.EOFieldTypeUtils?.getFieldTypeColor(field.type)
+            || window.EO_CONSTANTS?.FIELD_TYPE_COLORS?.[field.type]
+            || '#6b7280';
+        const iconClass = window.EOFieldTypeUtils?.getFieldTypeIcon(field.type)
+            || window.EO_CONSTANTS?.FIELD_TYPE_ICONS?.[field.type]
+            || 'ph-text-aa';
+
         return `
             <div class="field-row linked-field"
                  data-field-id="${field.id}"
@@ -612,7 +615,10 @@ class EOAvailableFieldsExplorer {
                 <div class="field-main">
                     <div class="field-header">
                         <span class="field-name">${this.escapeHtml(field.name || field.id)}</span>
-                        <span class="field-type-badge">${field.type}</span>
+                        <span class="field-type-badge" style="background-color: ${typeColor}20; color: ${typeColor}; display: inline-flex; align-items: center; gap: 4px;">
+                            <i class="ph ${iconClass}" style="font-size: 12px;"></i>
+                            ${field.type}
+                        </span>
                     </div>
                     ${field.sampleValues?.length > 0 ? `
                         <div class="field-samples">
@@ -654,11 +660,27 @@ class EOAvailableFieldsExplorer {
 
         const isExpanded = this.expandedSections.has('computed');
 
+        // Helper to get computed field badge
+        const getComputedBadge = (field) => {
+            const fieldType = field.type?.toUpperCase() || 'LOOKUP';
+            const typeColor = window.EOFieldTypeUtils?.getFieldTypeColor(fieldType)
+                || window.EO_CONSTANTS?.FIELD_TYPE_COLORS?.[fieldType]
+                || '#06b6d4';
+            const iconClass = window.EOFieldTypeUtils?.getFieldTypeIcon(fieldType)
+                || window.EO_CONSTANTS?.FIELD_TYPE_ICONS?.[fieldType]
+                || (fieldType === 'ROLLUP' ? 'ph-chart-bar' : 'ph-arrow-square-out');
+
+            return `<span class="field-type-badge" style="background-color: ${typeColor}20; color: ${typeColor}; display: inline-flex; align-items: center; gap: 4px;">
+                <i class="ph ${iconClass}" style="font-size: 12px;"></i>
+                ${field.type}
+            </span>`;
+        };
+
         return `
             <div class="fields-section ${isExpanded ? 'expanded' : 'collapsed'}" data-section="computed">
                 <div class="section-header" data-section="computed">
                     <span class="section-toggle">${isExpanded ? '▼' : '▶'}</span>
-                    <span class="section-icon">𝑓</span>
+                    <span class="section-icon"><i class="ph ph-function"></i></span>
                     <span class="section-title">Computed Fields</span>
                     <span class="section-count">${computed.length}</span>
                 </div>
@@ -667,9 +689,8 @@ class EOAvailableFieldsExplorer {
                         <div class="field-row computed-field" data-computed-id="${field.id}">
                             <div class="field-main">
                                 <div class="field-header">
-                                    <span class="computed-type-icon">${field.type === 'lookup' ? '↗' : 'Σ'}</span>
                                     <span class="field-name">${this.escapeHtml(field.displayName)}</span>
-                                    <span class="field-type-badge ${field.type}">${field.type}</span>
+                                    ${getComputedBadge(field)}
                                 </div>
                                 <div class="computed-source">
                                     From ${this.escapeHtml(field.targetSetName)}.${this.escapeHtml(field.targetFieldName)}

@@ -289,6 +289,14 @@ class EOLinkedFieldsModal {
             const isSelected = this.selectedFields.has(fieldKey);
             const selectedConfig = this.selectedFields.get(fieldKey) || { rollupFormula: null };
 
+            // Use centralized field type utilities
+            const typeColor = window.EOFieldTypeUtils?.getFieldTypeColor(field.type)
+                || window.EO_CONSTANTS?.FIELD_TYPE_COLORS?.[field.type]
+                || '#6b7280';
+            const iconClass = window.EOFieldTypeUtils?.getFieldTypeIcon(field.type)
+                || window.EO_CONSTANTS?.FIELD_TYPE_ICONS?.[field.type]
+                || 'ph-text-aa';
+
             return `
                 <div class="field-row" data-field-id="${field.id}" data-field-key="${fieldKey}">
                     <div class="field-label">
@@ -297,7 +305,10 @@ class EOLinkedFieldsModal {
                                data-field-key="${fieldKey}"
                                ${isSelected ? 'checked' : ''}>
                         <span class="field-name">${field.name}</span>
-                        <span class="field-type-badge">${field.type}</span>
+                        <span class="field-type-badge" style="background-color: ${typeColor}20; color: ${typeColor}; display: inline-flex; align-items: center; gap: 4px;">
+                            <i class="ph ${iconClass}" style="font-size: 11px;"></i>
+                            ${field.type}
+                        </span>
                     </div>
                     <div class="agg-controls">
                         ${this.renderRollupFormulaControl(fieldKey, selectedConfig, field, cardinality)}
@@ -369,6 +380,14 @@ class EOLinkedFieldsModal {
 
             if (!field || !targetSet) return;
 
+            // Get field type styling
+            const typeColor = window.EOFieldTypeUtils?.getFieldTypeColor(field.type)
+                || window.EO_CONSTANTS?.FIELD_TYPE_COLORS?.[field.type]
+                || '#6b7280';
+            const iconClass = window.EOFieldTypeUtils?.getFieldTypeIcon(field.type)
+                || window.EO_CONSTANTS?.FIELD_TYPE_ICONS?.[field.type]
+                || 'ph-text-aa';
+
             // Show lookup with optional rollup formula
             const formulaText = config.rollupFormula
                 ? `with ${config.rollupFormula} formula`
@@ -376,7 +395,10 @@ class EOLinkedFieldsModal {
 
             items.push(`
                 <div class="summary-item">
-                    <div class="summary-item-name">${targetSet.name} – ${field.name}</div>
+                    <div class="summary-item-name" style="display: flex; align-items: center; gap: 6px;">
+                        <i class="ph ${iconClass}" style="color: ${typeColor}; font-size: 14px;"></i>
+                        ${targetSet.name} – ${field.name}
+                    </div>
                     <div class="summary-meta">Lookup ${formulaText}</div>
                 </div>
             `);

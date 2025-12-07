@@ -138,6 +138,56 @@
         ]),
 
         // ============================================================================
+        // FIELD TYPE ICONS (Phosphor Icons)
+        // Standard icons for identifying field types across the application
+        // ============================================================================
+        FIELD_TYPE_ICONS: Object.freeze({
+            'TEXT': 'ph-text-aa',
+            'NUMBER': 'ph-hash',
+            'CURRENCY': 'ph-currency-dollar',
+            'SELECT': 'ph-list-bullets',
+            'MULTI_SELECT': 'ph-list-checks',
+            'DATE': 'ph-calendar',
+            'DATETIME': 'ph-calendar-blank',
+            'TIME': 'ph-clock',
+            'CHECKBOX': 'ph-check-square',
+            'EMAIL': 'ph-envelope',
+            'URL': 'ph-link',
+            'LONG_TEXT': 'ph-article',
+            'FORMULA': 'ph-function',
+            'ROLLUP': 'ph-chart-bar',
+            'LOOKUP': 'ph-arrow-square-out',
+            'LINKED_RECORD': 'ph-link-simple',
+            'LINK_RECORD': 'ph-link-simple',
+            'JSON': 'ph-brackets-curly'
+        }),
+
+        // ============================================================================
+        // FIELD TYPE COLORS
+        // Standard colors for field type badges and indicators
+        // ============================================================================
+        FIELD_TYPE_COLORS: Object.freeze({
+            'TEXT': '#3b82f6',         // Blue
+            'NUMBER': '#10b981',       // Emerald
+            'CURRENCY': '#f59e0b',     // Amber
+            'SELECT': '#ec4899',       // Pink
+            'MULTI_SELECT': '#d946ef', // Fuchsia
+            'DATE': '#f97316',         // Orange
+            'DATETIME': '#f97316',     // Orange
+            'TIME': '#f97316',         // Orange
+            'CHECKBOX': '#14b8a6',     // Teal
+            'EMAIL': '#6366f1',        // Indigo
+            'URL': '#8b5cf6',          // Violet
+            'LONG_TEXT': '#0ea5e9',    // Sky
+            'FORMULA': '#a855f7',      // Purple
+            'ROLLUP': '#06b6d4',       // Cyan
+            'LOOKUP': '#22d3ee',       // Cyan light
+            'LINKED_RECORD': '#8b5cf6',// Violet
+            'LINK_RECORD': '#8b5cf6',  // Violet
+            'JSON': '#64748b'          // Slate
+        }),
+
+        // ============================================================================
         // ID PREFIXES
         // ============================================================================
         ID_PREFIX: Object.freeze({
