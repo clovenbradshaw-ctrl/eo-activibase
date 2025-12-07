@@ -5143,7 +5143,7 @@
                 <div class="nav-section-title" style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('dataImports')">
                     <span style="display: flex; align-items: center; gap: 8px;">
                         Imports
-                        <i class="ph ph-upload-simple" style="font-size: 14px; opacity: 0.7; cursor: pointer; padding: 2px; border-radius: 4px;" onclick="event.stopPropagation(); triggerFileImport();" onmouseover="this.style.opacity='1'; this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.opacity='0.7'; this.style.background='transparent';" title="Import file (CSV, JSON, Excel)"></i>
+                        <i class="ph ph-file-arrow-down" style="font-size: 14px; opacity: 0.7; cursor: pointer; padding: 2px; border-radius: 4px;" onclick="event.stopPropagation(); triggerFileImport();" onmouseover="this.style.opacity='1'; this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.opacity='0.7'; this.style.background='transparent';" title="Import file (CSV, JSON, Excel)"></i>
                     </span>
                     <i id="dataImportsSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
                 </div>
@@ -5238,7 +5238,7 @@
                 <div class="world-toolbar-actions">
                     <input type="file" id="worldJsonInput" accept="application/json" style="display:none" />
                     <button id="headerImportBtn" class="btn btn-primary btn-sm" onclick="triggerFileImport()" title="Import file (CSV, JSON, Excel)">
-                        <i class="ph ph-upload-simple"></i>
+                        <i class="ph ph-file-arrow-down"></i>
                         Import
                     </button>
                     <div class="globe-menu">
@@ -5248,7 +5248,7 @@
                         </button>
                         <div class="globe-menu-panel" id="globeMenuPanel">
                             <button id="importWorldBtn" class="btn btn-secondary btn-sm globe-menu-item globe-menu-item-highlight">
-                                <i class="ph ph-upload-simple"></i>
+                                <i class="ph ph-file-arrow-down"></i>
                                 Import into view
                             </button>
                             <div class="globe-menu-divider"></div>
@@ -5312,7 +5312,7 @@
                 <div class="view-tabs-rail">
                     <div id="legacyViewTabs" class="view-tabs hidden"></div>
                     <button id="importTabBtn" class="import-tab-btn" onclick="triggerFileImport()" title="Import file (CSV, JSON, Excel)">
-                        <i class="ph ph-upload-simple"></i>
+                        <i class="ph ph-file-arrow-down"></i>
                         <span>Import</span>
                     </button>
                 </div>
@@ -10234,7 +10234,7 @@
                                         Details
                                     </button>
                                     <button id="importCsvBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
-                                        <i class="ph ph-upload-simple"></i>
+                                        <i class="ph ph-file-arrow-down"></i>
                                         Import CSV
                                     </button>
                                     <button id="importJsonBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
@@ -21735,7 +21735,7 @@
                         <div class="flex flex-wrap gap-2">
                             <button class="btn btn-secondary btn-sm ${activeSection === 'all' ? 'btn-primary' : ''}" data-sandbox-section="all">All</button>
                             <button class="btn btn-secondary btn-sm ${activeSection === 'imports' ? 'btn-primary' : ''}" data-sandbox-section="imports">
-                                <i class="ph ph-upload-simple"></i> Imports <span class="sandbox-count-badge">${allImports.length}</span>
+                                <i class="ph ph-file-arrow-down"></i> Imports <span class="sandbox-count-badge">${allImports.length}</span>
                             </button>
                             <button class="btn btn-secondary btn-sm ${activeSection === 'sets' ? 'btn-primary' : ''}" data-sandbox-section="sets">
                                 <i class="ph ph-squares-four"></i> Sets <span class="sandbox-count-badge">${allSets.length}</span>
@@ -21760,7 +21760,7 @@
                     ${(activeSection === 'all' || activeSection === 'imports') ? `
                     <div class="sandbox-section">
                         <div class="sandbox-section-header">
-                            <h3><i class="ph ph-upload-simple"></i> Imports</h3>
+                            <h3><i class="ph ph-file-arrow-down"></i> Imports</h3>
                             <button class="btn btn-primary btn-sm" onclick="triggerFileImport()">
                                 <i class="ph ph-plus"></i> Import File
                             </button>
@@ -21893,7 +21893,7 @@
             if (!imports.length) {
                 return `
                     <div class="sandbox-empty-state">
-                        <i class="ph ph-upload-simple"></i>
+                        <i class="ph ph-file-arrow-down"></i>
                         <p>No imports yet</p>
                         <p class="text-xs">Import CSV, JSON, or Excel files to get started</p>
                     </div>
@@ -21993,7 +21993,7 @@
                         <tbody class="divide-y divide-gray-200">
                             ${sets.map(set => {
                                 const origin = set.origin || 'manual';
-                                const originIcon = origin === 'import' ? 'ph-upload-simple' : origin === 'derived' ? 'ph-git-branch' : 'ph-pencil-simple';
+                                const originIcon = origin === 'import' ? 'ph-file-arrow-down' : origin === 'derived' ? 'ph-git-branch' : 'ph-pencil-simple';
                                 const fieldCount = set.schema?.length || 0;
 
                                 return `
@@ -24282,7 +24282,7 @@
                                 JSON
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="document.getElementById('worldJsonInput').click()">
-                                <i class="ph ph-upload-simple"></i>
+                                <i class="ph ph-file-arrow-down"></i>
                                 Import World
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="exportJSON()">
