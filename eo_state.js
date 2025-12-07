@@ -329,6 +329,7 @@
 
         /**
          * Export state for persistence
+         * Includes content store for deduplication
          */
         export() {
             const exported = {};
@@ -343,18 +344,26 @@
                 }
             }
 
+            // Include content store if available
+            let contentStore = null;
+            if (typeof EOContentStore !== 'undefined') {
+                contentStore = EOContentStore.exportStore();
+            }
+
             return {
-                version: 1,
+                version: 2,
                 timestamp: new Date().toISOString(),
-                state: exported
+                state: exported,
+                contentStore
             };
         }
 
         /**
          * Import state from persistence
+         * Supports version 1 (legacy) and version 2 (with content store)
          */
         import(data) {
-            if (data.version !== 1) {
+            if (data.version !== 1 && data.version !== 2) {
                 console.warn('EOState: Unknown state version');
                 return false;
             }
@@ -376,6 +385,11 @@
                 }
             }
 
+            // Import content store if present (version 2+)
+            if (data.contentStore && typeof EOContentStore !== 'undefined') {
+                EOContentStore.importStore(data.contentStore);
+            }
+
             return true;
         }
 
@@ -383,7 +397,7 @@
          * Get state statistics
          */
         getStats() {
-            return {
+            const stats = {
                 setCount: this._state.sets.size,
                 viewCount: this._state.views.size,
                 entityCount: this._state.entities.size,
@@ -393,6 +407,13 @@
                 subscriberCount: Array.from(this._subscribers.values())
                     .reduce((sum, map) => sum + map.size, 0)
             };
+
+            // Include content store stats if available
+            if (typeof EOContentStore !== 'undefined') {
+                stats.deduplication = EOContentStore.getGlobalStats();
+            }
+
+            return stats;
         }
     }
 
