@@ -728,6 +728,76 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Import Loading Overlay Styles */
+        .import-loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        }
+
+        .import-loading-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .import-loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #22c55e;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        .import-loading-text {
+            color: #e2e8f0;
+            font-size: 15px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .import-loading-subtext {
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .import-loading-progress {
+            width: 200px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 16px;
+            overflow: hidden;
+        }
+
+        .import-loading-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #22c55e, #4ade80);
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .import-loading-progress-bar.indeterminate {
+            width: 30%;
+            animation: indeterminate-progress 1.5s ease-in-out infinite;
+        }
+
+        @keyframes indeterminate-progress {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+        }
+
         /* Global Search Responsive Styles */
         @media (max-width: 900px) {
             .global-search-container {
@@ -3269,6 +3339,14 @@
             min-height: 420px;
             display: flex;
             flex-direction: column;
+        }
+
+        #viewContainer {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-height: 400px;
         }
 
         .view-stage-header {
@@ -29072,6 +29150,83 @@
         // ============================================================================
 
         /**
+         * Show the import loading overlay with customizable message
+         * @param {object} options - Options for the loading screen
+         * @param {string} options.filename - Name of the file being imported
+         * @param {number} options.rowCount - Number of rows being processed (optional)
+         */
+        function showImportLoadingScreen(options = {}) {
+            const { filename = 'data', rowCount = null } = options;
+
+            // Get the view container to position the overlay relative to it
+            const viewContainer = document.getElementById('viewContainer');
+            if (!viewContainer) return;
+
+            // Remove any existing overlay
+            hideImportLoadingScreen();
+
+            // Create the loading overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'importLoadingOverlay';
+            overlay.className = 'import-loading-overlay';
+
+            const subtext = rowCount
+                ? `Processing ${rowCount.toLocaleString()} records...`
+                : 'Preparing your data...';
+
+            overlay.innerHTML = `
+                <div class="import-loading-spinner"></div>
+                <div class="import-loading-text">Loading ${filename}</div>
+                <div class="import-loading-subtext">${subtext}</div>
+                <div class="import-loading-progress">
+                    <div class="import-loading-progress-bar indeterminate"></div>
+                </div>
+            `;
+
+            viewContainer.appendChild(overlay);
+
+            // Trigger visibility animation
+            requestAnimationFrame(() => {
+                overlay.classList.add('visible');
+            });
+        }
+
+        /**
+         * Hide the import loading overlay
+         */
+        function hideImportLoadingScreen() {
+            const overlay = document.getElementById('importLoadingOverlay');
+            if (overlay) {
+                overlay.classList.remove('visible');
+                // Remove after fade out transition
+                setTimeout(() => {
+                    overlay.remove();
+                }, 200);
+            }
+        }
+
+        /**
+         * Update the loading screen progress (for future use with determinate progress)
+         * @param {number} percent - Progress percentage (0-100)
+         * @param {string} message - Optional message to display
+         */
+        function updateImportLoadingProgress(percent, message = null) {
+            const overlay = document.getElementById('importLoadingOverlay');
+            if (!overlay) return;
+
+            const progressBar = overlay.querySelector('.import-loading-progress-bar');
+            if (progressBar) {
+                progressBar.classList.remove('indeterminate');
+                progressBar.style.width = `${percent}%`;
+            }
+
+            if (message) {
+                const subtext = overlay.querySelector('.import-loading-subtext');
+                if (subtext) subtext.textContent = message;
+            }
+        }
+
+        /**
          * Trigger file input for import
          */
         function triggerFileImport() {
@@ -29225,7 +29380,7 @@
             }
 
             if (existingView) {
-                // Switch to existing view
+                // Switch to existing view (no loading screen needed, just switching)
                 switchSet(existingView.setId, existingView.id);
                 return;
             }
@@ -29236,18 +29391,33 @@
                 return;
             }
 
-            // Use the import filename as the set name
-            const setName = imp.fileMetadata?.filenameAnalysis?.baseName || imp.name.replace(/\.[^/.]+$/, '');
+            // Show loading screen before heavy processing
+            const filename = imp.fileMetadata?.filenameAnalysis?.baseName || imp.name;
+            showImportLoadingScreen({
+                filename: filename,
+                rowCount: imp.rowCount || imp.rows?.length
+            });
 
-            // Add import to a new set (this creates the set, records, and view)
-            const result = state.importIntegration.addImportToSet(importId, null, setName);
+            // Use setTimeout to allow the loading screen to render before blocking the main thread
+            setTimeout(() => {
+                try {
+                    // Use the import filename as the set name
+                    const setName = imp.fileMetadata?.filenameAnalysis?.baseName || imp.name.replace(/\.[^/.]+$/, '');
 
-            if (result.success) {
-                renderSidebar();
-                // The switchSet is already called by addImportToSet
-            } else {
-                showToast(`⚠️ Failed to open import: ${result.error}`);
-            }
+                    // Add import to a new set (this creates the set, records, and view)
+                    const result = state.importIntegration.addImportToSet(importId, null, setName);
+
+                    if (result.success) {
+                        renderSidebar();
+                        // The switchSet is already called by addImportToSet
+                    } else {
+                        showToast(`⚠️ Failed to open import: ${result.error}`);
+                    }
+                } finally {
+                    // Hide loading screen after processing completes
+                    hideImportLoadingScreen();
+                }
+            }, 50); // Small delay to ensure loading screen is visible
         }
 
         /**
