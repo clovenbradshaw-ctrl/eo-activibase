@@ -5717,6 +5717,163 @@
                         </div>
                     </div>
                 </div>
+                <!-- Number Field Config -->
+                <div id="numberConfig" class="config-section">
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                        <label class="form-label">Number Format</label>
+                        <div class="grid grid-cols-3 gap-2 mb-3">
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="numberFormat" value="integer" class="accent-emerald-600">
+                                <span class="text-sm font-medium">Integer</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="numberFormat" value="decimal" checked class="accent-emerald-600">
+                                <span class="text-sm font-medium">Decimal</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="numberFormat" value="percentage" class="accent-emerald-600">
+                                <span class="text-sm font-medium">Percent</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="numberFormat" value="currency" class="accent-emerald-600">
+                                <span class="text-sm font-medium">Currency</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="numberFormat" value="scientific" class="accent-emerald-600">
+                                <span class="text-sm font-medium">Scientific</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="numberFormat" value="fraction" class="accent-emerald-600">
+                                <span class="text-sm font-medium">Fraction</span>
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 mt-3">
+                            <div>
+                                <label class="form-label text-sm">Decimal Places</label>
+                                <input type="number" id="numberDecimals" min="0" max="10" value="2" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="form-label text-sm">Rounding</label>
+                                <select id="numberRounding" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                    <option value="round">Round</option>
+                                    <option value="floor">Floor</option>
+                                    <option value="ceil">Ceiling</option>
+                                    <option value="truncate">Truncate</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="currencyOptions" class="mt-3 hidden">
+                            <label class="form-label text-sm">Currency</label>
+                            <select id="currencyCode" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                <option value="USD">$ USD - US Dollar</option>
+                                <option value="EUR">€ EUR - Euro</option>
+                                <option value="GBP">£ GBP - British Pound</option>
+                                <option value="JPY">¥ JPY - Japanese Yen</option>
+                                <option value="CNY">¥ CNY - Chinese Yuan</option>
+                                <option value="CAD">$ CAD - Canadian Dollar</option>
+                                <option value="AUD">$ AUD - Australian Dollar</option>
+                                <option value="CHF">Fr CHF - Swiss Franc</option>
+                                <option value="INR">₹ INR - Indian Rupee</option>
+                                <option value="MXN">$ MXN - Mexican Peso</option>
+                                <option value="BRL">R$ BRL - Brazilian Real</option>
+                                <option value="KRW">₩ KRW - South Korean Won</option>
+                            </select>
+                        </div>
+                        <div class="mt-3 flex items-center gap-4">
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" id="thousandSep" checked class="accent-emerald-600">
+                                <span>Thousands separator</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" id="allowNegative" checked class="accent-emerald-600">
+                                <span>Allow negative</span>
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 mt-3">
+                            <div>
+                                <label class="form-label text-sm">Min Value (optional)</label>
+                                <input type="number" id="numberMin" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="No limit">
+                            </div>
+                            <div>
+                                <label class="form-label text-sm">Max Value (optional)</label>
+                                <input type="number" id="numberMax" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="No limit">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Date Field Config -->
+                <div id="dateConfig" class="config-section">
+                    <div class="bg-sky-50 border border-sky-200 rounded-lg p-4">
+                        <label class="form-label">Date/Time Type</label>
+                        <div class="flex gap-2 mb-3">
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                <input type="radio" name="dateMode" value="date" checked class="accent-sky-600">
+                                <span class="text-sm font-medium"><i class="ph ph-calendar"></i> Date</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                <input type="radio" name="dateMode" value="datetime" class="accent-sky-600">
+                                <span class="text-sm font-medium"><i class="ph ph-calendar-plus"></i> Date & Time</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                <input type="radio" name="dateMode" value="time" class="accent-sky-600">
+                                <span class="text-sm font-medium"><i class="ph ph-clock"></i> Time</span>
+                            </label>
+                        </div>
+                        <div id="dateFormatSection">
+                            <label class="form-label text-sm">Date Format</label>
+                            <select id="dateFormat" class="w-full px-2 py-1 border border-gray-300 rounded text-sm mb-3">
+                                <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
+                                <option value="DD/MM/YYYY">DD/MM/YYYY (European)</option>
+                                <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+                                <option value="DD.MM.YYYY">DD.MM.YYYY (German)</option>
+                                <option value="MMM D, YYYY">MMM D, YYYY (Jan 1, 2024)</option>
+                                <option value="D MMM YYYY">D MMM YYYY (1 Jan 2024)</option>
+                            </select>
+                        </div>
+                        <div id="timeFormatSection" class="hidden">
+                            <label class="form-label text-sm">Time Format</label>
+                            <div class="flex gap-2 mb-3">
+                                <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                    <input type="radio" name="timeFormat" value="24h" class="accent-sky-600">
+                                    <span class="text-sm">24h (14:30)</span>
+                                </label>
+                                <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                    <input type="radio" name="timeFormat" value="12h" class="accent-sky-600">
+                                    <span class="text-sm">12h (2:30)</span>
+                                </label>
+                                <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                    <input type="radio" name="timeFormat" value="12h_ampm" checked class="accent-sky-600">
+                                    <span class="text-sm">12h AM/PM</span>
+                                </label>
+                            </div>
+                            <label class="flex items-center gap-2 text-sm mb-3">
+                                <input type="checkbox" id="includeSeconds" class="accent-sky-600">
+                                <span>Include seconds</span>
+                            </label>
+                        </div>
+                        <div class="border-t border-sky-200 pt-3 mt-2">
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" id="showTimezone" class="accent-sky-600">
+                                <span>Show timezone</span>
+                            </label>
+                            <select id="timezone" class="w-full px-2 py-1 border border-gray-300 rounded text-sm mt-2 hidden">
+                                <option value="">Local timezone</option>
+                                <option value="America/New_York">America/New_York (EST/EDT)</option>
+                                <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                                <option value="America/Denver">America/Denver (MST/MDT)</option>
+                                <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                                <option value="Europe/London">Europe/London (GMT/BST)</option>
+                                <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                                <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                                <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                                <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
+                                <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                                <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+                                <option value="UTC">UTC</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer flex justify-end gap-2">
                 <button id="cancelAddFieldBtn" class="btn btn-secondary">Cancel</button>
@@ -5808,6 +5965,163 @@
                                     Convert to Editable Field
                                 </span>
                             </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Change Number Field Config -->
+                <div id="changeNumberConfig" class="config-section">
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                        <label class="form-label">Number Format</label>
+                        <div class="grid grid-cols-3 gap-2 mb-3">
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="changeNumberFormat" value="integer" class="accent-emerald-600">
+                                <span class="text-sm font-medium">Integer</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="changeNumberFormat" value="decimal" checked class="accent-emerald-600">
+                                <span class="text-sm font-medium">Decimal</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="changeNumberFormat" value="percentage" class="accent-emerald-600">
+                                <span class="text-sm font-medium">Percent</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="changeNumberFormat" value="currency" class="accent-emerald-600">
+                                <span class="text-sm font-medium">Currency</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="changeNumberFormat" value="scientific" class="accent-emerald-600">
+                                <span class="text-sm font-medium">Scientific</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="changeNumberFormat" value="fraction" class="accent-emerald-600">
+                                <span class="text-sm font-medium">Fraction</span>
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 mt-3">
+                            <div>
+                                <label class="form-label text-sm">Decimal Places</label>
+                                <input type="number" id="changeNumberDecimals" min="0" max="10" value="2" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="form-label text-sm">Rounding</label>
+                                <select id="changeNumberRounding" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                    <option value="round">Round</option>
+                                    <option value="floor">Floor</option>
+                                    <option value="ceil">Ceiling</option>
+                                    <option value="truncate">Truncate</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="changeCurrencyOptions" class="mt-3 hidden">
+                            <label class="form-label text-sm">Currency</label>
+                            <select id="changeCurrencyCode" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                <option value="USD">$ USD - US Dollar</option>
+                                <option value="EUR">€ EUR - Euro</option>
+                                <option value="GBP">£ GBP - British Pound</option>
+                                <option value="JPY">¥ JPY - Japanese Yen</option>
+                                <option value="CNY">¥ CNY - Chinese Yuan</option>
+                                <option value="CAD">$ CAD - Canadian Dollar</option>
+                                <option value="AUD">$ AUD - Australian Dollar</option>
+                                <option value="CHF">Fr CHF - Swiss Franc</option>
+                                <option value="INR">₹ INR - Indian Rupee</option>
+                                <option value="MXN">$ MXN - Mexican Peso</option>
+                                <option value="BRL">R$ BRL - Brazilian Real</option>
+                                <option value="KRW">₩ KRW - South Korean Won</option>
+                            </select>
+                        </div>
+                        <div class="mt-3 flex items-center gap-4">
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" id="changeThousandSep" checked class="accent-emerald-600">
+                                <span>Thousands separator</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" id="changeAllowNegative" checked class="accent-emerald-600">
+                                <span>Allow negative</span>
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 mt-3">
+                            <div>
+                                <label class="form-label text-sm">Min Value (optional)</label>
+                                <input type="number" id="changeNumberMin" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="No limit">
+                            </div>
+                            <div>
+                                <label class="form-label text-sm">Max Value (optional)</label>
+                                <input type="number" id="changeNumberMax" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="No limit">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Change Date Field Config -->
+                <div id="changeDateConfig" class="config-section">
+                    <div class="bg-sky-50 border border-sky-200 rounded-lg p-4">
+                        <label class="form-label">Date/Time Type</label>
+                        <div class="flex gap-2 mb-3">
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                <input type="radio" name="changeDateMode" value="date" checked class="accent-sky-600">
+                                <span class="text-sm font-medium"><i class="ph ph-calendar"></i> Date</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                <input type="radio" name="changeDateMode" value="datetime" class="accent-sky-600">
+                                <span class="text-sm font-medium"><i class="ph ph-calendar-plus"></i> Date & Time</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                <input type="radio" name="changeDateMode" value="time" class="accent-sky-600">
+                                <span class="text-sm font-medium"><i class="ph ph-clock"></i> Time</span>
+                            </label>
+                        </div>
+                        <div id="changeDateFormatSection">
+                            <label class="form-label text-sm">Date Format</label>
+                            <select id="changeDateFormat" class="w-full px-2 py-1 border border-gray-300 rounded text-sm mb-3">
+                                <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
+                                <option value="DD/MM/YYYY">DD/MM/YYYY (European)</option>
+                                <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+                                <option value="DD.MM.YYYY">DD.MM.YYYY (German)</option>
+                                <option value="MMM D, YYYY">MMM D, YYYY (Jan 1, 2024)</option>
+                                <option value="D MMM YYYY">D MMM YYYY (1 Jan 2024)</option>
+                            </select>
+                        </div>
+                        <div id="changeTimeFormatSection" class="hidden">
+                            <label class="form-label text-sm">Time Format</label>
+                            <div class="flex gap-2 mb-3">
+                                <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                    <input type="radio" name="changeTimeFormat" value="24h" class="accent-sky-600">
+                                    <span class="text-sm">24h (14:30)</span>
+                                </label>
+                                <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                    <input type="radio" name="changeTimeFormat" value="12h" class="accent-sky-600">
+                                    <span class="text-sm">12h (2:30)</span>
+                                </label>
+                                <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                    <input type="radio" name="changeTimeFormat" value="12h_ampm" checked class="accent-sky-600">
+                                    <span class="text-sm">12h AM/PM</span>
+                                </label>
+                            </div>
+                            <label class="flex items-center gap-2 text-sm mb-3">
+                                <input type="checkbox" id="changeIncludeSeconds" class="accent-sky-600">
+                                <span>Include seconds</span>
+                            </label>
+                        </div>
+                        <div class="border-t border-sky-200 pt-3 mt-2">
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" id="changeShowTimezone" class="accent-sky-600">
+                                <span>Show timezone</span>
+                            </label>
+                            <select id="changeTimezone" class="w-full px-2 py-1 border border-gray-300 rounded text-sm mt-2 hidden">
+                                <option value="">Local timezone</option>
+                                <option value="America/New_York">America/New_York (EST/EDT)</option>
+                                <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                                <option value="America/Denver">America/Denver (MST/MDT)</option>
+                                <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                                <option value="Europe/London">Europe/London (GMT/BST)</option>
+                                <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                                <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                                <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                                <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
+                                <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                                <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+                                <option value="UTC">UTC</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -6701,6 +7015,163 @@
                                 <div class="mt-3">
                                     <label class="form-label">Decimal Places</label>
                                     <input type="number" id="fieldManagerFormulaDecimals" class="w-full px-3 py-2 border border-gray-300 rounded-lg" min="0" max="10" value="2">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Number Field Config -->
+                        <div id="fieldManagerNumberConfig" class="config-section">
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                                <label class="form-label">Number Format</label>
+                                <div class="grid grid-cols-3 gap-2 mb-3">
+                                    <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                        <input type="radio" name="fieldManagerNumberFormat" value="integer" class="accent-emerald-600">
+                                        <span class="text-sm font-medium">Integer</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                        <input type="radio" name="fieldManagerNumberFormat" value="decimal" checked class="accent-emerald-600">
+                                        <span class="text-sm font-medium">Decimal</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                        <input type="radio" name="fieldManagerNumberFormat" value="percentage" class="accent-emerald-600">
+                                        <span class="text-sm font-medium">Percent</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                        <input type="radio" name="fieldManagerNumberFormat" value="currency" class="accent-emerald-600">
+                                        <span class="text-sm font-medium">Currency</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                        <input type="radio" name="fieldManagerNumberFormat" value="scientific" class="accent-emerald-600">
+                                        <span class="text-sm font-medium">Scientific</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                        <input type="radio" name="fieldManagerNumberFormat" value="fraction" class="accent-emerald-600">
+                                        <span class="text-sm font-medium">Fraction</span>
+                                    </label>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3 mt-3">
+                                    <div>
+                                        <label class="form-label text-sm">Decimal Places</label>
+                                        <input type="number" id="fieldManagerNumberDecimals" min="0" max="10" value="2" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="form-label text-sm">Rounding</label>
+                                        <select id="fieldManagerNumberRounding" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                            <option value="round">Round</option>
+                                            <option value="floor">Floor</option>
+                                            <option value="ceil">Ceiling</option>
+                                            <option value="truncate">Truncate</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div id="fieldManagerCurrencyOptions" class="mt-3 hidden">
+                                    <label class="form-label text-sm">Currency</label>
+                                    <select id="fieldManagerCurrencyCode" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                        <option value="USD">$ USD - US Dollar</option>
+                                        <option value="EUR">€ EUR - Euro</option>
+                                        <option value="GBP">£ GBP - British Pound</option>
+                                        <option value="JPY">¥ JPY - Japanese Yen</option>
+                                        <option value="CNY">¥ CNY - Chinese Yuan</option>
+                                        <option value="CAD">$ CAD - Canadian Dollar</option>
+                                        <option value="AUD">$ AUD - Australian Dollar</option>
+                                        <option value="CHF">Fr CHF - Swiss Franc</option>
+                                        <option value="INR">₹ INR - Indian Rupee</option>
+                                        <option value="MXN">$ MXN - Mexican Peso</option>
+                                        <option value="BRL">R$ BRL - Brazilian Real</option>
+                                        <option value="KRW">₩ KRW - South Korean Won</option>
+                                    </select>
+                                </div>
+                                <div class="mt-3 flex items-center gap-4">
+                                    <label class="flex items-center gap-2 text-sm">
+                                        <input type="checkbox" id="fieldManagerThousandSep" checked class="accent-emerald-600">
+                                        <span>Thousands separator</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm">
+                                        <input type="checkbox" id="fieldManagerAllowNegative" checked class="accent-emerald-600">
+                                        <span>Allow negative</span>
+                                    </label>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3 mt-3">
+                                    <div>
+                                        <label class="form-label text-sm">Min Value (optional)</label>
+                                        <input type="number" id="fieldManagerNumberMin" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="No limit">
+                                    </div>
+                                    <div>
+                                        <label class="form-label text-sm">Max Value (optional)</label>
+                                        <input type="number" id="fieldManagerNumberMax" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" placeholder="No limit">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Date Field Config -->
+                        <div id="fieldManagerDateConfig" class="config-section">
+                            <div class="bg-sky-50 border border-sky-200 rounded-lg p-4">
+                                <label class="form-label">Date/Time Type</label>
+                                <div class="flex gap-2 mb-3">
+                                    <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                        <input type="radio" name="fieldManagerDateMode" value="date" checked class="accent-sky-600">
+                                        <span class="text-sm font-medium"><i class="ph ph-calendar"></i> Date</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                        <input type="radio" name="fieldManagerDateMode" value="datetime" class="accent-sky-600">
+                                        <span class="text-sm font-medium"><i class="ph ph-calendar-plus"></i> Date & Time</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                        <input type="radio" name="fieldManagerDateMode" value="time" class="accent-sky-600">
+                                        <span class="text-sm font-medium"><i class="ph ph-clock"></i> Time</span>
+                                    </label>
+                                </div>
+                                <div id="fieldManagerDateFormatSection">
+                                    <label class="form-label text-sm">Date Format</label>
+                                    <select id="fieldManagerDateFormat" class="w-full px-2 py-1 border border-gray-300 rounded text-sm mb-3">
+                                        <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
+                                        <option value="DD/MM/YYYY">DD/MM/YYYY (European)</option>
+                                        <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+                                        <option value="DD.MM.YYYY">DD.MM.YYYY (German)</option>
+                                        <option value="MMM D, YYYY">MMM D, YYYY (Jan 1, 2024)</option>
+                                        <option value="D MMM YYYY">D MMM YYYY (1 Jan 2024)</option>
+                                    </select>
+                                </div>
+                                <div id="fieldManagerTimeFormatSection" class="hidden">
+                                    <label class="form-label text-sm">Time Format</label>
+                                    <div class="flex gap-2 mb-3">
+                                        <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                            <input type="radio" name="fieldManagerTimeFormat" value="24h" class="accent-sky-600">
+                                            <span class="text-sm">24h (14:30)</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                            <input type="radio" name="fieldManagerTimeFormat" value="12h" class="accent-sky-600">
+                                            <span class="text-sm">12h (2:30)</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-sky-300 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
+                                            <input type="radio" name="fieldManagerTimeFormat" value="12h_ampm" checked class="accent-sky-600">
+                                            <span class="text-sm">12h AM/PM</span>
+                                        </label>
+                                    </div>
+                                    <label class="flex items-center gap-2 text-sm mb-3">
+                                        <input type="checkbox" id="fieldManagerIncludeSeconds" class="accent-sky-600">
+                                        <span>Include seconds</span>
+                                    </label>
+                                </div>
+                                <div class="border-t border-sky-200 pt-3 mt-2">
+                                    <label class="flex items-center gap-2 text-sm">
+                                        <input type="checkbox" id="fieldManagerShowTimezone" class="accent-sky-600">
+                                        <span>Show timezone</span>
+                                    </label>
+                                    <select id="fieldManagerTimezone" class="w-full px-2 py-1 border border-gray-300 rounded text-sm mt-2 hidden">
+                                        <option value="">Local timezone</option>
+                                        <option value="America/New_York">America/New_York (EST/EDT)</option>
+                                        <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                                        <option value="America/Denver">America/Denver (MST/MDT)</option>
+                                        <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                                        <option value="Europe/London">Europe/London (GMT/BST)</option>
+                                        <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                                        <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                                        <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                                        <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
+                                        <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                                        <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+                                        <option value="UTC">UTC</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -17925,6 +18396,8 @@
             document.getElementById('fieldManagerSelectConfig').classList.remove('visible');
             document.getElementById('fieldManagerLinkToRecordConfig').classList.remove('visible');
             document.getElementById('fieldManagerFormulaConfig').classList.remove('visible');
+            document.getElementById('fieldManagerNumberConfig').classList.remove('visible');
+            document.getElementById('fieldManagerDateConfig').classList.remove('visible');
 
             if (typeId === 'SELECT') {
                 document.getElementById('fieldManagerSelectConfig').classList.add('visible');
@@ -17936,6 +18409,22 @@
             } else if (typeId === 'FORMULA') {
                 document.getElementById('fieldManagerFormulaConfig').classList.add('visible');
                 initFieldManagerFormulaAutocomplete();
+            } else if (typeId === 'NUMBER' || typeId === 'CURRENCY') {
+                document.getElementById('fieldManagerNumberConfig').classList.add('visible');
+                setupNumberConfigListeners();
+                // Pre-select currency format if CURRENCY type
+                if (typeId === 'CURRENCY') {
+                    const currencyRadio = document.querySelector('input[name="fieldManagerNumberFormat"][value="currency"]');
+                    if (currencyRadio) currencyRadio.checked = true;
+                    document.getElementById('fieldManagerCurrencyOptions')?.classList.remove('hidden');
+                }
+            } else if (typeId === 'DATE' || typeId === 'DATETIME' || typeId === 'TIME') {
+                document.getElementById('fieldManagerDateConfig').classList.add('visible');
+                setupDateConfigListeners();
+                // Set initial mode based on type
+                const modeRadio = document.querySelector(`input[name="fieldManagerDateMode"][value="${typeId.toLowerCase()}"]`);
+                if (modeRadio) modeRadio.checked = true;
+                updateDateConfigVisibility();
             }
         }
 
@@ -18077,6 +18566,62 @@
             formulaInput.placeholder = 'e.g., {Price} * {Quantity}';
         }
 
+        function setupNumberConfigListeners() {
+            // Show/hide currency options based on format selection
+            const formatRadios = document.querySelectorAll('input[name="fieldManagerNumberFormat"]');
+            const currencyOptions = document.getElementById('fieldManagerCurrencyOptions');
+
+            formatRadios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    if (radio.value === 'currency') {
+                        currencyOptions.classList.remove('hidden');
+                    } else {
+                        currencyOptions.classList.add('hidden');
+                    }
+                });
+            });
+        }
+
+        function setupDateConfigListeners() {
+            // Show/hide time format based on mode selection
+            const modeRadios = document.querySelectorAll('input[name="fieldManagerDateMode"]');
+            const showTimezoneCheckbox = document.getElementById('fieldManagerShowTimezone');
+            const timezoneSelect = document.getElementById('fieldManagerTimezone');
+
+            modeRadios.forEach(radio => {
+                radio.addEventListener('change', updateDateConfigVisibility);
+            });
+
+            // Toggle timezone select visibility
+            if (showTimezoneCheckbox) {
+                showTimezoneCheckbox.addEventListener('change', () => {
+                    if (showTimezoneCheckbox.checked) {
+                        timezoneSelect.classList.remove('hidden');
+                    } else {
+                        timezoneSelect.classList.add('hidden');
+                    }
+                });
+            }
+        }
+
+        function updateDateConfigVisibility() {
+            const mode = document.querySelector('input[name="fieldManagerDateMode"]:checked')?.value || 'date';
+            const dateFormatSection = document.getElementById('fieldManagerDateFormatSection');
+            const timeFormatSection = document.getElementById('fieldManagerTimeFormatSection');
+
+            if (mode === 'time') {
+                dateFormatSection.classList.add('hidden');
+                timeFormatSection.classList.remove('hidden');
+            } else if (mode === 'date') {
+                dateFormatSection.classList.remove('hidden');
+                timeFormatSection.classList.add('hidden');
+            } else {
+                // datetime - show both
+                dateFormatSection.classList.remove('hidden');
+                timeFormatSection.classList.remove('hidden');
+            }
+        }
+
         function saveFieldFromManager() {
             const set = getCurrentSet();
             if (!set) return;
@@ -18138,6 +18683,45 @@
                     format: document.getElementById('fieldManagerFormulaFormat')?.value || 'text',
                     decimals: parseInt(document.getElementById('fieldManagerFormulaDecimals')?.value || '2')
                 };
+            } else if (type === 'NUMBER' || type === 'CURRENCY') {
+                const formatRadio = document.querySelector('input[name="fieldManagerNumberFormat"]:checked');
+                const format = formatRadio?.value || 'decimal';
+                const minVal = document.getElementById('fieldManagerNumberMin')?.value;
+                const maxVal = document.getElementById('fieldManagerNumberMax')?.value;
+                newField.config = {
+                    format: format,
+                    decimalPlaces: parseInt(document.getElementById('fieldManagerNumberDecimals')?.value || '2'),
+                    roundingMode: document.getElementById('fieldManagerNumberRounding')?.value || 'round',
+                    thousandSeparator: document.getElementById('fieldManagerThousandSep')?.checked ?? true,
+                    allowNegative: document.getElementById('fieldManagerAllowNegative')?.checked ?? true,
+                    currencyCode: format === 'currency' ? (document.getElementById('fieldManagerCurrencyCode')?.value || 'USD') : null,
+                    min: minVal !== '' ? parseFloat(minVal) : null,
+                    max: maxVal !== '' ? parseFloat(maxVal) : null
+                };
+                // Set type to NUMBER if currency format selected under NUMBER
+                if (type === 'NUMBER' && format === 'currency') {
+                    newField.type = 'CURRENCY';
+                }
+            } else if (type === 'DATE' || type === 'DATETIME' || type === 'TIME') {
+                const modeRadio = document.querySelector('input[name="fieldManagerDateMode"]:checked');
+                const mode = modeRadio?.value || 'date';
+                const timeFormatRadio = document.querySelector('input[name="fieldManagerTimeFormat"]:checked');
+                newField.config = {
+                    mode: mode,
+                    dateFormat: document.getElementById('fieldManagerDateFormat')?.value || 'MM/DD/YYYY',
+                    timeFormat: timeFormatRadio?.value || '12h_ampm',
+                    includeSeconds: document.getElementById('fieldManagerIncludeSeconds')?.checked ?? false,
+                    showTimezone: document.getElementById('fieldManagerShowTimezone')?.checked ?? false,
+                    timezone: document.getElementById('fieldManagerTimezone')?.value || null
+                };
+                // Update the type based on the mode selected
+                if (mode === 'datetime') {
+                    newField.type = 'DATETIME';
+                } else if (mode === 'time') {
+                    newField.type = 'TIME';
+                } else {
+                    newField.type = 'DATE';
+                }
             }
 
             // Add field to schema
@@ -24201,6 +24785,8 @@
             document.getElementById('selectConfig').classList.remove('visible');
             document.getElementById('linkToRecordConfig').classList.remove('visible');
             document.getElementById('formulaConfig').classList.remove('visible');
+            document.getElementById('numberConfig').classList.remove('visible');
+            document.getElementById('dateConfig').classList.remove('visible');
             if (typeId === 'SELECT') {
                 document.getElementById('selectConfig').classList.add('visible');
                 renderSelectOptions();
@@ -24210,6 +24796,78 @@
             } else if (typeId === 'FORMULA') {
                 document.getElementById('formulaConfig').classList.add('visible');
                 initFormulaAutocomplete();
+            } else if (typeId === 'NUMBER' || typeId === 'CURRENCY') {
+                document.getElementById('numberConfig').classList.add('visible');
+                setupAddFieldNumberListeners();
+                // Pre-select currency format if CURRENCY type
+                if (typeId === 'CURRENCY') {
+                    const currencyRadio = document.querySelector('input[name="numberFormat"][value="currency"]');
+                    if (currencyRadio) currencyRadio.checked = true;
+                    document.getElementById('currencyOptions')?.classList.remove('hidden');
+                }
+            } else if (typeId === 'DATE' || typeId === 'DATETIME' || typeId === 'TIME') {
+                document.getElementById('dateConfig').classList.add('visible');
+                setupAddFieldDateListeners();
+                // Set initial mode based on type
+                const modeRadio = document.querySelector(`input[name="dateMode"][value="${typeId.toLowerCase()}"]`);
+                if (modeRadio) modeRadio.checked = true;
+                updateAddFieldDateVisibility();
+            }
+        }
+
+        function setupAddFieldNumberListeners() {
+            // Show/hide currency options based on format selection
+            const formatRadios = document.querySelectorAll('input[name="numberFormat"]');
+            const currencyOptions = document.getElementById('currencyOptions');
+
+            formatRadios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    if (radio.value === 'currency') {
+                        currencyOptions.classList.remove('hidden');
+                    } else {
+                        currencyOptions.classList.add('hidden');
+                    }
+                });
+            });
+        }
+
+        function setupAddFieldDateListeners() {
+            // Show/hide time format based on mode selection
+            const modeRadios = document.querySelectorAll('input[name="dateMode"]');
+            const showTimezoneCheckbox = document.getElementById('showTimezone');
+            const timezoneSelect = document.getElementById('timezone');
+
+            modeRadios.forEach(radio => {
+                radio.addEventListener('change', updateAddFieldDateVisibility);
+            });
+
+            // Toggle timezone select visibility
+            if (showTimezoneCheckbox) {
+                showTimezoneCheckbox.addEventListener('change', () => {
+                    if (showTimezoneCheckbox.checked) {
+                        timezoneSelect.classList.remove('hidden');
+                    } else {
+                        timezoneSelect.classList.add('hidden');
+                    }
+                });
+            }
+        }
+
+        function updateAddFieldDateVisibility() {
+            const mode = document.querySelector('input[name="dateMode"]:checked')?.value || 'date';
+            const dateFormatSection = document.getElementById('dateFormatSection');
+            const timeFormatSection = document.getElementById('timeFormatSection');
+
+            if (mode === 'time') {
+                dateFormatSection.classList.add('hidden');
+                timeFormatSection.classList.remove('hidden');
+            } else if (mode === 'date') {
+                dateFormatSection.classList.remove('hidden');
+                timeFormatSection.classList.add('hidden');
+            } else {
+                // datetime - show both
+                dateFormatSection.classList.remove('hidden');
+                timeFormatSection.classList.remove('hidden');
             }
         }
 
@@ -24217,6 +24875,8 @@
             document.getElementById('changeSelectConfig').classList.remove('visible');
             document.getElementById('changeLinkToRecordConfig').classList.remove('visible');
             document.getElementById('changeFormulaConfig').classList.remove('visible');
+            document.getElementById('changeNumberConfig').classList.remove('visible');
+            document.getElementById('changeDateConfig').classList.remove('visible');
 
             // Handle subtype selector
             const subtypeContainer = document.getElementById('changeFieldSubtypeConfig');
@@ -24259,6 +24919,78 @@
                         convertSection.classList.add('hidden');
                     }
                 }
+            } else if (typeId === 'NUMBER' || typeId === 'CURRENCY') {
+                document.getElementById('changeNumberConfig').classList.add('visible');
+                setupChangeNumberListeners();
+                // Pre-select currency format if CURRENCY type
+                if (typeId === 'CURRENCY') {
+                    const currencyRadio = document.querySelector('input[name="changeNumberFormat"][value="currency"]');
+                    if (currencyRadio) currencyRadio.checked = true;
+                    document.getElementById('changeCurrencyOptions')?.classList.remove('hidden');
+                }
+            } else if (typeId === 'DATE' || typeId === 'DATETIME' || typeId === 'TIME') {
+                document.getElementById('changeDateConfig').classList.add('visible');
+                setupChangeDateListeners();
+                // Set initial mode based on type
+                const modeRadio = document.querySelector(`input[name="changeDateMode"][value="${typeId.toLowerCase()}"]`);
+                if (modeRadio) modeRadio.checked = true;
+                updateChangeDateVisibility();
+            }
+        }
+
+        function setupChangeNumberListeners() {
+            // Show/hide currency options based on format selection
+            const formatRadios = document.querySelectorAll('input[name="changeNumberFormat"]');
+            const currencyOptions = document.getElementById('changeCurrencyOptions');
+
+            formatRadios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    if (radio.value === 'currency') {
+                        currencyOptions.classList.remove('hidden');
+                    } else {
+                        currencyOptions.classList.add('hidden');
+                    }
+                });
+            });
+        }
+
+        function setupChangeDateListeners() {
+            // Show/hide time format based on mode selection
+            const modeRadios = document.querySelectorAll('input[name="changeDateMode"]');
+            const showTimezoneCheckbox = document.getElementById('changeShowTimezone');
+            const timezoneSelect = document.getElementById('changeTimezone');
+
+            modeRadios.forEach(radio => {
+                radio.addEventListener('change', updateChangeDateVisibility);
+            });
+
+            // Toggle timezone select visibility
+            if (showTimezoneCheckbox) {
+                showTimezoneCheckbox.addEventListener('change', () => {
+                    if (showTimezoneCheckbox.checked) {
+                        timezoneSelect.classList.remove('hidden');
+                    } else {
+                        timezoneSelect.classList.add('hidden');
+                    }
+                });
+            }
+        }
+
+        function updateChangeDateVisibility() {
+            const mode = document.querySelector('input[name="changeDateMode"]:checked')?.value || 'date';
+            const dateFormatSection = document.getElementById('changeDateFormatSection');
+            const timeFormatSection = document.getElementById('changeTimeFormatSection');
+
+            if (mode === 'time') {
+                dateFormatSection.classList.add('hidden');
+                timeFormatSection.classList.remove('hidden');
+            } else if (mode === 'date') {
+                dateFormatSection.classList.remove('hidden');
+                timeFormatSection.classList.add('hidden');
+            } else {
+                // datetime - show both
+                dateFormatSection.classList.remove('hidden');
+                timeFormatSection.classList.remove('hidden');
             }
         }
 
@@ -24462,6 +25194,45 @@
                 }
 
                 newField.config = { formula, format, decimals };
+            } else if (type === 'NUMBER' || type === 'CURRENCY') {
+                const formatRadio = document.querySelector('input[name="numberFormat"]:checked');
+                const format = formatRadio?.value || 'decimal';
+                const minVal = document.getElementById('numberMin')?.value;
+                const maxVal = document.getElementById('numberMax')?.value;
+                newField.config = {
+                    format: format,
+                    decimalPlaces: parseInt(document.getElementById('numberDecimals')?.value || '2'),
+                    roundingMode: document.getElementById('numberRounding')?.value || 'round',
+                    thousandSeparator: document.getElementById('thousandSep')?.checked ?? true,
+                    allowNegative: document.getElementById('allowNegative')?.checked ?? true,
+                    currencyCode: format === 'currency' ? (document.getElementById('currencyCode')?.value || 'USD') : null,
+                    min: minVal !== '' ? parseFloat(minVal) : null,
+                    max: maxVal !== '' ? parseFloat(maxVal) : null
+                };
+                // Set type to CURRENCY if currency format selected under NUMBER
+                if (type === 'NUMBER' && format === 'currency') {
+                    newField.type = 'CURRENCY';
+                }
+            } else if (type === 'DATE' || type === 'DATETIME' || type === 'TIME') {
+                const modeRadio = document.querySelector('input[name="dateMode"]:checked');
+                const mode = modeRadio?.value || 'date';
+                const timeFormatRadio = document.querySelector('input[name="timeFormat"]:checked');
+                newField.config = {
+                    mode: mode,
+                    dateFormat: document.getElementById('dateFormat')?.value || 'MM/DD/YYYY',
+                    timeFormat: timeFormatRadio?.value || '12h_ampm',
+                    includeSeconds: document.getElementById('includeSeconds')?.checked ?? false,
+                    showTimezone: document.getElementById('showTimezone')?.checked ?? false,
+                    timezone: document.getElementById('timezone')?.value || null
+                };
+                // Update the type based on the mode selected
+                if (mode === 'datetime') {
+                    newField.type = 'DATETIME';
+                } else if (mode === 'time') {
+                    newField.type = 'TIME';
+                } else {
+                    newField.type = 'DATE';
+                }
             }
 
             // Handle KEY_DERIVED views differently - add to view.schema
