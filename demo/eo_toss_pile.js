@@ -68,6 +68,7 @@
                 actions: new Map(),
                 actionIdCounter: 1,
                 entryIdCounter: 1,
+                redoStack: [], // Stack of action IDs that can be re-tossed
                 settings: {
                     showGhosts: true,
                     ghostMaxAge: null, // null = show all, otherwise ms
@@ -75,6 +76,10 @@
                     panelWidth: 320
                 }
             };
+        }
+        // Ensure redoStack exists for older state objects
+        if (!state.tossPile.redoStack) {
+            state.tossPile.redoStack = [];
         }
         return state.tossPile;
     }
@@ -111,6 +116,11 @@
      */
     function createTossAction(state, { type, setId, setName, summary, metadata = {} }) {
         const pile = initTossPile(state);
+
+        // Clear redo stack when a new toss action is created
+        // (new action breaks the redo chain)
+        pile.redoStack = [];
+
         const action = {
             id: `toss_action_${pile.actionIdCounter++}`,
             type,
@@ -512,6 +522,8 @@
         // Mark action as undone if all entries were restored
         if (failedEntries.length === 0) {
             action.undone = true;
+            // Add to redo stack for Ctrl+Shift+Z functionality
+            pile.redoStack.push(actionId);
         }
 
         // Create event
@@ -785,6 +797,100 @@
     }
 
     // ============================================================================
+    // UNDO/REDO HELPERS
+    // ============================================================================
+
+    /**
+     * Get the most recent toss action that can be undone (picked up)
+     * @param {Object} state - App state
+     * @param {string} setId - Optional set ID filter
+     * @returns {Object|null} The latest undoable action or null
+     */
+    function getLatestUndoableAction(state, setId = null) {
+        const pile = initTossPile(state);
+        const actions = Array.from(pile.actions.values())
+            .filter(a => !a.undone && (!setId || a.setId === setId))
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        return actions.length > 0 ? actions[0] : null;
+    }
+
+    /**
+     * Get the most recent action that can be redone (re-tossed)
+     * @param {Object} state - App state
+     * @returns {Object|null} The latest redoable action or null
+     */
+    function getLatestRedoableAction(state) {
+        const pile = initTossPile(state);
+        if (pile.redoStack.length === 0) return null;
+        const actionId = pile.redoStack[pile.redoStack.length - 1];
+        return pile.actions.get(actionId) || null;
+    }
+
+    /**
+     * Redo (re-toss) the most recently picked up action
+     * @param {Object} state - App state
+     * @returns {Object|null} The re-tossed action or null
+     */
+    function redoToss(state) {
+        const pile = initTossPile(state);
+        if (pile.redoStack.length === 0) return null;
+
+        const actionId = pile.redoStack.pop();
+        const action = pile.actions.get(actionId);
+        if (!action) return null;
+
+        const set = state.sets.get(action.setId);
+        if (!set) return null;
+
+        // Re-toss all entries from this action
+        const retossedEntries = [];
+        action.entryIds.forEach(entryId => {
+            const entry = pile.entries.get(entryId);
+            if (entry && entry.status === 'picked_up') {
+                // Get the current value from the record
+                const record = set.records.get(entry.recordId);
+                if (record) {
+                    // Update entry value to current value (in case it changed)
+                    entry.value = record[entry.fieldId];
+                    // Mark as tossed again
+                    entry.status = 'tossed';
+                    entry.tossedAt = new Date().toISOString();
+                    retossedEntries.push(entry);
+
+                    // Remove value from record
+                    if (entry.value !== undefined) {
+                        record[entry.fieldId] = '';
+                    }
+                }
+            }
+        });
+
+        // If all entries were re-tossed, mark action as not undone
+        if (retossedEntries.length > 0) {
+            action.undone = false;
+
+            // If entire record was tossed originally, delete it again
+            if (action.type === 'toss_record' && action.metadata?.recordId) {
+                set.records.delete(action.metadata.recordId);
+                if (state.selectedRecordIds) state.selectedRecordIds.delete(action.metadata.recordId);
+                if (state.lastSelectedRecordId === action.metadata.recordId) state.lastSelectedRecordId = null;
+            }
+
+            // Create event for audit trail
+            if (typeof createEvent === 'function') {
+                createEvent(
+                    'Redo Toss',
+                    'NUL',
+                    { type: 'TossAction', id: actionId, setId: action.setId },
+                    { setId: action.setId, actionId, retossedCount: retossedEntries.length, summary: `Re-tossed ${retossedEntries.length} items` }
+                );
+            }
+        }
+
+        return { action, retossedEntries };
+    }
+
+    // ============================================================================
     // SETTINGS
     // ============================================================================
 
@@ -872,6 +978,11 @@
         pickUpAction,
         pickUpRecord,
         pickUpEntries,
+
+        // Undo/Redo functions
+        getLatestUndoableAction,
+        getLatestRedoableAction,
+        redoToss,
 
         // Query functions
         getTossedEntriesForSet,
