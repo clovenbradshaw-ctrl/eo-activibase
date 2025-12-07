@@ -700,6 +700,11 @@
 
             this.dropdown.innerHTML = html;
             this.attachDropdownEvents();
+
+            // Initialize custom dropdowns after DOM is ready
+            if (this.config.showTimezone) {
+                this.initTimezoneDropdown(this.dropdown);
+            }
         }
 
         /**
@@ -862,25 +867,39 @@
          * Render timezone selector
          */
         renderTimezoneSelector() {
-            const currentTz = this.config.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-            let html = `
+            return `
                 <div class="eo-timezone-picker">
                     <div class="eo-timezone-label">Timezone</div>
-                    <select class="eo-timezone-select" data-field="timezone">
-            `;
-
-            for (const tz of COMMON_TIMEZONES) {
-                const selected = tz === currentTz ? 'selected' : '';
-                html += `<option value="${tz}" ${selected}>${tz}</option>`;
-            }
-
-            html += `
-                    </select>
+                    <div class="eo-timezone-select-container" data-field="timezone"></div>
                 </div>
             `;
+        }
 
-            return html;
+        /**
+         * Initialize timezone dropdown
+         */
+        initTimezoneDropdown(container) {
+            const currentTz = this.config.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const tzContainer = container.querySelector('.eo-timezone-select-container');
+
+            if (tzContainer && typeof EOCustomDropdown !== 'undefined') {
+                this.timezoneDropdown = new EOCustomDropdown({
+                    options: COMMON_TIMEZONES.map(tz => ({
+                        value: tz,
+                        label: tz.replace(/_/g, ' ')
+                    })),
+                    value: currentTz,
+                    placeholder: 'Select timezone...',
+                    searchable: true,
+                    size: 'sm',
+                    maxHeight: '200px',
+                    onChange: (value) => {
+                        this.config.timezone = value;
+                        this.updateDisplay();
+                    }
+                });
+                tzContainer.appendChild(this.timezoneDropdown.create());
+            }
         }
 
         /**
@@ -968,14 +987,8 @@
                 });
             });
 
-            // Timezone select
-            const tzSelect = this.dropdown.querySelector('.eo-timezone-select');
-            if (tzSelect) {
-                tzSelect.addEventListener('change', (e) => {
-                    this.config.timezone = e.target.value;
-                    this.updateInputDisplay();
-                });
-            }
+            // Timezone select - handled by EOCustomDropdown's onChange callback
+            // The initTimezoneDropdown() method sets up the custom dropdown after this
 
             // Quick actions
             this.dropdown.querySelectorAll('.eo-datetime-quick').forEach(btn => {
@@ -1271,14 +1284,7 @@
 
                     <div class="eo-config-section" id="dateFormatSection">
                         <label class="eo-config-label">Date Format</label>
-                        <select class="eo-config-select" name="dateFormat">
-                            <option value="MM/DD/YYYY" ${config.dateFormat === 'MM/DD/YYYY' ? 'selected' : ''}>MM/DD/YYYY (US)</option>
-                            <option value="DD/MM/YYYY" ${config.dateFormat === 'DD/MM/YYYY' ? 'selected' : ''}>DD/MM/YYYY (European)</option>
-                            <option value="YYYY-MM-DD" ${config.dateFormat === 'YYYY-MM-DD' ? 'selected' : ''}>YYYY-MM-DD (ISO)</option>
-                            <option value="DD.MM.YYYY" ${config.dateFormat === 'DD.MM.YYYY' ? 'selected' : ''}>DD.MM.YYYY (German)</option>
-                            <option value="MMM D, YYYY" ${config.dateFormat === 'MMM D, YYYY' ? 'selected' : ''}>MMM D, YYYY (Jan 1, 2024)</option>
-                            <option value="D MMM YYYY" ${config.dateFormat === 'D MMM YYYY' ? 'selected' : ''}>D MMM YYYY (1 Jan 2024)</option>
-                        </select>
+                        <div id="dateFormatContainer" class="eo-config-select-container"></div>
                     </div>
 
                     <div class="eo-config-section" id="timeFormatSection">
@@ -1316,13 +1322,8 @@
                             <input type="checkbox" name="showTimezone" ${config.showTimezone ? 'checked' : ''}>
                             <span>Show timezone</span>
                         </label>
-                        <select class="eo-config-select" name="timezone" id="timezoneSelect"
-                                style="margin-top: 8px; ${config.showTimezone ? '' : 'display: none;'}">
-                            <option value="">Local timezone</option>
-                            ${COMMON_TIMEZONES.map(tz =>
-                                `<option value="${tz}" ${config.timezone === tz ? 'selected' : ''}>${tz}</option>`
-                            ).join('')}
-                        </select>
+                        <div id="timezoneConfigContainer" class="eo-config-select-container"
+                             style="margin-top: 8px; ${config.showTimezone ? '' : 'display: none;'}"></div>
                     </div>
                 </div>
                 <div class="eo-datetime-config-footer">
@@ -1333,6 +1334,44 @@
         `;
 
         document.body.appendChild(overlay);
+
+        // Initialize custom dropdowns
+        let dateFormatDropdown = null;
+        let timezoneConfigDropdown = null;
+
+        const dateFormatContainer = overlay.querySelector('#dateFormatContainer');
+        if (dateFormatContainer && typeof EOCustomDropdown !== 'undefined') {
+            dateFormatDropdown = new EOCustomDropdown({
+                options: [
+                    { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY (US)' },
+                    { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY (European)' },
+                    { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD (ISO)' },
+                    { value: 'DD.MM.YYYY', label: 'DD.MM.YYYY (German)' },
+                    { value: 'MMM D, YYYY', label: 'MMM D, YYYY (Jan 1, 2024)' },
+                    { value: 'D MMM YYYY', label: 'D MMM YYYY (1 Jan 2024)' }
+                ],
+                value: config.dateFormat,
+                placeholder: 'Select format...'
+            });
+            dateFormatContainer.appendChild(dateFormatDropdown.create());
+        }
+
+        const timezoneConfigContainer = overlay.querySelector('#timezoneConfigContainer');
+        if (timezoneConfigContainer && typeof EOCustomDropdown !== 'undefined') {
+            timezoneConfigDropdown = new EOCustomDropdown({
+                options: [
+                    { value: '', label: 'Local timezone' },
+                    ...COMMON_TIMEZONES.map(tz => ({
+                        value: tz,
+                        label: tz.replace(/_/g, ' ')
+                    }))
+                ],
+                value: config.timezone || '',
+                placeholder: 'Select timezone...',
+                searchable: true
+            });
+            timezoneConfigContainer.appendChild(timezoneConfigDropdown.create());
+        }
 
         // Update visibility based on mode
         const updateVisibility = () => {
@@ -1353,16 +1392,23 @@
 
         // Show/hide timezone select
         overlay.querySelector('input[name="showTimezone"]').addEventListener('change', (e) => {
-            overlay.querySelector('#timezoneSelect').style.display = e.target.checked ? 'block' : 'none';
+            const tzContainer = overlay.querySelector('#timezoneConfigContainer');
+            if (tzContainer) {
+                tzContainer.style.display = e.target.checked ? 'block' : 'none';
+            }
         });
 
         // Close button
         overlay.querySelector('.eo-datetime-config-close').addEventListener('click', () => {
+            if (dateFormatDropdown) dateFormatDropdown.destroy();
+            if (timezoneConfigDropdown) timezoneConfigDropdown.destroy();
             overlay.remove();
         });
 
         // Cancel button
         overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+            if (dateFormatDropdown) dateFormatDropdown.destroy();
+            if (timezoneConfigDropdown) timezoneConfigDropdown.destroy();
             overlay.remove();
         });
 
@@ -1370,20 +1416,26 @@
         overlay.querySelector('[data-action="save"]').addEventListener('click', () => {
             const newConfig = {
                 mode: overlay.querySelector('input[name="dateMode"]:checked').value,
-                dateFormat: overlay.querySelector('select[name="dateFormat"]').value,
+                dateFormat: dateFormatDropdown ? dateFormatDropdown.getValue() : config.dateFormat,
                 timeFormat: overlay.querySelector('input[name="timeFormat"]:checked').value,
                 includeSeconds: overlay.querySelector('input[name="includeSeconds"]').checked,
                 showTimezone: overlay.querySelector('input[name="showTimezone"]').checked,
-                timezone: overlay.querySelector('select[name="timezone"]').value || null
+                timezone: timezoneConfigDropdown ? (timezoneConfigDropdown.getValue() || null) : config.timezone
             };
 
             if (onSave) onSave(newConfig);
+            if (dateFormatDropdown) dateFormatDropdown.destroy();
+            if (timezoneConfigDropdown) timezoneConfigDropdown.destroy();
             overlay.remove();
         });
 
         // Click outside to close
         overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) overlay.remove();
+            if (e.target === overlay) {
+                if (dateFormatDropdown) dateFormatDropdown.destroy();
+                if (timezoneConfigDropdown) timezoneConfigDropdown.destroy();
+                overlay.remove();
+            }
         });
 
         updateVisibility();
