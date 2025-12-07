@@ -13952,12 +13952,21 @@
 
             const menu = document.createElement('div');
             menu.className = 'context-menu view-tab-context-menu';
+            // Check if this tab is already a shortcut
+            const shortcuts = getTabShortcuts();
+            const isShortcut = shortcuts.some(s => s.setId === setId && s.viewId === viewId);
+
             menu.innerHTML = `
                 <div class="menu-item" data-action="edit">
                     <span class="icon"><i class="ph ph-pencil-simple"></i></span> Edit View
                 </div>
                 <div class="menu-item" data-action="duplicate">
                     <span class="icon"><i class="ph ph-copy"></i></span> Duplicate
+                </div>
+                <div class="menu-separator"></div>
+                <div class="menu-item" data-action="shortcut">
+                    <span class="icon"><i class="ph ${isShortcut ? 'ph-bookmark-simple-fill' : 'ph-bookmark-simple'}"></i></span>
+                    ${isShortcut ? 'Remove Shortcut' : 'Save as Shortcut'}
                 </div>
                 <div class="menu-separator"></div>
                 <div class="menu-item" data-action="close">
@@ -13990,6 +13999,14 @@
                             cloneView(state, viewId, newName);
                             renderSidebar();
                             renderViewTabs();
+                            break;
+                        case 'shortcut':
+                            if (isShortcut) {
+                                const existingShortcut = shortcuts.find(s => s.setId === setId && s.viewId === viewId);
+                                if (existingShortcut) removeTabShortcut(existingShortcut.id);
+                            } else {
+                                addTabShortcut({ setId, viewId });
+                            }
                             break;
                         case 'close':
                             closeViewTab(setId, viewId);
@@ -15533,9 +15550,18 @@
             // Remove any existing context menu
             document.querySelectorAll('.view-tab-context-menu').forEach(menu => menu.remove());
 
+            // Check if this special view is already a shortcut
+            const shortcuts = getTabShortcuts();
+            const isShortcut = shortcuts.some(s => s.specialView === specialView);
+
             const menu = document.createElement('div');
             menu.className = 'context-menu view-tab-context-menu';
             menu.innerHTML = `
+                <div class="menu-item" data-action="shortcut">
+                    <span class="icon"><i class="ph ${isShortcut ? 'ph-bookmark-simple-fill' : 'ph-bookmark-simple'}"></i></span>
+                    ${isShortcut ? 'Remove Shortcut' : 'Save as Shortcut'}
+                </div>
+                <div class="menu-separator"></div>
                 <div class="menu-item" data-action="close">
                     <span class="icon"><i class="ph ph-x"></i></span> Close Tab
                 </div>
@@ -15552,7 +15578,14 @@
                 item.addEventListener('click', () => {
                     const action = item.dataset.action;
                     menu.remove();
-                    if (action === 'close') {
+                    if (action === 'shortcut') {
+                        if (isShortcut) {
+                            const existingShortcut = shortcuts.find(s => s.specialView === specialView);
+                            if (existingShortcut) removeTabShortcut(existingShortcut.id);
+                        } else {
+                            addTabShortcut({ specialView });
+                        }
+                    } else if (action === 'close') {
                         closeViewTab(null, null, specialView);
                     }
                 });
@@ -15566,6 +15599,134 @@
                     }
                 });
             }, 0);
+        }
+
+        // ============================================================================
+        // TAB SHORTCUTS (Browser-like bookmarks for quick tab access)
+        // ============================================================================
+
+        /**
+         * Get tab shortcuts for the current world
+         */
+        function getTabShortcuts() {
+            const world = getWorld();
+            return world?.tabShortcuts || [];
+        }
+
+        /**
+         * Save tab shortcuts to the current world
+         */
+        function saveTabShortcuts(shortcuts) {
+            const world = getWorld();
+            if (world) {
+                world.tabShortcuts = shortcuts;
+            }
+        }
+
+        /**
+         * Add a tab as a shortcut
+         * @param {Object} tab - { setId, viewId } or { specialView }
+         */
+        function addTabShortcut(tab) {
+            const shortcuts = getTabShortcuts();
+
+            // Check if shortcut already exists
+            const exists = shortcuts.some(s => {
+                if (tab.specialView) {
+                    return s.specialView === tab.specialView;
+                }
+                return s.setId === tab.setId && s.viewId === tab.viewId;
+            });
+
+            if (exists) {
+                showToast('This tab is already a shortcut');
+                return false;
+            }
+
+            // Get display info for the shortcut
+            let shortcut;
+            if (tab.specialView) {
+                const config = SPECIAL_VIEW_CONFIG[tab.specialView];
+                shortcut = {
+                    id: `shortcut_${Date.now()}`,
+                    specialView: tab.specialView,
+                    label: config?.label || tab.specialView,
+                    icon: config?.icon || 'ph-bookmark'
+                };
+            } else {
+                const set = state.sets.get(tab.setId);
+                const view = set?.views.get(tab.viewId);
+                if (!set || !view) {
+                    showToast('Could not save shortcut: view not found');
+                    return false;
+                }
+                shortcut = {
+                    id: `shortcut_${Date.now()}`,
+                    setId: tab.setId,
+                    viewId: tab.viewId,
+                    label: view.name,
+                    setName: set.name,
+                    icon: view.icon || VIEW_TYPE_ICONS[view.type] || 'ph-table'
+                };
+            }
+
+            shortcuts.push(shortcut);
+            saveTabShortcuts(shortcuts);
+            showToast('✓ Saved as shortcut');
+
+            // Re-render dashboard if currently viewing it
+            if (state.currentSpecialView === 'dashboard') {
+                renderDashboardPage();
+            }
+
+            return true;
+        }
+
+        /**
+         * Remove a tab shortcut by id
+         */
+        function removeTabShortcut(shortcutId) {
+            const shortcuts = getTabShortcuts();
+            const index = shortcuts.findIndex(s => s.id === shortcutId);
+            if (index !== -1) {
+                shortcuts.splice(index, 1);
+                saveTabShortcuts(shortcuts);
+                showToast('✓ Shortcut removed');
+
+                // Re-render dashboard if currently viewing it
+                if (state.currentSpecialView === 'dashboard') {
+                    renderDashboardPage();
+                }
+            }
+        }
+
+        /**
+         * Navigate to a shortcut
+         */
+        function navigateToShortcut(shortcut) {
+            if (shortcut.specialView) {
+                switchToSpecialTab(shortcut.specialView);
+            } else {
+                switchSet(shortcut.setId, shortcut.viewId);
+            }
+        }
+
+        /**
+         * Move a shortcut to a new position
+         */
+        function reorderShortcut(shortcutId, newIndex) {
+            const shortcuts = getTabShortcuts();
+            const currentIndex = shortcuts.findIndex(s => s.id === shortcutId);
+            if (currentIndex === -1 || currentIndex === newIndex) return;
+
+            const [shortcut] = shortcuts.splice(currentIndex, 1);
+            shortcuts.splice(newIndex, 0, shortcut);
+            saveTabShortcuts(shortcuts);
+
+            // Re-render dashboard if currently viewing it
+            if (state.currentSpecialView === 'dashboard') {
+                renderDashboardPage();
+            }
         }
 
         function getCurrentSet() { return state.sets.get(state.currentSetId); }
@@ -21731,6 +21892,33 @@
             const world = getWorld();
             const setsForWorld = getSetsForWorld();
             const hasData = setsForWorld.length > 0;
+            const shortcuts = getTabShortcuts();
+
+            // Build shortcuts HTML
+            const shortcutsHtml = shortcuts.map((shortcut, index) => {
+                const shortcutNum = index < 9 ? `<span class="shortcut-hint" style="font-size: 0.625rem; color: #94a3b8; margin-left: 0.25rem;">Ctrl+${index + 1}</span>` : '';
+                const label = shortcut.label || 'Untitled';
+                const subtitle = shortcut.setName ? `<div style="font-size: 0.75rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortcut.setName}</div>` : '';
+                return `
+                    <div class="dashboard-shortcut-card" data-shortcut-id="${shortcut.id}"
+                         style="padding: 0.75rem 1rem; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.15s; background: white; min-width: 140px; max-width: 180px; position: relative;">
+                        <button class="shortcut-remove-btn" data-shortcut-id="${shortcut.id}"
+                                style="position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border: none; background: transparent; cursor: pointer; color: #94a3b8; border-radius: 4px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s;"
+                                title="Remove shortcut">
+                            <i class="ph ph-x" style="font-size: 0.75rem;"></i>
+                        </button>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="ph ${shortcut.icon || 'ph-bookmark'}" style="font-size: 1rem; color: #6366f1;"></i>
+                            <div style="min-width: 0; flex: 1;">
+                                <div style="font-weight: 500; color: #1e293b; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center;">
+                                    ${label}${shortcutNum}
+                                </div>
+                                ${subtitle}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
 
             // Build recent sets list for quick navigation
             const recentSetsHtml = setsForWorld.slice(0, 5).map(set => {
@@ -21785,6 +21973,22 @@
                             </h1>
                             <p style="color: #64748b; font-size: 0.875rem;">Jump into your data or import more</p>
                         </div>
+
+                        ${shortcuts.length > 0 ? `
+                        <!-- Shortcuts (browser-like bookmarks) -->
+                        <div>
+                            <div style="font-weight: 600; color: #475569; margin-bottom: 0.75rem; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="ph ph-bookmark-simple" style="color: #6366f1;"></i>
+                                Shortcuts
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                ${shortcutsHtml}
+                            </div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.5rem;">
+                                Right-click any tab to add or remove shortcuts
+                            </div>
+                        </div>
+                        ` : ''}
 
                         <!-- Primary action: Import more data -->
                         <div style="display: flex; gap: 0.75rem; justify-content: center;">
@@ -21847,6 +22051,50 @@
                     card.style.borderColor = '#e5e7eb';
                     card.style.background = 'white';
                 });
+            });
+
+            // Add event handlers for shortcut cards
+            container.querySelectorAll('.dashboard-shortcut-card').forEach(card => {
+                const shortcutId = card.dataset.shortcutId;
+                const shortcut = shortcuts.find(s => s.id === shortcutId);
+                if (!shortcut) return;
+
+                // Hover effects
+                card.addEventListener('mouseenter', () => {
+                    card.style.borderColor = '#6366f1';
+                    card.style.background = '#f8fafc';
+                    const removeBtn = card.querySelector('.shortcut-remove-btn');
+                    if (removeBtn) removeBtn.style.opacity = '1';
+                });
+                card.addEventListener('mouseleave', () => {
+                    card.style.borderColor = '#e5e7eb';
+                    card.style.background = 'white';
+                    const removeBtn = card.querySelector('.shortcut-remove-btn');
+                    if (removeBtn) removeBtn.style.opacity = '0';
+                });
+
+                // Click to navigate
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.shortcut-remove-btn')) return; // Don't navigate when clicking remove
+                    navigateToShortcut(shortcut);
+                });
+
+                // Remove button
+                const removeBtn = card.querySelector('.shortcut-remove-btn');
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        removeTabShortcut(shortcutId);
+                    });
+                    removeBtn.addEventListener('mouseenter', () => {
+                        removeBtn.style.background = '#fee2e2';
+                        removeBtn.style.color = '#dc2626';
+                    });
+                    removeBtn.addEventListener('mouseleave', () => {
+                        removeBtn.style.background = 'transparent';
+                        removeBtn.style.color = '#94a3b8';
+                    });
+                }
             });
         }
 
@@ -29935,6 +30183,17 @@
 
                     if (state.modalStack.length > 0) {
                         closeModal(state.modalStack[state.modalStack.length - 1]);
+                    }
+                }
+
+                // Ctrl+1-9: Navigate to saved shortcuts
+                if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9' && !e.shiftKey && !e.altKey) {
+                    const shortcutIndex = parseInt(e.key) - 1;
+                    const shortcuts = getTabShortcuts();
+                    if (shortcuts[shortcutIndex]) {
+                        e.preventDefault();
+                        navigateToShortcut(shortcuts[shortcutIndex]);
+                        return;
                     }
                 }
 
