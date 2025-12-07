@@ -8024,17 +8024,9 @@
             LINKED_LOOKUP: {
                 id: 'LINKED_LOOKUP',
                 name: 'Linked Lookup',
-                description: 'Values pulled from linked records',
+                description: 'Values from linked records with optional aggregation',
                 defaultValue: '',
                 icon: 'ph-magnifying-glass',
-                isDerived: true
-            },
-            LINKED_ROLLUP: {
-                id: 'LINKED_ROLLUP',
-                name: 'Linked Rollup',
-                description: 'Aggregated values from linked records',
-                defaultValue: '',
-                icon: 'ph-chart-line-up',
                 isDerived: true
             },
             JSON: {
@@ -11623,8 +11615,9 @@
                         // Skip if this lookup is hidden
                         if (visibilitySet.has(rel.id)) return;
 
-                        // Determine field type based on whether rollupFormula is set
-                        const fieldType = rel.rollupFormula ? 'LINKED_ROLLUP' : 'LINKED_LOOKUP';
+                        // Use LINKED_LOOKUP for all lookup/rollup fields
+                        // Aggregation is a parameter on the lookup, not a separate type
+                        const fieldType = 'LINKED_LOOKUP';
                         linkedFields.push({
                             id: rel.id,
                             name: view?.columnDisplayNames?.[rel.id] || rel.displayName || `Linked: ${rel.targetFieldId}`,
@@ -11650,7 +11643,7 @@
                     linkedFields.push({
                         id: rollup.id,
                         name: view?.columnDisplayNames?.[rollup.id] || rollup.displayName || `Rollup: ${rollup.targetFieldId}`,
-                        type: 'LINKED_ROLLUP',
+                        type: 'LINKED_LOOKUP',
                         _linkedConfig: rollup,
                         width: '150px'
                     });
@@ -18364,7 +18357,7 @@
                     if (value === undefined || value === null || value === '') return;
 
                     // Prevent recursion for linked field types
-                    if (targetField?.type === 'LINKED_LOOKUP' || targetField?.type === 'LINKED_ROLLUP') {
+                    if (targetField?.type === 'LINKED_LOOKUP') {
                         values.push(String(value));
                         return;
                     }
@@ -18406,7 +18399,7 @@
                 if (value === undefined || value === null || value === '') return null;
 
                 // Prevent recursion for linked field types
-                if (targetField?.type === 'LINKED_LOOKUP' || targetField?.type === 'LINKED_ROLLUP') {
+                if (targetField?.type === 'LINKED_LOOKUP') {
                     return String(value);
                 }
 
@@ -18544,8 +18537,22 @@
                     const displayName = getRecordDisplayName(record?.id) || 'Record';
                     return `<span class="font-mono text-xs text-gray-700">${displayName}</span>`;
                 case 'LINKED_LOOKUP':
-                    // Render linked lookup field
+                    // Render linked lookup field (with optional aggregation/rollup)
                     if (!field._linkedConfig) return '';
+
+                    // Check if this lookup has aggregation (making it a rollup)
+                    const hasAggregation = field._linkedConfig.aggregation || field._linkedConfig.rollupFormula;
+
+                    if (hasAggregation && window.EOCRollupEngine) {
+                        // Use rollup engine for aggregated values
+                        const rollupValue = window.EOCRollupEngine.evaluate(field._linkedConfig, record, state);
+                        const targetSet = state.sets.get(field._linkedConfig.targetSetId);
+                        const targetField = targetSet?.schema.find(f => f.id === field._linkedConfig.targetFieldId);
+                        const formattedRollup = window.EOCRollupEngine.formatValue(rollupValue, field._linkedConfig.aggregation || field._linkedConfig.rollupFormula, targetField);
+                        return `<span class="text-gray-700">${formattedRollup}</span>`;
+                    }
+
+                    // No aggregation - return raw linked values
                     const lookupValues = evaluateLinkedLookup(field._linkedConfig, record, state);
                     if (!lookupValues || lookupValues.length === 0) return '';
 
@@ -18561,15 +18568,6 @@
 
                     // Single value - display normally (no superscript needed)
                     return `<span class="lookup-value-pill">${lookupValues[0]}</span>`;
-                case 'LINKED_ROLLUP':
-                    // Render linked rollup field
-                    if (!field._linkedConfig) return '';
-                    if (!window.EOCRollupEngine) return '<span class="text-red-600">Rollup engine not loaded</span>';
-                    const rollupValue = window.EOCRollupEngine.evaluate(field._linkedConfig, record, state);
-                    const targetSet = state.sets.get(field._linkedConfig.targetSetId);
-                    const targetField = targetSet?.schema.find(f => f.id === field._linkedConfig.targetFieldId);
-                    const formattedRollup = window.EOCRollupEngine.formatValue(rollupValue, field._linkedConfig.aggregation, targetField);
-                    return `<span class="text-gray-700">${formattedRollup}</span>`;
                 default:
                     return value || '';
             }
@@ -26916,12 +26914,10 @@
                 case 'CHECKBOX':
                     return value ? 1 : 0;
                 case 'LINKED_LOOKUP':
-                    // Linked lookup values are strings
-                    return String(value).toLowerCase();
-                case 'LINKED_ROLLUP':
-                    // Rollup values can be numbers (SUM, COUNT, etc.) or strings (CONCAT)
-                    const agg = field._linkedConfig?.aggregation;
-                    if (agg === 'SUM' || agg === 'COUNT' || agg === 'AVG' || agg === 'MIN' || agg === 'MAX') {
+                    // Lookup/rollup values - check if aggregation produces numeric result
+                    const agg = field._linkedConfig?.aggregation || field._linkedConfig?.rollupFormula;
+                    if (agg === 'SUM' || agg === 'COUNT' || agg === 'AVG' || agg === 'MIN' || agg === 'MAX' ||
+                        agg === 'sum' || agg === 'count' || agg === 'avg' || agg === 'min' || agg === 'max') {
                         return Number(value) || 0;
                     }
                     return String(value).toLowerCase();
@@ -26934,14 +26930,15 @@
         function getFieldValue(record, field) {
             if (!field) return undefined;
 
-            // Handle LINKED_LOOKUP fields - compute value using evaluateLinkedLookup
+            // Handle LINKED_LOOKUP fields (with optional aggregation/rollup)
             if (field.type === 'LINKED_LOOKUP' && field._linkedConfig) {
+                const hasAggregation = field._linkedConfig.aggregation || field._linkedConfig.rollupFormula;
+                if (hasAggregation && window.EOCRollupEngine) {
+                    // Use rollup engine for aggregated values
+                    return window.EOCRollupEngine.evaluate(field._linkedConfig, record, state);
+                }
+                // No aggregation - return raw linked values
                 return evaluateLinkedLookup(field._linkedConfig, record, state);
-            }
-
-            // Handle LINKED_ROLLUP fields - compute value using rollup engine
-            if (field.type === 'LINKED_ROLLUP' && field._linkedConfig && window.EOCRollupEngine) {
-                return window.EOCRollupEngine.evaluate(field._linkedConfig, record, state);
             }
 
             // Regular field - get value directly from record
@@ -27010,8 +27007,7 @@
                 'USER': 'ph-user',
                 'ATTACHMENT': 'ph-paperclip',
                 'LINKED_RECORD': 'ph-link-simple',
-                'LINKED_LOOKUP': 'ph-eye',
-                'LINKED_ROLLUP': 'ph-calculator',
+                'LINKED_LOOKUP': 'ph-magnifying-glass',
                 'FORMULA': 'ph-function',
                 'AUTONUMBER': 'ph-number-circle-one',
                 'CREATED_TIME': 'ph-clock',
