@@ -397,8 +397,8 @@ class EOInlineCellEditor {
     // Hide tooltip
     this.hoverTooltip.style.display = 'none';
 
-    // Create input element
-    const input = this.createInputElement(fieldType, currentValue);
+    // Create input element (pass fieldName for config lookup)
+    const input = this.createInputElement(fieldType, currentValue, fieldName);
 
     // Store original content
     const originalContent = cell.innerHTML;
@@ -419,20 +419,26 @@ class EOInlineCellEditor {
       recordId,
       fieldName,
       originalContent,
-      originalValue: currentValue
+      originalValue: currentValue,
+      _datetimeValue: input._datetimeValue || null
     };
 
-    // Handle save/cancel
-    input.addEventListener('blur', () => this.exitEditMode(true));
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        this.exitEditMode(true);
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        this.exitEditMode(false);
-      }
-    });
+    // For datetime inputs, the picker handles its own events
+    const isDateTimeInput = input.classList && input.classList.contains('eo-datetime-cell-input');
+
+    if (!isDateTimeInput) {
+      // Handle save/cancel for regular inputs
+      input.addEventListener('blur', () => this.exitEditMode(true));
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.exitEditMode(true);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          this.exitEditMode(false);
+        }
+      });
+    }
   }
 
   /**
@@ -449,12 +455,20 @@ class EOInlineCellEditor {
 
   /**
    * Normalize a date value to ISO format (YYYY-MM-DD) for native date inputs.
-   * Handles various common date formats and returns empty string for invalid dates.
+   * Uses EODateTimeField for robust parsing if available, falls back to basic parsing.
    */
   normalizeDateToISO(value) {
     if (!value) return '';
 
-    // Already in ISO format (YYYY-MM-DD)
+    // Use enhanced datetime field parsing if available
+    if (typeof EODateTimeField !== 'undefined') {
+      const parsed = EODateTimeField.parseDateTime(value);
+      if (parsed) {
+        return EODateTimeField.parsedToDateString(parsed);
+      }
+    }
+
+    // Fallback: Already in ISO format (YYYY-MM-DD)
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
       return value;
     }
@@ -462,45 +476,38 @@ class EOInlineCellEditor {
     // Try parsing with Date object
     const date = new Date(value);
     if (!isNaN(date.getTime())) {
-      // Return in YYYY-MM-DD format
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     }
 
-    // Try common date formats
-    // MM/DD/YYYY or M/D/YYYY
-    let match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (match) {
-      const [, month, day, year] = match;
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    }
-
-    // DD/MM/YYYY (European format - try if month > 12)
-    match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (match) {
-      const [, first, second, year] = match;
-      if (parseInt(first) > 12) {
-        return `${year}-${second.padStart(2, '0')}-${first.padStart(2, '0')}`;
-      }
-    }
-
-    // YYYY/MM/DD
-    match = value.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
-    if (match) {
-      const [, year, month, day] = match;
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    }
-
-    // Return empty if we can't parse
     return '';
+  }
+
+  /**
+   * Get date field configuration from field metadata
+   */
+  getDateFieldConfig(fieldName) {
+    const fieldConfig = this.config.getFieldConfig ? this.config.getFieldConfig(fieldName) : {};
+    const defaults = typeof EODateTimeField !== 'undefined' ? EODateTimeField.DEFAULT_CONFIG : {};
+
+    return {
+      ...defaults,
+      mode: fieldConfig.dateMode || fieldConfig.mode || 'date',
+      timeFormat: fieldConfig.timeFormat || '12h_ampm',
+      dateFormat: fieldConfig.dateFormat || 'MM/DD/YYYY',
+      showTimezone: fieldConfig.showTimezone || false,
+      timezone: fieldConfig.timezone || null,
+      includeSeconds: fieldConfig.includeSeconds || false,
+      ...fieldConfig
+    };
   }
 
   /**
    * Create appropriate input element based on field type
    */
-  createInputElement(fieldType, currentValue) {
+  createInputElement(fieldType, currentValue, fieldName) {
     let input;
 
     switch (fieldType.toLowerCase()) {
@@ -509,13 +516,28 @@ class EOInlineCellEditor {
         input.type = 'number';
         input.value = currentValue;
         input.step = 'any';
+        input.className = 'eo-cell-input';
         break;
 
       case 'date':
+      case 'datetime':
+      case 'time':
+        // Use enhanced datetime picker if available
+        if (typeof EODateTimeField !== 'undefined') {
+          const config = this.getDateFieldConfig(fieldName);
+          // Map field type to mode
+          if (fieldType.toLowerCase() === 'datetime') {
+            config.mode = 'datetime';
+          } else if (fieldType.toLowerCase() === 'time') {
+            config.mode = 'time';
+          }
+          return this.createDateTimeInput(currentValue, config);
+        }
+        // Fallback to native date input
         input = document.createElement('input');
         input.type = 'date';
-        // Normalize date to ISO format for the native date input
         input.value = this.normalizeDateToISO(currentValue);
+        input.className = 'eo-cell-input';
         break;
 
       case 'checkbox':
@@ -523,10 +545,12 @@ class EOInlineCellEditor {
         input = document.createElement('input');
         input.type = 'checkbox';
         input.checked = currentValue === 'true' || currentValue === '✓';
+        input.className = 'eo-cell-input';
         break;
 
       case 'select':
         input = document.createElement('select');
+        input.className = 'eo-cell-input';
         // Options would be populated by config
         break;
 
@@ -535,16 +559,61 @@ class EOInlineCellEditor {
         input = document.createElement('textarea');
         input.value = currentValue;
         input.rows = 3;
+        input.className = 'eo-cell-input';
         break;
 
       default:
         input = document.createElement('input');
         input.type = 'text';
         input.value = currentValue;
+        input.className = 'eo-cell-input';
     }
 
-    input.className = 'eo-cell-input';
     return input;
+  }
+
+  /**
+   * Create enhanced datetime input element
+   */
+  createDateTimeInput(currentValue, config) {
+    const editor = EODateTimeField.createDateTimeEditor(
+      config,
+      (value) => {
+        // onChange - value updated
+        if (this.activeEditor) {
+          this.activeEditor._datetimeValue = value;
+        }
+      },
+      (value) => {
+        // onClose - close and save
+        if (value !== null && this.activeEditor) {
+          this.activeEditor._datetimeValue = value;
+        }
+      }
+    );
+
+    // Set initial value
+    editor.setValue(currentValue);
+
+    // Store reference for later cleanup
+    const container = editor.container;
+    container._datetimeEditor = editor;
+    container._datetimeValue = editor.getValue();
+    container.className = 'eo-cell-input eo-datetime-cell-input';
+
+    // Create a proxy to act like an input element
+    Object.defineProperty(container, 'value', {
+      get: () => editor.getValue(),
+      set: (v) => editor.setValue(v)
+    });
+
+    // Focus method
+    container.focus = () => editor.focus();
+
+    // Select method (no-op for datetime)
+    container.select = () => editor.focus();
+
+    return container;
   }
 
   /**
@@ -558,8 +627,12 @@ class EOInlineCellEditor {
     let newValue = originalValue;
 
     if (save) {
-      // Get new value
-      if (input.type === 'checkbox') {
+      // Get new value - check for datetime editor first
+      if (input._datetimeEditor) {
+        newValue = input._datetimeEditor.getValue();
+        // Cleanup datetime editor
+        input._datetimeEditor.destroy();
+      } else if (input.type === 'checkbox') {
         newValue = input.checked;
       } else {
         newValue = input.value;
@@ -568,6 +641,11 @@ class EOInlineCellEditor {
       // Only save if value changed
       if (newValue !== originalValue) {
         this.config.onEdit(recordId, fieldName, originalValue, newValue);
+      }
+    } else {
+      // Cleanup datetime editor on cancel too
+      if (input._datetimeEditor) {
+        input._datetimeEditor.destroy();
       }
     }
 

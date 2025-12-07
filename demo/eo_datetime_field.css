@@ -1,0 +1,670 @@
+/**
+ * EO DateTime Field Styles
+ *
+ * Comprehensive styling for the date/time picker component with:
+ * - Fixed-size input that doesn't resize
+ * - Clean calendar UI
+ * - Time picker with spin buttons
+ * - Responsive dropdown
+ */
+
+/* ===== INPUT WRAPPER ===== */
+
+.eo-datetime-picker {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    min-width: 140px;
+}
+
+.eo-datetime-input-wrapper {
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    overflow: hidden;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.eo-datetime-input-wrapper:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.eo-datetime-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #0b1324;
+    background: transparent;
+    min-width: 0;
+    width: 100%;
+}
+
+.eo-datetime-input::placeholder {
+    color: #9ca3af;
+}
+
+.eo-datetime-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease;
+    flex-shrink: 0;
+}
+
+.eo-datetime-toggle:hover {
+    color: #3b82f6;
+    background: #f3f4f6;
+}
+
+.eo-datetime-toggle i {
+    font-size: 16px;
+}
+
+/* ===== DROPDOWN ===== */
+
+.eo-datetime-dropdown {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.2);
+    border: 1px solid #e5e7eb;
+    min-width: 280px;
+    max-width: 320px;
+    animation: eoDatetimeSlideIn 0.15s ease;
+    overflow: hidden;
+}
+
+@keyframes eoDatetimeSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== CALENDAR ===== */
+
+.eo-calendar {
+    padding: 12px;
+}
+
+.eo-calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 4px;
+}
+
+.eo-calendar-title {
+    flex: 1;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0b1324;
+}
+
+.eo-cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.eo-cal-nav:hover {
+    background: #f3f4f6;
+    color: #0b1324;
+}
+
+.eo-cal-nav i {
+    font-size: 14px;
+}
+
+.eo-calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-bottom: 6px;
+}
+
+.eo-calendar-weekdays span {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #9ca3af;
+    padding: 4px;
+}
+
+.eo-calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.eo-cal-day {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.1s ease;
+}
+
+.eo-cal-day:hover {
+    background: #f3f4f6;
+}
+
+.eo-cal-day.other-month {
+    color: #d1d5db;
+}
+
+.eo-cal-day.other-month:hover {
+    color: #9ca3af;
+}
+
+.eo-cal-day.today {
+    background: #dbeafe;
+    color: #1e40af;
+    font-weight: 600;
+}
+
+.eo-cal-day.today:hover {
+    background: #bfdbfe;
+}
+
+.eo-cal-day.selected {
+    background: #3b82f6;
+    color: white;
+    font-weight: 600;
+}
+
+.eo-cal-day.selected:hover {
+    background: #2563eb;
+}
+
+/* ===== TIME PICKER ===== */
+
+.eo-time-picker {
+    padding: 12px;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.eo-time-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    margin-bottom: 8px;
+}
+
+.eo-time-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.eo-time-input-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.eo-time-spin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.1s ease;
+}
+
+.eo-time-spin:hover {
+    background: #e5e7eb;
+    color: #0b1324;
+}
+
+.eo-time-spin i {
+    font-size: 12px;
+}
+
+.eo-time-input {
+    width: 36px;
+    height: 32px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0b1324;
+    background: white;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.eo-time-input:focus {
+    border-color: #3b82f6;
+}
+
+.eo-time-separator {
+    font-size: 16px;
+    font-weight: 600;
+    color: #6b7280;
+    padding: 0 2px;
+}
+
+.eo-time-ampm {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-left: 8px;
+}
+
+.eo-ampm-btn {
+    padding: 6px 10px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.1s ease;
+}
+
+.eo-ampm-btn:first-child {
+    border-radius: 4px 4px 0 0;
+    border-bottom: none;
+}
+
+.eo-ampm-btn:last-child {
+    border-radius: 0 0 4px 4px;
+}
+
+.eo-ampm-btn:hover {
+    background: #f3f4f6;
+}
+
+.eo-ampm-btn.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+/* ===== TIMEZONE PICKER ===== */
+
+.eo-timezone-picker {
+    padding: 12px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.eo-timezone-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    margin-bottom: 8px;
+}
+
+.eo-timezone-select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #0b1324;
+    background: white;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.eo-timezone-select:focus {
+    border-color: #3b82f6;
+}
+
+/* ===== QUICK ACTIONS ===== */
+
+.eo-datetime-actions {
+    display: flex;
+    gap: 6px;
+    padding: 10px 12px;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.eo-datetime-quick {
+    flex: 1;
+    padding: 6px 12px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    color: #4b5563;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.1s ease;
+}
+
+.eo-datetime-quick:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.eo-datetime-quick.eo-clear {
+    color: #dc2626;
+}
+
+.eo-datetime-quick.eo-clear:hover {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+/* ===== CONFIGURATION MODAL ===== */
+
+.eo-datetime-config-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: eoFadeIn 0.2s ease;
+}
+
+.eo-datetime-config-modal {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3);
+    max-width: 480px;
+    width: 100%;
+    animation: eoSlideUp 0.2s ease;
+}
+
+.eo-datetime-config-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.eo-datetime-config-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0b1324;
+}
+
+.eo-datetime-config-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: #f4f5f7;
+    color: #4b5563;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.eo-datetime-config-close:hover {
+    background: #e5e7eb;
+    color: #0b1324;
+}
+
+.eo-datetime-config-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.eo-config-section {
+    margin-bottom: 20px;
+}
+
+.eo-config-section:last-child {
+    margin-bottom: 0;
+}
+
+.eo-config-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.eo-config-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.eo-config-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.eo-config-option:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+}
+
+.eo-config-option input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #3b82f6;
+}
+
+.eo-config-option input[type="radio"]:checked + span {
+    color: #3b82f6;
+    font-weight: 600;
+}
+
+.eo-config-option span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #374151;
+}
+
+.eo-config-option span i {
+    font-size: 16px;
+    color: #6b7280;
+}
+
+.eo-config-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #0b1324;
+    background: white;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.eo-config-select:focus {
+    border-color: #3b82f6;
+}
+
+.eo-config-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.eo-config-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #3b82f6;
+}
+
+.eo-config-checkbox span {
+    font-size: 13px;
+    color: #374151;
+}
+
+.eo-datetime-config-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* ===== CELL EDITING STATE ===== */
+
+.eo-cell-editing .eo-datetime-picker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.eo-cell-editing .eo-datetime-input-wrapper {
+    height: 100%;
+    border: 2px solid #3b82f6;
+    border-radius: 0;
+}
+
+.eo-cell-editing .eo-datetime-input {
+    padding: 4px 8px;
+}
+
+/* ===== INLINE CELL INPUT STYLES ===== */
+
+/* Generic cell input styling */
+.eo-cell-input {
+    width: 100%;
+    height: 100%;
+    min-height: 28px;
+    padding: 4px 8px;
+    border: 2px solid #3b82f6;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #0b1324;
+    background: white;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.eo-cell-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Datetime cell input wrapper */
+.eo-datetime-cell-input {
+    display: block;
+    width: 100%;
+    min-width: 120px;
+}
+
+.eo-datetime-cell-input .eo-datetime-input-wrapper {
+    height: 28px;
+    border-width: 2px;
+}
+
+.eo-datetime-cell-input .eo-datetime-input {
+    padding: 2px 6px;
+    font-size: 13px;
+}
+
+.eo-datetime-cell-input .eo-datetime-toggle {
+    width: 26px;
+    height: 26px;
+}
+
+/* Cell editing state overrides */
+.eo-cell-editing {
+    position: relative;
+    overflow: visible !important;
+}
+
+.eo-cell-editing .eo-datetime-picker {
+    position: relative;
+    z-index: 100;
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 480px) {
+    .eo-datetime-dropdown {
+        min-width: 260px;
+        max-width: calc(100vw - 40px);
+    }
+
+    .eo-cal-day {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+
+    .eo-time-inputs {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .eo-datetime-config-modal {
+        margin: 10px;
+        max-height: 90vh;
+    }
+}
