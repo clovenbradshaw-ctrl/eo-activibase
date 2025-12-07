@@ -7,11 +7,18 @@
  * - primitive values → inline edit
  * - derived values (linked or rollup) → inline edit if editable
  * - relationship-driven values → open modal
+ *
+ * NEW BEHAVIORS:
+ * - Click into linked record field → opens linked record editor
+ * - Click on linked record pill → opens that record's modal view
+ * - Right-click on any cell → shows cell profile card (cell as record)
  */
 class EOInlineCellEditor {
   constructor() {
     this.activeEditor = null;
     this.hoverTooltip = null;
+    this.linkedRecordEditor = null;
+    this.cellProfileCard = null;
     this.initHoverTooltip();
   }
 
@@ -34,10 +41,54 @@ class EOInlineCellEditor {
     this.config = {
       onEdit: config.onEdit || (() => {}),
       onViewDetails: config.onViewDetails || (() => {}),
+      onViewRecord: config.onViewRecord || (() => {}),
+      onEditLinkedRecords: config.onEditLinkedRecords || (() => {}),
       getFieldType: config.getFieldType || (() => 'text'),
       getFieldMetadata: config.getFieldMetadata || (() => ({})),
+      getLinkedRecords: config.getLinkedRecords || (() => []),
+      getAvailableRecords: config.getAvailableRecords || (() => []),
+      getFieldConfig: config.getFieldConfig || (() => ({})),
+      getCellData: config.getCellData || (() => ({})),
+      getCellProvenance: config.getCellProvenance || (() => ({})),
+      getCellHistory: config.getCellHistory || (() => []),
+      getCellRelations: config.getCellRelations || (() => []),
+      getFieldSchema: config.getFieldSchema || (() => ({})),
+      getRecordDisplayName: config.getRecordDisplayName || ((r) => r.name || r.id),
       ...config
     };
+
+    // Initialize linked record editor if available
+    if (typeof EOLinkedRecordEditor !== 'undefined') {
+      this.linkedRecordEditor = new EOLinkedRecordEditor();
+      this.linkedRecordEditor.initialize({
+        onSave: (recordId, fieldName, linkedIds) => {
+          this.config.onEditLinkedRecords(recordId, fieldName, linkedIds);
+        },
+        onRecordClick: (recordId) => {
+          this.config.onViewRecord(recordId);
+        },
+        getLinkedRecords: this.config.getLinkedRecords,
+        getAvailableRecords: this.config.getAvailableRecords,
+        getRecordDisplayName: this.config.getRecordDisplayName,
+        getFieldConfig: this.config.getFieldConfig
+      });
+    }
+
+    // Initialize cell profile card if available
+    if (typeof EOCellProfileCard !== 'undefined') {
+      this.cellProfileCard = new EOCellProfileCard();
+      this.cellProfileCard.initialize({
+        getCellData: this.config.getCellData,
+        getCellProvenance: this.config.getCellProvenance,
+        getCellHistory: this.config.getCellHistory,
+        getCellRelations: this.config.getCellRelations,
+        getFieldSchema: this.config.getFieldSchema,
+        onNavigateToRecord: this.config.onViewRecord,
+        onNavigateToCell: (recordId, fieldName) => {
+          this.config.onViewDetails(recordId, fieldName);
+        }
+      });
+    }
 
     // Find all cells with data-eo-cell attribute
     const cells = container.querySelectorAll('[data-eo-cell]');
@@ -53,6 +104,9 @@ class EOInlineCellEditor {
 
       // Double-click for direct edit
       cell.addEventListener('dblclick', (e) => this.handleCellDoubleClick(e, cell));
+
+      // Right-click for cell profile card
+      cell.addEventListener('contextmenu', (e) => this.handleCellRightClick(e, cell));
     });
   }
 
@@ -170,7 +224,26 @@ class EOInlineCellEditor {
     const fieldType = this.config.getFieldType(fieldName);
     const metadata = this.config.getFieldMetadata(recordId, fieldName);
 
-    // If it's a relationship field, open modal
+    // Check if clicking on a linked record pill
+    const linkedPill = event.target.closest('.linked-record-pill, .eo-linked-pill');
+    if (linkedPill) {
+      // Get the linked record ID from the pill
+      const linkedRecordId = linkedPill.dataset.recordId || linkedPill.dataset.linkedRecordId;
+      if (linkedRecordId) {
+        event.stopPropagation();
+        this.config.onViewRecord(linkedRecordId);
+        return;
+      }
+    }
+
+    // If it's a linked record field and we have the editor, open the editor
+    if (metadata.isLinked && this.linkedRecordEditor) {
+      event.stopPropagation();
+      this.linkedRecordEditor.show(cell, recordId, fieldName);
+      return;
+    }
+
+    // If it's a relationship field without editor, open modal
     if (metadata.isLinked && !metadata.isEditable) {
       this.config.onViewDetails(recordId, fieldName);
       return;
@@ -180,6 +253,33 @@ class EOInlineCellEditor {
     if ((metadata.isDerived || metadata.isRollup) && !metadata.isEditable) {
       this.showCellMenu(cell, recordId, fieldName);
       return;
+    }
+  }
+
+  /**
+   * Handle cell right-click - show cell profile card
+   */
+  handleCellRightClick(event, cell) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const recordId = cell.dataset.recordId;
+    const fieldName = cell.dataset.fieldName;
+
+    if (!recordId || !fieldName) return;
+
+    // Hide tooltip
+    this.hoverTooltip.style.display = 'none';
+
+    // Show cell profile card if available
+    if (this.cellProfileCard) {
+      this.cellProfileCard.show(cell, recordId, fieldName, {
+        x: event.clientX,
+        y: event.clientY
+      });
+    } else {
+      // Fallback to cell menu if profile card not available
+      this.showCellMenu(cell, recordId, fieldName);
     }
   }
 
@@ -489,6 +589,12 @@ class EOInlineCellEditor {
     }
     if (this.activeEditor) {
       this.exitEditMode(false);
+    }
+    if (this.linkedRecordEditor) {
+      this.linkedRecordEditor.destroy();
+    }
+    if (this.cellProfileCard) {
+      this.cellProfileCard.destroy();
     }
   }
 }
