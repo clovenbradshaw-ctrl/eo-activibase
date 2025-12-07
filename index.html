@@ -22194,39 +22194,39 @@
                                     return depSet && depSet.stage !== 'output';
                                 });
 
-                                return \`
-                                    <tr class="hover:bg-gray-50 transition-colors cursor-pointer" data-set-row="\${set.id}">
+                                return `
+                                    <tr class="hover:bg-gray-50 transition-colors cursor-pointer" data-set-row="${set.id}">
                                         <td class="px-4 py-3">
                                             <div class="flex items-center gap-2">
-                                                <span style="color: #a855f7;">\${renderIcon(set.icon || 'ph-squares-four')}</span>
-                                                <span class="font-medium text-gray-900">\${escapeHtml(set.name || 'Untitled')}</span>
+                                                <span style="color: #a855f7;">${renderIcon(set.icon || 'ph-squares-four')}</span>
+                                                <span class="font-medium text-gray-900">${escapeHtml(set.name || 'Untitled')}</span>
                                             </div>
                                         </td>
-                                        <td class="px-4 py-3 text-gray-600">\${set.recordCount.toLocaleString()}</td>
+                                        <td class="px-4 py-3 text-gray-600">${set.recordCount.toLocaleString()}</td>
                                         <td class="px-4 py-3">
                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
-                                                \${set.viewCount} view\${set.viewCount !== 1 ? 's' : ''}
+                                                ${set.viewCount} view${set.viewCount !== 1 ? 's' : ''}
                                             </span>
                                         </td>
                                         <td class="px-4 py-3">
-                                            \${relationCount > 0
-                                                ? \`<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">\${relationCount}</span>\`
+                                            ${relationCount > 0
+                                                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">${relationCount}</span>`
                                                 : '<span class="text-gray-400">—</span>'
                                             }
                                         </td>
                                         <td class="px-4 py-3">
-                                            \${parentSet
-                                                ? \`<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700">\${escapeHtml(parentSet.name)}</span>\`
+                                            ${parentSet
+                                                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700">${escapeHtml(parentSet.name)}</span>`
                                                 : '<span class="text-gray-400">—</span>'
                                             }
                                         </td>
                                         <td class="px-4 py-3 text-right">
                                             <div class="flex items-center justify-end gap-1">
-                                                <button class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" data-sandbox-set-open="\${set.id}" title="Open set">
+                                                <button class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" data-sandbox-set-open="${set.id}" title="Open set">
                                                     <i class="ph ph-arrow-square-out text-sm"></i>
                                                 </button>
-                                                <button class="btn btn-sm btn-secondary" data-sandbox-set-promote="\${set.id}" title="Promote to Output Ready" style="padding: 4px 8px; font-size: 12px;">
-                                                    \${unpromotedDeps.length > 0
+                                                <button class="btn btn-sm btn-secondary" data-sandbox-set-promote="${set.id}" title="Promote to Output Ready" style="padding: 4px 8px; font-size: 12px;">
+                                                    ${unpromotedDeps.length > 0
                                                         ? '<i class="ph ph-warning" style="color: #f59e0b;"></i>'
                                                         : '<i class="ph ph-arrow-fat-up"></i>'
                                                     } Output
@@ -22234,7 +22234,7 @@
                                             </div>
                                         </td>
                                     </tr>
-                                \`;
+                                `;
                             }).join('')}
                         </tbody>
                     </table>
@@ -22413,37 +22413,37 @@
                                     ? new Date(imp.source.importedAt).toLocaleDateString()
                                     : '—';
 
-                                return \`
+                                return `
                                     <tr class="hover:bg-gray-50 transition-colors">
                                         <td class="px-4 py-3">
                                             <div class="flex items-center gap-2">
-                                                <i class="ph \${formatIcon} text-gray-400"></i>
-                                                <span class="font-medium text-gray-900">\${escapeHtml(imp.name || 'Untitled')}</span>
+                                                <i class="ph ${formatIcon} text-gray-400"></i>
+                                                <span class="font-medium text-gray-900">${escapeHtml(imp.name || 'Untitled')}</span>
                                             </div>
                                         </td>
                                         <td class="px-4 py-3">
                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 uppercase">
-                                                \${format}
+                                                ${format}
                                             </span>
                                         </td>
-                                        <td class="px-4 py-3 text-gray-600">\${rows.toLocaleString()}</td>
-                                        <td class="px-4 py-3 text-gray-600">\${cols}</td>
-                                        <td class="px-4 py-3 text-gray-500 text-xs">\${importedAt}</td>
+                                        <td class="px-4 py-3 text-gray-600">${rows.toLocaleString()}</td>
+                                        <td class="px-4 py-3 text-gray-600">${cols}</td>
+                                        <td class="px-4 py-3 text-gray-500 text-xs">${importedAt}</td>
                                         <td class="px-4 py-3 text-right">
                                             <div class="flex items-center justify-end gap-1">
-                                                <button class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" data-raw-import-view="\${imp.id}" title="View import">
+                                                <button class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" data-raw-import-view="${imp.id}" title="View import">
                                                     <i class="ph ph-eye text-sm"></i>
                                                 </button>
-                                                <button class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" data-raw-import-to-set="\${imp.id}" title="Create set from import">
+                                                <button class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" data-raw-import-to-set="${imp.id}" title="Create set from import">
                                                     <i class="ph ph-arrow-right text-sm"></i> Sandbox
                                                 </button>
-                                                <button class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" data-raw-import-delete="\${imp.id}" title="Delete import">
+                                                <button class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" data-raw-import-delete="${imp.id}" title="Delete import">
                                                     <i class="ph ph-trash text-sm"></i>
                                                 </button>
                                             </div>
                                         </td>
                                     </tr>
-                                \`;
+                                `;
                             }).join('')}
                         </tbody>
                     </table>
@@ -22582,43 +22582,43 @@
                                 const nestedCount = set.childSetIds?.size || 0;
                                 const relationCount = getSetRelationCount(set.id);
 
-                                return \`
+                                return `
                                     <tr class="hover:bg-gray-50 transition-colors">
                                         <td class="px-4 py-3">
                                             <div class="flex items-center gap-2">
-                                                <span style="color: #22c55e;">\${renderIcon(set.icon || 'ph-squares-four')}</span>
-                                                <span class="font-medium text-gray-900">\${escapeHtml(set.name || 'Untitled')}</span>
+                                                <span style="color: #22c55e;">${renderIcon(set.icon || 'ph-squares-four')}</span>
+                                                <span class="font-medium text-gray-900">${escapeHtml(set.name || 'Untitled')}</span>
                                             </div>
                                         </td>
-                                        <td class="px-4 py-3 text-gray-600">\${recordCount.toLocaleString()}</td>
-                                        <td class="px-4 py-3 text-gray-600">\${fieldCount}</td>
+                                        <td class="px-4 py-3 text-gray-600">${recordCount.toLocaleString()}</td>
+                                        <td class="px-4 py-3 text-gray-600">${fieldCount}</td>
                                         <td class="px-4 py-3">
-                                            \${nestedCount > 0
-                                                ? \`<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700">\${nestedCount} nested</span>\`
+                                            ${nestedCount > 0
+                                                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700">${nestedCount} nested</span>`
                                                 : '<span class="text-gray-400">—</span>'
                                             }
                                         </td>
                                         <td class="px-4 py-3">
-                                            \${relationCount > 0
-                                                ? \`<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">\${relationCount}</span>\`
+                                            ${relationCount > 0
+                                                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">${relationCount}</span>`
                                                 : '<span class="text-gray-400">—</span>'
                                             }
                                         </td>
                                         <td class="px-4 py-3 text-right">
                                             <div class="flex items-center justify-end gap-1">
-                                                <button class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" data-output-set-open="\${set.id}" title="Open set">
+                                                <button class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" data-output-set-open="${set.id}" title="Open set">
                                                     <i class="ph ph-arrow-square-out text-sm"></i>
                                                 </button>
-                                                <button class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" data-output-set-export="\${set.id}" title="Export set">
+                                                <button class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" data-output-set-export="${set.id}" title="Export set">
                                                     <i class="ph ph-export text-sm"></i>
                                                 </button>
-                                                <button class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" data-output-set-demote="\${set.id}" title="Move back to Sandbox">
+                                                <button class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" data-output-set-demote="${set.id}" title="Move back to Sandbox">
                                                     <i class="ph ph-arrow-fat-down text-sm"></i>
                                                 </button>
                                             </div>
                                         </td>
                                     </tr>
-                                \`;
+                                `;
                             }).join('')}
                         </tbody>
                     </table>
@@ -22647,30 +22647,30 @@
                                     return depSet && depSet.stage !== 'output';
                                 });
 
-                                return \`
+                                return `
                                     <tr class="hover:bg-gray-50 transition-colors">
                                         <td class="px-4 py-3">
                                             <div class="flex items-center gap-2">
-                                                <span class="text-gray-400">\${renderIcon(set.icon || 'ph-squares-four')}</span>
-                                                <span class="font-medium text-gray-900">\${escapeHtml(set.name || 'Untitled')}</span>
+                                                <span class="text-gray-400">${renderIcon(set.icon || 'ph-squares-four')}</span>
+                                                <span class="font-medium text-gray-900">${escapeHtml(set.name || 'Untitled')}</span>
                                             </div>
                                         </td>
-                                        <td class="px-4 py-3 text-gray-600">\${recordCount.toLocaleString()}</td>
+                                        <td class="px-4 py-3 text-gray-600">${recordCount.toLocaleString()}</td>
                                         <td class="px-4 py-3">
-                                            \${unpromotedDeps.length > 0
-                                                ? \`<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700">
-                                                    <i class="ph ph-warning mr-1"></i>\${unpromotedDeps.length} unpromoted
-                                                   </span>\`
+                                            ${unpromotedDeps.length > 0
+                                                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700">
+                                                    <i class="ph ph-warning mr-1"></i>${unpromotedDeps.length} unpromoted
+                                                   </span>`
                                                 : '<span class="text-gray-400">None</span>'
                                             }
                                         </td>
                                         <td class="px-4 py-3 text-right">
-                                            <button class="btn btn-sm btn-secondary" data-promote-set="\${set.id}" title="Promote to Output Ready">
+                                            <button class="btn btn-sm btn-secondary" data-promote-set="${set.id}" title="Promote to Output Ready">
                                                 <i class="ph ph-arrow-fat-up"></i> Promote
                                             </button>
                                         </td>
                                     </tr>
-                                \`;
+                                `;
                             }).join('')}
                         </tbody>
                     </table>
