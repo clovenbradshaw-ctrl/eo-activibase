@@ -1179,9 +1179,8 @@
         .view-item.active { background: #2f343d; color: #ffffff; font-weight: 600; }
         .view-item-icon { font-size: 16px; opacity: 0.9; color: #cbd5e1; }
 
-        /* Sandbox view styling - dashed border, muted appearance */
+        /* Sandbox view styling - muted appearance */
         .view-item.sandbox {
-            border-left: 2px dashed #6b7280;
             opacity: 0.85;
         }
         .view-item.sandbox:hover { opacity: 1; }
@@ -1198,7 +1197,7 @@
 
         /* Live view styling - solid, full presence */
         .view-item.live {
-            border-left: 2px solid #3b82f6;
+            /* Default styling, no special indicators */
         }
         .view-item.live .view-mode-badge {
             display: none; /* Don't show badge for live views - they're the default */
@@ -4619,12 +4618,12 @@
                     </div>
                 </div>
 
-                <!-- EXPLORE Section -->
-                <div class="nav-section-title" style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('explore')">
+                <!-- EXPLORE Section (hidden for now) -->
+                <div class="nav-section-title" style="display: none; margin-top: 1rem; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleNavSection('explore')">
                     <span>Explore</span>
                     <i id="exploreSectionChevron" class="ph ph-caret-down" style="font-size: 12px; opacity: 0.7;"></i>
                 </div>
-                <div id="exploreNavContent">
+                <div id="exploreNavContent" style="display: none;">
                     <div class="world-nav-children" style="padding: 0 1rem;">
                         <div class="nav-item" id="navExplore" onclick="navigateTo('explore')">Explore</div>
                     </div>
