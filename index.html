@@ -36,6 +36,7 @@
     <script defer src="demo/eo_link_column_modal.js"></script>
     <script defer src="demo/eo_linked_record_editor.js"></script>
     <script defer src="demo/eo_cell_profile_card.js"></script>
+    <script defer src="demo/eo_type_detector.js"></script>
     <script defer src="demo/eo_import_manager.js"></script>
     <script defer src="demo/eo_file_explorer.js"></script>
     <script defer src="eo_content_store.js"></script>
@@ -3400,6 +3401,124 @@
             color: #16a34a;
         }
 
+        /* Type Assessment Styles */
+        .type-assessment-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: white;
+            transition: all 0.15s;
+        }
+        .type-assessment-row:hover {
+            border-color: #c7d2fe;
+            background: #fafafa;
+        }
+        .type-assessment-row.needs-review {
+            border-color: #fbbf24;
+            background: #fffbeb;
+        }
+        .type-assessment-field-name {
+            flex: 1;
+            font-weight: 600;
+            font-size: 13px;
+            color: #1e293b;
+        }
+        .type-assessment-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .type-assessment-type:hover {
+            filter: brightness(0.95);
+        }
+        .type-assessment-confidence {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            color: #64748b;
+        }
+        .confidence-bar {
+            width: 40px;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .confidence-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+        .confidence-high .confidence-bar-fill { background: #22c55e; }
+        .confidence-medium .confidence-bar-fill { background: #f59e0b; }
+        .confidence-low .confidence-bar-fill { background: #ef4444; }
+        .type-assessment-samples {
+            font-size: 11px;
+            color: #94a3b8;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .type-alternatives {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .type-alternative-chip {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #f1f5f9;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .type-alternative-chip:hover {
+            background: #e2e8f0;
+            color: #334155;
+        }
+        .type-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 100;
+            min-width: 200px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 4px;
+            margin-top: 4px;
+        }
+        .type-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .type-dropdown-item:hover {
+            background: #f1f5f9;
+        }
+        .type-dropdown-item.selected {
+            background: #eef2ff;
+            color: #4338ca;
+        }
+
         .panel-controls {
             display: flex;
             align-items: center;
@@ -6573,6 +6692,23 @@
                         <span class="csv-match-pill" id="csvRowCountBadge">0 rows</span>
                     </div>
                     <div id="csvMappingContainer" class="space-y-2"></div>
+                </div>
+
+                <div class="csv-helper-card" id="typeAssessmentCard" style="display: none;">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="text-lg font-semibold flex items-center gap-2">
+                                <i class="ph ph-detective" style="color: #6366f1;"></i>
+                                Type Detection Assessment
+                            </h3>
+                            <p class="text-sm text-gray-500">Review detected field types. Click to change if needed.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="typeAssessmentSummary" class="text-xs text-gray-500"></span>
+                            <button id="acceptAllTypesBtn" class="btn btn-secondary btn-sm" style="font-size: 11px;">Accept All</button>
+                        </div>
+                    </div>
+                    <div id="typeAssessmentContainer" class="space-y-2" style="max-height: 300px; overflow-y: auto;"></div>
                 </div>
 
                 <div class="csv-helper-card">
@@ -12461,10 +12597,236 @@
             state.csvImportState.mappings = autoMapColumns(headers, set);
             const badge = document.getElementById('csvRowCountBadge');
             if (badge) badge.textContent = `${rows.length} rows`;
+
+            // Run robust type detection
+            runTypeDetection(headers, rows);
+
             renderCsvMapping();
             renderCsvPreview();
             renderCsvMatches();
+            renderTypeAssessment();
             populateSimplifiedProvenance();
+        }
+
+        /**
+         * Run type detection on CSV data
+         */
+        function runTypeDetection(headers, rows) {
+            if (!window.EOTypeDetector) {
+                console.warn('EOTypeDetector not available');
+                state.csvImportState.typeAssessment = null;
+                return;
+            }
+
+            try {
+                const detector = new EOTypeDetector({
+                    confidenceThreshold: 0.7
+                });
+
+                // Convert rows to the format expected by the detector
+                const rowObjects = rows.map(row => {
+                    const obj = {};
+                    headers.forEach((h, i) => {
+                        obj[h] = Array.isArray(row) ? row[i] : row[h];
+                    });
+                    return obj;
+                });
+
+                // Run detection
+                const detectionResults = detector.analyzeDataset(rowObjects, headers);
+                const assessment = detector.createTypeAssessment(detectionResults);
+
+                // Store in state
+                state.csvImportState.typeAssessment = assessment;
+                state.csvImportState.typeDetectionResults = detectionResults;
+
+            } catch (err) {
+                console.error('Type detection error:', err);
+                state.csvImportState.typeAssessment = null;
+            }
+        }
+
+        /**
+         * Render type assessment UI
+         */
+        function renderTypeAssessment() {
+            const card = document.getElementById('typeAssessmentCard');
+            const container = document.getElementById('typeAssessmentContainer');
+            const summaryEl = document.getElementById('typeAssessmentSummary');
+            const assessment = state.csvImportState.typeAssessment;
+
+            if (!card || !container) return;
+
+            // Hide card if no assessment or importing to existing set with schema
+            if (!assessment || state.csvImportState.targetMode === 'existing') {
+                card.style.display = 'none';
+                return;
+            }
+
+            card.style.display = 'block';
+
+            // Update summary
+            if (summaryEl) {
+                const s = assessment.summary;
+                summaryEl.innerHTML = `
+                    <span class="text-green-600">${s.highConfidence} high</span> ·
+                    <span class="text-amber-600">${s.mediumConfidence} medium</span> ·
+                    <span class="text-red-600">${s.lowConfidence} low</span>
+                `;
+            }
+
+            // Render each field
+            const html = state.csvImportState.headers.map(header => {
+                const field = assessment.fields[header];
+                if (!field) return '';
+
+                const confidenceClass = field.confidenceLevel === 'high' ? 'confidence-high' :
+                                         field.confidenceLevel === 'medium' ? 'confidence-medium' : 'confidence-low';
+                const confidencePercent = Math.round(field.confidence * 100);
+
+                // Get type color and icon
+                const typeInfo = getTypeDisplayInfo(field.detectedType);
+
+                // Get sample values
+                const results = state.csvImportState.typeDetectionResults?.[header];
+                const samples = results?.samples || [];
+                const sampleText = samples.slice(0, 2).join(', ');
+
+                // Build alternatives chips
+                const altsHtml = (field.alternatives || []).slice(0, 2).map(alt =>
+                    `<span class="type-alternative-chip" onclick="applyTypeOverride('${header}', '${alt.type}')" title="${alt.reason || ''}">${alt.type}</span>`
+                ).join('');
+
+                return `
+                    <div class="type-assessment-row ${field.needsReview ? 'needs-review' : ''}" data-field="${header}">
+                        <div class="type-assessment-field-name">${header}</div>
+                        <div class="type-assessment-confidence ${confidenceClass}">
+                            <div class="confidence-bar"><div class="confidence-bar-fill" style="width: ${confidencePercent}%"></div></div>
+                            <span>${confidencePercent}%</span>
+                        </div>
+                        <div class="type-assessment-samples" title="${sampleText}">${sampleText || '—'}</div>
+                        <div style="position: relative;">
+                            <div class="type-assessment-type" style="background: ${typeInfo.bgColor}; color: ${typeInfo.textColor};" onclick="toggleTypeDropdown('${header}')">
+                                <i class="ph ${typeInfo.icon}"></i>
+                                ${field.detectedType}${field.detectedSubtype ? ` (${field.detectedSubtype})` : ''}
+                            </div>
+                            <div id="typeDropdown_${header}" class="type-dropdown" style="display: none;"></div>
+                        </div>
+                        ${altsHtml ? `<div class="type-alternatives">${altsHtml}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html || '<p class="text-sm text-gray-500">No fields to assess.</p>';
+        }
+
+        /**
+         * Get display info for a field type
+         */
+        function getTypeDisplayInfo(type) {
+            const typeMap = {
+                'TEXT': { icon: 'ph-text-t', bgColor: '#f1f5f9', textColor: '#475569' },
+                'NUMBER': { icon: 'ph-hash', bgColor: '#dbeafe', textColor: '#1d4ed8' },
+                'CURRENCY': { icon: 'ph-currency-dollar', bgColor: '#dcfce7', textColor: '#15803d' },
+                'DATE': { icon: 'ph-calendar', bgColor: '#fef3c7', textColor: '#b45309' },
+                'DATETIME': { icon: 'ph-calendar-blank', bgColor: '#fef3c7', textColor: '#b45309' },
+                'TIME': { icon: 'ph-clock', bgColor: '#fef3c7', textColor: '#b45309' },
+                'CHECKBOX': { icon: 'ph-check-square', bgColor: '#e0e7ff', textColor: '#4338ca' },
+                'EMAIL': { icon: 'ph-envelope', bgColor: '#ede9fe', textColor: '#7c3aed' },
+                'URL': { icon: 'ph-link', bgColor: '#cffafe', textColor: '#0891b2' },
+                'SELECT': { icon: 'ph-list-bullets', bgColor: '#fce7f3', textColor: '#be185d' },
+                'MULTI_SELECT': { icon: 'ph-list-checks', bgColor: '#fce7f3', textColor: '#be185d' },
+                'LONG_TEXT': { icon: 'ph-text-aa', bgColor: '#f1f5f9', textColor: '#475569' },
+                'JSON': { icon: 'ph-code', bgColor: '#fef9c3', textColor: '#a16207' }
+            };
+            return typeMap[type] || { icon: 'ph-question', bgColor: '#f1f5f9', textColor: '#475569' };
+        }
+
+        /**
+         * Toggle type dropdown for a field
+         */
+        function toggleTypeDropdown(fieldName) {
+            const dropdown = document.getElementById(`typeDropdown_${fieldName}`);
+            if (!dropdown) return;
+
+            const isVisible = dropdown.style.display !== 'none';
+
+            // Hide all other dropdowns first
+            document.querySelectorAll('.type-dropdown').forEach(d => d.style.display = 'none');
+
+            if (!isVisible) {
+                // Populate and show dropdown
+                const validTypes = ['TEXT', 'NUMBER', 'CURRENCY', 'DATE', 'DATETIME', 'TIME', 'CHECKBOX', 'EMAIL', 'URL', 'SELECT', 'LONG_TEXT', 'JSON'];
+                const currentType = state.csvImportState.typeAssessment?.fields[fieldName]?.detectedType || 'TEXT';
+
+                dropdown.innerHTML = validTypes.map(type => {
+                    const info = getTypeDisplayInfo(type);
+                    const isSelected = type === currentType;
+                    return `
+                        <div class="type-dropdown-item ${isSelected ? 'selected' : ''}" onclick="applyTypeOverride('${fieldName}', '${type}')">
+                            <i class="ph ${info.icon}" style="color: ${info.textColor};"></i>
+                            ${type}
+                        </div>
+                    `;
+                }).join('');
+
+                dropdown.style.display = 'block';
+            }
+
+            // Close dropdown on outside click
+            const closeHandler = (e) => {
+                if (!dropdown.contains(e.target) && !e.target.closest('.type-assessment-type')) {
+                    dropdown.style.display = 'none';
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', closeHandler), 0);
+        }
+
+        /**
+         * Apply a type override for a field
+         */
+        function applyTypeOverride(fieldName, newType) {
+            const assessment = state.csvImportState.typeAssessment;
+            if (!assessment || !assessment.fields[fieldName]) return;
+
+            // Update the assessment
+            assessment.fields[fieldName].detectedType = newType;
+            assessment.fields[fieldName].userOverride = {
+                type: newType,
+                overriddenAt: new Date().toISOString()
+            };
+            assessment.fields[fieldName].needsReview = false;
+
+            // Remove from needs review list
+            const idx = assessment.summary.needsReview.indexOf(fieldName);
+            if (idx > -1) {
+                assessment.summary.needsReview.splice(idx, 1);
+            }
+
+            // Hide dropdown
+            document.querySelectorAll('.type-dropdown').forEach(d => d.style.display = 'none');
+
+            // Re-render
+            renderTypeAssessment();
+            showToast(`Changed ${fieldName} to ${newType}`);
+        }
+
+        /**
+         * Accept all detected types
+         */
+        function acceptAllTypes() {
+            const assessment = state.csvImportState.typeAssessment;
+            if (!assessment) return;
+
+            for (const fieldName of Object.keys(assessment.fields)) {
+                assessment.fields[fieldName].needsReview = false;
+                assessment.fields[fieldName].acceptedAt = new Date().toISOString();
+            }
+            assessment.summary.needsReview = [];
+
+            renderTypeAssessment();
+            showToast('All types accepted');
         }
 
         function populateSimplifiedProvenance() {
@@ -12495,6 +12857,8 @@
                 return;
             }
 
+            const typeAssessment = state.csvImportState.typeAssessment;
+
             container.innerHTML = state.csvImportState.headers.map(header => {
                 const mappedField = state.csvImportState.mappings[header] || '';
                 const createValue = buildCreateFieldValue(header);
@@ -12502,12 +12866,33 @@
                     .concat(`<option value="${createValue}" ${mappedField === createValue ? 'selected' : ''}>➕ Create new field: "${header}"</option>`)
                     .concat(set.schema.map(f => `<option value="${f.id}" ${mappedField === f.id ? 'selected' : ''}>${f.name}</option>`))
                     .join('');
+
+                // Get detected type for display
+                let typeHint = '';
+                if (isCreateFieldValue(mappedField) && typeAssessment && typeAssessment.fields[header]) {
+                    const assessment = typeAssessment.fields[header];
+                    const detectedType = assessment.detectedType || 'TEXT';
+                    const typeInfo = getTypeDisplayInfo(detectedType);
+                    const confidencePercent = Math.round((assessment.confidence || 0) * 100);
+                    typeHint = `
+                        <p class="text-xs mt-1 flex items-center gap-1">
+                            <span style="color: #6b7280;">Will create</span>
+                            <span style="background: ${typeInfo.bgColor}; color: ${typeInfo.textColor}; padding: 1px 6px; border-radius: 4px; font-weight: 600;">
+                                <i class="ph ${typeInfo.icon}" style="font-size: 10px;"></i> ${detectedType}
+                            </span>
+                            <span style="color: #9ca3af;">(${confidencePercent}% confidence)</span>
+                        </p>
+                    `;
+                } else if (isCreateFieldValue(mappedField)) {
+                    typeHint = `<p class="text-xs text-amber-600 mt-1">Will create a new TEXT field</p>`;
+                }
+
                 return `
                     <div class="flex items-center gap-3">
                         <div class="w-1/3 font-medium">${header}</div>
                         <div class="flex-1">
                             <select data-csv-header="${header}" class="flex-1">${options}</select>
-                            ${isCreateFieldValue(mappedField) ? `<p class="text-xs text-amber-600 mt-1">Will create a new text field named "${header}"</p>` : ''}
+                            ${typeHint}
                         </div>
                     </div>
                 `;
@@ -12703,6 +13088,8 @@
             }
 
             const existingFieldIds = new Set(set.schema.map(f => f.id));
+            const typeAssessment = state.csvImportState.typeAssessment;
+
             mappedHeaders
                 .filter(([, fieldId]) => isCreateFieldValue(fieldId))
                 .forEach(([header, fieldId]) => {
@@ -12714,13 +13101,40 @@
                         uniqueId = `${suggestedId}_${counter++}`;
                     }
 
-                    const newField = { id: uniqueId, name: fieldName, type: 'TEXT', width: '150px', config: {} };
+                    // Use detected type from type assessment if available
+                    let detectedType = 'TEXT';
+                    let fieldConfig = {};
+
+                    if (typeAssessment && typeAssessment.fields[header]) {
+                        const assessment = typeAssessment.fields[header];
+                        detectedType = assessment.detectedType || 'TEXT';
+
+                        // Use suggested config from assessment
+                        if (assessment.suggestedConfig) {
+                            fieldConfig = { ...assessment.suggestedConfig };
+                            delete fieldConfig.type; // type is separate
+                        }
+
+                        // Handle subtype for TEXT fields
+                        if (detectedType === 'TEXT' && assessment.detectedSubtype) {
+                            fieldConfig.subtype = assessment.detectedSubtype;
+                        }
+                    }
+
+                    const newField = {
+                        id: uniqueId,
+                        name: fieldName,
+                        type: detectedType,
+                        width: '150px',
+                        config: fieldConfig
+                    };
                     set.schema.push(newField);
 
                     // Add field to all existing views of the set
                     addFieldToAllViews(set, uniqueId);
 
-                    set.records.forEach(r => r[uniqueId] = FIELD_TYPES.TEXT.defaultValue);
+                    const defaultValue = FIELD_TYPES[detectedType]?.defaultValue ?? '';
+                    set.records.forEach(r => r[uniqueId] = defaultValue);
                     existingFieldIds.add(uniqueId);
                     state.csvImportState.mappings[header] = uniqueId;
                 });
@@ -31813,6 +32227,9 @@
             document.getElementById('runCsvImportBtn').onclick = importCsvRecords;
             document.getElementById('cancelCsvImportBtn').onclick = () => closeModal('csvImportModal');
             document.getElementById('closeCsvImportBtn').onclick = () => closeModal('csvImportModal');
+
+            // Type assessment event listeners
+            document.getElementById('acceptAllTypesBtn').onclick = acceptAllTypes;
 
             // Provenance review modal event listeners
             document.getElementById('closeProvenanceReviewBtn').onclick = closeProvenanceReviewModal;
