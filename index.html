@@ -32765,6 +32765,40 @@
                 // Helper: check if any modal is open (tracked or overlay-based)
                 const isModalOpen = () => state.modalStack.length > 0 || document.querySelector('.modal-overlay');
 
+                // Ctrl+Z: Undo (pick up/grab the most recent toss action)
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey && !e.altKey && !isModalOpen() && !state.editingCell) {
+                    e.preventDefault();
+                    const set = getCurrentSet();
+                    if (set && typeof TossPile !== 'undefined') {
+                        const action = TossPile.getLatestUndoableAction(state, set.id);
+                        if (action) {
+                            const result = TossPile.pickUpAction(state, action.id);
+                            if (result && result.restoredEntries.length > 0) {
+                                renderTable();
+                                showToast(`Restored ${result.restoredEntries.length} item(s)`);
+                            }
+                        } else {
+                            showToast('Nothing to undo');
+                        }
+                    }
+                    return;
+                }
+
+                // Ctrl+Shift+Z: Redo (re-toss the most recently picked up action)
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && e.shiftKey && !e.altKey && !isModalOpen() && !state.editingCell) {
+                    e.preventDefault();
+                    if (typeof TossPile !== 'undefined') {
+                        const result = TossPile.redoToss(state);
+                        if (result && result.retossedEntries.length > 0) {
+                            renderTable();
+                            showToast(`Re-tossed ${result.retossedEntries.length} item(s)`);
+                        } else {
+                            showToast('Nothing to redo');
+                        }
+                    }
+                    return;
+                }
+
                 // Skip Enter/Tab handling if a modal is open
                 if (e.key === 'Enter' && state.selectedCell && !state.editingCell && !isModalOpen()) {
                     e.preventDefault();
