@@ -613,6 +613,158 @@ function collapseEmptyPane(state, paneId, portalId = null) {
 }
 
 // ============================================================================
+// SPLIT EXIT OPERATIONS
+// ============================================================================
+
+/**
+ * Check if a pane is inside a split (not the root pane)
+ * @param {Object} layout - The layout state
+ * @param {string} paneId - ID of the pane to check
+ * @returns {boolean} - True if the pane is in a split
+ */
+function isPaneInSplit(layout, paneId) {
+    if (!layout || !layout.root) return false;
+
+    // If the root is just a pane, nothing is in a split
+    if (layout.root.type === 'pane') {
+        return false;
+    }
+
+    // If we're here, root is a split, so find if paneId is somewhere in the tree
+    function findPane(node) {
+        if (!node) return false;
+        if (node.type === 'pane' && node.id === paneId) return true;
+        if (node.type === 'split') {
+            return findPane(node.first) || findPane(node.second);
+        }
+        return false;
+    }
+
+    return findPane(layout.root);
+}
+
+/**
+ * Get the sibling pane in a split, and info about the split
+ * @param {Object} layout - The layout state
+ * @param {string} paneId - ID of the pane
+ * @returns {Object|null} - { siblingPane, split, isFirst } or null
+ */
+function getSplitInfo(layout, paneId) {
+    if (!layout || !layout.root) return null;
+
+    function findSplitParent(node, parent = null) {
+        if (!node) return null;
+
+        if (node.type === 'split') {
+            // Check if first child is the pane
+            if (node.first?.type === 'pane' && node.first.id === paneId) {
+                return {
+                    split: node,
+                    siblingNode: node.second,
+                    isFirst: true,
+                    parent
+                };
+            }
+            // Check if second child is the pane
+            if (node.second?.type === 'pane' && node.second.id === paneId) {
+                return {
+                    split: node,
+                    siblingNode: node.first,
+                    isFirst: false,
+                    parent
+                };
+            }
+            // Recurse
+            return findSplitParent(node.first, node) || findSplitParent(node.second, node);
+        }
+
+        return null;
+    }
+
+    return findSplitParent(layout.root);
+}
+
+/**
+ * Exit split mode - moves all tabs from the current pane to its sibling pane
+ * and collapses the split
+ * @param {Object} state - Global state
+ * @param {string} paneId - ID of the pane to exit from split
+ * @returns {boolean} - True if successful
+ */
+function exitSplitMode(state, paneId) {
+    const layout = state.layout;
+    if (!layout) return false;
+
+    const splitInfo = getSplitInfo(layout, paneId);
+    if (!splitInfo) return false;
+
+    const { split, siblingNode, isFirst, parent } = splitInfo;
+
+    // Find the target pane to move tabs to
+    // If sibling is a pane, use it directly. If sibling is a split, find the first pane in it.
+    function findFirstPane(node) {
+        if (!node) return null;
+        if (node.type === 'pane') return node;
+        if (node.type === 'split') {
+            return findFirstPane(node.first) || findFirstPane(node.second);
+        }
+        return null;
+    }
+
+    const targetPane = findFirstPane(siblingNode);
+    if (!targetPane) return false;
+
+    // Get the source pane
+    const sourcePane = isFirst ? split.first : split.second;
+    if (!sourcePane || sourcePane.type !== 'pane') return false;
+
+    // Move all tabs from source to target
+    const tabsToMove = [...sourcePane.tabs];
+    tabsToMove.forEach(tab => {
+        targetPane.tabs.push(tab);
+    });
+
+    // Set the last moved tab as active in target pane
+    if (tabsToMove.length > 0) {
+        targetPane.activeTabIndex = targetPane.tabs.length - 1;
+    }
+
+    // Clear source pane tabs
+    sourcePane.tabs = [];
+    sourcePane.activeTabIndex = 0;
+
+    // Update active pane to target
+    layout.activePaneId = targetPane.id;
+
+    // Update current view state to the newly active tab
+    const activeTab = targetPane.tabs[targetPane.activeTabIndex];
+    if (activeTab) {
+        if (activeTab.specialView) {
+            state.currentSpecialView = activeTab.specialView;
+            state.currentSetId = null;
+            state.currentViewId = null;
+        } else {
+            state.currentSetId = activeTab.setId;
+            state.currentViewId = activeTab.viewId;
+            state.currentSpecialView = null;
+        }
+    }
+
+    // Collapse the empty pane - this will remove the split
+    collapseEmptyPane(state, paneId);
+
+    // Log event
+    emitLayoutEvent(state, LAYOUT_EVENT_TYPES.SPLIT_COLLAPSED, {
+        splitId: split.id,
+        collapsedPaneId: paneId,
+        remainingNodeId: siblingNode?.id,
+        tabsMoved: tabsToMove.length
+    });
+
+    return true;
+}
+
+// ============================================================================
 // PORTAL OPERATIONS
 // ============================================================================
 
@@ -1447,6 +1599,9 @@ if (typeof window !== 'undefined') {
         splitPane,
         resizeSplit,
         collapseEmptyPane,
+        isPaneInSplit,
+        getSplitInfo,
+        exitSplitMode,
 
         // Portal operations
         popOutTab,

@@ -14100,8 +14100,11 @@
                 `;
             });
 
+            // Check if this pane is in a split
+            const isInSplit = EOLayout.isPaneInSplit(state.layout, pane.id);
+
             return `
-                <div class="layout-pane ${isActive ? 'focused' : ''}"
+                <div class="layout-pane ${isActive ? 'focused' : ''} ${isInSplit ? 'in-split' : ''}"
                      id="${pane.id}"
                      data-pane-id="${pane.id}"
                      ondragover="handlePaneDragOver(event, '${pane.id}')"
@@ -14110,6 +14113,11 @@
                      onclick="focusPaneById('${pane.id}')">
                     <div class="pane-tabs-bar">
                         <div class="pane-tabs">${tabsHTML}</div>
+                        ${isInSplit ? `
+                            <button class="pane-exit-split" onclick="event.stopPropagation(); exitSplitModeForPane('${pane.id}')" title="Exit split mode and merge tabs">
+                                <i class="ph ph-arrows-in-simple"></i>
+                            </button>
+                        ` : ''}
                         <button class="pane-tab-add" onclick="event.stopPropagation(); handleAddViewToPane('${pane.id}')" title="New view">
                             <i class="ph ph-plus"></i>
                         </button>
@@ -14786,6 +14794,15 @@
             const menu = document.createElement('div');
             menu.className = 'layout-context-menu';
 
+            // Check if pane is in a split
+            const isInSplit = EOLayout.isPaneInSplit(state.layout, paneId);
+            const exitSplitHTML = isInSplit ? `
+                    <div class="layout-context-menu-item" onclick="exitSplitModeForPane('${paneId}')">
+                        <i class="ph ph-arrows-in-simple"></i>
+                        Exit Split Mode
+                    </div>
+            ` : '';
+
             // Handle special view tabs (entities, relations, etc.)
             if (tab.specialView) {
                 const config = SPECIAL_VIEW_CONFIG[tab.specialView];
@@ -14800,6 +14817,7 @@
                         <i class="ph ph-split-vertical"></i>
                         Split Down
                     </div>
+                    ${exitSplitHTML}
                     <div class="layout-context-menu-item" onclick="popOutSpecificTab('${paneId}', ${tabIndex})">
                         <i class="ph ph-arrow-square-out"></i>
                         Pop Out
@@ -14834,6 +14852,7 @@
                         <i class="ph ph-split-vertical"></i>
                         Split Down
                     </div>
+                    ${exitSplitHTML}
                     <div class="layout-context-menu-item" onclick="popOutSpecificTab('${paneId}', ${tabIndex})">
                         <i class="ph ph-arrow-square-out"></i>
                         Pop Out
@@ -14944,6 +14963,18 @@
                 closePaneTab(paneId, tabIndex);
                 deleteView(state, viewId);
                 renderSidebar();
+            }
+        }
+
+        /**
+         * Exit split mode for a pane - moves tabs to sibling pane and collapses split
+         */
+        function exitSplitModeForPane(paneId) {
+            document.querySelector('.layout-context-menu')?.remove();
+
+            if (EOLayout.exitSplitMode(state, paneId)) {
+                renderLayout();
+                renderPaneContent(state.layout.activePaneId);
             }
         }
 
