@@ -16,9 +16,104 @@
     // CONSTANTS
     // ============================================================================
 
-    const COLUMN_WIDTH_MIN = 50;
+    const COLUMN_WIDTH_MIN = 40;
     const COLUMN_WIDTH_MAX = 800;
     const COLUMN_WIDTH_DEFAULT = 150;
+
+    // Field-type-specific width constraints (based on UX patterns from Airtable, Notion, Handsontable)
+    const FIELD_WIDTH_RULES = {
+        // Compact fields - just need enough for the control
+        CHECKBOX: { min: 40, max: 60, default: 50 },
+        BOOLEAN: { min: 40, max: 60, default: 50 },
+        RATING: { min: 80, max: 150, default: 100 },
+
+        // Numeric fields - sized for typical number display
+        NUMBER: { min: 60, max: 200, default: 100 },
+        CURRENCY: { min: 80, max: 200, default: 120 },
+        PERCENT: { min: 60, max: 150, default: 80 },
+        DURATION: { min: 80, max: 180, default: 120 },
+
+        // Date/Time fields - sized for typical date formats
+        DATE: { min: 90, max: 180, default: 120 },
+        DATETIME: { min: 140, max: 220, default: 180 },
+        TIME: { min: 70, max: 120, default: 90 },
+
+        // Selection fields - sized for typical option labels
+        SELECT: { min: 80, max: 300, default: 150 },
+        MULTI_SELECT: { min: 100, max: 400, default: 200 },
+        STATUS: { min: 80, max: 200, default: 120 },
+
+        // Reference fields
+        LINK: { min: 100, max: 400, default: 180 },
+        LOOKUP: { min: 100, max: 400, default: 180 },
+        ROLLUP: { min: 80, max: 300, default: 150 },
+
+        // Rich content fields - need more space
+        TEXT: { min: 80, max: 600, default: 180 },
+        LONG_TEXT: { min: 120, max: 800, default: 250 },
+        RICH_TEXT: { min: 150, max: 800, default: 280 },
+        URL: { min: 150, max: 500, default: 220 },
+        EMAIL: { min: 150, max: 400, default: 200 },
+        PHONE: { min: 100, max: 200, default: 140 },
+
+        // Special fields
+        ATTACHMENT: { min: 80, max: 300, default: 150 },
+        USER: { min: 100, max: 250, default: 150 },
+        COLLABORATOR: { min: 100, max: 250, default: 150 },
+        CREATED_TIME: { min: 140, max: 200, default: 160 },
+        MODIFIED_TIME: { min: 140, max: 200, default: 160 },
+        CREATED_BY: { min: 100, max: 200, default: 140 },
+        MODIFIED_BY: { min: 100, max: 200, default: 140 },
+        AUTONUMBER: { min: 50, max: 120, default: 70 },
+        BARCODE: { min: 100, max: 250, default: 150 },
+
+        // Formula fields inherit based on output type, default to text
+        FORMULA: { min: 80, max: 400, default: 150 },
+
+        // JSON/object fields need more space
+        JSON: { min: 150, max: 800, default: 300 },
+        OBJECT: { min: 150, max: 800, default: 300 }
+    };
+
+    /**
+     * Get width constraints for a field based on its type
+     * @param {Object} field - The field definition
+     * @returns {Object} - { min, max, default }
+     */
+    function getFieldWidthRules(field) {
+        if (!field) return { min: COLUMN_WIDTH_MIN, max: COLUMN_WIDTH_MAX, default: COLUMN_WIDTH_DEFAULT };
+
+        const fieldType = (field.type || 'TEXT').toUpperCase();
+        const rules = FIELD_WIDTH_RULES[fieldType];
+
+        if (rules) {
+            return rules;
+        }
+
+        // Default fallback
+        return { min: COLUMN_WIDTH_MIN, max: COLUMN_WIDTH_MAX, default: COLUMN_WIDTH_DEFAULT };
+    }
+
+    /**
+     * Validate and clamp a width value based on field type
+     * @param {number} width - The proposed width
+     * @param {Object} field - The field definition
+     * @returns {number} - Clamped width
+     */
+    function validateColumnWidth(width, field) {
+        const rules = getFieldWidthRules(field);
+        return Math.max(rules.min, Math.min(rules.max, width));
+    }
+
+    /**
+     * Get the recommended default width for a field
+     * @param {Object} field - The field definition
+     * @returns {number} - Default width for this field type
+     */
+    function getDefaultWidthForField(field) {
+        const rules = getFieldWidthRules(field);
+        return rules.default;
+    }
 
     const WIDTH_MODES = {
         AUTO: 'auto',
@@ -52,14 +147,16 @@
         if (!set) return COLUMN_WIDTH_DEFAULT;
 
         const field = set.schema.find(f => f.id === fieldId);
-        if (!field) return COLUMN_WIDTH_DEFAULT;
+        if (!field) return getDefaultWidthForField(field);
+
+        const rules = getFieldWidthRules(field);
 
         // Get all values for this field
         const values = Array.from(set.records.values())
             .map(r => r[fieldId])
             .filter(v => v !== null && v !== undefined && v !== '');
 
-        if (values.length === 0) return COLUMN_WIDTH_DEFAULT;
+        if (values.length === 0) return rules.default;
 
         // Create temporary element to measure text width
         const measureEl = document.createElement('span');
@@ -80,8 +177,8 @@
 
         document.body.removeChild(measureEl);
 
-        // Add padding
-        return Math.min(COLUMN_WIDTH_MAX, Math.max(COLUMN_WIDTH_MIN, maxWidth + 32));
+        // Add padding and apply field-type-aware constraints
+        return validateColumnWidth(maxWidth + 32, field);
     }
 
     /**
@@ -114,11 +211,11 @@
         const distributedWidth = Math.max(0, availableWidth - fixedWidth - 20); // 20px buffer
 
         const widthPerColumn = Math.floor(distributedWidth / schema.length);
-        const clampedWidth = Math.max(COLUMN_WIDTH_MIN, Math.min(COLUMN_WIDTH_MAX, widthPerColumn));
 
         const widths = {};
         schema.forEach(field => {
-            widths[field.id] = clampedWidth;
+            // Apply field-type-aware constraints to each column
+            widths[field.id] = validateColumnWidth(widthPerColumn, field);
         });
 
         return widths;
@@ -297,11 +394,15 @@
         const view = state.views?.get(viewId);
         if (!view) return;
 
+        const set = state.sets.get(view.setId);
+        const field = set?.schema?.find(f => f.id === fieldId);
+
         if (!view.columnWidths) {
             view.columnWidths = {};
         }
 
-        const clampedWidth = Math.max(COLUMN_WIDTH_MIN, Math.min(COLUMN_WIDTH_MAX, width));
+        // Apply field-type-aware constraints
+        const clampedWidth = validateColumnWidth(width, field);
         view.columnWidths[fieldId] = clampedWidth;
         view.columnWidthMode = WIDTH_MODES.CUSTOM;
         view.isDirty = true;
@@ -327,8 +428,8 @@
             if (!isNaN(parsed)) return parsed;
         }
 
-        // Return view default or global default
-        return view?.columnWidthDefault || COLUMN_WIDTH_DEFAULT;
+        // Return field-type-aware default or global default
+        return getDefaultWidthForField(field);
     }
 
     // ============================================================================
@@ -585,21 +686,28 @@
                     <div class="column-width-custom" id="customWidthsSection" style="display: ${view.columnWidthMode === WIDTH_MODES.CUSTOM ? 'block' : 'none'}">
                         <h3>Individual Column Widths</h3>
                         <div class="custom-widths-list">
-                            ${schema.map(field => `
+                            ${schema.map(field => {
+                                const rules = getFieldWidthRules(field);
+                                return `
                                 <div class="custom-width-item">
-                                    <span class="field-name">${escapeHtml(field.name)}</span>
+                                    <div class="field-info">
+                                        <span class="field-name">${escapeHtml(field.name)}</span>
+                                        <span class="field-type-hint">${field.type || 'Text'} · ${rules.min}-${rules.max}px</span>
+                                    </div>
                                     <div class="width-controls">
                                         <input type="range"
                                                class="width-slider"
                                                data-field-id="${field.id}"
-                                               min="${COLUMN_WIDTH_MIN}"
-                                               max="${COLUMN_WIDTH_MAX}"
+                                               data-field-type="${field.type || 'TEXT'}"
+                                               min="${rules.min}"
+                                               max="${rules.max}"
                                                value="${getColumnWidth(view, field)}">
                                         <input type="number"
                                                class="width-input"
                                                data-field-id="${field.id}"
-                                               min="${COLUMN_WIDTH_MIN}"
-                                               max="${COLUMN_WIDTH_MAX}"
+                                               data-field-type="${field.type || 'TEXT'}"
+                                               min="${rules.min}"
+                                               max="${rules.max}"
                                                value="${getColumnWidth(view, field)}">
                                         <span class="width-unit">px</span>
                                         <button class="btn-auto-fit"
@@ -609,7 +717,7 @@
                                         </button>
                                     </div>
                                 </div>
-                            `).join('')}
+                            `}).join('')}
                         </div>
                     </div>
                 </div>
@@ -848,6 +956,12 @@
         COLUMN_WIDTH_MIN,
         COLUMN_WIDTH_MAX,
         COLUMN_WIDTH_DEFAULT,
+        FIELD_WIDTH_RULES,
+
+        // Field-type-aware width functions
+        getFieldWidthRules,
+        validateColumnWidth,
+        getDefaultWidthForField,
 
         // Calculation functions
         calculateContentWidth,
