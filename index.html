@@ -16558,9 +16558,49 @@
             const {
                 sourceFieldId,
                 targetSetId,
-                targetFieldId
+                targetFieldId,
+                direction,
+                sourceSetId
             } = lookupConfig;
 
+            // Handle incoming links differently - need to find records that link TO this record
+            if (direction === 'incoming' && sourceSetId) {
+                const sourceSet = state.sets.get(sourceSetId);
+                if (!sourceSet) return [];
+
+                const targetField = sourceSet.schema.find(f => f.id === targetFieldId);
+
+                // Find all records in sourceSet that link to this record via sourceFieldId
+                const values = [];
+                sourceSet.records.forEach((sourceRecord) => {
+                    const linkedValue = sourceRecord[sourceFieldId];
+                    if (!linkedValue) return;
+
+                    // Check if this record links to our current record
+                    const linkedIds = Array.isArray(linkedValue) ? linkedValue : [linkedValue];
+                    if (!linkedIds.includes(record.id)) return;
+
+                    // Get the target field value from this linked record
+                    const value = sourceRecord[targetFieldId];
+                    if (value === undefined || value === null || value === '') return;
+
+                    // Prevent recursion for linked field types
+                    if (targetField?.type === 'LINKED_LOOKUP' || targetField?.type === 'LINKED_ROLLUP') {
+                        values.push(String(value));
+                        return;
+                    }
+
+                    // Format value based on target field type
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = renderCellValue(value, targetField || { type: 'TEXT', id: targetFieldId }, sourceRecord);
+                    const formatted = tempDiv.textContent || tempDiv.innerText || String(value);
+                    values.push(formatted);
+                });
+
+                return values;
+            }
+
+            // Original outgoing link logic
             // Get linked record ID(s) from source field
             const linkedRecordId = record[sourceFieldId];
 
@@ -23901,6 +23941,8 @@
                         targetSetId: linkedSetId,
                         targetFieldId: targetField.id,
                         displayName: `${linkedSet.name} – ${targetField.name}`,
+                        direction: 'outgoing',
+                        sourceSetId: null,
                         createdAt: Date.now()
                     });
                 } else {
@@ -23915,6 +23957,8 @@
                         targetFieldId: targetField.id,
                         aggregation: aggregation,
                         displayName: `${linkedSet.name} – ${targetField.name} (${aggregation})`,
+                        direction: 'outgoing',
+                        sourceSetId: null,
                         createdAt: Date.now()
                     });
                 }

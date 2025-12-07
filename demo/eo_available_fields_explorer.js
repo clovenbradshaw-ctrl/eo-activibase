@@ -962,6 +962,8 @@ class EOAvailableFieldsExplorer {
             targetSetId: targetSetId,
             targetFieldId: targetFieldId,
             displayName: `${targetSet?.name || 'Unknown'} – ${targetField?.name || targetFieldId}`,
+            direction: 'outgoing',
+            sourceSetId: null,
             createdAt: Date.now()
         });
 

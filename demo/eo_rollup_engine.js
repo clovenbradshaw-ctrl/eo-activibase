@@ -65,14 +65,96 @@ const EOCRollupEngine = {
       targetSetId,
       targetFieldId,
       outputMode,
-      aggregation
+      aggregation,
+      direction,
+      sourceSetId
     } = config;
-
-    // Get linked record IDs
-    const linkedRecordIds = this.getLinkedRecordIds(record, sourceFieldId);
 
     // Detect if using new format (has outputMode) or old format
     const isNewFormat = outputMode !== undefined;
+
+    // Handle incoming links differently - need to find records that link TO this record
+    if (direction === 'incoming' && sourceSetId) {
+      const sourceSet = state.sets.get(sourceSetId);
+      if (!sourceSet) {
+        if (isNewFormat) {
+          return {
+            value: this.getEmptyValue(outputMode, aggregation),
+            context: this.createContext(config, 0),
+            linkedCount: 0,
+            error: `Source set not found: ${sourceSetId}`
+          };
+        }
+        return this.getEmptyValueLegacy(aggregation);
+      }
+
+      // Find all records in sourceSet that link to this record via sourceFieldId
+      const values = [];
+      let linkedCount = 0;
+
+      sourceSet.records.forEach((sourceRecord) => {
+        const linkedValue = sourceRecord[sourceFieldId];
+        if (!linkedValue) return;
+
+        // Check if this record links to our current record
+        const linkedIds = Array.isArray(linkedValue) ? linkedValue : [linkedValue];
+        if (!linkedIds.includes(record.id)) return;
+
+        linkedCount++;
+
+        // Get the target field value from this linked record
+        let value = sourceRecord[targetFieldId];
+
+        // Handle SUP-enabled cells
+        if (value && typeof value === 'object' && value.values) {
+          value = this.getDominantSUPValue(value);
+        }
+
+        // Include non-empty values
+        if (value !== null && value !== undefined && value !== '') {
+          values.push(value);
+        }
+      });
+
+      // Handle empty results
+      if (values.length === 0) {
+        if (isNewFormat) {
+          return {
+            value: this.getEmptyValue(outputMode, aggregation),
+            context: this.createContext(config, linkedCount),
+            linkedCount: linkedCount
+          };
+        }
+        return this.getEmptyValueLegacy(aggregation);
+      }
+
+      // New format: handle outputMode
+      if (isNewFormat) {
+        let result;
+        if (outputMode === 'single') {
+          result = values.length > 0 ? values[0] : null;
+        } else if (outputMode === 'array') {
+          result = values;
+        } else if (outputMode === 'aggregated' && aggregation) {
+          result = this.applyAggregation(values, aggregation);
+        } else {
+          result = values;
+        }
+
+        return {
+          value: result,
+          context: this.createContext(config, linkedCount, values),
+          linkedCount: linkedCount
+        };
+      }
+
+      // Legacy format: apply aggregation directly
+      return this.aggregate(values, aggregation);
+    }
+
+    // Original outgoing link logic
+    // Get linked record IDs
+    const linkedRecordIds = this.getLinkedRecordIds(record, sourceFieldId);
 
     // Handle empty links
     if (!linkedRecordIds || linkedRecordIds.length === 0) {
