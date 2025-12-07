@@ -14913,7 +14913,13 @@
 
             // Re-render
             renderLayout();
-            renderPaneContent(paneId);
+            // Render all pane contents in split mode (container IDs change when active pane changes)
+            const allPanes = EOLayout.getAllPanes(state.layout.root);
+            if (allPanes.length > 1) {
+                renderAllPaneContents();
+            } else {
+                renderPaneContent(paneId);
+            }
             renderSidebar();
         }
 
@@ -15011,7 +15017,13 @@
             });
 
             renderLayout();
-            renderPaneContent(state.layout.activePaneId);
+            // Render all pane contents in split mode, otherwise just active pane
+            const allPanes = EOLayout.getAllPanes(state.layout.root);
+            if (allPanes.length > 1) {
+                renderAllPaneContents();
+            } else {
+                renderPaneContent(state.layout.activePaneId);
+            }
             renderSidebar();
         }
 
@@ -15023,11 +15035,11 @@
             if (!pane) return;
 
             // Get container - use main viewContainer if this is the active pane
+            const isActivePane = paneId === state.layout.activePaneId;
             let container;
-            if (paneId === state.layout.activePaneId) {
+            if (isActivePane) {
                 container = document.getElementById('viewContainer');
-            }
-            if (!container) {
+            } else {
                 container = document.getElementById(`viewContainer-${paneId}`);
             }
             if (!container) return;
@@ -15053,8 +15065,58 @@
                 state.currentSpecialView = null;
             }
 
+            // For non-active panes, temporarily swap the container ID so renderCurrentView
+            // targets the correct container
+            const originalId = container.id;
+            if (!isActivePane) {
+                container.id = 'viewContainer';
+            }
+
             // Call existing render function
             renderCurrentView();
+
+            // Restore original container ID
+            if (!isActivePane) {
+                container.id = originalId;
+            }
+        }
+
+        /**
+         * Render content for all panes in the layout
+         */
+        function renderAllPaneContents() {
+            if (!state.layout || typeof EOLayout === 'undefined') return;
+
+            const allPanes = EOLayout.getAllPanes(state.layout.root);
+
+            // Save current state
+            const savedSetId = state.currentSetId;
+            const savedViewId = state.currentViewId;
+            const savedSpecialView = state.currentSpecialView;
+
+            // Render each pane's content
+            allPanes.forEach(pane => {
+                if (pane.tabs.length > 0) {
+                    renderPaneContent(pane.id);
+                }
+            });
+
+            // Restore state to active pane's tab
+            const activePane = EOLayout.findPaneById(state.layout.root, state.layout.activePaneId);
+            if (activePane && activePane.tabs.length > 0) {
+                const activeTab = activePane.tabs[activePane.activeTabIndex];
+                if (activeTab) {
+                    if (activeTab.specialView) {
+                        state.currentSpecialView = activeTab.specialView;
+                        state.currentSetId = null;
+                        state.currentViewId = null;
+                    } else {
+                        state.currentSetId = activeTab.setId;
+                        state.currentViewId = activeTab.viewId;
+                        state.currentSpecialView = null;
+                    }
+                }
+            }
         }
 
         // ============================================================================
@@ -15070,6 +15132,7 @@
             const newPane = EOLayout.splitPane(state, paneId, direction);
             if (newPane) {
                 renderLayout();
+                renderAllPaneContents();
             }
         }
 
@@ -15429,7 +15492,7 @@
             });
 
             renderLayout();
-            renderPaneContent(state.layout.activePaneId);
+            renderAllPaneContents();
             renderSidebar();
         }
 
@@ -15460,6 +15523,7 @@
             }
 
             renderLayout();
+            renderAllPaneContents();
             renderSidebar();
         }
 
@@ -15612,7 +15676,7 @@
                     state.currentSpecialView = null;
                 }
                 renderLayout();
-                renderPaneContent(newPane.id);
+                renderAllPaneContents();
             }
         }
 
@@ -15635,6 +15699,7 @@
                 EOLayout.popOutTab(state, paneId, tab.setId, tab.viewId);
             }
             renderLayout();
+            renderAllPaneContents();
         }
 
         /**
@@ -15674,7 +15739,7 @@
 
             if (EOLayout.exitSplitMode(state, paneId)) {
                 renderLayout();
-                renderPaneContent(state.layout.activePaneId);
+                renderAllPaneContents();
             }
         }
 
@@ -15745,6 +15810,11 @@
             // Use the new layout system if available
             if (state.layout && typeof EOLayout !== 'undefined') {
                 renderLayout();
+                // Render all pane contents when in split mode
+                const allPanes = EOLayout.getAllPanes(state.layout.root);
+                if (allPanes.length > 1) {
+                    renderAllPaneContents();
+                }
                 return;
             }
 
