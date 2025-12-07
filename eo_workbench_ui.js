@@ -15,6 +15,92 @@
 // ============================================================================
 
 /**
+ * Get view relationship info for display
+ * Returns an object describing the view's relationships to other views
+ */
+function getViewRelationshipInfo(state, view, allViews) {
+    const info = {
+        isSource: false,       // Other views depend on this one
+        isLinked: false,       // This view is derived from another
+        parentView: null,      // The view this one derives from
+        dependentCount: 0,     // Number of views that depend on this one
+        isSandbox: view.viewMode === 'sandbox',
+        derivationType: null   // 'filter', 'pivot', 'clone', etc.
+    };
+
+    // Check if this view is derived from another
+    const derivedFromIds = view.provenance?.derivedFromViewIds || [];
+    if (derivedFromIds.length > 0) {
+        info.isLinked = true;
+        info.parentView = state.views?.get(derivedFromIds[0]);
+
+        // Determine derivation type from notes or pivot metadata
+        if (view.pivotMetadata) {
+            info.derivationType = 'pivot';
+        } else if (view.provenance?.notes?.includes('Cloned')) {
+            info.derivationType = 'clone';
+        } else if (view.provenance?.notes?.includes('filter') || view.filters?.length > 0) {
+            info.derivationType = 'filter';
+        } else {
+            info.derivationType = 'derived';
+        }
+    }
+
+    // Check if other views depend on this one
+    const dependents = allViews.filter(v =>
+        v.id !== view.id &&
+        (v.provenance?.derivedFromViewIds || []).includes(view.id)
+    );
+    info.dependentCount = dependents.length;
+    info.isSource = dependents.length > 0;
+
+    return info;
+}
+
+/**
+ * Render the relationship indicator badge for a view tab
+ */
+function renderViewRelationshipBadge(relationshipInfo) {
+    if (!relationshipInfo.isLinked && !relationshipInfo.isSource) {
+        return ''; // No relationships to show
+    }
+
+    const parts = [];
+
+    // Linked/derived indicator
+    if (relationshipInfo.isLinked) {
+        const parentName = relationshipInfo.parentView?.name || 'another view';
+        const typeLabel = {
+            'pivot': 'Pivoted from',
+            'clone': 'Cloned from',
+            'filter': 'Filtered from',
+            'derived': 'Based on'
+        }[relationshipInfo.derivationType] || 'Based on';
+
+        parts.push(`
+            <span class="view-link-badge linked"
+                  title="${typeLabel}: ${escapeHtml(parentName)}">
+                <span class="link-icon">⛓️</span>
+            </span>
+        `);
+    }
+
+    // Source indicator (has dependents)
+    if (relationshipInfo.isSource) {
+        const depCount = relationshipInfo.dependentCount;
+        const depLabel = depCount === 1 ? '1 view depends on this' : `${depCount} views depend on this`;
+        parts.push(`
+            <span class="view-link-badge source"
+                  title="${depLabel}">
+                <span class="source-count">${depCount}</span>
+            </span>
+        `);
+    }
+
+    return parts.join('');
+}
+
+/**
  * Render view switcher for a set
  * Shows tabs/list of views with + New View button
  */
@@ -31,10 +117,37 @@ function renderViewManager(state, setId) {
     views.forEach(view => {
         const isActive = view.id === currentViewId;
         const isDirty = view.isDirty ? ' *' : '';
+        const relationshipInfo = getViewRelationshipInfo(state, view, views);
+        const relationshipBadge = renderViewRelationshipBadge(relationshipInfo);
+
+        // Build CSS classes
+        const tabClasses = ['view-tab'];
+        if (isActive) tabClasses.push('active');
+        if (relationshipInfo.isSandbox) tabClasses.push('sandbox');
+        if (relationshipInfo.isLinked) tabClasses.push('linked');
+        if (relationshipInfo.isSource) tabClasses.push('source');
+
+        // Build tooltip
+        let tooltip = view.name;
+        if (relationshipInfo.isLinked && relationshipInfo.parentView) {
+            const typeLabel = {
+                'pivot': 'Pivoted from',
+                'clone': 'Cloned from',
+                'filter': 'Filtered from',
+                'derived': 'Based on'
+            }[relationshipInfo.derivationType] || 'Based on';
+            tooltip += ` (${typeLabel}: ${relationshipInfo.parentView.name})`;
+        }
+        if (relationshipInfo.isSandbox) {
+            tooltip += ' [Sandbox - exploratory view]';
+        }
+
         parts.push(`
-            <div class="view-tab ${isActive ? 'active' : ''}" data-view-id="${view.id}">
+            <div class="${tabClasses.join(' ')}" data-view-id="${view.id}" title="${escapeHtml(tooltip)}">
+                ${relationshipBadge}
                 <span class="view-icon">${view.icon || '📋'}</span>
                 <span class="view-name">${escapeHtml(view.name)}${isDirty}</span>
+                ${relationshipInfo.isSandbox ? '<span class="sandbox-indicator" title="Sandbox: exploratory view">⚗️</span>' : ''}
                 <button class="view-menu-btn" data-view-id="${view.id}" title="View options">⋮</button>
             </div>
         `);
@@ -47,6 +160,17 @@ function renderViewManager(state, setId) {
     `);
 
     parts.push('</div>'); // .view-tabs
+
+    // View lineage bar (shown when current view is linked)
+    if (currentViewId) {
+        const currentView = state.views?.get(currentViewId);
+        if (currentView) {
+            const relationshipInfo = getViewRelationshipInfo(state, currentView, views);
+            if (relationshipInfo.isLinked || relationshipInfo.isSource) {
+                parts.push(renderViewLineageBar(state, currentView, views));
+            }
+        }
+    }
 
     // View actions (shown when view is dirty)
     if (currentViewId) {
@@ -64,6 +188,100 @@ function renderViewManager(state, setId) {
 
     parts.push('</div>'); // .view-manager
 
+    return parts.join('');
+}
+
+/**
+ * Render the view lineage bar showing relationship chain
+ */
+function renderViewLineageBar(state, currentView, allViews) {
+    const relationshipInfo = getViewRelationshipInfo(state, currentView, allViews);
+    const parts = ['<div class="view-lineage-bar">'];
+
+    // Build lineage chain (parents)
+    const lineageChain = [];
+    let cursor = currentView;
+    const visited = new Set();
+
+    while (cursor && !visited.has(cursor.id)) {
+        visited.add(cursor.id);
+        const derivedFromIds = cursor.provenance?.derivedFromViewIds || [];
+        if (derivedFromIds.length > 0) {
+            const parentView = state.views?.get(derivedFromIds[0]);
+            if (parentView) {
+                lineageChain.unshift(parentView);
+                cursor = parentView;
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    // Render lineage chain
+    if (lineageChain.length > 0) {
+        parts.push('<div class="lineage-chain">');
+        parts.push('<span class="lineage-label">Lineage:</span>');
+
+        lineageChain.forEach((view, idx) => {
+            parts.push(`
+                <button class="lineage-item" data-view-id="${view.id}" title="Go to ${escapeHtml(view.name)}">
+                    <span class="lineage-icon">${view.icon || '📋'}</span>
+                    <span class="lineage-name">${escapeHtml(view.name)}</span>
+                </button>
+            `);
+            parts.push('<span class="lineage-arrow">→</span>');
+        });
+
+        // Current view (highlighted)
+        parts.push(`
+            <span class="lineage-item current">
+                <span class="lineage-icon">${currentView.icon || '📋'}</span>
+                <span class="lineage-name">${escapeHtml(currentView.name)}</span>
+            </span>
+        `);
+
+        parts.push('</div>');
+    }
+
+    // Show dependents info
+    if (relationshipInfo.isSource) {
+        const dependents = allViews.filter(v =>
+            v.id !== currentView.id &&
+            (v.provenance?.derivedFromViewIds || []).includes(currentView.id)
+        );
+
+        parts.push('<div class="lineage-dependents">');
+        parts.push(`<span class="dependents-label">${dependents.length} derived view${dependents.length !== 1 ? 's' : ''}:</span>`);
+
+        dependents.slice(0, 3).forEach(dep => {
+            parts.push(`
+                <button class="dependent-item" data-view-id="${dep.id}" title="Go to ${escapeHtml(dep.name)}">
+                    ${escapeHtml(dep.name)}
+                </button>
+            `);
+        });
+
+        if (dependents.length > 3) {
+            parts.push(`<span class="more-dependents">+${dependents.length - 3} more</span>`);
+        }
+
+        parts.push('</div>');
+    }
+
+    // Sandbox mode indicator
+    if (relationshipInfo.isSandbox) {
+        parts.push(`
+            <div class="sandbox-mode-bar">
+                <span class="sandbox-icon">⚗️</span>
+                <span class="sandbox-text">Sandbox Mode - Changes won't affect source data</span>
+                <button class="btn-promote-view" title="Promote to Live View">Make Live</button>
+            </div>
+        `);
+    }
+
+    parts.push('</div>');
     return parts.join('');
 }
 
@@ -1219,7 +1437,10 @@ if (typeof module !== 'undefined' && module.exports) {
         showSplitRecordDialog,
         showHarmonizeFieldsDialog,
         renderEnhancedSearchModal,
-        handleSearchInput
+        handleSearchInput,
+        getViewRelationshipInfo,
+        renderViewRelationshipBadge,
+        renderViewLineageBar
     };
 }
 
@@ -1230,4 +1451,7 @@ if (typeof window !== 'undefined') {
     window.showJSONScrubberMenu = showJSONScrubberMenu;
     window.renderViewToolbar = renderViewToolbar;
     window.attachViewToolbarListeners = attachViewToolbarListeners;
+    window.getViewRelationshipInfo = getViewRelationshipInfo;
+    window.renderViewRelationshipBadge = renderViewRelationshipBadge;
+    window.renderViewLineageBar = renderViewLineageBar;
 }
