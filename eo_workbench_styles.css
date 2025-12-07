@@ -2016,6 +2016,33 @@
     background: rgba(0, 0, 0, 0.08);
 }
 
+/* Exit Split Button - visible when pane is in split mode */
+.pane-exit-split {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    padding: 0 8px;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    color: #3b82f6;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+    margin-left: 4px;
+    font-size: 14px;
+}
+
+.pane-exit-split:hover {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+.pane-exit-split:active {
+    background: rgba(59, 130, 246, 0.3);
+}
+
 /* Pane Actions - Hidden by default, access via right-click context menu */
 .pane-actions {
     display: none;
