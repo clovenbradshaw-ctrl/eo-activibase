@@ -839,8 +839,33 @@ class EOFunctionBuilderUI {
       }
     });
 
-    // Window resize
-    window.addEventListener('resize', () => this.resizeCanvas());
+    // Window resize - store handler for cleanup
+    this._resizeHandler = () => this.resizeCanvas();
+    window.addEventListener('resize', this._resizeHandler);
+  }
+
+  /**
+   * Destroy the UI and clean up all event listeners
+   */
+  destroy() {
+    // Remove window resize listener
+    if (this._resizeHandler) {
+      window.removeEventListener('resize', this._resizeHandler);
+      this._resizeHandler = null;
+    }
+
+    // Clear references
+    this.currentFunction = null;
+    this.selectedNode = null;
+    this.canvas = null;
+    this.ctx = null;
+    this.operators = null;
+    this.builder = null;
+
+    // Clear DOM
+    if (this.container) {
+      this.container.innerHTML = '';
+    }
   }
 
   filterOperators(query) {

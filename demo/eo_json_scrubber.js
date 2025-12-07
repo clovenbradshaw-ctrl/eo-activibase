@@ -109,6 +109,16 @@ class EOJSONScrubber {
      * Close the scrubber
      */
     close() {
+        // Remove escape key handler
+        if (this.escapeHandler) {
+            document.removeEventListener('keydown', this.escapeHandler);
+            this.escapeHandler = null;
+        }
+
+        // Close any open pivot menu
+        this.closePivotMenu();
+
+        // Remove panel
         if (this.panel) {
             this.panel.remove();
             this.panel = null;

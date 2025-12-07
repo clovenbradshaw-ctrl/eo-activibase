@@ -1002,24 +1002,24 @@ class EOAvailableFieldsExplorer {
 
         document.body.appendChild(popover);
 
-        // Handle selection
+        // Close on click outside - define handler first for proper cleanup
+        const closePopoverHandler = (e) => {
+            if (!popover.contains(e.target)) {
+                popover.remove();
+                document.removeEventListener('click', closePopoverHandler);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closePopoverHandler), 0);
+
+        // Handle selection with proper listener cleanup
         popover.querySelectorAll('.popover-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 const aggregation = opt.dataset.agg;
+                document.removeEventListener('click', closePopoverHandler);
                 this.addRollupField(linkFieldId, targetSetId, targetFieldId, aggregation);
                 popover.remove();
             });
         });
-
-        // Close on click outside
-        setTimeout(() => {
-            document.addEventListener('click', function closePopover(e) {
-                if (!popover.contains(e.target)) {
-                    popover.remove();
-                    document.removeEventListener('click', closePopover);
-                }
-            });
-        }, 0);
     }
 
     /**

@@ -721,11 +721,20 @@ class EOGraphVisualization {
     // =========================================================================
 
     _bindEvents() {
-        this.canvas.addEventListener('mousedown', (e) => this._onMouseDown(e));
-        this.canvas.addEventListener('mousemove', (e) => this._onMouseMove(e));
-        this.canvas.addEventListener('mouseup', (e) => this._onMouseUp(e));
-        this.canvas.addEventListener('wheel', (e) => this._onWheel(e));
-        this.canvas.addEventListener('dblclick', (e) => this._onDoubleClick(e));
+        // Store bound handlers for cleanup in destroy()
+        this._boundHandlers = {
+            mousedown: (e) => this._onMouseDown(e),
+            mousemove: (e) => this._onMouseMove(e),
+            mouseup: (e) => this._onMouseUp(e),
+            wheel: (e) => this._onWheel(e),
+            dblclick: (e) => this._onDoubleClick(e)
+        };
+
+        this.canvas.addEventListener('mousedown', this._boundHandlers.mousedown);
+        this.canvas.addEventListener('mousemove', this._boundHandlers.mousemove);
+        this.canvas.addEventListener('mouseup', this._boundHandlers.mouseup);
+        this.canvas.addEventListener('wheel', this._boundHandlers.wheel);
+        this.canvas.addEventListener('dblclick', this._boundHandlers.dblclick);
     }
 
     _getMousePos(e) {
@@ -1029,12 +1038,32 @@ class EOGraphVisualization {
     }
 
     /**
-     * Destroy the visualization
+     * Destroy the visualization and clean up all event listeners
      */
     destroy() {
+        // Stop animation
         if (this.animationFrame) {
             cancelAnimationFrame(this.animationFrame);
+            this.animationFrame = null;
         }
+
+        // Remove canvas event listeners
+        if (this.canvas && this._boundHandlers) {
+            this.canvas.removeEventListener('mousedown', this._boundHandlers.mousedown);
+            this.canvas.removeEventListener('mousemove', this._boundHandlers.mousemove);
+            this.canvas.removeEventListener('mouseup', this._boundHandlers.mouseup);
+            this.canvas.removeEventListener('wheel', this._boundHandlers.wheel);
+            this.canvas.removeEventListener('dblclick', this._boundHandlers.dblclick);
+            this._boundHandlers = null;
+        }
+
+        // Clear references
+        this.nodePositions.clear();
+        this.canvas = null;
+        this.ctx = null;
+        this.graph = null;
+
+        // Clear DOM
         this.container.innerHTML = '';
     }
 }
