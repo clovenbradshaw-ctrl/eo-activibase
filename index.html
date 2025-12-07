@@ -9187,6 +9187,7 @@
             ];
 
             locationsSet.records.clear();
+            if (!locationsSet.views) locationsSet.views = new Map();
             locationsSet.views.clear();
             const ridgeId = addRecord(locationsId, { name: 'Summit Ridge', area: 'Highlands', notes: 'Windy lookout with clean sight lines.' });
             const marshId = addRecord(locationsId, { name: 'Quiet Marsh', area: 'Wetlands', notes: 'Shallow water and dense reeds.' });
@@ -9219,6 +9220,7 @@
             ];
 
             observationsSet.records.clear();
+            if (!observationsSet.views) observationsSet.views = new Map();
             observationsSet.views.clear();
             const obs1Id = addRecord(observationsId, { date: '2024-04-12', location: 'Summit Ridge', observer: 'M. Ellis', observation: 'Found fresh tracks along the ridge path.' });
             const obs2Id = addRecord(observationsId, { date: '2024-04-13', location: 'Quiet Marsh', observer: 'S. Kaur', observation: 'Low mist over the marsh; water depth at 0.4m.' });
@@ -10421,6 +10423,14 @@
         function createView(setId, name, config = {}) {
             const viewId = 'view_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             const set = state.sets.get(setId);
+            if (!set) {
+                console.error(`createView: Set ${setId} not found`);
+                return null;
+            }
+            // Ensure set.views is initialized (defensive check)
+            if (!set.views) {
+                set.views = new Map();
+            }
             const defaultIdentifier = config.identifierField || inferIdentifierFieldId(set);
             const viewPayload = {
                 id: viewId,
@@ -10457,6 +10467,9 @@
             };
             set.views.set(viewId, viewPayload);
             // Also add to global state.views for recent imports tracking
+            if (!state.views) {
+                state.views = new Map();
+            }
             state.views.set(viewId, viewPayload);
 
             if (config.type === 'KEY_DERIVED') {
@@ -30605,6 +30618,10 @@
             if (saveLocation === 'move' && moveToSetId && moveToSetId !== set.id) {
                 const targetSet = state.sets.get(moveToSetId);
                 if (targetSet) {
+                    // Ensure views maps exist (defensive check)
+                    if (!set.views) set.views = new Map();
+                    if (!targetSet.views) targetSet.views = new Map();
+
                     // Move records that came from this import
                     const recordsToMove = [];
                     set.records.forEach((record, recordId) => {
