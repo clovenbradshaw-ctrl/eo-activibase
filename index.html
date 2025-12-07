@@ -1176,7 +1176,32 @@
         .view-item:hover { background: #252931; color: #e5e7eb; }
         .view-item.active { background: #2f343d; color: #ffffff; font-weight: 600; }
         .view-item-icon { font-size: 16px; opacity: 0.9; color: #cbd5e1; }
-        
+
+        /* Sandbox view styling - dashed border, muted appearance */
+        .view-item.sandbox {
+            border-left: 2px dashed #6b7280;
+            opacity: 0.85;
+        }
+        .view-item.sandbox:hover { opacity: 1; }
+        .view-item.sandbox .view-mode-badge {
+            font-size: 9px;
+            background: #374151;
+            color: #9ca3af;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-left: auto;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Live view styling - solid, full presence */
+        .view-item.live {
+            border-left: 2px solid #3b82f6;
+        }
+        .view-item.live .view-mode-badge {
+            display: none; /* Don't show badge for live views - they're the default */
+        }
+
         .add-view-btn {
             padding: 6px 12px;
             font-size: 13px;
@@ -3543,6 +3568,31 @@
         .view-stage-name { font-weight: 800; font-size: 16px; letter-spacing: -0.01em; color: #0f172a; }
         .view-stage-sub { color: #64748b; font-size: 13px; font-weight: 600; }
 
+        /* View mode badge in header */
+        .view-mode-header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+        .view-mode-header-badge.sandbox {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+            border: 1px dashed #f59e0b;
+        }
+        .view-mode-header-badge.live {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            color: #1e40af;
+            border: 1px solid #3b82f6;
+        }
+        .view-mode-header-badge i { font-size: 10px; }
+
         .view-stage-actions { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 20px; }
         .view-stage-actions .primary-actions { flex-wrap: wrap; }
         .view-stage-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
@@ -3563,6 +3613,20 @@
             overflow: hidden;
             background: #ffffff;
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+        }
+
+        /* Sandbox mode table styling - dashed border, subtle background */
+        .view-table-shell.sandbox {
+            border: 2px dashed #d97706;
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        }
+        .view-table-shell.sandbox table {
+            background: #ffffff;
+        }
+
+        /* Live mode table styling - solid, confident */
+        .view-table-shell.live {
+            border: 1px solid #3b82f6;
         }
 
         .selection-header {
@@ -8829,15 +8893,95 @@
             showToast(`✓ Created view "${viewName.trim()}"`);
         }
 
+        /**
+         * Render the view mode badge (Sandbox vs Live)
+         * Sandbox: exploratory, temporary, dashed styling
+         * Live: curated, intentional, solid styling
+         */
+        function renderViewModeBadge(viewMode) {
+            if (viewMode === 'sandbox') {
+                return `<span class="view-mode-header-badge sandbox" title="Sandbox view - exploratory, not yet promoted to live data">
+                    <i class="ph ph-flask"></i>
+                    Sandbox
+                </span>`;
+            } else if (viewMode === 'live') {
+                // Live views don't need a badge - they're the default/expected state
+                return '';
+            }
+            return '';
+        }
+
+        /**
+         * Promote a sandbox view to live status
+         * This changes the view from exploratory/temporary to curated/intentional
+         */
+        function promoteViewToLive() {
+            const view = getCurrentView();
+            if (!view) return;
+
+            if (view.viewMode !== 'sandbox') {
+                showToast('This view is already live');
+                return;
+            }
+
+            // Update the view mode
+            view.viewMode = 'live';
+
+            // Also update in global state.views if present
+            if (state.views.has(view.id)) {
+                state.views.get(view.id).viewMode = 'live';
+            }
+
+            // Re-render to show the updated state
+            renderCurrentView();
+            renderSidebar();
+
+            showToast('✓ View promoted to live data');
+        }
+
+        /**
+         * Demote a live view back to sandbox status
+         * Useful if user wants to mark something as exploratory again
+         */
+        function demoteViewToSandbox() {
+            const view = getCurrentView();
+            if (!view) return;
+
+            if (view.viewMode === 'sandbox') {
+                showToast('This view is already in sandbox mode');
+                return;
+            }
+
+            view.viewMode = 'sandbox';
+
+            if (state.views.has(view.id)) {
+                state.views.get(view.id).viewMode = 'sandbox';
+            }
+
+            renderCurrentView();
+            renderSidebar();
+
+            showToast('✓ View moved to sandbox');
+        }
+
         function renderViewActions(extraControls = '') {
             const view = getCurrentView();
             const isImportView = view && view.isTemporary && view.importMetadata;
+            const isSandbox = view && view.viewMode === 'sandbox';
 
             // Add save/reify buttons for import views
             const saveViewButton = isImportView ? `
                 <button id="saveImportViewBtn" class="btn btn-success btn-sm" style="background: #10b981; border-color: #10b981;" onclick="showSaveImportAsViewDialog()">
                     <i class="ph ph-floppy-disk"></i>
                     Save as View
+                </button>
+            ` : '';
+
+            // Add promote button for sandbox views
+            const promoteButton = isSandbox ? `
+                <button id="promoteToLiveBtn" class="btn btn-sm" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; border: none;" onclick="promoteViewToLive()">
+                    <i class="ph ph-arrow-circle-up"></i>
+                    Promote to Live
                 </button>
             ` : '';
 
@@ -8852,6 +8996,7 @@
                                 </div>
                             </div>
                             <div class="view-stage-inline-actions">
+                                ${promoteButton}
                                 ${saveViewButton}
                                 <button id="filterBtn" class="btn btn-secondary btn-sm">
                                     <i class="ph ph-funnel-simple"></i>
@@ -10303,7 +10448,11 @@
                 createdAt: Date.now(),
                 createdBy: state.currentUser.id,
                 isTemporary: config.isTemporary || false,
-                importMetadata: config.importMetadata || null
+                importMetadata: config.importMetadata || null,
+                // View mode: 'sandbox' for exploratory views, 'live' for curated/export-ready views
+                viewMode: config.viewMode || 'live',
+                // Pivot metadata for lineage tracking
+                pivotMetadata: config.pivotMetadata || null
             };
             set.views.set(viewId, viewPayload);
             // Also add to global state.views for recent imports tracking
@@ -12701,12 +12850,19 @@
                         viewsContainer.style.marginBottom = '0.5rem';
 
                         viewsToShow.forEach(([viewId, view]) => {
+                            const viewMode = view.viewMode || 'live';
+                            const viewModeClass = viewMode === 'sandbox' ? 'sandbox' : 'live';
+                            const viewModeBadge = viewMode === 'sandbox'
+                                ? '<span class="view-mode-badge">SB</span>'
+                                : '';
+
                             const viewItem = document.createElement('div');
-                            viewItem.className = `view-item ${viewId === state.currentViewId ? 'active' : ''}`;
+                            viewItem.className = `view-item ${viewModeClass} ${viewId === state.currentViewId ? 'active' : ''}`;
                             viewItem.style.paddingLeft = '12px';
                             viewItem.innerHTML = `
                                 <span class="view-item-icon">${renderIcon(view.icon || VIEW_TYPE_ICONS[view.type])}</span>
-                                <span>${view.name}</span>
+                                <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${view.name}</span>
+                                ${viewModeBadge}
                             `;
                             viewItem.onclick = (e) => {
                                 e.stopPropagation();
@@ -13288,12 +13444,19 @@
             const childViews = orderedViews.filter(([_, view]) => (view.parentId || null) === normalizedParent);
 
             childViews.forEach(([viewId, view]) => {
+                const viewMode = view.viewMode || 'live';
+                const viewModeClass = viewMode === 'sandbox' ? 'sandbox' : 'live';
+                const viewModeBadge = viewMode === 'sandbox'
+                    ? '<span class="view-mode-badge">SB</span>'
+                    : '';
+
                 const viewItem = document.createElement('div');
-                viewItem.className = `view-item ${viewId === state.currentViewId ? 'active' : ''}`;
+                viewItem.className = `view-item ${viewModeClass} ${viewId === state.currentViewId ? 'active' : ''}`;
                 viewItem.style.paddingLeft = `${12 + depth * 16}px`;
                 viewItem.innerHTML = `
                     <span class="view-item-icon">${renderIcon(view.icon || VIEW_TYPE_ICONS[view.type])}</span>
-                    <span>${view.name}</span>
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${view.name}</span>
+                    ${viewModeBadge}
                 `;
                 viewItem.onclick = (e) => {
                     e.stopPropagation();
@@ -15911,6 +16074,10 @@
 
             syncSelectionState(records);
 
+            const viewMode = view.viewMode || 'live';
+            const viewModeBadge = renderViewModeBadge(viewMode);
+            const tableShellClass = viewMode === 'sandbox' ? 'view-table-shell sandbox' : 'view-table-shell';
+
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
                 <div class="view-stage-header">
@@ -15918,14 +16085,14 @@
                     <div class="view-stage-title">
                         <span class="view-stage-pill">${set.name}</span>
                         <div class="min-w-0">
-                            <div class="view-stage-name">${view.name}</div>
+                            <div class="view-stage-name">${view.name}${viewModeBadge}</div>
                             <div class="view-stage-sub">Grid view · ${recordCount} ${recordLabel}</div>
                         </div>
                     </div>
                     ${renderViewActions()}
                 </div>
                 <div class="view-stage-body">
-                    <div class="view-table-shell">
+                    <div class="${tableShellClass}">
                         <div class="table-scroll">
                             <table id="dataTable" class="border-collapse">
                                 <thead><tr id="tableHeader"></tr></thead>
@@ -16196,6 +16363,10 @@
             const grouped = groupByKeyValue(allItems, keyRef.fieldId);
             const rows = buildRowsFromGroups(grouped, view);
 
+            const viewMode = view.viewMode || 'live';
+            const viewModeBadge = renderViewModeBadge(viewMode);
+            const tableShellClass = viewMode === 'sandbox' ? 'view-table-shell sandbox' : 'view-table-shell';
+
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
                 <div class="view-stage-header">
@@ -16203,14 +16374,14 @@
                     <div class="view-stage-title">
                         <span class="view-stage-pill">${state.sets.get(keyRef.setId)?.name || 'Key set'}</span>
                         <div class="min-w-0">
-                            <div class="view-stage-name">${view.name}</div>
+                            <div class="view-stage-name">${view.name}${viewModeBadge}</div>
                             <div class="view-stage-sub">Generated key view · ${rows.length} collections</div>
                         </div>
                     </div>
                     ${renderViewActions()}
                 </div>
                 <div class="view-stage-body">
-                    <div class="view-table-shell">
+                    <div class="${tableShellClass}">
                         <div class="table-scroll">
                             <table id="dataTable" class="border-collapse">
                                 <thead><tr id="tableHeader"></tr></thead>
@@ -26993,11 +27164,17 @@
                 key: keyRef,
                 schema: detection.schema,
                 relationships: detection.relationships,
-                rollups: detection.rollups
+                rollups: detection.rollups,
+                viewMode: 'sandbox',  // Pivot views start in sandbox mode for exploration
+                pivotMetadata: {
+                    pivotFieldId: field.id,
+                    analysisTimestamp: Date.now(),
+                    sourceSetId: set.id
+                }
             });
             renderSidebar();
             switchSet(set.id, viewId);
-            showToast('✓ View created from column');
+            showToast('✓ Sandbox view created from column');
         }
 
         /**
@@ -27055,12 +27232,14 @@
                 sorts: pivotAnalysis.suggestedSorts,
                 groups: pivotAnalysis.suggestedGroups,
                 columnRules: pivotAnalysis.suggestedColumnRules,
+                viewMode: 'sandbox',  // Pivot views start in sandbox mode for exploration
                 pivotMetadata: {
                     pivotFieldId: field.id,
                     pivotValue: value,
                     matchCount: matchingRecords.length,
                     redundantFields: pivotAnalysis.redundantFields,
-                    analysisTimestamp: Date.now()
+                    analysisTimestamp: Date.now(),
+                    sourceSetId: set.id
                 }
             });
 
@@ -27069,8 +27248,8 @@
 
             const hiddenCount = pivotAnalysis.redundantFields.length;
             const toastMsg = hiddenCount > 0
-                ? `✓ Pivot view created (${hiddenCount} uniform column${hiddenCount > 1 ? 's' : ''} hidden)`
-                : '✓ Pivot view created';
+                ? `✓ Sandbox view created (${hiddenCount} uniform column${hiddenCount > 1 ? 's' : ''} hidden)`
+                : '✓ Sandbox view created';
             showToast(toastMsg);
         }
 
@@ -28377,12 +28556,14 @@
                 sorts: pivotAnalysis.suggestedSorts,
                 groups: pivotAnalysis.suggestedGroups,
                 columnRules: pivotAnalysis.suggestedColumnRules,
+                viewMode: 'sandbox',  // Pivot views start in sandbox mode for exploration
                 pivotMetadata: {
                     pivotFieldId: fieldId,
                     pivotValue: value,
                     matchCount: matchingRecords.length,
                     redundantFields: pivotAnalysis.redundantFields,
-                    analysisTimestamp: Date.now()
+                    analysisTimestamp: Date.now(),
+                    sourceSetId: set.id
                 }
             });
 
@@ -28392,8 +28573,8 @@
 
             const hiddenCount = pivotAnalysis.redundantFields.length;
             const toastMsg = hiddenCount > 0
-                ? `✓ Pivot view created (${hiddenCount} uniform column${hiddenCount > 1 ? 's' : ''} hidden)`
-                : '✓ Pivot view created';
+                ? `✓ Sandbox view created (${hiddenCount} uniform column${hiddenCount > 1 ? 's' : ''} hidden)`
+                : '✓ Sandbox view created';
             showToast(toastMsg);
         }
 
