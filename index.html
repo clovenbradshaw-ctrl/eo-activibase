@@ -824,6 +824,53 @@
             100% { transform: translateX(400%); }
         }
 
+        /* Sidebar Import Processing Indicator */
+        .import-processing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .import-processing-spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(34, 197, 94, 0.2);
+            border-top-color: #22c55e;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+
+        .import-processing-text {
+            font-size: 10px;
+            color: #22c55e;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .import-processing-progress {
+            flex: 1;
+            height: 3px;
+            background: rgba(34, 197, 94, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            max-width: 80px;
+        }
+
+        .import-processing-progress-bar {
+            height: 100%;
+            background: #22c55e;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .import-processing-progress-bar.indeterminate {
+            width: 40%;
+            animation: indeterminate-progress 1.2s ease-in-out infinite;
+        }
+
         /* Global Search Responsive Styles */
         @media (max-width: 900px) {
             .global-search-container {
@@ -33382,7 +33429,7 @@
         }
 
         /**
-         * Handle a file import
+         * Handle a file import with background processing indicator
          */
         async function handleFileImport(file) {
             if (!state.importManager) {
@@ -33390,17 +33437,51 @@
                 return;
             }
 
-            showToast(`📥 Importing ${file.name}...`);
+            // Step 1: Create a processing placeholder immediately so user sees feedback
+            const placeholder = state.importManager.createProcessingPlaceholder(file);
 
-            const result = await state.importManager.createImportFromFile(file);
+            // Step 2: Show it in the sidebar immediately with processing indicator
+            renderImportsInSidebar();
+            showToast(`📥 Processing ${file.name}...`);
 
-            if (result.success) {
-                renderImportsInSidebar();
-                // Automatically open the import as a tab for immediate access
-                openImportAsTab(result.import.id);
-            } else {
-                showToast(`⚠️ Import failed: ${result.error}`);
-            }
+            // Step 3: Process the file in the background
+            // Use setTimeout to allow the UI to update first
+            setTimeout(async () => {
+                try {
+                    // Update progress - parsing
+                    state.importManager.updateProcessingProgress(placeholder.id, 10, 'Reading file...');
+                    renderImportsInSidebar();
+
+                    // Do the actual file parsing
+                    const result = await state.importManager.createImportFromFile(file);
+
+                    if (result.success) {
+                        // Update progress - finalizing
+                        state.importManager.updateProcessingProgress(placeholder.id, 90, 'Finalizing...');
+                        renderImportsInSidebar();
+
+                        // Remove the placeholder and use the real import
+                        state.importManager.imports.delete(placeholder.id);
+
+                        // Re-render with the completed import
+                        renderImportsInSidebar();
+
+                        // Automatically open the import as a tab for immediate access
+                        openImportAsTab(result.import.id);
+                    } else {
+                        // Mark the placeholder as error
+                        placeholder.status = 'error';
+                        placeholder.processingMessage = result.error;
+                        renderImportsInSidebar();
+                        showToast(`⚠️ Import failed: ${result.error}`);
+                    }
+                } catch (error) {
+                    placeholder.status = 'error';
+                    placeholder.processingMessage = error.message;
+                    renderImportsInSidebar();
+                    showToast(`⚠️ Import failed: ${error.message}`);
+                }
+            }, 50);
         }
 
         /**
@@ -33442,21 +33523,49 @@
                 const viewInfo = getImportViewInfo(imp.id);
                 const isOpenAsTab = viewInfo && state.openTabs.some(tab => tab.viewId === viewInfo.id);
                 const isActive = isOpenAsTab && state.currentViewId === viewInfo?.id;
+                const isProcessing = imp.status === 'processing' || imp.processingProgress !== undefined;
+                const isError = imp.status === 'error';
+                const processingProgress = imp.processingProgress || 0;
+
+                // Build processing indicator HTML if processing
+                let statusHtml = '';
+                if (isProcessing) {
+                    const progressText = imp.processingMessage || `Processing...`;
+                    statusHtml = `
+                        <div class="import-processing-indicator">
+                            <div class="import-processing-spinner"></div>
+                            <span class="import-processing-text">${progressText}</span>
+                            <div class="import-processing-progress">
+                                <div class="import-processing-progress-bar${processingProgress === 0 ? ' indeterminate' : ''}" style="${processingProgress > 0 ? `width: ${processingProgress}%` : ''}"></div>
+                            </div>
+                        </div>
+                    `;
+                } else if (isError) {
+                    statusHtml = `
+                        <div class="import-processing-indicator" style="color: #ef4444;">
+                            <i class="ph ph-warning" style="font-size: 12px;"></i>
+                            <span style="font-size: 10px;">Error: ${imp.processingMessage || 'Import failed'}</span>
+                        </div>
+                    `;
+                }
 
                 return `
-                    <div class="nav-item${isActive ? ' active' : ''}" style="display: flex; align-items: center; gap: 8px; padding: 6px 8px;${isOpenAsTab ? ' background: rgba(34, 197, 94, 0.1);' : ''}"
+                    <div class="nav-item${isActive ? ' active' : ''}" style="display: flex; flex-direction: column; gap: 2px; padding: 6px 8px;${isOpenAsTab ? ' background: rgba(34, 197, 94, 0.1);' : ''}"
                          onclick="openImportAsTab('${imp.id}')"
                          draggable="true"
                          ondragstart="handleImportDragStart(event, '${imp.id}')"
                          ondragend="handleImportDragEnd(event)">
-                        <i class="ph ${icon}" style="font-size: 14px; color: #22c55e;"></i>
-                        <div style="flex: 1; min-width: 0;">
-                            <div style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                ${imp.name}
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="ph ${icon}" style="font-size: 14px; color: #22c55e;"></i>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    ${imp.name}
+                                </div>
+                                <div style="font-size: 10px; opacity: 0.6;">${imp.rowCount?.toLocaleString() || 0} rows · ${timeAgo}${isOpenAsTab && !isProcessing ? ' · <span style="color: #22c55e;">Open</span>' : ''}</div>
                             </div>
-                            <div style="font-size: 10px; opacity: 0.6;">${imp.rowCount} rows · ${timeAgo}${isOpenAsTab ? ' · <span style="color: #22c55e;">Open</span>' : ''}</div>
+                            ${imp.usedIn.length > 0 ? `<span style="background: #334155; padding: 2px 6px; border-radius: 10px; font-size: 10px;">${imp.usedIn.length}</span>` : ''}
                         </div>
-                        ${imp.usedIn.length > 0 ? `<span style="background: #334155; padding: 2px 6px; border-radius: 10px; font-size: 10px;">${imp.usedIn.length}</span>` : ''}
+                        ${statusHtml}
                     </div>
                 `;
             }).join('');
@@ -33508,6 +33617,12 @@
                 return;
             }
 
+            // If the import is still being processed (parsing), don't open yet
+            if (imp.status === 'processing') {
+                showToast('⏳ Still processing file, please wait...');
+                return;
+            }
+
             // Check if there's already a view for this import
             let existingView = null;
             if (state.views) {
@@ -33530,6 +33645,13 @@
                 return;
             }
 
+            // Mark the import as loading records (show in sidebar)
+            const originalStatus = imp.status;
+            imp.status = 'processing';
+            imp.processingProgress = 0;
+            imp.processingMessage = `Loading ${imp.rowCount?.toLocaleString() || 0} records...`;
+            renderImportsInSidebar();
+
             // Show loading screen before heavy processing
             const filename = imp.fileMetadata?.filenameAnalysis?.baseName || imp.name;
             showImportLoadingScreen({
@@ -33547,9 +33669,17 @@
                     const result = state.importIntegration.addImportToSet(importId, null, setName);
 
                     if (result.success) {
+                        // Restore status and clear processing state
+                        imp.status = 'ready';
+                        delete imp.processingProgress;
+                        delete imp.processingMessage;
                         renderSidebar();
                         // The switchSet is already called by addImportToSet
                     } else {
+                        imp.status = originalStatus;
+                        delete imp.processingProgress;
+                        delete imp.processingMessage;
+                        renderImportsInSidebar();
                         showToast(`⚠️ Failed to open import: ${result.error}`);
                     }
                 } finally {
