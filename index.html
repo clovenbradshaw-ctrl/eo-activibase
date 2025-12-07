@@ -3463,7 +3463,7 @@
             align-items: center;
             gap: 6px;
             padding: 6px 12px;
-            border: 1px solid transparent;
+            border: none;
             border-bottom: 2px solid transparent;
             background: transparent;
             cursor: pointer;
@@ -3478,40 +3478,33 @@
         }
 
         .view-tab:hover {
-            background: #fafafa;
-            color: #374151;
+            background: rgba(0, 0, 0, 0.04);
+            color: #6b7280;
         }
 
         .view-tab.active {
-            background: linear-gradient(to bottom, #f0f9ff 0%, white 100%);
-            border-top: 1px solid #bfdbfe;
-            border-left: 1px solid #bfdbfe;
-            border-right: 1px solid #bfdbfe;
-            border-bottom: 3px solid #2563eb;
-            color: #1e40af;
+            background: white;
+            border-bottom: 2px solid #111827;
+            color: #111827;
             font-weight: 600;
-            box-shadow: 0 -2px 8px rgba(37, 99, 235, 0.12);
         }
 
         /* Import view tabs - distinctive green styling */
         .view-tab.import-view-tab {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(5, 150, 105, 0.05));
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.08);
+            border: none;
             border-bottom: 2px solid transparent;
             color: #047857;
         }
         .view-tab.import-view-tab:hover {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.1));
-            border-color: rgba(16, 185, 129, 0.5);
+            background: rgba(16, 185, 129, 0.12);
+            color: #065f46;
         }
         .view-tab.import-view-tab.active {
-            background: linear-gradient(to bottom, rgba(209, 250, 229, 0.7), white 100%);
-            border-top: 1px solid #6ee7b7;
-            border-left: 1px solid #6ee7b7;
-            border-right: 1px solid #6ee7b7;
-            border-bottom: 3px solid #10b981;
+            background: white;
+            border-bottom: 2px solid #10b981;
             color: #047857;
-            box-shadow: 0 -2px 8px rgba(16, 185, 129, 0.15);
+            font-weight: 600;
         }
         .view-tab.import-view-tab .view-tab-icon {
             color: #10b981;
