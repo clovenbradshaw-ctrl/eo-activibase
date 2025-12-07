@@ -33,6 +33,90 @@ class EOImportManager {
   }
 
   /**
+   * Create a processing placeholder for an import
+   * This allows showing the import in the UI immediately while parsing happens in background
+   * @param {File} file - The file being imported
+   * @returns {object} The placeholder import object
+   */
+  createProcessingPlaceholder(file) {
+    const importId = this.generateImportId();
+    const fileMetadata = this.extractFileMetadata(file);
+
+    const placeholderImport = {
+      id: importId,
+      name: file.name,
+      source: {
+        type: 'file',
+        format: this.getFileFormat(file.name),
+        filename: file.name,
+        mimeType: file.type,
+        size: file.size,
+        lastModified: file.lastModified ? new Date(file.lastModified).toISOString() : null,
+        importedAt: new Date().toISOString()
+      },
+      fileMetadata,
+      // Placeholder values - will be populated after parsing
+      headers: [],
+      rows: [],
+      rowCount: 0,
+      columnCount: 0,
+      schema: null,
+      quality: null,
+      // Usage tracking
+      usedIn: [],
+      // Mark as processing
+      status: 'processing',
+      processingProgress: 0,
+      processingMessage: 'Parsing file...',
+      // Timestamps
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    this.imports.set(importId, placeholderImport);
+    this.notifyListeners('import_created', placeholderImport);
+
+    return placeholderImport;
+  }
+
+  /**
+   * Update processing progress for an import
+   * @param {string} importId - The import ID
+   * @param {number} progress - Progress percentage (0-100)
+   * @param {string} message - Optional progress message
+   */
+  updateProcessingProgress(importId, progress, message = null) {
+    const imp = this.imports.get(importId);
+    if (imp) {
+      imp.processingProgress = progress;
+      if (message) {
+        imp.processingMessage = message;
+      }
+      imp.updatedAt = new Date().toISOString();
+      this.notifyListeners('import_progress', imp);
+    }
+  }
+
+  /**
+   * Complete processing for an import placeholder
+   * @param {string} importId - The import ID
+   * @param {object} fullImportData - The complete import data
+   */
+  completeProcessing(importId, fullImportData) {
+    const imp = this.imports.get(importId);
+    if (imp) {
+      // Merge full data into the placeholder
+      Object.assign(imp, fullImportData, {
+        status: 'ready',
+        processingProgress: undefined,
+        processingMessage: undefined,
+        updatedAt: new Date().toISOString()
+      });
+      this.notifyListeners('import_ready', imp);
+    }
+  }
+
+  /**
    * Create an import from a file
    */
   async createImportFromFile(file) {
