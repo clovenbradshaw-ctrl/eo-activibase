@@ -11,6 +11,10 @@
 
 class EOProvenanceExtractor {
   constructor() {
+    // Cache for header analysis results
+    this._headerAnalysisCache = new Map();
+    this._headerCacheMaxSize = 100;
+
     // Detection patterns for various provenance markers
     this.patterns = {
       sourceSystems: [
@@ -247,9 +251,18 @@ class EOProvenanceExtractor {
 
   /**
    * Tier 1D: Analyze CSV headers for semantic markers
+   * Uses caching and early-exit optimization for performance
    */
   analyzeHeaders(headers) {
     if (!headers || !headers.length) return {};
+
+    // Create cache key from sorted headers
+    const cacheKey = headers.slice().sort().join('|');
+
+    // Check cache first
+    if (this._headerAnalysisCache.has(cacheKey)) {
+      return this._headerAnalysisCache.get(cacheKey);
+    }
 
     const analysis = {
       totalColumns: headers.length,
@@ -260,44 +273,71 @@ class EOProvenanceExtractor {
       schemaStandard: null
     };
 
-    headers.forEach(header => {
+    // Analyze headers with early-exit optimization
+    for (const header of headers) {
       const normalized = header.toLowerCase().trim();
+      let foundExternalId = false;
+      let foundTimestamp = false;
+      let foundDefinition = false;
+      let foundJurisdiction = false;
 
-      // Check for external ID columns
-      this.patterns.externalIdPatterns.forEach(pattern => {
+      // Check for external ID columns (early-exit after first match)
+      for (const pattern of this.patterns.externalIdPatterns) {
         if (pattern.pattern.test(normalized)) {
           analysis.externalIds.push({
             column: header,
             system: pattern.system,
             confidence: pattern.confidence
           });
+          foundExternalId = true;
+          break; // Early exit - one external ID match per header is enough
         }
-      });
+      }
 
-      // Check for timestamp columns
-      this.patterns.timestampPatterns.forEach(pattern => {
-        if (pattern.test(normalized)) {
-          analysis.timestamps.push(header);
+      // Check for timestamp columns (early-exit after first match)
+      if (!foundExternalId) {
+        for (const pattern of this.patterns.timestampPatterns) {
+          if (pattern.test(normalized)) {
+            analysis.timestamps.push(header);
+            foundTimestamp = true;
+            break;
+          }
         }
-      });
+      }
 
-      // Check for definition columns
-      this.patterns.definitionPatterns.forEach(pattern => {
-        if (pattern.test(normalized)) {
-          analysis.definitionColumns.push(header);
+      // Check for definition columns (early-exit after first match)
+      if (!foundTimestamp) {
+        for (const pattern of this.patterns.definitionPatterns) {
+          if (pattern.test(normalized)) {
+            analysis.definitionColumns.push(header);
+            foundDefinition = true;
+            break;
+          }
         }
-      });
+      }
 
-      // Check for jurisdiction markers
-      this.patterns.jurisdictionColumnPatterns.forEach(pattern => {
-        if (pattern.test(normalized)) {
-          analysis.jurisdictionMarkers.push(header);
+      // Check for jurisdiction markers (early-exit after first match)
+      if (!foundDefinition) {
+        for (const pattern of this.patterns.jurisdictionColumnPatterns) {
+          if (pattern.test(normalized)) {
+            analysis.jurisdictionMarkers.push(header);
+            foundJurisdiction = true;
+            break;
+          }
         }
-      });
-    });
+      }
+    }
 
     // Infer schema standard
     analysis.schemaStandard = this.inferSchemaStandard(headers);
+
+    // Cache the result (with size limit)
+    if (this._headerAnalysisCache.size >= this._headerCacheMaxSize) {
+      // Remove oldest entry
+      const firstKey = this._headerAnalysisCache.keys().next().value;
+      this._headerAnalysisCache.delete(firstKey);
+    }
+    this._headerAnalysisCache.set(cacheKey, analysis);
 
     return analysis;
   }

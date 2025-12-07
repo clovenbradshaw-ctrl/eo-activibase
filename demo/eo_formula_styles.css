@@ -67,7 +67,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .close-btn:hover {
@@ -106,7 +106,7 @@
   border-radius: 6px;
   font-size: 14px;
   font-family: inherit;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .form-control:focus {
@@ -237,7 +237,7 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
   border: none;
   font-family: inherit;
 }
@@ -305,7 +305,7 @@
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .formula-field-row:hover {
@@ -375,7 +375,7 @@
   align-items: center;
   justify-content: center;
   font-size: 16px;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .btn-icon:hover {

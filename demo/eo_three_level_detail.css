@@ -220,7 +220,7 @@
   color: #6b7280;
   cursor: pointer;
   border-radius: 6px;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -248,7 +248,7 @@
   font-weight: 500;
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
   position: relative;
   top: 1px;
 }
@@ -608,7 +608,7 @@
   color: #6b7280;
   cursor: pointer;
   border-radius: 6px;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1004,7 +1004,7 @@
   font-weight: 500;
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
   display: flex;
   align-items: center;
   gap: 10px;
