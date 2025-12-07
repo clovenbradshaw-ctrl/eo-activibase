@@ -90,12 +90,7 @@
                                         </div>
                                         <div class="form-group">
                                             <label for="selRoundingMode">Rounding</label>
-                                            <select id="selRoundingMode">
-                                                <option value="round" ${this.config.roundingMode === 'round' ? 'selected' : ''}>Round (standard)</option>
-                                                <option value="floor" ${this.config.roundingMode === 'floor' ? 'selected' : ''}>Floor (round down)</option>
-                                                <option value="ceil" ${this.config.roundingMode === 'ceil' ? 'selected' : ''}>Ceiling (round up)</option>
-                                                <option value="truncate" ${this.config.roundingMode === 'truncate' ? 'selected' : ''}>Truncate</option>
-                                            </select>
+                                            <div id="selRoundingModeContainer"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -144,11 +139,7 @@
                                     <div class="settings-row">
                                         <div class="form-group full-width">
                                             <label for="selCurrencyCode">Currency</label>
-                                            <select id="selCurrencyCode">
-                                                ${currencies.map(c => `
-                                                    <option value="${c.code}" ${this.config.currencyCode === c.code ? 'selected' : ''}>${c.name}</option>
-                                                `).join('')}
-                                            </select>
+                                            <div id="selCurrencyCodeContainer"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -297,11 +288,25 @@
                 }
             });
 
-            // Rounding mode
-            this.modal.querySelector('#selRoundingMode').addEventListener('change', (e) => {
-                this.config.roundingMode = e.target.value;
-                this.updatePreview();
-            });
+            // Rounding mode - Initialize custom dropdown
+            const roundingModeContainer = this.modal.querySelector('#selRoundingModeContainer');
+            if (roundingModeContainer) {
+                this.roundingModeDropdown = new EOCustomDropdown({
+                    options: [
+                        { value: 'round', label: 'Round (standard)' },
+                        { value: 'floor', label: 'Floor (round down)' },
+                        { value: 'ceil', label: 'Ceiling (round up)' },
+                        { value: 'truncate', label: 'Truncate' }
+                    ],
+                    value: this.config.roundingMode,
+                    placeholder: 'Select rounding...',
+                    onChange: (value) => {
+                        this.config.roundingMode = value;
+                        this.updatePreview();
+                    }
+                });
+                roundingModeContainer.appendChild(this.roundingModeDropdown.create());
+            }
 
             // Thousand separator
             this.modal.querySelector('#chkThousandSeparator').addEventListener('change', (e) => {
@@ -328,11 +333,26 @@
                 this.updatePreview();
             });
 
-            // Currency code
-            this.modal.querySelector('#selCurrencyCode').addEventListener('change', (e) => {
-                this.config.currencyCode = e.target.value;
-                this.updatePreview();
-            });
+            // Currency code - Initialize custom dropdown
+            const currencyCodeContainer = this.modal.querySelector('#selCurrencyCodeContainer');
+            if (currencyCodeContainer) {
+                const currencies = EONumberFormatter.getAvailableCurrencies();
+                this.currencyCodeDropdown = new EOCustomDropdown({
+                    options: currencies.map(c => ({
+                        value: c.code,
+                        label: c.name,
+                        icon: c.symbol ? `<span style="font-weight:bold;min-width:20px;display:inline-block;text-align:center">${c.symbol}</span>` : ''
+                    })),
+                    value: this.config.currencyCode,
+                    placeholder: 'Select currency...',
+                    searchable: true,
+                    onChange: (value) => {
+                        this.config.currencyCode = value;
+                        this.updatePreview();
+                    }
+                });
+                currencyCodeContainer.appendChild(this.currencyCodeDropdown.create());
+            }
 
             // Prefix/Suffix
             this.modal.querySelector('#txtPrefix').addEventListener('input', (e) => {
@@ -463,10 +483,14 @@
             });
 
             this.modal.querySelector('#numDecimalPlaces').value = this.config.decimalPlaces;
-            this.modal.querySelector('#selRoundingMode').value = this.config.roundingMode;
+            if (this.roundingModeDropdown) {
+                this.roundingModeDropdown.setValue(this.config.roundingMode);
+            }
             this.modal.querySelector('#chkThousandSeparator').checked = this.config.thousandSeparator;
             this.modal.querySelector('#chkAllowNegative').checked = this.config.allowNegative;
-            this.modal.querySelector('#selCurrencyCode').value = this.config.currencyCode;
+            if (this.currencyCodeDropdown) {
+                this.currencyCodeDropdown.setValue(this.config.currencyCode);
+            }
             this.modal.querySelector('#txtPrefix').value = this.config.prefix;
             this.modal.querySelector('#txtSuffix').value = this.config.suffix;
             this.modal.querySelector('#numMin').value = '';
