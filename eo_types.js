@@ -361,7 +361,7 @@
     const VALID_FIELD_TYPES = [
         'TEXT', 'NUMBER', 'CURRENCY', 'SELECT', 'MULTI_SELECT',
         'DATE', 'DATETIME', 'TIME', 'CHECKBOX', 'EMAIL', 'URL', 'LONG_TEXT',
-        'FORMULA', 'ROLLUP', 'LOOKUP', 'LINKED_RECORD'
+        'FORMULA', 'ROLLUP', 'LOOKUP', 'LINKED_RECORD', 'JSON'
     ];
 
     /**

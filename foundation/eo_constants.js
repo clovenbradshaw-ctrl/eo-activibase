@@ -134,7 +134,7 @@
         FIELD_TYPES: Object.freeze([
             'TEXT', 'NUMBER', 'CURRENCY', 'SELECT', 'MULTI_SELECT',
             'DATE', 'CHECKBOX', 'EMAIL', 'URL', 'LONG_TEXT',
-            'FORMULA', 'ROLLUP', 'LOOKUP', 'LINKED_RECORD'
+            'FORMULA', 'ROLLUP', 'LOOKUP', 'LINKED_RECORD', 'JSON'
         ]),
 
         // ============================================================================
