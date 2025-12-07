@@ -28467,7 +28467,11 @@
                     }
                 }
 
-                if (e.key === 'Enter' && state.selectedCell && !state.editingCell) {
+                // Helper: check if any modal is open (tracked or overlay-based)
+                const isModalOpen = () => state.modalStack.length > 0 || document.querySelector('.modal-overlay');
+
+                // Skip Enter/Tab handling if a modal is open
+                if (e.key === 'Enter' && state.selectedCell && !state.editingCell && !isModalOpen()) {
                     e.preventDefault();
                     const { td, recordId, fieldId } = state.selectedCell;
                     const set = getCurrentSet();
@@ -28475,13 +28479,14 @@
                     if (field) enterEditMode(td, recordId, field);
                 }
 
-                if (e.key === 'Tab' && state.selectedCell && !state.editingCell) {
+                if (e.key === 'Tab' && state.selectedCell && !state.editingCell && !isModalOpen()) {
                     e.preventDefault();
                     navigateToNextCell(e.shiftKey ? -1 : 1);
                 }
 
                 // Handle printable characters - start editing when user types in a selected cell
-                if (state.selectedCell && !state.editingCell && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                // Skip if a modal is open to allow typing in modal inputs (like notes)
+                if (state.selectedCell && !state.editingCell && !e.ctrlKey && !e.metaKey && !e.altKey && !isModalOpen()) {
                     const isPrintable = e.key.length === 1;
                     const isSpecialKey = ['Tab', 'Enter', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Delete', 'Backspace'].includes(e.key);
 
@@ -28516,8 +28521,8 @@
                     }
                 }
 
-                // Handle Delete/Backspace to clear cell content
-                if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedCell && !state.editingCell) {
+                // Handle Delete/Backspace to clear cell content (skip if modal is open)
+                if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedCell && !state.editingCell && !isModalOpen()) {
                     e.preventDefault();
                     const { recordId, fieldId } = state.selectedCell;
                     const set = getCurrentSet();
