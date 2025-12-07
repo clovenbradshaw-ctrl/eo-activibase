@@ -1,0 +1,429 @@
+/**
+ * EO Data Sources Panel Styles
+ * Styling for the collapsible data sources panel at the top of workspace views
+ */
+
+/* ============================================
+   Panel Container
+   ============================================ */
+
+.eo-data-sources-panel {
+  background: var(--white);
+  border-bottom: 1px solid var(--gray-200);
+  margin-bottom: 0;
+}
+
+.eo-data-sources-panel.eo-collapsed {
+  border-bottom-color: var(--gray-100);
+}
+
+/* ============================================
+   Panel Header
+   ============================================ */
+
+.eo-dsp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.eo-dsp-header:hover {
+  background: var(--gray-50);
+}
+
+.eo-dsp-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eo-dsp-header-left i:first-child {
+  font-size: 10px;
+  color: var(--gray-400);
+}
+
+.eo-dsp-header-left i:nth-child(2) {
+  font-size: 14px;
+  color: var(--green-600);
+}
+
+.eo-dsp-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.eo-dsp-count {
+  font-size: 11px;
+  color: var(--gray-500);
+  padding: 2px 8px;
+  background: var(--gray-100);
+  border-radius: 10px;
+}
+
+.eo-dsp-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.eo-dsp-total {
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+.eo-dsp-clear-filter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--blue-700);
+  background: var(--blue-100);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.eo-dsp-clear-filter:hover {
+  background: var(--blue-200);
+}
+
+.eo-dsp-clear-filter i {
+  font-size: 10px;
+}
+
+/* ============================================
+   Panel Content
+   ============================================ */
+
+.eo-dsp-content {
+  padding: 0 16px 12px;
+}
+
+.eo-dsp-sources {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+
+/* Hide scrollbar but keep functionality */
+.eo-dsp-sources::-webkit-scrollbar {
+  height: 4px;
+}
+
+.eo-dsp-sources::-webkit-scrollbar-track {
+  background: var(--gray-100);
+  border-radius: 2px;
+}
+
+.eo-dsp-sources::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: 2px;
+}
+
+.eo-dsp-sources::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-400);
+}
+
+/* ============================================
+   Source Cards
+   ============================================ */
+
+.eo-dsp-source-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  min-width: 180px;
+  max-width: 220px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.eo-dsp-source-card:hover {
+  background: var(--white);
+  border-color: var(--blue-300);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.eo-dsp-source-card.eo-active {
+  background: var(--blue-50);
+  border-color: var(--blue-400);
+  box-shadow: 0 0 0 2px var(--blue-100);
+}
+
+.eo-dsp-source-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--green-100);
+  color: var(--green-600);
+  border-radius: 6px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.eo-dsp-source-card.eo-active .eo-dsp-source-icon {
+  background: var(--blue-100);
+  color: var(--blue-600);
+}
+
+.eo-dsp-source-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.eo-dsp-source-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eo-dsp-source-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--gray-500);
+  margin-top: 2px;
+}
+
+.eo-dsp-dot {
+  color: var(--gray-300);
+}
+
+/* Quality Badge */
+.eo-dsp-source-quality {
+  flex-shrink: 0;
+}
+
+.eo-dsp-quality-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.eo-dsp-quality-badge.eo-quality-excellent {
+  background: var(--green-100);
+  color: var(--green-700);
+}
+
+.eo-dsp-quality-badge.eo-quality-good {
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+
+.eo-dsp-quality-badge.eo-quality-fair {
+  background: var(--amber-100);
+  color: var(--amber-700);
+}
+
+.eo-dsp-quality-badge.eo-quality-poor {
+  background: var(--red-100);
+  color: var(--red-700);
+}
+
+/* ============================================
+   Add Data Card
+   ============================================ */
+
+.eo-dsp-add-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 20px;
+  min-width: 100px;
+  background: transparent;
+  border: 2px dashed var(--gray-300);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.eo-dsp-add-card:hover {
+  background: var(--blue-50);
+  border-color: var(--blue-400);
+  color: var(--blue-600);
+}
+
+.eo-dsp-add-card i {
+  font-size: 16px;
+  color: var(--gray-400);
+}
+
+.eo-dsp-add-card:hover i {
+  color: var(--blue-500);
+}
+
+.eo-dsp-add-card span {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--gray-500);
+}
+
+.eo-dsp-add-card:hover span {
+  color: var(--blue-600);
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+
+.eo-dsp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 20px 40px;
+  color: var(--gray-400);
+}
+
+.eo-dsp-empty i {
+  font-size: 24px;
+  opacity: 0.5;
+}
+
+.eo-dsp-empty span:first-of-type {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.eo-dsp-empty-hint {
+  font-size: 11px;
+  font-style: italic;
+}
+
+/* ============================================
+   Color Variables for quality badges
+   ============================================ */
+
+:root {
+  --red-100: #fee2e2;
+  --red-700: #b91c1c;
+}
+
+/* ============================================
+   Dark Mode Support
+   ============================================ */
+
+@media (prefers-color-scheme: dark) {
+  .eo-data-sources-panel {
+    background: #1f2937;
+    border-bottom-color: #374151;
+  }
+
+  .eo-dsp-header:hover {
+    background: #374151;
+  }
+
+  .eo-dsp-title {
+    color: #f3f4f6;
+  }
+
+  .eo-dsp-count {
+    background: #374151;
+    color: #d1d5db;
+  }
+
+  .eo-dsp-total {
+    color: #9ca3af;
+  }
+
+  .eo-dsp-clear-filter {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+  }
+
+  .eo-dsp-clear-filter:hover {
+    background: rgba(59, 130, 246, 0.3);
+  }
+
+  .eo-dsp-source-card {
+    background: #374151;
+    border-color: #4b5563;
+  }
+
+  .eo-dsp-source-card:hover {
+    background: #4b5563;
+    border-color: #60a5fa;
+  }
+
+  .eo-dsp-source-card.eo-active {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  }
+
+  .eo-dsp-source-icon {
+    background: rgba(22, 163, 74, 0.2);
+    color: #4ade80;
+  }
+
+  .eo-dsp-source-card.eo-active .eo-dsp-source-icon {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+  }
+
+  .eo-dsp-source-name {
+    color: #f3f4f6;
+  }
+
+  .eo-dsp-source-meta {
+    color: #9ca3af;
+  }
+
+  .eo-dsp-dot {
+    color: #6b7280;
+  }
+
+  .eo-dsp-add-card {
+    border-color: #4b5563;
+  }
+
+  .eo-dsp-add-card:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: #3b82f6;
+  }
+
+  .eo-dsp-add-card i {
+    color: #9ca3af;
+  }
+
+  .eo-dsp-add-card:hover i {
+    color: #60a5fa;
+  }
+
+  .eo-dsp-add-card span {
+    color: #9ca3af;
+  }
+
+  .eo-dsp-add-card:hover span {
+    color: #60a5fa;
+  }
+
+  .eo-dsp-empty {
+    color: #6b7280;
+  }
+}

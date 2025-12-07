@@ -57,68 +57,78 @@ class EOFileExplorer {
     const sets = this.state ? Array.from(this.state.sets.values()) : [];
     const views = this.getViews();
 
+    // Separate used and unused imports
+    const usedImports = imports.filter(imp => imp.usedIn && imp.usedIn.length > 0);
+    const unusedImports = imports.filter(imp => !imp.usedIn || imp.usedIn.length === 0);
+
     this.container.innerHTML = `
       <div class="eo-file-explorer">
         <!-- Drop zone for new files -->
         <div class="eo-drop-zone" id="eoDropZone">
           <i class="ph-bold ph-cloud-arrow-up"></i>
-          <span>Drop files here</span>
+          <span>Add your data</span>
           <span class="eo-drop-formats">CSV, JSON, Excel</span>
         </div>
 
-        <!-- Imports Section -->
+        <!-- YOUR DATA Section (formerly Imports) -->
         <div class="eo-section">
           <div class="eo-section-header" data-section="imports">
             <i class="ph-bold ${this.expandedSections.has('imports') ? 'ph-caret-down' : 'ph-caret-right'}"></i>
-            <i class="ph-bold ph-folder-open"></i>
-            <span>Imports</span>
+            <i class="ph-bold ph-database"></i>
+            <span>Your Data</span>
             <span class="eo-count">${imports.length}</span>
           </div>
           ${this.expandedSections.has('imports') ? `
             <div class="eo-section-content">
               ${imports.length === 0 ? `
-                <div class="eo-empty">No imports yet</div>
-              ` : imports.map(imp => this.renderImportItem(imp)).join('')}
+                <div class="eo-empty">
+                  <i class="ph-bold ph-cloud-arrow-up" style="font-size: 24px; opacity: 0.5;"></i>
+                  <span>Drop files above to add data</span>
+                </div>
+              ` : imports.map(imp => this.renderImportItem(imp, sets)).join('')}
             </div>
           ` : ''}
         </div>
 
-        <!-- Sets Section -->
+        <!-- WORKSPACES Section (formerly Sets) -->
         <div class="eo-section">
           <div class="eo-section-header" data-section="sets">
             <i class="ph-bold ${this.expandedSections.has('sets') ? 'ph-caret-down' : 'ph-caret-right'}"></i>
             <i class="ph-bold ph-squares-four"></i>
-            <span>Sets</span>
+            <span>Workspaces</span>
             <span class="eo-count">${sets.length}</span>
-            <button class="eo-add-btn" data-action="add-set" title="Create Set">
+            <button class="eo-add-btn" data-action="add-set" title="Create Workspace">
               <i class="ph-bold ph-plus"></i>
             </button>
           </div>
           ${this.expandedSections.has('sets') ? `
             <div class="eo-section-content eo-droppable" data-drop-target="sets">
               ${sets.length === 0 ? `
-                <div class="eo-empty">No sets yet</div>
+                <div class="eo-empty">
+                  <span>No workspaces yet</span>
+                  <span class="eo-empty-hint">Drag data files here to create one</span>
+                </div>
               ` : sets.map(set => this.renderSetItem(set, imports)).join('')}
             </div>
           ` : ''}
         </div>
 
-        <!-- Views Section -->
-        <div class="eo-section">
-          <div class="eo-section-header" data-section="views">
-            <i class="ph-bold ${this.expandedSections.has('views') ? 'ph-caret-down' : 'ph-caret-right'}"></i>
-            <i class="ph-bold ph-eye"></i>
-            <span>Views</span>
-            <span class="eo-count">${views.length}</span>
-          </div>
-          ${this.expandedSections.has('views') ? `
-            <div class="eo-section-content">
-              ${views.length === 0 ? `
-                <div class="eo-empty">No views yet</div>
-              ` : views.map(view => this.renderViewItem(view)).join('')}
+        <!-- Views Section (only if there are views) -->
+        ${views.length > 0 ? `
+          <div class="eo-section">
+            <div class="eo-section-header" data-section="views">
+              <i class="ph-bold ${this.expandedSections.has('views') ? 'ph-caret-down' : 'ph-caret-right'}"></i>
+              <i class="ph-bold ph-eye"></i>
+              <span>Views</span>
+              <span class="eo-count">${views.length}</span>
             </div>
-          ` : ''}
-        </div>
+            ${this.expandedSections.has('views') ? `
+              <div class="eo-section-content">
+                ${views.map(view => this.renderViewItem(view)).join('')}
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
 
         <!-- Detected Relationships -->
         ${this.renderRelationshipsSection(imports)}
@@ -129,16 +139,26 @@ class EOFileExplorer {
   }
 
   /**
-   * Render a single import item
+   * Render a single import item (data file)
    */
-  renderImportItem(imp) {
+  renderImportItem(imp, sets = []) {
     const isSelected = this.selectedItem?.type === 'import' && this.selectedItem?.id === imp.id;
     const formatIcon = this.getFormatIcon(imp.source.format);
     const timeAgo = this.getTimeAgo(imp.createdAt);
-    const usedCount = imp.usedIn.length;
+    const usedCount = imp.usedIn ? imp.usedIn.length : 0;
+    const isUnused = usedCount === 0;
+
+    // Find workspace names this import is used in
+    const usedInWorkspaces = (imp.usedIn || []).map(usage => {
+      if (usage.type === 'set') {
+        const set = sets.find(s => s.id === usage.id);
+        return set ? set.name : 'Unknown workspace';
+      }
+      return null;
+    }).filter(Boolean);
 
     return `
-      <div class="eo-item eo-import-item ${isSelected ? 'eo-selected' : ''}"
+      <div class="eo-item eo-import-item ${isSelected ? 'eo-selected' : ''} ${isUnused ? 'eo-unused' : ''}"
            data-type="import"
            data-id="${imp.id}"
            draggable="true">
@@ -152,10 +172,20 @@ class EOFileExplorer {
             <span class="eo-dot">·</span>
             <span>${timeAgo}</span>
           </div>
+          ${usedInWorkspaces.length > 0 ? `
+            <div class="eo-item-usage">
+              <i class="ph ph-arrow-bend-down-right"></i>
+              <span>Used in: ${usedInWorkspaces.slice(0, 2).map(n => this.truncate(n, 15)).join(', ')}${usedInWorkspaces.length > 2 ? ` +${usedInWorkspaces.length - 2}` : ''}</span>
+            </div>
+          ` : `
+            <div class="eo-item-usage eo-unused-hint">
+              <i class="ph ph-info"></i>
+              <span>Not used yet - drag to a workspace</span>
+            </div>
+          `}
         </div>
         <div class="eo-item-badges">
-          ${usedCount > 0 ? `<span class="eo-badge" title="Used in ${usedCount} place(s)">${usedCount}</span>` : ''}
-          ${imp.schema.foreignKeyHints.length > 0 ? `<span class="eo-badge eo-badge-link" title="Has relationships"><i class="ph-bold ph-link"></i></span>` : ''}
+          ${imp.schema && imp.schema.foreignKeyHints && imp.schema.foreignKeyHints.length > 0 ? `<span class="eo-badge eo-badge-link" title="Has relationships"><i class="ph-bold ph-link"></i></span>` : ''}
         </div>
         <div class="eo-item-actions">
           <button class="eo-action-btn" data-action="preview" data-id="${imp.id}" title="Preview">
@@ -170,16 +200,19 @@ class EOFileExplorer {
   }
 
   /**
-   * Render a single set item with its import sources
+   * Render a single workspace item with its data sources
    */
   renderSetItem(set, allImports) {
     const isSelected = this.selectedItem?.type === 'set' && this.selectedItem?.id === set.id;
     const recordCount = set.records ? set.records.size : 0;
 
-    // Find imports that feed into this set
+    // Find imports (data files) that feed into this workspace
     const sourceImports = allImports.filter(imp =>
-      imp.usedIn.some(u => u.type === 'set' && u.id === set.id)
+      imp.usedIn && imp.usedIn.some(u => u.type === 'set' && u.id === set.id)
     );
+
+    // Get source file names for display
+    const sourceNames = sourceImports.map(imp => this.truncate(imp.name, 12));
 
     return `
       <div class="eo-item eo-set-item ${isSelected ? 'eo-selected' : ''} eo-droppable"
@@ -193,11 +226,18 @@ class EOFileExplorer {
           <div class="eo-item-name" title="${set.name}">${this.truncate(set.name, 24)}</div>
           <div class="eo-item-meta">
             <span>${recordCount} records</span>
-            ${sourceImports.length > 0 ? `
-              <span class="eo-dot">·</span>
-              <span>${sourceImports.length} source${sourceImports.length > 1 ? 's' : ''}</span>
-            ` : ''}
           </div>
+          ${sourceImports.length > 0 ? `
+            <div class="eo-item-sources-list">
+              <i class="ph ph-files"></i>
+              <span>Sources: ${sourceNames.slice(0, 2).join(', ')}${sourceNames.length > 2 ? ` +${sourceNames.length - 2}` : ''}</span>
+            </div>
+          ` : `
+            <div class="eo-item-sources-list eo-no-sources">
+              <i class="ph ph-plus-circle"></i>
+              <span>Drop data files here</span>
+            </div>
+          `}
         </div>
         ${sourceImports.length > 0 ? `
           <div class="eo-item-sources">
@@ -763,13 +803,13 @@ class EOFileExplorer {
 
         <div class="eo-modal-footer">
           <div class="eo-footer-info">
-            ${imp.usedIn.length > 0 ? `Used in ${imp.usedIn.length} set(s)` : 'Not used yet'}
+            ${imp.usedIn.length > 0 ? `Used in ${imp.usedIn.length} workspace(s)` : 'Not used yet'}
           </div>
           <div class="eo-footer-actions">
             <button class="eo-btn eo-btn-secondary" onclick="this.closest('.eo-modal-overlay').remove()">Close</button>
             <button class="eo-btn eo-btn-primary" data-action="add-to-set" data-import-id="${imp.id}">
               <i class="ph-bold ph-plus"></i>
-              Add to Set
+              Use in Workspace
             </button>
           </div>
         </div>
@@ -814,7 +854,7 @@ class EOFileExplorer {
     modal.innerHTML = `
       <div class="eo-add-to-set-modal">
         <div class="eo-modal-header">
-          <div class="eo-modal-title">Add "${imp.name}" to Set</div>
+          <div class="eo-modal-title">Use "${imp.name}" in Workspace</div>
           <button class="eo-modal-close" onclick="this.closest('.eo-modal-overlay').remove()">
             <i class="ph-bold ph-x"></i>
           </button>
@@ -823,16 +863,16 @@ class EOFileExplorer {
           <div class="eo-option-group">
             <label class="eo-option">
               <input type="radio" name="target" value="new" checked>
-              <span>Create new set</span>
+              <span>Create new workspace</span>
             </label>
-            <input type="text" class="eo-input" id="newSetName" value="${imp.fileMetadata.filenameAnalysis.baseName}" placeholder="Set name">
+            <input type="text" class="eo-input" id="newSetName" value="${imp.fileMetadata.filenameAnalysis.baseName}" placeholder="Workspace name">
           </div>
 
           ${sets.length > 0 ? `
             <div class="eo-option-group">
               <label class="eo-option">
                 <input type="radio" name="target" value="existing">
-                <span>Add to existing set</span>
+                <span>Add to existing workspace</span>
               </label>
               <select class="eo-select" id="existingSetId" disabled>
                 ${sets.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
@@ -870,12 +910,12 @@ class EOFileExplorer {
 
       // Validate inputs before closing modal
       if (isNew && !setName?.trim()) {
-        alert('Please enter a name for the new set');
+        alert('Please enter a name for the new workspace');
         return;
       }
 
       if (!isNew && !setId) {
-        alert('Please select an existing set');
+        alert('Please select an existing workspace');
         return;
       }
 
