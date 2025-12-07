@@ -1,0 +1,693 @@
+/**
+ * EO Link Column Modal Styles
+ * Styles for creating link columns with semantic relationship types
+ */
+
+/* Modal Overlay */
+.eo-link-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Modal Container */
+.eo-link-modal {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 640px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Header */
+.eo-link-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.eo-link-modal-header .modal-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+}
+
+.eo-link-modal-header .modal-subtitle {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 4px 0 0 0;
+}
+
+.eo-link-modal-header .modal-subtitle strong {
+    color: #374151;
+}
+
+/* Body */
+.eo-link-modal-body {
+    padding: 20px 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Steps */
+.link-step {
+    margin-bottom: 24px;
+    transition: opacity 0.2s;
+}
+
+.link-step.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.step-number {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #4f46e5;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.step-title {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: #111827;
+}
+
+.step-description {
+    font-size: 0.8125rem;
+    color: #6b7280;
+    margin: 0 0 12px 34px;
+}
+
+/* Set Selector */
+.sets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.set-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.set-option:hover {
+    border-color: #a5b4fc;
+    background: #f5f3ff;
+}
+
+.set-option.selected {
+    border-color: #4f46e5;
+    background: #eef2ff;
+}
+
+.set-option .set-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    background: #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+}
+
+.set-option.selected .set-icon {
+    background: #4f46e5;
+    color: white;
+}
+
+.set-option .set-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.set-option .set-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.set-option .set-meta {
+    font-size: 0.75rem;
+    color: #9ca3af;
+}
+
+.set-option .set-check {
+    color: #4f46e5;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.set-option .set-check.visible {
+    opacity: 1;
+}
+
+.empty-sets {
+    text-align: center;
+    padding: 24px;
+    color: #6b7280;
+}
+
+.empty-sets .hint {
+    font-size: 0.8125rem;
+    color: #9ca3af;
+}
+
+/* Relationship Selector */
+.relationship-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.preset-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.8125rem;
+}
+
+.preset-btn:hover {
+    border-color: #a5b4fc;
+    background: #f5f3ff;
+}
+
+.preset-btn.selected {
+    border-color: #4f46e5;
+    background: #eef2ff;
+    color: #4f46e5;
+}
+
+.preset-btn .preset-icon {
+    font-size: 1rem;
+}
+
+.preset-btn .preset-verb {
+    font-weight: 500;
+}
+
+/* Custom Relationship Input */
+.custom-relationship {
+    margin-top: 16px;
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+
+.custom-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6b7280;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.custom-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.custom-input-group .input-prefix,
+.custom-input-group .input-suffix {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.custom-input-group .eo-input {
+    flex: 1;
+    min-width: 120px;
+    max-width: 200px;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+.custom-input-group .eo-input:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* Cardinality Options */
+.cardinality-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.cardinality-option {
+    padding: 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+}
+
+.cardinality-option:hover {
+    border-color: #a5b4fc;
+    background: #f5f3ff;
+}
+
+.cardinality-option.selected {
+    border-color: #4f46e5;
+    background: #eef2ff;
+}
+
+.cardinality-icon {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #4f46e5;
+    margin-bottom: 4px;
+}
+
+.cardinality-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #111827;
+}
+
+.cardinality-desc {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+/* Field Name Input */
+.field-name-input {
+    margin-left: 34px;
+}
+
+.field-name-input .eo-input {
+    width: 100%;
+    max-width: 300px;
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9375rem;
+}
+
+.field-name-input .eo-input:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* Relationship Preview */
+.relationship-preview {
+    margin: 24px 0;
+    padding: 16px;
+    background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+    border-radius: 8px;
+    border: 1px solid #c7d2fe;
+}
+
+.relationship-preview.hidden {
+    display: none;
+}
+
+.preview-content .preview-title {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #4f46e5;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+}
+
+.preview-statement {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 1rem;
+}
+
+.preview-set {
+    padding: 4px 10px;
+    background: white;
+    border-radius: 4px;
+    font-weight: 500;
+    color: #111827;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.preview-verb {
+    color: #4f46e5;
+    font-weight: 600;
+}
+
+.preview-example {
+    margin-top: 12px;
+    font-size: 0.8125rem;
+    color: #4b5563;
+}
+
+.preview-example .example-label {
+    font-weight: 500;
+    margin-right: 4px;
+}
+
+/* Inverse Option */
+.inverse-option {
+    margin-top: 16px;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px dashed #d1d5db;
+}
+
+.inverse-option.hidden {
+    display: none;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-top: 2px;
+    width: 16px;
+    height: 16px;
+    accent-color: #4f46e5;
+}
+
+.checkbox-text {
+    font-size: 0.875rem;
+    color: #374151;
+}
+
+.checkbox-text strong {
+    color: #111827;
+}
+
+.inverse-details {
+    margin-top: 12px;
+    margin-left: 26px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.inverse-details label {
+    font-size: 0.8125rem;
+    color: #6b7280;
+}
+
+.inverse-details .eo-input.small {
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    width: 160px;
+}
+
+/* Footer */
+.eo-link-modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.eo-link-modal-footer .btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.eo-link-modal-footer .btn-secondary {
+    background: white;
+    border: 1px solid #d1d5db;
+    color: #374151;
+}
+
+.eo-link-modal-footer .btn-secondary:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+.eo-link-modal-footer .btn-primary {
+    background: #4f46e5;
+    border: 1px solid #4f46e5;
+    color: white;
+}
+
+.eo-link-modal-footer .btn-primary:hover:not(:disabled) {
+    background: #4338ca;
+}
+
+.eo-link-modal-footer .btn-primary:disabled {
+    background: #9ca3af;
+    border-color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* Close button */
+.eo-link-modal .eo-modal-close {
+    background: none;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.eo-link-modal .eo-modal-close:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .eo-link-modal {
+        background: #1f2937;
+    }
+
+    .eo-link-modal-header {
+        border-color: #374151;
+    }
+
+    .eo-link-modal-header .modal-title {
+        color: #f9fafb;
+    }
+
+    .eo-link-modal-header .modal-subtitle {
+        color: #9ca3af;
+    }
+
+    .step-title {
+        color: #f9fafb;
+    }
+
+    .step-description {
+        color: #9ca3af;
+    }
+
+    .set-option {
+        border-color: #374151;
+        background: #111827;
+    }
+
+    .set-option:hover {
+        border-color: #6366f1;
+        background: #1e1b4b;
+    }
+
+    .set-option.selected {
+        border-color: #6366f1;
+        background: #1e1b4b;
+    }
+
+    .set-option .set-icon {
+        background: #374151;
+        color: #9ca3af;
+    }
+
+    .set-option .set-name {
+        color: #f9fafb;
+    }
+
+    .preset-btn {
+        border-color: #374151;
+        background: #111827;
+        color: #d1d5db;
+    }
+
+    .preset-btn:hover {
+        border-color: #6366f1;
+        background: #1e1b4b;
+    }
+
+    .preset-btn.selected {
+        border-color: #6366f1;
+        background: #1e1b4b;
+        color: #a5b4fc;
+    }
+
+    .custom-relationship {
+        background: #111827;
+    }
+
+    .custom-input-group .eo-input {
+        background: #1f2937;
+        border-color: #374151;
+        color: #f9fafb;
+    }
+
+    .cardinality-option {
+        border-color: #374151;
+        background: #111827;
+    }
+
+    .cardinality-option:hover,
+    .cardinality-option.selected {
+        border-color: #6366f1;
+        background: #1e1b4b;
+    }
+
+    .cardinality-label {
+        color: #f9fafb;
+    }
+
+    .field-name-input .eo-input {
+        background: #1f2937;
+        border-color: #374151;
+        color: #f9fafb;
+    }
+
+    .relationship-preview {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+        border-color: #4f46e5;
+    }
+
+    .preview-set {
+        background: #1f2937;
+        color: #f9fafb;
+    }
+
+    .inverse-option {
+        background: #111827;
+        border-color: #374151;
+    }
+
+    .checkbox-text {
+        color: #d1d5db;
+    }
+
+    .eo-link-modal-footer {
+        border-color: #374151;
+    }
+
+    .eo-link-modal-footer .btn-secondary {
+        background: #374151;
+        border-color: #4b5563;
+        color: #d1d5db;
+    }
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+    .eo-link-modal {
+        width: 100%;
+        max-width: none;
+        max-height: 100%;
+        border-radius: 0;
+    }
+
+    .sets-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cardinality-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .relationship-presets {
+        gap: 6px;
+    }
+
+    .preset-btn {
+        padding: 6px 10px;
+        font-size: 0.75rem;
+    }
+}
