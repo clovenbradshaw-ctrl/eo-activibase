@@ -820,6 +820,183 @@
 }
 
 /* ============================================================================
+   DATA REAPPEARANCE INDICATOR
+   ============================================================================ */
+
+/* Keyframe animation for row reappearance - emerges from ghost state */
+@keyframes dataReappear {
+    0% {
+        opacity: 0;
+        background-color: rgba(34, 197, 94, 0.4);
+        transform: translateY(-4px);
+        box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
+    }
+    20% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    40% {
+        background-color: rgba(34, 197, 94, 0.3);
+        box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+    }
+    100% {
+        background-color: transparent;
+        box-shadow: none;
+    }
+}
+
+/* Keyframe animation for cell reappearance - glowing pulse */
+@keyframes cellReappear {
+    0% {
+        background-color: rgba(34, 197, 94, 0.5);
+        box-shadow: inset 0 0 8px rgba(34, 197, 94, 0.6);
+    }
+    25% {
+        background-color: rgba(34, 197, 94, 0.35);
+        box-shadow: inset 0 0 6px rgba(34, 197, 94, 0.4);
+    }
+    50% {
+        background-color: rgba(34, 197, 94, 0.25);
+        box-shadow: inset 0 0 4px rgba(34, 197, 94, 0.3);
+    }
+    100% {
+        background-color: transparent;
+        box-shadow: none;
+    }
+}
+
+/* Keyframe for the indicator badge */
+@keyframes reappearBadgePulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.15);
+        opacity: 0.85;
+    }
+}
+
+/* Recently restored row - full row highlight */
+.restored-row {
+    animation: dataReappear 3s ease-out forwards;
+    position: relative;
+}
+
+/* Recently restored row indicator badge */
+.restored-row::before {
+    content: '↩';
+    position: absolute;
+    left: -24px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4);
+    animation: reappearBadgePulse 1s ease-in-out 3;
+    z-index: 10;
+}
+
+/* Recently restored cell - individual cell highlight */
+.restored-cell {
+    animation: cellReappear 3s ease-out forwards;
+    position: relative;
+}
+
+/* Restored cell corner indicator */
+.restored-cell::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 12px 12px 0;
+    border-color: transparent #22c55e transparent transparent;
+    animation: reappearBadgePulse 1s ease-in-out 3;
+}
+
+/* Restored row number cell - special styling */
+.restored-row .row-number-cell {
+    background: linear-gradient(90deg, rgba(34, 197, 94, 0.2) 0%, transparent 100%);
+}
+
+/* Restore indicator badge (for table header/toolbar) */
+.restore-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border: 1px solid #86efac;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #166534;
+    animation: reappearBadgePulse 1s ease-in-out infinite;
+}
+
+.restore-indicator .icon {
+    font-size: 14px;
+}
+
+/* Toast notification for restoration */
+.toast-notification.restore-toast {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    border: none;
+}
+
+/* Subtle glow effect on hover for restored rows */
+.restored-row:hover {
+    background-color: rgba(34, 197, 94, 0.1) !important;
+}
+
+/* Restoration banner - appears when multiple items are restored */
+.restoration-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border-bottom: 1px solid #86efac;
+    animation: bannerSlideDown 0.3s ease-out;
+}
+
+.restoration-banner.fade-out {
+    animation: bannerFadeOut 0.3s ease-out forwards;
+}
+
+@keyframes bannerSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes bannerFadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+/* ============================================================================
    DARK MODE
    ============================================================================ */
 
@@ -928,5 +1105,69 @@
 
     .option-label {
         color: #f3f4f6;
+    }
+
+    /* Dark mode: Data reappearance indicator */
+    .restored-row {
+        animation: dataReappearDark 3s ease-out forwards;
+    }
+
+    .restored-row::before {
+        background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    }
+
+    .restored-cell {
+        animation: cellReappearDark 3s ease-out forwards;
+    }
+
+    .restored-cell::after {
+        border-color: transparent #16a34a transparent transparent;
+    }
+
+    .restore-indicator {
+        background: linear-gradient(135deg, #14532d 0%, #166534 100%);
+        border-color: #22c55e;
+        color: #86efac;
+    }
+}
+
+/* Dark mode keyframes for reappearance */
+@keyframes dataReappearDark {
+    0% {
+        opacity: 0;
+        background-color: rgba(34, 197, 94, 0.35);
+        transform: translateY(-4px);
+        box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+    }
+    20% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    40% {
+        background-color: rgba(34, 197, 94, 0.25);
+        box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+    }
+    100% {
+        background-color: transparent;
+        box-shadow: none;
+    }
+}
+
+@keyframes cellReappearDark {
+    0% {
+        background-color: rgba(34, 197, 94, 0.4);
+        box-shadow: inset 0 0 8px rgba(34, 197, 94, 0.5);
+    }
+    25% {
+        background-color: rgba(34, 197, 94, 0.3);
+        box-shadow: inset 0 0 6px rgba(34, 197, 94, 0.35);
+    }
+    50% {
+        background-color: rgba(34, 197, 94, 0.2);
+        box-shadow: inset 0 0 4px rgba(34, 197, 94, 0.25);
+    }
+    100% {
+        background-color: transparent;
+        box-shadow: none;
     }
 }
