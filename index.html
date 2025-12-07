@@ -5120,11 +5120,22 @@
                     </div>
                     <div class="world-nav-children" style="padding: 0 1rem;">
                         <div class="nav-item" id="navDashboard" onclick="navigateTo('dashboard')">Dashboard</div>
-                        <div class="nav-item" id="navEntities" onclick="navigateTo('entities')">Entities</div>
-                        <div class="nav-item" id="navRelations" onclick="navigateTo('relations')">Relations</div>
-                        <div class="nav-item" id="navDefinitions" onclick="navigateTo('definitions')">Definitions</div>
-                        <div class="nav-item" id="navViews" onclick="navigateTo('views')">Views</div>
+                        <div class="nav-item" id="navRawInput" onclick="navigateTo('rawInput')"><i class="ph ph-upload-simple" style="margin-right: 6px; opacity: 0.7;"></i>Raw Input</div>
                         <div class="nav-item" id="navSandbox" onclick="navigateTo('sandbox')"><i class="ph ph-flask" style="margin-right: 6px; opacity: 0.7;"></i>Sandbox</div>
+                        <div class="nav-item" id="navOutputReady" onclick="navigateTo('outputReady')"><i class="ph ph-check-circle" style="margin-right: 6px; opacity: 0.7;"></i>Output Ready</div>
+                        <!-- World Data (Entities/Relations/Definitions) - Hidden but accessible -->
+                        <div class="nav-subsection" style="margin-top: 0.5rem;">
+                            <div class="nav-item nav-subsection-toggle" onclick="toggleNavSection('worldData')" style="font-size: 0.75rem; opacity: 0.7; display: flex; align-items: center; justify-content: space-between;">
+                                <span><i class="ph ph-database" style="margin-right: 6px;"></i>World Data</span>
+                                <i id="worldDataSectionChevron" class="ph ph-caret-right" style="font-size: 10px;"></i>
+                            </div>
+                            <div id="worldDataNavContent" style="display: none; padding-left: 0.5rem;">
+                                <div class="nav-item" id="navEntities" onclick="navigateTo('entities')">Entities</div>
+                                <div class="nav-item" id="navRelations" onclick="navigateTo('relations')">Relations</div>
+                                <div class="nav-item" id="navDefinitions" onclick="navigateTo('definitions')">Definitions</div>
+                                <div class="nav-item" id="navViews" onclick="navigateTo('views')">Views</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -14238,7 +14249,7 @@
 
         function initializeNavSections() {
             // Initialize all nav sections based on the collapsedNavSections state
-            const sections = ['world', 'explore', 'dataImports', 'actions', 'sets'];
+            const sections = ['world', 'explore', 'dataImports', 'actions', 'sets', 'worldData'];
             sections.forEach(sectionName => {
                 const contentId = sectionName + 'NavContent';
                 const chevronId = sectionName + 'SectionChevron';
@@ -14881,12 +14892,14 @@
             // Update active states for nav items
             const navItems = {
                 'navDashboard': state.currentSpecialView === 'dashboard',
+                'navRawInput': state.currentSpecialView === 'rawInput',
+                'navSandbox': state.currentSpecialView === 'sandbox',
+                'navOutputReady': state.currentSpecialView === 'outputReady',
                 'navEntities': state.currentSpecialView === 'entities',
                 'navRelations': state.currentSpecialView === 'relations',
                 'navDefinitions': state.currentSpecialView === 'definitions',
                 'navViews': state.currentSpecialView === 'views',
                 'navExplore': state.currentSpecialView === 'explore',
-                'navSandbox': state.currentSpecialView === 'sandbox',
                 'navSuggestedViews': state.currentSpecialView === 'suggestedViews',
                 'navSuggestedConcepts': state.currentSpecialView === 'suggestedConcepts'
             };
@@ -14911,71 +14924,128 @@
             if (setsForWorld.length === 0) {
                 setsContainer.innerHTML = '<div style="color: #9ca3af; font-size: 0.875rem; padding: 0.5rem 0;">No sets yet</div>';
             } else {
-                setsForWorld.forEach(set => {
-                    const isExpanded = state.expandedSets.has(set.id);
-                    const hasViews = set.views && set.views.size > 0;
+                // Filter out nested sets (they'll be shown under their parent)
+                const topLevelSets = setsForWorld.filter(set => !set.parentSetId);
 
-                    // Create set header with chevron
-                    const setHeader = document.createElement('div');
-                    setHeader.className = 'nav-item';
-                    setHeader.style.display = 'flex';
-                    setHeader.style.alignItems = 'center';
-                    setHeader.style.justifyContent = 'space-between';
-
-                    const setLabel = document.createElement('span');
-                    setLabel.textContent = set.name;
-                    setLabel.style.flex = '1';
-
-                    const chevron = document.createElement('i');
-                    chevron.className = `ph ${isExpanded ? 'ph-caret-down' : 'ph-caret-right'}`;
-                    chevron.style.fontSize = '12px';
-                    chevron.style.opacity = '0.7';
-                    chevron.style.transition = 'transform 0.15s';
-
-                    if (set.id === state.currentSetId && !state.currentSpecialView && !state.currentViewId) {
-                        setHeader.classList.add('active');
-                    }
-
-                    setHeader.appendChild(setLabel);
-                    if (hasViews) {
-                        setHeader.appendChild(chevron);
-                    }
-
-                    setHeader.onclick = (e) => {
-                        e.stopPropagation();
-                        // Save any pending cell edits before navigating
-                        if (state.editingCell) {
-                            exitEditMode(true);
-                        }
-                        // Open the set in a tab (will use first view if available)
-                        switchSet(set.id, null);
-                    };
-
-                    setHeader.oncontextmenu = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        showSetContextMenu(e, set.id);
-                    };
-
-                    setsContainer.appendChild(setHeader);
-
-                    // Render views under this set if expanded
-                    if (isExpanded && hasViews) {
-                        const viewsContainer = document.createElement('div');
-                        viewsContainer.style.paddingLeft = '0.5rem';
-                        viewsContainer.style.marginTop = '0.25rem';
-                        viewsContainer.style.marginBottom = '0.5rem';
-
-                        const orderedViews = Array.from(set.views.entries())
-                            .sort(([, a], [, b]) => (a.order || 0) - (b.order || 0));
-
-                        renderViewTree(orderedViews, set.id, viewsContainer);
-                        setsContainer.appendChild(viewsContainer);
-                    }
+                topLevelSets.forEach(set => {
+                    renderSetInSidebar(set, setsContainer, 0);
                 });
             }
 
             renderViewTabs();
+        }
+
+        function renderSetInSidebar(set, container, depth = 0) {
+            const isExpanded = state.expandedSets.has(set.id);
+            const hasViews = set.views && set.views.size > 0;
+            const isOutputReady = set.status === 'output';
+            const hasChildren = set.childSetIds && set.childSetIds.length > 0;
+
+            // Create set header with chevron
+            const setHeader = document.createElement('div');
+            setHeader.className = `nav-item ${isOutputReady ? 'set-output-ready' : 'set-sandbox'}`;
+            setHeader.style.display = 'flex';
+            setHeader.style.alignItems = 'center';
+            setHeader.style.justifyContent = 'space-between';
+            if (depth > 0) {
+                setHeader.style.paddingLeft = `${depth * 12 + 8}px`;
+                setHeader.style.fontSize = '0.8rem';
+            }
+
+            const labelWrapper = document.createElement('span');
+            labelWrapper.style.display = 'flex';
+            labelWrapper.style.alignItems = 'center';
+            labelWrapper.style.gap = '4px';
+            labelWrapper.style.flex = '1';
+            labelWrapper.style.overflow = 'hidden';
+
+            // Add folder icon for container sets
+            if (set.origin === 'container' || hasChildren) {
+                const folderIcon = document.createElement('i');
+                folderIcon.className = 'ph ph-folder';
+                folderIcon.style.opacity = '0.7';
+                folderIcon.style.fontSize = '12px';
+                labelWrapper.appendChild(folderIcon);
+            }
+
+            const setLabel = document.createElement('span');
+            setLabel.textContent = set.name;
+            setLabel.style.overflow = 'hidden';
+            setLabel.style.textOverflow = 'ellipsis';
+            setLabel.style.whiteSpace = 'nowrap';
+            labelWrapper.appendChild(setLabel);
+
+            const chevron = document.createElement('i');
+            chevron.className = `ph ${isExpanded ? 'ph-caret-down' : 'ph-caret-right'}`;
+            chevron.style.fontSize = '12px';
+            chevron.style.opacity = '0.7';
+            chevron.style.transition = 'transform 0.15s';
+            chevron.style.flexShrink = '0';
+
+            if (set.id === state.currentSetId && !state.currentSpecialView && !state.currentViewId) {
+                setHeader.classList.add('active');
+            }
+
+            setHeader.appendChild(labelWrapper);
+            if (hasViews || hasChildren) {
+                setHeader.appendChild(chevron);
+            }
+
+            setHeader.onclick = (e) => {
+                e.stopPropagation();
+                // Save any pending cell edits before navigating
+                if (state.editingCell) {
+                    exitEditMode(true);
+                }
+                // Toggle expand/collapse for sets with children or views
+                if (hasViews || hasChildren) {
+                    if (state.expandedSets.has(set.id)) {
+                        state.expandedSets.delete(set.id);
+                    } else {
+                        state.expandedSets.add(set.id);
+                    }
+                    renderSidebar();
+                }
+                // Open the set in a tab (will use first view if available)
+                switchSet(set.id, null);
+            };
+
+            setHeader.oncontextmenu = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                showSetContextMenu(e, set.id);
+            };
+
+            container.appendChild(setHeader);
+
+            // Render children and views under this set if expanded
+            if (isExpanded) {
+                const childContainer = document.createElement('div');
+                childContainer.style.marginTop = '0.25rem';
+                childContainer.style.marginBottom = '0.5rem';
+
+                // Render child sets first (for container/nested sets)
+                if (hasChildren) {
+                    set.childSetIds.forEach(childId => {
+                        const childSet = state.sets.get(childId);
+                        if (childSet) {
+                            renderSetInSidebar(childSet, childContainer, depth + 1);
+                        }
+                    });
+                }
+
+                // Render views
+                if (hasViews) {
+                    const orderedViews = Array.from(set.views.entries())
+                        .sort(([, a], [, b]) => (a.order || 0) - (b.order || 0));
+
+                    renderViewTree(orderedViews, set.id, childContainer, null, depth);
+                }
+
+                if (childContainer.children.length > 0) {
+                    container.appendChild(childContainer);
+                }
+            }
         }
 
         function renderViewTree(orderedViews, setId, container, parentId = null, depth = 0) {
@@ -15339,12 +15409,15 @@
         // Icons and labels for special view tabs
         const SPECIAL_VIEW_CONFIG = {
             dashboard: { icon: 'ph-house', label: 'Dashboard' },
+            rawInput: { icon: 'ph-upload-simple', label: 'Raw Input' },
+            sandbox: { icon: 'ph-flask', label: 'Sandbox' },
+            outputReady: { icon: 'ph-check-circle', label: 'Output Ready' },
+            // Hidden under World Data submenu
             entities: { icon: 'ph-cube', label: 'Entities' },
             relations: { icon: 'ph-tree-structure', label: 'Relations' },
             definitions: { icon: 'ph-book-open', label: 'Definitions' },
             views: { icon: 'ph-layout', label: 'Views' },
-            explore: { icon: 'ph-compass', label: 'Explore' },
-            sandbox: { icon: 'ph-flask', label: 'Sandbox' }
+            explore: { icon: 'ph-compass', label: 'Explore' }
         };
 
         function ensureOpenTab(setId, viewId) {
@@ -17341,6 +17414,18 @@
 
             if (state.currentSpecialView === 'sandbox') {
                 renderSandboxPage();
+                updateMobileChrome();
+                return;
+            }
+
+            if (state.currentSpecialView === 'rawInput') {
+                renderRawInputPage();
+                updateMobileChrome();
+                return;
+            }
+
+            if (state.currentSpecialView === 'outputReady') {
+                renderOutputReadyPage();
                 updateMobileChrome();
                 return;
             }
@@ -21845,6 +21930,21 @@
                 };
             });
 
+            // Attach set promote/demote handlers
+            document.querySelectorAll('[data-sandbox-set-promote]').forEach(btn => {
+                btn.onclick = () => {
+                    const setId = btn.dataset.sandboxSetPromote;
+                    promoteSetToOutput(setId);
+                };
+            });
+
+            document.querySelectorAll('[data-sandbox-set-demote]').forEach(btn => {
+                btn.onclick = () => {
+                    const setId = btn.dataset.sandboxSetDemote;
+                    demoteSetToSandbox(setId);
+                };
+            });
+
             // Attach view action handlers
             document.querySelectorAll('[data-sandbox-view-open]').forEach(btn => {
                 btn.onclick = () => {
@@ -21983,51 +22083,68 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Set</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Status</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Records</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Views</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Origin</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Fields</th>
                                 <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             ${sets.map(set => {
                                 const origin = set.origin || 'manual';
-                                const originIcon = origin === 'import' ? 'ph-upload-simple' : origin === 'derived' ? 'ph-git-branch' : 'ph-pencil-simple';
-                                const fieldCount = set.schema?.length || 0;
+                                const originIcon = origin === 'import' ? 'ph-upload-simple' : origin === 'derived' ? 'ph-git-branch' : origin === 'container' ? 'ph-folder' : 'ph-pencil-simple';
+                                const isOutputReady = set.status === 'output';
+                                const statusClass = isOutputReady ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+                                const statusLabel = isOutputReady ? 'Output Ready' : 'Sandbox';
+                                const statusIcon = isOutputReady ? 'ph-check-circle' : 'ph-flask';
 
-                                return `
-                                    <tr class="hover:bg-gray-50 transition-colors cursor-pointer" data-set-row="${set.id}">
+                                return \`
+                                    <tr class="hover:bg-gray-50 transition-colors cursor-pointer" data-set-row="\${set.id}">
                                         <td class="px-4 py-3">
                                             <div class="flex items-center gap-2">
-                                                <span class="text-gray-400">${renderIcon(set.icon || 'ph-squares-four')}</span>
-                                                <span class="font-medium text-gray-900">${escapeHtml(set.name || 'Untitled')}</span>
+                                                <span class="text-gray-400">\${renderIcon(set.icon || 'ph-squares-four')}</span>
+                                                <span class="font-medium text-gray-900">\${escapeHtml(set.name || 'Untitled')}</span>
+                                                \${set.parentSetId ? '<span class="set-nested-indicator"><i class="ph ph-arrow-bend-down-right"></i></span>' : ''}
                                             </div>
                                         </td>
-                                        <td class="px-4 py-3 text-gray-600">${set.recordCount.toLocaleString()}</td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium \${statusClass}">
+                                                <i class="ph \${statusIcon}"></i> \${statusLabel}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-600">\${set.recordCount.toLocaleString()}</td>
                                         <td class="px-4 py-3">
                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
-                                                ${set.viewCount} view${set.viewCount !== 1 ? 's' : ''}
+                                                \${set.viewCount} view\${set.viewCount !== 1 ? 's' : ''}
                                             </span>
                                         </td>
                                         <td class="px-4 py-3">
                                             <span class="inline-flex items-center gap-1 text-xs text-gray-500">
-                                                <i class="ph ${originIcon}"></i> ${origin}
+                                                <i class="ph \${originIcon}"></i> \${origin}
                                             </span>
                                         </td>
-                                        <td class="px-4 py-3 text-gray-600">${fieldCount}</td>
                                         <td class="px-4 py-3 text-right">
                                             <div class="flex items-center justify-end gap-1">
-                                                <button class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" data-set-open="${set.id}" title="Open set">
+                                                \${!isOutputReady ? \`
+                                                    <button class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" data-sandbox-set-promote="\${set.id}" title="Promote to Output Ready">
+                                                        <i class="ph ph-arrow-fat-up text-sm"></i>
+                                                    </button>
+                                                \` : \`
+                                                    <button class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" data-sandbox-set-demote="\${set.id}" title="Demote to Sandbox">
+                                                        <i class="ph ph-arrow-fat-down text-sm"></i>
+                                                    </button>
+                                                \`}
+                                                <button class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" data-set-open="\${set.id}" title="Open set">
                                                     <i class="ph ph-arrow-square-out text-sm"></i>
                                                 </button>
-                                                <button class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors" data-set-edit="${set.id}" title="Edit set">
+                                                <button class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors" data-set-edit="\${set.id}" title="Edit set">
                                                     <i class="ph ph-pencil-simple text-sm"></i>
                                                 </button>
                                             </div>
                                         </td>
                                     </tr>
-                                `;
+                                \`;
                             }).join('')}
                         </tbody>
                     </table>
@@ -22121,6 +22238,619 @@
                     </table>
                 </div>
             `;
+        }
+
+        // =====================================================
+        // RAW INPUT PAGE - For managing imports/raw data
+        // =====================================================
+        function renderRawInputPage() {
+            const container = document.getElementById('viewContainer');
+            if (!container) return;
+
+            // Collect all imports
+            const allImports = [];
+            if (state.imports && state.imports.size > 0) {
+                state.imports.forEach((imp, impId) => {
+                    allImports.push({ ...imp, id: impId });
+                });
+            }
+
+            container.innerHTML = `
+                <div class="view-stage-header">
+                    <div class="view-stage-title">
+                        <span class="view-stage-pill"><i class="ph ph-upload-simple"></i> ${getWorld()?.name || 'World'}</span>
+                        <div class="min-w-0">
+                            <div class="view-stage-name">Raw Input</div>
+                            <div class="view-stage-sub">Import and manage raw data files</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="view-stage-body space-y-6">
+                    <!-- Import Drop Zone -->
+                    <div class="raw-input-drop-zone" id="rawInputDropZone" onclick="triggerFileImport()">
+                        <i class="ph ph-cloud-arrow-up" style="font-size: 48px; opacity: 0.6;"></i>
+                        <p style="font-size: 1rem; font-weight: 500; margin-top: 12px;">Drop files here or click to import</p>
+                        <p style="font-size: 0.875rem; opacity: 0.7;">Supports CSV, JSON, and Excel files</p>
+                    </div>
+
+                    <!-- Imports List -->
+                    <div class="sandbox-section">
+                        <div class="sandbox-section-header">
+                            <h3><i class="ph ph-files"></i> Imported Files (${allImports.length})</h3>
+                        </div>
+                        ${renderRawInputImportsTable(allImports)}
+                    </div>
+                </div>
+            `;
+
+            // Set up drop zone
+            const dropZone = document.getElementById('rawInputDropZone');
+            if (dropZone) {
+                dropZone.ondragover = (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add('dragover');
+                };
+                dropZone.ondragleave = () => {
+                    dropZone.classList.remove('dragover');
+                };
+                dropZone.ondrop = (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('dragover');
+                    handleFileDrop(e);
+                };
+            }
+
+            // Attach import action handlers
+            document.querySelectorAll('[data-raw-import-create-set]').forEach(btn => {
+                btn.onclick = () => {
+                    const importId = btn.dataset.rawImportCreateSet;
+                    createSetFromImport(importId);
+                };
+            });
+
+            document.querySelectorAll('[data-raw-import-delete]').forEach(btn => {
+                btn.onclick = () => {
+                    const importId = btn.dataset.rawImportDelete;
+                    if (confirm('Are you sure you want to delete this import?')) {
+                        state.imports?.delete(importId);
+                        renderRawInputPage();
+                        showToast('Import deleted');
+                    }
+                };
+            });
+        }
+
+        function renderRawInputImportsTable(imports) {
+            if (!imports.length) {
+                return `
+                    <div class="sandbox-empty-state">
+                        <i class="ph ph-upload-simple"></i>
+                        <p>No imports yet</p>
+                        <p class="text-xs">Import CSV, JSON, or Excel files to get started</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="overflow-auto border border-gray-200 rounded-lg bg-white">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">File</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Format</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Rows</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Columns</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Imported</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            ${imports.map(imp => {
+                                const format = imp.source?.format || imp.format || 'unknown';
+                                const formatIcon = format === 'csv' ? 'ph-file-csv' : format === 'json' ? 'ph-file-code' : 'ph-file-xls';
+                                const rows = imp.rowCount || imp.rows?.length || 0;
+                                const cols = imp.columnCount || imp.headers?.length || 0;
+                                const importedAt = imp.source?.importedAt
+                                    ? new Date(imp.source.importedAt).toLocaleDateString()
+                                    : '—';
+
+                                return \`
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-2">
+                                                <i class="ph \${formatIcon} text-gray-400"></i>
+                                                <span class="font-medium text-gray-900">\${escapeHtml(imp.name || 'Untitled')}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 uppercase">
+                                                \${format}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-600">\${rows.toLocaleString()}</td>
+                                        <td class="px-4 py-3 text-gray-600">\${cols}</td>
+                                        <td class="px-4 py-3 text-gray-500 text-xs">\${importedAt}</td>
+                                        <td class="px-4 py-3 text-right">
+                                            <div class="flex items-center justify-end gap-1">
+                                                <button class="btn btn-sm btn-primary" data-raw-import-create-set="\${imp.id}" title="Create Set from Import">
+                                                    <i class="ph ph-arrow-right"></i> Create Set
+                                                </button>
+                                                <button class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" data-raw-import-delete="\${imp.id}" title="Delete import">
+                                                    <i class="ph ph-trash text-sm"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                \`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function createSetFromImport(importId) {
+            const imp = state.imports?.get(importId);
+            if (!imp) {
+                showToast('Import not found');
+                return;
+            }
+            // Create a new set from the import data
+            const setName = imp.name || 'Imported Set';
+            const setId = crypto.randomUUID();
+
+            // Create set with sandbox status
+            state.sets.set(setId, {
+                id: setId,
+                name: setName,
+                worldId: state.currentWorldId,
+                icon: 'ph-squares-four',
+                origin: 'import',
+                sourceImportId: importId,
+                status: 'sandbox', // Sets start in sandbox
+                parentSetId: null, // For nesting
+                records: new Map(),
+                views: new Map(),
+                schema: imp.headers?.map(h => ({ name: h, type: 'text' })) || []
+            });
+
+            // Import records into the set
+            if (imp.rows) {
+                imp.rows.forEach((row, idx) => {
+                    const recordId = crypto.randomUUID();
+                    const recordData = {};
+                    (imp.headers || []).forEach((header, i) => {
+                        recordData[header] = row[i] || row[header] || '';
+                    });
+                    state.sets.get(setId).records.set(recordId, {
+                        id: recordId,
+                        data: recordData,
+                        createdAt: new Date().toISOString()
+                    });
+                });
+            }
+
+            // Create default grid view
+            const viewId = crypto.randomUUID();
+            state.sets.get(setId).views.set(viewId, {
+                id: viewId,
+                name: 'Table View',
+                type: 'grid',
+                icon: 'ph-table',
+                viewMode: 'sandbox',
+                columns: imp.headers?.map(h => ({ field: h, visible: true })) || []
+            });
+
+            // Mark import as used
+            imp.usedIn = imp.usedIn || [];
+            imp.usedIn.push(setId);
+
+            showToast(`Created set "${setName}" in Sandbox`);
+            renderSidebar();
+            navigateTo('sandbox');
+        }
+
+        // =====================================================
+        // OUTPUT READY PAGE - For promoted/production-ready sets
+        // =====================================================
+        function renderOutputReadyPage() {
+            const container = document.getElementById('viewContainer');
+            if (!container) return;
+
+            const setsForWorld = getSetsForWorld();
+
+            // Filter to only output-ready sets
+            const outputReadySets = setsForWorld.filter(set => set.status === 'output');
+            const sandboxSets = setsForWorld.filter(set => set.status !== 'output');
+
+            container.innerHTML = `
+                <div class="view-stage-header">
+                    <div class="view-stage-title">
+                        <span class="view-stage-pill" style="background: #10b981;"><i class="ph ph-check-circle"></i> ${getWorld()?.name || 'World'}</span>
+                        <div class="min-w-0">
+                            <div class="view-stage-name">Output Ready</div>
+                            <div class="view-stage-sub">Production-ready sets for export and integration</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="view-stage-body space-y-6">
+                    <!-- Output Ready Sets -->
+                    <div class="sandbox-section">
+                        <div class="sandbox-section-header">
+                            <h3><i class="ph ph-check-circle" style="color: #10b981;"></i> Output Ready Sets (${outputReadySets.length})</h3>
+                        </div>
+                        ${renderOutputReadySetsTable(outputReadySets)}
+                    </div>
+
+                    <!-- Sandbox Sets Available for Promotion -->
+                    ${sandboxSets.length > 0 ? `
+                    <div class="sandbox-section" style="opacity: 0.8;">
+                        <div class="sandbox-section-header">
+                            <h3><i class="ph ph-flask"></i> Available in Sandbox (${sandboxSets.length})</h3>
+                            <span class="text-xs text-gray-500">Promote sets to make them output-ready</span>
+                        </div>
+                        ${renderPromotableSetsTable(sandboxSets)}
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+
+            // Attach event handlers for output ready actions
+            document.querySelectorAll('[data-output-set-open]').forEach(btn => {
+                btn.onclick = () => {
+                    const setId = btn.dataset.outputSetOpen;
+                    const set = state.sets.get(setId);
+                    if (set && set.views && set.views.size > 0) {
+                        const firstViewId = Array.from(set.views.keys())[0];
+                        switchSet(setId, firstViewId);
+                    }
+                };
+            });
+
+            document.querySelectorAll('[data-output-set-demote]').forEach(btn => {
+                btn.onclick = () => {
+                    const setId = btn.dataset.outputSetDemote;
+                    demoteSetToSandbox(setId);
+                };
+            });
+
+            document.querySelectorAll('[data-promote-set]').forEach(btn => {
+                btn.onclick = () => {
+                    const setId = btn.dataset.promoteSet;
+                    promoteSetToOutput(setId);
+                };
+            });
+        }
+
+        function renderOutputReadySetsTable(sets) {
+            if (!sets.length) {
+                return `
+                    <div class="sandbox-empty-state">
+                        <i class="ph ph-check-circle" style="color: #10b981;"></i>
+                        <p>No output-ready sets yet</p>
+                        <p class="text-xs">Promote sets from Sandbox to make them available for output</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="overflow-auto border border-gray-200 rounded-lg bg-white">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Set</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Records</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Views</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Dependencies</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            ${sets.map(set => {
+                                const viewCount = set.views ? set.views.size : 0;
+                                const recordCount = set.records ? set.records.size : 0;
+                                const deps = getSetDependencies(set.id);
+
+                                return \`
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-green-500">\${renderIcon(set.icon || 'ph-squares-four')}</span>
+                                                <span class="font-medium text-gray-900">\${escapeHtml(set.name || 'Untitled')}</span>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                                                    <i class="ph ph-check-circle" style="margin-right: 2px;"></i> Ready
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-600">\${recordCount.toLocaleString()}</td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                                                \${viewCount} view\${viewCount !== 1 ? 's' : ''}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            \${deps.length > 0
+                                                ? \`<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700">\${deps.length} dep\${deps.length !== 1 ? 's' : ''}</span>\`
+                                                : '<span class="text-gray-400">None</span>'
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3 text-right">
+                                            <div class="flex items-center justify-end gap-1">
+                                                <button class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" data-output-set-open="\${set.id}" title="Open set">
+                                                    <i class="ph ph-arrow-square-out text-sm"></i>
+                                                </button>
+                                                <button class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" data-output-set-demote="\${set.id}" title="Demote to Sandbox">
+                                                    <i class="ph ph-arrow-fat-down text-sm"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                \`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderPromotableSetsTable(sets) {
+            return `
+                <div class="overflow-auto border border-gray-200 rounded-lg bg-white" style="opacity: 0.9;">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Set</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Records</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Dependencies</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            ${sets.map(set => {
+                                const recordCount = set.records ? set.records.size : 0;
+                                const deps = getSetDependencies(set.id);
+                                const unpromotedDeps = deps.filter(depId => {
+                                    const depSet = state.sets.get(depId);
+                                    return depSet && depSet.status !== 'output';
+                                });
+
+                                return \`
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-gray-400">\${renderIcon(set.icon || 'ph-squares-four')}</span>
+                                                <span class="font-medium text-gray-700">\${escapeHtml(set.name || 'Untitled')}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-600">\${recordCount.toLocaleString()}</td>
+                                        <td class="px-4 py-3">
+                                            \${unpromotedDeps.length > 0
+                                                ? \`<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700" title="Has unpromoted dependencies">
+                                                    <i class="ph ph-warning" style="margin-right: 2px;"></i> \${unpromotedDeps.length} unpromoted
+                                                   </span>\`
+                                                : deps.length > 0
+                                                    ? \`<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700">\${deps.length} ready</span>\`
+                                                    : '<span class="text-gray-400">None</span>'
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3 text-right">
+                                            <button class="btn btn-sm btn-secondary" data-promote-set="\${set.id}" title="Promote to Output">
+                                                <i class="ph ph-arrow-fat-up"></i> Promote
+                                            </button>
+                                        </td>
+                                    </tr>
+                                \`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // =====================================================
+        // SET STATUS & DEPENDENCY MANAGEMENT
+        // =====================================================
+
+        // Get all sets that this set depends on (e.g., linked sets, derived data sources)
+        function getSetDependencies(setId) {
+            const set = state.sets.get(setId);
+            if (!set) return [];
+
+            const deps = new Set();
+
+            // Check for linked sets in schema
+            if (set.schema) {
+                set.schema.forEach(field => {
+                    if (field.type === 'link' && field.linkedSetId) {
+                        deps.add(field.linkedSetId);
+                    }
+                });
+            }
+
+            // Check for parent set (nesting)
+            if (set.parentSetId) {
+                deps.add(set.parentSetId);
+            }
+
+            // Check views for derived sources
+            if (set.views) {
+                set.views.forEach(view => {
+                    if (view.sourceSetId && view.sourceSetId !== setId) {
+                        deps.add(view.sourceSetId);
+                    }
+                    if (view.linkedSetId) {
+                        deps.add(view.linkedSetId);
+                    }
+                });
+            }
+
+            return Array.from(deps).filter(id => id !== setId);
+        }
+
+        // Promote a set to output-ready status
+        function promoteSetToOutput(setId) {
+            const set = state.sets.get(setId);
+            if (!set) {
+                showToast('Set not found');
+                return;
+            }
+
+            const deps = getSetDependencies(setId);
+            const unpromotedDeps = deps.filter(depId => {
+                const depSet = state.sets.get(depId);
+                return depSet && depSet.status !== 'output';
+            });
+
+            if (unpromotedDeps.length > 0) {
+                // Show modal to handle unpromoted dependencies
+                showDependencyPromotionModal(setId, unpromotedDeps);
+            } else {
+                // No blocking dependencies, promote directly
+                set.status = 'output';
+                showToast(`"${set.name}" promoted to Output Ready`);
+                renderOutputReadyPage();
+                renderSidebar();
+            }
+        }
+
+        // Demote a set back to sandbox
+        function demoteSetToSandbox(setId) {
+            const set = state.sets.get(setId);
+            if (!set) {
+                showToast('Set not found');
+                return;
+            }
+
+            // Check if any output-ready sets depend on this one
+            const dependentSets = [];
+            state.sets.forEach((otherSet, otherId) => {
+                if (otherId !== setId && otherSet.status === 'output') {
+                    const deps = getSetDependencies(otherId);
+                    if (deps.includes(setId)) {
+                        dependentSets.push(otherSet);
+                    }
+                }
+            });
+
+            if (dependentSets.length > 0) {
+                const names = dependentSets.map(s => s.name).join(', ');
+                if (!confirm(`The following output-ready sets depend on "${set.name}":\n\n${names}\n\nDemoting will also demote these sets. Continue?`)) {
+                    return;
+                }
+                // Demote dependent sets too
+                dependentSets.forEach(depSet => {
+                    depSet.status = 'sandbox';
+                });
+            }
+
+            set.status = 'sandbox';
+            showToast(`"${set.name}" demoted to Sandbox`);
+            renderOutputReadyPage();
+            renderSidebar();
+        }
+
+        // Show modal for handling dependency promotion
+        function showDependencyPromotionModal(setId, unpromotedDeps) {
+            const set = state.sets.get(setId);
+            const depSets = unpromotedDeps.map(id => state.sets.get(id)).filter(Boolean);
+
+            const modalHtml = `
+                <div class="modal-overlay active" id="dependencyPromotionModal" onclick="if(event.target === this) closeDependencyPromotionModal()">
+                    <div class="modal" style="max-width: 500px;">
+                        <div class="modal-header">
+                            <h3><i class="ph ph-warning" style="color: #f59e0b;"></i> Unpromoted Dependencies</h3>
+                            <button class="modal-close" onclick="closeDependencyPromotionModal()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <p style="margin-bottom: 1rem;">
+                                <strong>"${escapeHtml(set.name)}"</strong> depends on sets that aren't in Output Ready yet:
+                            </p>
+                            <ul style="margin-bottom: 1rem; padding-left: 1.5rem;">
+                                ${depSets.map(dep => `<li>${escapeHtml(dep.name)}</li>`).join('')}
+                            </ul>
+                            <p style="margin-bottom: 1rem;">How would you like to proceed?</p>
+                        </div>
+                        <div class="modal-footer" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn btn-primary" onclick="promoteWithDependencies('${setId}', ${JSON.stringify(unpromotedDeps).replace(/"/g, '&quot;')})">
+                                <i class="ph ph-checks"></i> Promote All Together
+                            </button>
+                            <button class="btn btn-secondary" onclick="nestAndPromote('${setId}', ${JSON.stringify(unpromotedDeps).replace(/"/g, '&quot;')})">
+                                <i class="ph ph-folders"></i> Nest in Container Set
+                            </button>
+                            <button class="btn btn-secondary" onclick="closeDependencyPromotionModal()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        function closeDependencyPromotionModal() {
+            const modal = document.getElementById('dependencyPromotionModal');
+            if (modal) modal.remove();
+        }
+
+        // Promote a set along with all its dependencies
+        function promoteWithDependencies(setId, depIds) {
+            closeDependencyPromotionModal();
+
+            const set = state.sets.get(setId);
+            if (!set) return;
+
+            // Promote all dependencies first
+            depIds.forEach(depId => {
+                const depSet = state.sets.get(depId);
+                if (depSet) {
+                    depSet.status = 'output';
+                }
+            });
+
+            // Then promote the main set
+            set.status = 'output';
+
+            showToast(`Promoted "${set.name}" and ${depIds.length} dependencies to Output Ready`);
+            renderOutputReadyPage();
+            renderSidebar();
+        }
+
+        // Create a container set, nest all sets inside it, and promote
+        function nestAndPromote(setId, depIds) {
+            closeDependencyPromotionModal();
+
+            const set = state.sets.get(setId);
+            if (!set) return;
+
+            // Create container set
+            const containerId = crypto.randomUUID();
+            const containerName = `${set.name} Bundle`;
+
+            state.sets.set(containerId, {
+                id: containerId,
+                name: containerName,
+                worldId: state.currentWorldId,
+                icon: 'ph-folder',
+                origin: 'container',
+                status: 'output',
+                parentSetId: null,
+                childSetIds: [setId, ...depIds],
+                records: new Map(),
+                views: new Map(),
+                schema: []
+            });
+
+            // Update all sets to be children of the container
+            [setId, ...depIds].forEach(id => {
+                const s = state.sets.get(id);
+                if (s) {
+                    s.parentSetId = containerId;
+                    s.status = 'output';
+                }
+            });
+
+            showToast(`Created container "${containerName}" and promoted all sets`);
+            renderOutputReadyPage();
+            renderSidebar();
         }
 
         function openImportView(importId) {
