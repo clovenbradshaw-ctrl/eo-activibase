@@ -5699,9 +5699,9 @@
                                         <div id="keySearchResults" class="key-search-dropdown hidden"></div>
                                     </div>
                                     <select id="keyCandidateSelect" disabled>
-                                        <option value="">Scanning for identity properties…</option>
+                                        <option value="">Scanning for fields…</option>
                                     </select>
-                                    <p class="form-hint">Search above or select a detected key.</p>
+                                    <p class="form-hint">Select a field to pivot around, or search for a specific value.</p>
                                 </div>
                             </div>
                         </label>
@@ -10613,6 +10613,47 @@
             return [...candidates.values()].sort((a, b) => b.score - a.score);
         }
 
+        function getAllFieldsForPivot() {
+            const fields = [];
+            const seen = new Set();
+            const recommendedKeys = new Set(findKeyCandidates().map(c => `${c.setId}:${c.fieldId}`));
+
+            getSetsForWorld().forEach(set => {
+                if (!set || !set.schema) return;
+                const setId = set.id;
+                const setName = set.name || 'Untitled Set';
+
+                set.schema.forEach(field => {
+                    if (!field || !field.id) return;
+                    const key = `${setId}:${field.id}`;
+                    if (seen.has(key)) return;
+                    seen.add(key);
+
+                    const isRecommended = recommendedKeys.has(key);
+                    const { score } = scoreFieldAsKey(set, field);
+
+                    fields.push({
+                        setId,
+                        setName,
+                        fieldId: field.id,
+                        fieldName: field.name || field.id,
+                        fieldType: field.type,
+                        score,
+                        isRecommended
+                    });
+                });
+            });
+
+            // Sort: recommended first, then by score, then alphabetically
+            fields.sort((a, b) => {
+                if (a.isRecommended !== b.isRecommended) return b.isRecommended ? 1 : -1;
+                if (Math.abs(a.score - b.score) > 0.1) return b.score - a.score;
+                return a.fieldName.localeCompare(b.fieldName);
+            });
+
+            return fields;
+        }
+
         function findFieldAcrossSets(fieldId) {
             for (const set of getSetsForWorld()) {
                 const setId = set.id;
@@ -13356,19 +13397,42 @@
                     radioKey.checked = false;
                 }
 
-                // Find key candidates asynchronously to avoid blocking UI
+                // Find all fields for pivot asynchronously to avoid blocking UI
                 setTimeout(() => {
-                    const candidates = findKeyCandidates();
+                    const allFields = getAllFieldsForPivot();
                     if (keySelect) {
-                        keySelect.disabled = candidates.length === 0;
-                        keySelect.innerHTML = candidates.length === 0
-                            ? '<option value="">No auto-detected keys (use search above)</option>'
-                            : candidates.map(c => `<option value="${c.setId}:${c.fieldId}">${c.fieldName} (${state.sets.get(c.setId)?.name || 'Set'})</option>`).join('');
+                        keySelect.disabled = allFields.length === 0;
+                        if (allFields.length === 0) {
+                            keySelect.innerHTML = '<option value="">No fields available</option>';
+                        } else {
+                            const recommended = allFields.filter(f => f.isRecommended);
+                            const others = allFields.filter(f => !f.isRecommended);
+
+                            let html = '<option value="">Select a field to pivot on...</option>';
+
+                            if (recommended.length > 0) {
+                                html += '<optgroup label="Recommended">';
+                                html += recommended.map(f =>
+                                    `<option value="${f.setId}:${f.fieldId}">${f.fieldName} (${f.setName})</option>`
+                                ).join('');
+                                html += '</optgroup>';
+                            }
+
+                            if (others.length > 0) {
+                                html += '<optgroup label="All Fields">';
+                                html += others.map(f =>
+                                    `<option value="${f.setId}:${f.fieldId}">${f.fieldName} (${f.setName})</option>`
+                                ).join('');
+                                html += '</optgroup>';
+                            }
+
+                            keySelect.innerHTML = html;
+                        }
 
                         // Re-check if key mode is selected and update disabled state
                         const selectedMode = document.querySelector('input[name="viewCreationMode"]:checked')?.value;
                         if (selectedMode === 'key') {
-                            keySelect.disabled = candidates.length === 0;
+                            keySelect.disabled = allFields.length === 0;
                         }
                     }
                 }, 0);
