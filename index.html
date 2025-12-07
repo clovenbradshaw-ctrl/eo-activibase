@@ -6795,7 +6795,8 @@
             csvImportState: { headers: [], rows: [], mappings: {}, previewRows: [], matches: [], targetMode: 'new', targetSetId: null, newSetName: '' },
             jsonImportState: { keys: [], rows: [], mappings: {}, previewRows: [], matches: [], targetMode: 'new', targetSetId: null, newSetName: '', filename: '' },
             fuzzyPanelState: { threshold: 0.65, matches: [] },
-            fieldTypeHistory: new Map()
+            fieldTypeHistory: new Map(),
+            connectionTypeUsage: new Map() // Track usage counts for operator+verb combos
         };
 
         // Make state globally accessible for external modules
@@ -8118,6 +8119,143 @@
             return null;
         }
 
+        // Connection type usage tracking
+        function getConnectionTypeKey(operator, verb) {
+            return `${operator}::${verb}`;
+        }
+
+        function trackConnectionTypeUsage(operator, verb) {
+            if (!operator || !verb) return;
+            const key = getConnectionTypeKey(operator, verb);
+            const current = state.connectionTypeUsage.get(key) || { count: 0, lastUsed: null };
+            state.connectionTypeUsage.set(key, {
+                count: current.count + 1,
+                lastUsed: Date.now(),
+                operator,
+                verb
+            });
+            // Persist to localStorage
+            try {
+                const usageData = {};
+                state.connectionTypeUsage.forEach((val, k) => { usageData[k] = val; });
+                localStorage.setItem('eo_connection_type_usage', JSON.stringify(usageData));
+            } catch (e) { /* ignore storage errors */ }
+        }
+
+        function loadConnectionTypeUsage() {
+            try {
+                const stored = localStorage.getItem('eo_connection_type_usage');
+                if (stored) {
+                    const usageData = JSON.parse(stored);
+                    Object.entries(usageData).forEach(([key, val]) => {
+                        state.connectionTypeUsage.set(key, val);
+                    });
+                }
+            } catch (e) { /* ignore storage errors */ }
+        }
+
+        function getConnectionTypeUsageCount(operator, verb) {
+            const key = getConnectionTypeKey(operator, verb);
+            return state.connectionTypeUsage.get(key)?.count || 0;
+        }
+
+        // Get connection types sorted by priority: CON first, then by usage
+        function getSortedConnectionTypes() {
+            const operators = state.connectionModes?.operators || {};
+            const operatorCodes = Object.keys(state.connectionModes || {}).filter(k => k !== 'operators' && k !== 'meta');
+
+            // Define base priority - CON is most likely, then common relationship operators
+            const operatorPriority = {
+                'CON': 0,  // Connect - most common
+                'SEG': 1,  // Segment - part-of relationships
+                'INS': 2,  // Instantiate - creates/produces
+                'DES': 3,  // Designate - labels/names
+                'ALT': 4,  // Alternate - either/or
+                'SYN': 5,  // Synthesize - combines
+                'SUP': 6,  // Superpose - overlays
+                'REC': 7,  // Recurse - references self
+                'NUL': 8   // Null - absence
+            };
+
+            // Collect all verb+operator combinations
+            const allTypes = [];
+            operatorCodes.forEach(op => {
+                const verbs = state.connectionModes[op] || [];
+                const opInfo = operators[op] || {};
+                verbs.forEach(verb => {
+                    const usageCount = getConnectionTypeUsageCount(op, verb);
+                    allTypes.push({
+                        operator: op,
+                        verb,
+                        operatorName: opInfo.name || op,
+                        operatorSymbol: opInfo.symbol || '',
+                        operatorColor: opInfo.style?.color || '#6B7280',
+                        usageCount,
+                        basePriority: operatorPriority[op] ?? 99
+                    });
+                });
+            });
+
+            // Sort: first by usage count (desc), then by base priority (asc), then alphabetically
+            allTypes.sort((a, b) => {
+                // Items with usage always come first
+                if (a.usageCount > 0 && b.usageCount === 0) return -1;
+                if (b.usageCount > 0 && a.usageCount === 0) return 1;
+
+                // Among used items, sort by usage count
+                if (a.usageCount !== b.usageCount) return b.usageCount - a.usageCount;
+
+                // Among unused items, sort by base priority
+                if (a.basePriority !== b.basePriority) return a.basePriority - b.basePriority;
+
+                // Finally, alphabetically by verb
+                return a.verb.localeCompare(b.verb);
+            });
+
+            return allTypes;
+        }
+
+        // Get quick pick connection types (most useful defaults + most used)
+        function getQuickPickConnectionTypes(limit = 6) {
+            const sorted = getSortedConnectionTypes();
+            const quickPicks = [];
+            const seen = new Set();
+
+            // Always include these default quick picks if they exist (CON verbs first - most common)
+            const defaultQuickPicks = [
+                { operator: 'CON', verb: 'depends on' },
+                { operator: 'CON', verb: 'relates to' },
+                { operator: 'CON', verb: 'references' },
+                { operator: 'CON', verb: 'is linked to' },
+                { operator: 'SEG', verb: 'includes' },
+                { operator: 'INS', verb: 'creates' }
+            ];
+
+            // First, add any frequently used types (used 2+ times)
+            sorted.filter(t => t.usageCount >= 2).slice(0, limit).forEach(type => {
+                const key = `${type.operator}::${type.verb}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    quickPicks.push(type);
+                }
+            });
+
+            // Fill remaining slots with defaults
+            for (const def of defaultQuickPicks) {
+                if (quickPicks.length >= limit) break;
+                const key = `${def.operator}::${def.verb}`;
+                if (!seen.has(key)) {
+                    const typeInfo = sorted.find(t => t.operator === def.operator && t.verb === def.verb);
+                    if (typeInfo) {
+                        seen.add(key);
+                        quickPicks.push(typeInfo);
+                    }
+                }
+            }
+
+            return quickPicks;
+        }
+
         function normalizeParamList(params = []) {
             if (params === undefined || params === null) return [];
             if (!Array.isArray(params)) throw new Error('Parameter lists must be arrays');
@@ -8423,6 +8561,7 @@
 
             initializeOperatorRules();
             await loadConnectionModes();
+            loadConnectionTypeUsage(); // Load usage stats from localStorage
             await loadRelationshipTypes();
             createSampleData();
             applyRouteParams();
@@ -25475,11 +25614,6 @@
                 if (selectedOperator) builder.selectedOperator = selectedOperator;
             }
 
-            // Get available verbs based on operator selection
-            const availableVerbs = selectedOperator
-                ? getModesForOperator(selectedOperator)
-                : getAllVerbs().map(v => v.verb);
-
             // Find matching relation ID from operator+verb combo
             const formatOptions = getConnectionRelationView();
             let sidebarRelationId = null;
@@ -25511,27 +25645,36 @@
             const subjectName = getRecordDisplayName(recordId) || 'This record';
             const operatorInfo = selectedOperator ? (operators[selectedOperator] || {}) : null;
 
-            // Build verb options - group by operator when no operator selected
-            let verbOptionsHtml = '<option value="">Select verb</option>';
-            if (selectedOperator) {
-                // Show only verbs for selected operator
-                verbOptionsHtml += availableVerbs.map(verb =>
-                    `<option value="${verb}" ${verb === selectedVerb ? 'selected' : ''}>${verb}</option>`
-                ).join('');
-            } else {
-                // Group verbs by operator
-                operatorCodes.forEach(op => {
+            // Get quick picks and sorted connection types for the unified selector
+            const quickPicks = getQuickPickConnectionTypes(6);
+            const sortedTypes = getSortedConnectionTypes();
+
+            // Build unified connection type options - grouped by operator, sorted by usage
+            let connectionTypeOptionsHtml = '<option value="">Choose how to connect...</option>';
+            // Group types by operator for better organization
+            const typesByOperator = {};
+            sortedTypes.forEach(type => {
+                if (!typesByOperator[type.operator]) {
+                    typesByOperator[type.operator] = [];
+                }
+                typesByOperator[type.operator].push(type);
+            });
+
+            // Add options grouped by operator, with CON first
+            const operatorOrder = ['CON', 'SEG', 'INS', 'DES', 'ALT', 'SYN', 'SUP', 'REC', 'NUL'];
+            operatorOrder.forEach(op => {
+                const types = typesByOperator[op];
+                if (types && types.length > 0) {
                     const opInfo = operators[op] || {};
-                    const verbs = getModesForOperator(op);
-                    if (verbs.length > 0) {
-                        verbOptionsHtml += `<optgroup label="${opInfo.symbol || ''} ${op} - ${opInfo.name || op}">`;
-                        verbOptionsHtml += verbs.map(verb =>
-                            `<option value="${verb}" data-operator="${op}" ${verb === selectedVerb ? 'selected' : ''}>${verb}</option>`
-                        ).join('');
-                        verbOptionsHtml += '</optgroup>';
-                    }
-                });
-            }
+                    connectionTypeOptionsHtml += `<optgroup label="${opInfo.symbol || ''} ${op} - ${opInfo.name || op}">`;
+                    types.forEach(type => {
+                        const isSelected = type.operator === selectedOperator && type.verb === selectedVerb;
+                        const usageLabel = type.usageCount > 0 ? ` (${type.usageCount})` : '';
+                        connectionTypeOptionsHtml += `<option value="${type.operator}::${type.verb}" ${isSelected ? 'selected' : ''} data-operator="${type.operator}" data-verb="${type.verb}">${type.verb}${usageLabel}</option>`;
+                    });
+                    connectionTypeOptionsHtml += '</optgroup>';
+                }
+            });
 
             // Check if we can add the connection
             const canAddConnection = selectedRecordId && selectedOperator && selectedVerb;
@@ -25552,23 +25695,31 @@
                             <div class="font-medium text-gray-900">${subjectName}</div>
                         </div>
 
-                        <!-- Predicate: Operator -->
+                        <!-- Connection Type: Unified selector with quick picks -->
                         <div>
-                            <label class="form-label">Operator</label>
-                            <select id="sidebarOperator" class="border rounded px-3 py-2 text-sm w-full">
-                                <option value="">Select operator</option>
-                                ${operatorCodes.map(op => {
-                                    const opInfo = operators[op] || {};
-                                    return `<option value="${op}" ${op === selectedOperator ? 'selected' : ''}>${opInfo.symbol || ''} ${op} - ${opInfo.name || op}</option>`;
-                                }).join('')}
-                            </select>
-                        </div>
+                            <label class="form-label">Connection type</label>
 
-                        <!-- Predicate: Verb -->
-                        <div>
-                            <label class="form-label">Verb</label>
-                            <select id="sidebarVerb" class="border rounded px-3 py-2 text-sm w-full">
-                                ${verbOptionsHtml}
+                            <!-- Quick picks: most used + defaults -->
+                            <div class="flex flex-wrap gap-1.5 mb-2">
+                                ${quickPicks.map(type => {
+                                    const isSelected = type.operator === selectedOperator && type.verb === selectedVerb;
+                                    return `<button
+                                        type="button"
+                                        class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border transition-colors ${isSelected
+                                            ? 'bg-blue-100 border-blue-300 text-blue-800'
+                                            : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300'}"
+                                        onclick="selectConnectionType('${recordId}', '${type.operator}', '${type.verb}')"
+                                        title="${type.operatorName}: ${type.verb}"
+                                    >
+                                        <span class="font-medium" style="color: ${type.operatorColor}">${type.operatorSymbol}</span>
+                                        <span>${type.verb}</span>
+                                    </button>`;
+                                }).join('')}
+                            </div>
+
+                            <!-- Full selector dropdown -->
+                            <select id="sidebarConnectionType" class="border rounded px-3 py-2 text-sm w-full">
+                                ${connectionTypeOptionsHtml}
                             </select>
                             ${operatorInfo ? `<p class="text-xs text-gray-500 mt-1">${operatorInfo.description || ''}</p>` : ''}
                         </div>
@@ -25641,35 +25792,18 @@
 
             renderConnectionParamFields('sidebarConnectionParams', sidebarRelationId, builder.params || {});
 
-            // Attach operator change handler
-            const operatorSelect = document.getElementById('sidebarOperator');
-            if (operatorSelect) {
-                operatorSelect.onchange = (event) => {
-                    builder.selectedOperator = event.target.value || null;
-                    // Clear verb if it doesn't belong to new operator
-                    if (builder.selectedVerb && builder.selectedOperator) {
-                        const verbsForOp = getModesForOperator(builder.selectedOperator);
-                        if (!verbsForOp.includes(builder.selectedVerb)) {
-                            builder.selectedVerb = null;
-                        }
-                    }
-                    builder.params = {};
-                    renderConnectionsSidebar(container, recordId);
-                };
-            }
-
-            // Attach verb change handler
-            const verbSelect = document.getElementById('sidebarVerb');
-            if (verbSelect) {
-                verbSelect.onchange = (event) => {
-                    const selectedOption = event.target.options[event.target.selectedIndex];
-                    builder.selectedVerb = event.target.value || null;
-                    // If verb selected without operator, derive operator from verb
-                    if (builder.selectedVerb && !builder.selectedOperator) {
-                        const derivedOp = selectedOption.dataset?.operator || getOperatorForVerb(builder.selectedVerb);
-                        if (derivedOp) {
-                            builder.selectedOperator = derivedOp;
-                        }
+            // Attach unified connection type change handler
+            const connectionTypeSelect = document.getElementById('sidebarConnectionType');
+            if (connectionTypeSelect) {
+                connectionTypeSelect.onchange = (event) => {
+                    const value = event.target.value;
+                    if (value && value.includes('::')) {
+                        const [op, verb] = value.split('::');
+                        builder.selectedOperator = op;
+                        builder.selectedVerb = verb;
+                    } else {
+                        builder.selectedOperator = null;
+                        builder.selectedVerb = null;
                     }
                     builder.params = {};
                     renderConnectionsSidebar(container, recordId);
@@ -25692,6 +25826,14 @@
                     }
                 };
             });
+        }
+
+        function selectConnectionType(recordId, operator, verb) {
+            const builder = getConnectionBuilder();
+            builder.selectedOperator = operator;
+            builder.selectedVerb = verb;
+            builder.params = {};
+            renderRecordSidebar(recordId);
         }
 
         function handleConnectionSetChange(recordId, setId) {
@@ -26272,6 +26414,9 @@
                 showToast(error.message);
                 return;
             }
+
+            // Track usage for this connection type (operator + verb)
+            trackConnectionTypeUsage(builder.selectedOperator, builder.selectedVerb);
 
             builder.targetRecordId = '';
             builder.params = {};
