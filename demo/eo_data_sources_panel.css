@@ -243,6 +243,66 @@
 }
 
 /* ============================================
+   Source Card Maturity States
+   ============================================ */
+
+/* Raw/Emanon - tentative, needs attention */
+.eo-dsp-source-card.eo-maturity-raw {
+  border-style: dashed;
+  border-color: var(--gray-300);
+  background: linear-gradient(to right, var(--amber-50) 0%, var(--gray-50) 50%);
+}
+
+.eo-dsp-source-card.eo-maturity-raw:hover {
+  border-color: var(--amber-400);
+  background: var(--amber-50);
+}
+
+.eo-dsp-source-card.eo-maturity-raw .eo-dsp-source-icon {
+  background: var(--amber-100);
+  color: var(--amber-600);
+  border: 1px dashed var(--amber-300);
+}
+
+/* Forming/Protogon - solid, in progress */
+.eo-dsp-source-card.eo-maturity-forming {
+  border-color: var(--blue-200);
+  background: var(--white);
+}
+
+.eo-dsp-source-card.eo-maturity-forming:hover {
+  border-color: var(--blue-400);
+  background: var(--blue-50);
+}
+
+.eo-dsp-source-card.eo-maturity-forming .eo-dsp-source-icon {
+  background: var(--blue-100);
+  color: var(--blue-600);
+}
+
+/* Ready/Holon - confident, complete */
+.eo-dsp-source-card.eo-maturity-ready {
+  border-color: var(--green-300);
+  background: var(--white);
+  box-shadow: 0 1px 3px rgba(34, 197, 94, 0.1);
+}
+
+.eo-dsp-source-card.eo-maturity-ready:hover {
+  border-color: var(--green-400);
+  background: var(--green-50);
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.15);
+}
+
+.eo-dsp-source-card.eo-maturity-ready .eo-dsp-source-icon {
+  background: var(--green-100);
+  color: var(--green-600);
+}
+
+.eo-dsp-source-card.eo-maturity-ready .eo-dsp-source-name {
+  font-weight: 700;
+}
+
+/* ============================================
    Add Data Card
    ============================================ */
 
