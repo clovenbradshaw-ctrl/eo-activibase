@@ -10150,6 +10150,10 @@
                                         Columns
                                     </button>
                                 </div>
+                                <button id="tossPileBtnVisible" class="btn btn-secondary btn-sm toss-pile-toggle" onclick="TossPileUI.togglePanel()" title="Open Toss Pile">
+                                    <i class="ph ph-recycle"></i>
+                                    Toss Pile${getTossPileBadgeHtml()}
+                                </button>
                             </div>
                             ${extraControls ? `<div class="toolbar-group">${extraControls}</div>` : ''}
                         </div>
