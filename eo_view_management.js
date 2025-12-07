@@ -10,6 +10,9 @@
  * - Provenance tracks view derivation (from filters, operations, focus, etc.)
  */
 
+(function(global) {
+'use strict';
+
 // ============================================================================
 // VIEW ENTITY MODEL
 // ============================================================================
@@ -488,22 +491,31 @@ function addFieldToSetViews(state, setId, fieldId) {
 // EXPORTS
 // ============================================================================
 
+// Export to namespace to avoid polluting global scope
+const EOViewManagement = {
+    createViewEntity,
+    createView,
+    updateView,
+    deleteView,
+    cloneView,
+    markViewDirty,
+    createViewFromFocus,
+    reifyTemporaryView,
+    getSetViews,
+    getViewHierarchy,
+    hasUnsavedChanges,
+    migrateViews,
+    focusToName,
+    addFieldToView,
+    addFieldToSetViews
+};
+
+// Export to global namespace
+global.EOViewManagement = EOViewManagement;
+
+// For CommonJS
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        createViewEntity,
-        createView,
-        updateView,
-        deleteView,
-        cloneView,
-        markViewDirty,
-        createViewFromFocus,
-        reifyTemporaryView,
-        getSetViews,
-        getViewHierarchy,
-        hasUnsavedChanges,
-        migrateViews,
-        focusToName,
-        addFieldToView,
-        addFieldToSetViews
-    };
+    module.exports = EOViewManagement;
 }
+
+})(typeof window !== 'undefined' ? window : global);
