@@ -9266,9 +9266,29 @@
         }
 
         function validateConnectionRelationPayload(relation) {
-            const modes = getModesForOperator(relation?.operator);
-            if (!modes.length) throw new Error('Invalid operator');
-            if (!modes.includes(relation?.mode)) throw new Error('Invalid mode for operator');
+            const operator = relation?.operator;
+            const mode = relation?.mode;
+
+            // Validate operator exists
+            if (!operator || typeof operator !== 'string') {
+                throw new Error('Operator is required');
+            }
+
+            // Validate mode exists
+            if (!mode || typeof mode !== 'string') {
+                throw new Error('Mode is required');
+            }
+
+            // Check if connection modes are loaded - if not, allow any valid operator/mode combination
+            const connectionModesLoaded = Object.keys(state.connectionModes || {}).some(k => k !== 'operators' && k !== 'meta');
+
+            if (connectionModesLoaded) {
+                const modes = getModesForOperator(operator);
+                // Only validate against known modes if the operator has defined modes
+                if (modes.length && !modes.includes(mode)) {
+                    console.warn(`Mode "${mode}" not in predefined modes for operator "${operator}". Allowing custom mode.`);
+                }
+            }
 
             const requiredParams = normalizeParamList(relation.requiredParams || []);
             const optionalParams = normalizeParamList(relation.optionalParams || []);
@@ -9620,6 +9640,16 @@
                     if (!Array.isArray(modes)) return;
                     const cleaned = modes.map(mode => typeof mode === 'string' ? mode.trim() : '').filter(Boolean);
                     if (cleaned.length) normalized[op] = cleaned;
+                });
+            }
+
+            // Merge legacyVerbs as fallback for any operators without verbs
+            if (data.legacyVerbs && typeof data.legacyVerbs === 'object') {
+                Object.entries(data.legacyVerbs).forEach(([op, verbs]) => {
+                    if (!normalized[op] && Array.isArray(verbs)) {
+                        const cleaned = verbs.map(mode => typeof mode === 'string' ? mode.trim() : '').filter(Boolean);
+                        if (cleaned.length) normalized[op] = cleaned;
+                    }
                 });
             }
 
