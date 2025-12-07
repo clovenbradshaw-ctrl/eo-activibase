@@ -38,6 +38,7 @@
 
             this.render();
             this.attachEventListeners();
+            this.updateFormatDependentUI();
             this.updatePreview();
         }
 
@@ -96,9 +97,9 @@
                                 </div>
 
                                 <!-- Display Options -->
-                                <div class="settings-section">
+                                <div class="settings-section" id="sectionDisplayOptions">
                                     <h3>Display Options</h3>
-                                    <div class="settings-row">
+                                    <div class="settings-row" id="rowThousandSeparator">
                                         <label class="checkbox-toggle">
                                             <input type="checkbox" id="chkThousandSeparator" ${this.config.thousandSeparator ? 'checked' : ''}>
                                             <span class="toggle-label">Use thousand separator (1,234,567)</span>
@@ -404,14 +405,36 @@
             const prefixSuffixSection = this.modal.querySelector('#sectionPrefixSuffix');
             prefixSuffixSection.style.display = format === 'currency' ? 'none' : 'block';
 
+            // Show/hide thousand separator (hidden for fraction and scientific)
+            const thousandSeparatorRow = this.modal.querySelector('#rowThousandSeparator');
+            if (format === 'fraction' || format === 'scientific') {
+                thousandSeparatorRow.style.display = 'none';
+                this.config.thousandSeparator = false;
+            } else {
+                thousandSeparatorRow.style.display = 'block';
+            }
+
             // Set default decimal places based on format
             const decimalInput = this.modal.querySelector('#numDecimalPlaces');
+            const decrementBtn = this.modal.querySelector('#btnDecrementDecimals');
+            const incrementBtn = this.modal.querySelector('#btnIncrementDecimals');
+
             if (format === 'integer') {
+                // Lock decimal places to 0 for integer format
                 this.config.decimalPlaces = 0;
                 decimalInput.value = 0;
-            } else if (format === 'currency' && this.config.decimalPlaces === 0) {
-                this.config.decimalPlaces = 2;
-                decimalInput.value = 2;
+                decimalInput.disabled = true;
+                decrementBtn.disabled = true;
+                incrementBtn.disabled = true;
+            } else {
+                decimalInput.disabled = false;
+                decrementBtn.disabled = false;
+                incrementBtn.disabled = false;
+
+                if (format === 'currency' && this.config.decimalPlaces === 0) {
+                    this.config.decimalPlaces = 2;
+                    decimalInput.value = 2;
+                }
             }
         }
 
