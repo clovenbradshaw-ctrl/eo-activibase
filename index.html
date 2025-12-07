@@ -2715,6 +2715,7 @@
         #expandedRecordModal .modal-container { height: 90vh; }
         #addFieldModal .modal-container { max-width: 540px; width: 100%; border-radius: 10px; }
         #addFieldModal .modal-container, #addFieldModal .modal-body { overflow: visible; }
+        #changeFieldTypeModal .modal-container, #changeFieldTypeModal .modal-body { overflow: visible; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .modal-header { padding: 24px 24px 16px 24px; border-bottom: 1px solid #f0f0f0; }
@@ -5790,7 +5791,7 @@
     </div>
 
     <div id="changeFieldTypeModal" class="hidden fixed inset-0 bg-black bg-opacity-20 modal-overlay flex items-center justify-center p-6 z-50">
-        <div class="modal-container bg-white w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="modal-container bg-white w-full max-w-xl max-h-[90vh] flex flex-col">
             <div class="modal-header flex items-center justify-between">
                 <div>
                     <h2 class="text-xl font-bold text-gray-900">Change Field Type</h2>
