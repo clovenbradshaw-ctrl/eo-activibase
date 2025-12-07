@@ -87,7 +87,15 @@ function createViewEntity(config) {
 
         // State tracking
         isDirty: false, // tracks unsaved changes
-        isTemporary: config.isTemporary || false // ephemeral views not yet reified
+        isTemporary: config.isTemporary || false, // ephemeral views not yet reified
+
+        // View mode: 'sandbox' for exploratory/temporary views, 'live' for intentional/curated views
+        // Sandbox views: dashed borders, muted colors, quick pivots land here
+        // Live views: solid borders, full colors, export-ready
+        viewMode: config.viewMode || 'live',
+
+        // Pivot metadata: tracks source of pivot views for lineage
+        pivotMetadata: config.pivotMetadata || null
     };
 }
 
