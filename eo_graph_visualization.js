@@ -13,6 +13,87 @@
  * - Operator palette for edge creation
  */
 
+// Quadtree implementation for Barnes-Hut algorithm
+class Quadtree {
+    constructor(x, y, width, height, capacity = 4) {
+        this.boundary = { x, y, width, height };
+        this.capacity = capacity;
+        this.points = [];
+        this.divided = false;
+        this.mass = 0;
+        this.centerOfMass = { x: 0, y: 0 };
+        this.northeast = null;
+        this.northwest = null;
+        this.southeast = null;
+        this.southwest = null;
+    }
+
+    contains(point) {
+        const { x, y, width, height } = this.boundary;
+        return point.x >= x && point.x < x + width &&
+               point.y >= y && point.y < y + height;
+    }
+
+    subdivide() {
+        const { x, y, width, height } = this.boundary;
+        const hw = width / 2;
+        const hh = height / 2;
+        this.northeast = new Quadtree(x + hw, y, hw, hh, this.capacity);
+        this.northwest = new Quadtree(x, y, hw, hh, this.capacity);
+        this.southeast = new Quadtree(x + hw, y + hh, hw, hh, this.capacity);
+        this.southwest = new Quadtree(x, y + hh, hw, hh, this.capacity);
+        this.divided = true;
+    }
+
+    insert(point) {
+        if (!this.contains(point)) return false;
+
+        // Update center of mass
+        const totalMass = this.mass + 1;
+        this.centerOfMass.x = (this.centerOfMass.x * this.mass + point.x) / totalMass;
+        this.centerOfMass.y = (this.centerOfMass.y * this.mass + point.y) / totalMass;
+        this.mass = totalMass;
+
+        if (this.points.length < this.capacity && !this.divided) {
+            this.points.push(point);
+            return true;
+        }
+
+        if (!this.divided) this.subdivide();
+
+        return this.northeast.insert(point) || this.northwest.insert(point) ||
+               this.southeast.insert(point) || this.southwest.insert(point);
+    }
+
+    calculateForce(point, theta = 0.5) {
+        if (this.mass === 0) return { fx: 0, fy: 0 };
+
+        const dx = this.centerOfMass.x - point.x;
+        const dy = this.centerOfMass.y - point.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const size = Math.max(this.boundary.width, this.boundary.height);
+
+        // If node is far enough, use center of mass approximation
+        if (size / dist < theta || !this.divided) {
+            if (dist < 1) return { fx: 0, fy: 0 };
+            const force = -5000 * this.mass / (dist * dist);
+            return { fx: (dx / dist) * force, fy: (dy / dist) * force };
+        }
+
+        // Otherwise, recurse into children
+        let fx = 0, fy = 0;
+        const children = [this.northeast, this.northwest, this.southeast, this.southwest];
+        for (const child of children) {
+            if (child) {
+                const f = child.calculateForce(point, theta);
+                fx += f.fx;
+                fy += f.fy;
+            }
+        }
+        return { fx, fy };
+    }
+}
+
 class EOGraphVisualization {
     constructor(container, graph, options = {}) {
         this.container = typeof container === 'string'
@@ -57,6 +138,10 @@ class EOGraphVisualization {
         // Physics simulation
         this.simulation = null;
         this.animationFrame = null;
+
+        // Throttled mousemove handler
+        this._lastMouseMoveTime = 0;
+        this._mouseMoveThrottleMs = 16; // ~60fps
 
         this._init();
     }
@@ -247,27 +332,24 @@ class EOGraphVisualization {
             }
         });
 
-        // Repulsion between nodes
-        for (let i = 0; i < nodes.length; i++) {
-            for (let j = i + 1; j < nodes.length; j++) {
-                const posA = this.nodePositions.get(nodes[i].id);
-                const posB = this.nodePositions.get(nodes[j].id);
-                if (!posA || !posB) continue;
-
-                const dx = posB.x - posA.x;
-                const dy = posB.y - posA.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const force = 5000 / (dist * dist);
-
-                const fx = (dx / dist) * force;
-                const fy = (dy / dist) * force;
-
-                posA.fx -= fx;
-                posA.fy -= fy;
-                posB.fx += fx;
-                posB.fy += fy;
+        // Build quadtree for Barnes-Hut algorithm - O(n log n) instead of O(n²)
+        const quadtree = new Quadtree(0, 0, this.options.width, this.options.height);
+        nodes.forEach(node => {
+            const pos = this.nodePositions.get(node.id);
+            if (pos) {
+                quadtree.insert({ x: pos.x, y: pos.y, id: node.id });
             }
-        }
+        });
+
+        // Calculate repulsion forces using Barnes-Hut approximation
+        nodes.forEach(node => {
+            const pos = this.nodePositions.get(node.id);
+            if (!pos) return;
+
+            const force = quadtree.calculateForce(pos, 0.5);
+            pos.fx += force.fx;
+            pos.fy += force.fy;
+        });
 
         // Attraction along edges
         edges.forEach(edge => {
@@ -669,6 +751,13 @@ class EOGraphVisualization {
     }
 
     _onMouseMove(e) {
+        // Throttle mousemove to ~60fps for performance
+        const now = performance.now();
+        if (now - this._lastMouseMoveTime < this._mouseMoveThrottleMs) {
+            return;
+        }
+        this._lastMouseMoveTime = now;
+
         const pos = this._getMousePos(e);
 
         if (this.isDragging) {

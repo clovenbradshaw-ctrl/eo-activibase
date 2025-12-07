@@ -11,6 +11,10 @@
 
 class EOProvenanceExtractor {
   constructor() {
+    // Cache for header analysis results
+    this._headerCache = new Map();
+    this._headerCacheMaxSize = 500;
+
     // Detection patterns for various provenance markers
     this.patterns = {
       sourceSystems: [
@@ -247,9 +251,16 @@ class EOProvenanceExtractor {
 
   /**
    * Tier 1D: Analyze CSV headers for semantic markers
+   * Uses caching and early-exit for performance
    */
   analyzeHeaders(headers) {
     if (!headers || !headers.length) return {};
+
+    // Check cache first
+    const cacheKey = headers.join('\x00');
+    if (this._headerCache.has(cacheKey)) {
+      return this._headerCache.get(cacheKey);
+    }
 
     const analysis = {
       totalColumns: headers.length,
@@ -263,41 +274,52 @@ class EOProvenanceExtractor {
     headers.forEach(header => {
       const normalized = header.toLowerCase().trim();
 
-      // Check for external ID columns
-      this.patterns.externalIdPatterns.forEach(pattern => {
+      // Check for external ID columns - early exit on first match per header
+      for (const pattern of this.patterns.externalIdPatterns) {
         if (pattern.pattern.test(normalized)) {
           analysis.externalIds.push({
             column: header,
             system: pattern.system,
             confidence: pattern.confidence
           });
+          break; // Early exit - only one external ID type per column
         }
-      });
+      }
 
-      // Check for timestamp columns
-      this.patterns.timestampPatterns.forEach(pattern => {
+      // Check for timestamp columns - early exit on first match
+      for (const pattern of this.patterns.timestampPatterns) {
         if (pattern.test(normalized)) {
           analysis.timestamps.push(header);
+          break;
         }
-      });
+      }
 
-      // Check for definition columns
-      this.patterns.definitionPatterns.forEach(pattern => {
+      // Check for definition columns - early exit on first match
+      for (const pattern of this.patterns.definitionPatterns) {
         if (pattern.test(normalized)) {
           analysis.definitionColumns.push(header);
+          break;
         }
-      });
+      }
 
-      // Check for jurisdiction markers
-      this.patterns.jurisdictionColumnPatterns.forEach(pattern => {
+      // Check for jurisdiction markers - early exit on first match
+      for (const pattern of this.patterns.jurisdictionColumnPatterns) {
         if (pattern.test(normalized)) {
           analysis.jurisdictionMarkers.push(header);
+          break;
         }
-      });
+      }
     });
 
     // Infer schema standard
     analysis.schemaStandard = this.inferSchemaStandard(headers);
+
+    // Cache result with LRU eviction
+    if (this._headerCache.size >= this._headerCacheMaxSize) {
+      const firstKey = this._headerCache.keys().next().value;
+      this._headerCache.delete(firstKey);
+    }
+    this._headerCache.set(cacheKey, analysis);
 
     return analysis;
   }

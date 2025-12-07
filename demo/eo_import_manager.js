@@ -570,9 +570,11 @@ class EOImportManager {
 
   /**
    * Analyze schema from rows
+   * Uses sampling for large datasets (max 1000 rows) for performance
    */
   analyzeSchema(rows, headers) {
     const columns = {};
+    const MAX_SAMPLE_SIZE = 1000;
 
     headers.forEach(header => {
       columns[header] = {
@@ -594,8 +596,25 @@ class EOImportManager {
       };
     });
 
-    // Analyze each row
-    rows.forEach((row, rowIdx) => {
+    // Sample rows for large datasets
+    let sampleRows = rows;
+    let sampleRatio = 1;
+    if (rows.length > MAX_SAMPLE_SIZE) {
+      // Use stratified sampling: first 100, last 100, and random middle
+      const first100 = rows.slice(0, 100);
+      const last100 = rows.slice(-100);
+      const middleCount = MAX_SAMPLE_SIZE - 200;
+      const middleRows = [];
+      const step = Math.floor((rows.length - 200) / middleCount);
+      for (let i = 100; i < rows.length - 100 && middleRows.length < middleCount; i += step) {
+        middleRows.push(rows[i]);
+      }
+      sampleRows = [...first100, ...middleRows, ...last100];
+      sampleRatio = rows.length / sampleRows.length;
+    }
+
+    // Analyze sampled rows
+    sampleRows.forEach((row, rowIdx) => {
       headers.forEach(header => {
         const value = row[header];
         const col = columns[header];
@@ -660,10 +679,16 @@ class EOImportManager {
       });
     });
 
-    // Determine inferred types
+    // Determine inferred types and adjust for sampling
     const inferredTypes = {};
     headers.forEach(header => {
       const col = columns[header];
+
+      // Scale null count for sampled data
+      if (sampleRatio > 1) {
+        col.nullCount = Math.round(col.nullCount * sampleRatio);
+      }
+
       inferredTypes[header] = this.inferColumnType(col, rows.length);
 
       // Convert unique values set to count
@@ -895,11 +920,16 @@ class EOImportManager {
 
     const completeness = totalCells > 0 ? ((totalCells - nullCells) / totalCells) : 1;
 
-    // Check for duplicate rows
+    // Check for duplicate rows using fast hash-based detection
     const rowHashes = new Set();
     let duplicateCount = 0;
     rows.forEach(row => {
-      const hash = JSON.stringify(row);
+      // Fast hash: combine key values with delimiter for uniqueness check
+      // Avoids expensive JSON.stringify for large datasets
+      const hash = Object.keys(row)
+        .filter(k => k !== '_sourceRow')
+        .map(k => String(row[k] ?? ''))
+        .join('\x00');
       if (rowHashes.has(hash)) {
         duplicateCount++;
       } else {

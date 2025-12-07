@@ -86,7 +86,7 @@
   justify-content: center;
   cursor: pointer;
   color: #4b5563;
-  transition: all 0.2s;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, opacity 0.2s;
 }
 
 .eo-cell-modal-close:hover {
@@ -111,7 +111,7 @@
   color: #6b7280;
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  transition: all 0.2s;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, opacity 0.2s;
   position: relative;
 }
 
@@ -324,7 +324,7 @@
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   overflow: hidden;
-  transition: all 0.2s;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, opacity 0.2s;
 }
 
 .eo-perspective-card:hover {
