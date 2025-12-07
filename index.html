@@ -6271,6 +6271,7 @@
                 <div class="form-group">
                     <label class="form-label">View Name</label>
                     <input type="text" id="newViewName" placeholder="e.g., Active Items">
+                    <p id="newViewNameError" class="form-error hidden">Please enter a view name</p>
                 </div>
                 <div class="form-group">
                     <label class="form-label">View Icon</label>
@@ -31216,6 +31217,11 @@
             document.getElementById('closeExpandedRecordBtn').onclick = () => closeModal('expandedRecordModal');
             bindIconSelector('newSetIcon');
             bindIconSelector('newViewIcon');
+            // Clear view name validation error on input
+            document.getElementById('newViewName').addEventListener('input', () => {
+                document.getElementById('newViewNameError').classList.add('hidden');
+                document.getElementById('newViewName').classList.remove('input-error');
+            });
             document.getElementById('closeIconPickerBtn').onclick = () => closeModal('iconPickerModal');
             document.getElementById('iconPickerSearch').oninput = (event) => {
                 state.iconPickerQuery = event.target.value;
@@ -31380,13 +31386,22 @@
             };
 
             document.getElementById('saveAddViewBtn').onclick = () => {
-                const name = document.getElementById('newViewName').value.trim();
+                const nameInput = document.getElementById('newViewName');
+                const nameError = document.getElementById('newViewNameError');
+                const name = nameInput.value.trim();
                 const icon = extractIconToken(document.getElementById('newViewIcon').value.trim() || 'ph-table');
                 const parentId = document.getElementById('newViewParent').value || null;
                 const creationMode = document.querySelector('input[name="viewCreationMode"]:checked')?.value || 'blank';
                 const viewType = document.querySelector('input[name="newViewType"]:checked')?.value || 'grid';
                 const keyCandidate = document.getElementById('keyCandidateSelect')?.value || '';
-                if (!name) { showConfirm('Please enter a view name', () => {}); return; }
+                if (!name) {
+                    nameError.classList.remove('hidden');
+                    nameInput.classList.add('input-error');
+                    nameInput.focus();
+                    return;
+                }
+                nameError.classList.add('hidden');
+                nameInput.classList.remove('input-error');
                 const set = state.sets.get(state.viewEditorContext?.setId || state.currentSetId);
                 const setId = set?.id;
                 if (!setId) {
