@@ -3844,6 +3844,119 @@
             border: 1px solid #3b82f6;
         }
 
+        /* ============================================================
+           SANDBOX PAGE STYLES - Imports, Sets, Views catalog
+           ============================================================ */
+        .sandbox-section {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .sandbox-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .sandbox-section-header h3 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+        }
+
+        .sandbox-section-header h3 i {
+            font-size: 16px;
+            color: #64748b;
+        }
+
+        .sandbox-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+            text-align: center;
+            color: #94a3b8;
+        }
+
+        .sandbox-empty-state i {
+            font-size: 32px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .sandbox-empty-state p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .sandbox-empty-state p.text-xs {
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .sandbox-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            margin-left: 4px;
+            background: rgba(0, 0, 0, 0.08);
+            border-radius: 9px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .sandbox-mode-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+
+        .sandbox-mode-dot.live {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
+        }
+
+        .sandbox-mode-dot.sandbox {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 0 0 4px rgba(245, 158, 11, 0.4);
+        }
+
+        .sandbox-mode-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .sandbox-mode-badge.live {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+
+        .sandbox-mode-badge.sandbox {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+            border: 1px dashed #f59e0b;
+        }
+
         .selection-header {
             width: 36px; min-width: 36px; max-width: 36px;
             text-align: center; padding: 8px 6px;
@@ -4891,6 +5004,7 @@
                         <div class="nav-item" id="navRelations" onclick="navigateTo('relations')">Relations</div>
                         <div class="nav-item" id="navDefinitions" onclick="navigateTo('definitions')">Definitions</div>
                         <div class="nav-item" id="navViews" onclick="navigateTo('views')">Views</div>
+                        <div class="nav-item" id="navSandbox" onclick="navigateTo('sandbox')"><i class="ph ph-flask" style="margin-right: 6px; opacity: 0.7;"></i>Sandbox</div>
                     </div>
                 </div>
 
@@ -13491,6 +13605,7 @@
                 case 'definitions':
                 case 'views':
                 case 'explore':
+                case 'sandbox':
                     switchToSpecialTab(page);
                     return;
                 case 'entities':
@@ -13852,6 +13967,7 @@
                 'navDefinitions': state.currentSpecialView === 'definitions',
                 'navViews': state.currentSpecialView === 'views',
                 'navExplore': state.currentSpecialView === 'explore',
+                'navSandbox': state.currentSpecialView === 'sandbox',
                 'navSuggestedViews': state.currentSpecialView === 'suggestedViews',
                 'navSuggestedConcepts': state.currentSpecialView === 'suggestedConcepts'
             };
@@ -14312,7 +14428,8 @@
             relations: { icon: 'ph-tree-structure', label: 'Relations' },
             definitions: { icon: 'ph-book-open', label: 'Definitions' },
             views: { icon: 'ph-layout', label: 'Views' },
-            explore: { icon: 'ph-compass', label: 'Explore' }
+            explore: { icon: 'ph-compass', label: 'Explore' },
+            sandbox: { icon: 'ph-flask', label: 'Sandbox' }
         };
 
         function ensureOpenTab(setId, viewId) {
@@ -16233,6 +16350,12 @@
 
             if (state.currentSpecialView === 'explore') {
                 renderExplorePage();
+                updateMobileChrome();
+                return;
+            }
+
+            if (state.currentSpecialView === 'sandbox') {
+                renderSandboxPage();
                 updateMobileChrome();
                 return;
             }
@@ -20424,6 +20547,475 @@
                     </table>
                 </div>
             `;
+        }
+
+        // ============================================================
+        // SANDBOX PAGE - Shows all Imports, Sets, and Views
+        // ============================================================
+        function renderSandboxPage(activeSection = 'all', modeFilter = 'all') {
+            state.sandboxPageState = state.sandboxPageState || { activeSection: 'all', modeFilter: 'all' };
+            state.sandboxPageState.activeSection = activeSection;
+            state.sandboxPageState.modeFilter = modeFilter;
+
+            const container = document.getElementById('viewContainer');
+            if (!container) return;
+
+            // Collect all data
+            const setsForWorld = getSetsForWorld();
+
+            // Collect imports
+            const allImports = [];
+            if (state.imports && state.imports.size > 0) {
+                state.imports.forEach((imp, impId) => {
+                    allImports.push({ ...imp, id: impId });
+                });
+            }
+
+            // Collect sets with metadata
+            const allSets = setsForWorld.map(set => ({
+                ...set,
+                viewCount: set.views ? set.views.size : 0,
+                recordCount: set.records ? set.records.size : 0
+            }));
+
+            // Collect views with mode info
+            const allViews = [];
+            setsForWorld.forEach(set => {
+                if (set.views && set.views.size > 0) {
+                    set.views.forEach((viewRef, viewId) => {
+                        const fullView = state.views?.get(viewId) || viewRef;
+                        allViews.push({
+                            ...fullView,
+                            id: viewId,
+                            setId: set.id,
+                            setName: set.name,
+                            recordCount: set.records ? set.records.size : 0
+                        });
+                    });
+                }
+            });
+
+            // Filter views by mode
+            const filteredViews = modeFilter === 'all'
+                ? allViews
+                : allViews.filter(v => (v.viewMode || 'live') === modeFilter);
+
+            // Counts for badges
+            const liveCount = allViews.filter(v => (v.viewMode || 'live') === 'live').length;
+            const sandboxCount = allViews.filter(v => v.viewMode === 'sandbox').length;
+
+            container.innerHTML = `
+                <div class="view-stage-header">
+                    <div class="view-stage-title">
+                        <span class="view-stage-pill"><i class="ph ph-flask"></i> ${getWorld()?.name || 'World'}</span>
+                        <div class="min-w-0">
+                            <div class="view-stage-name">Sandbox</div>
+                            <div class="view-stage-sub">Imports, Sets & Views</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="view-stage-body space-y-6">
+                    <!-- Section Filters -->
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex flex-wrap gap-2">
+                            <button class="btn btn-secondary btn-sm ${activeSection === 'all' ? 'btn-primary' : ''}" data-sandbox-section="all">All</button>
+                            <button class="btn btn-secondary btn-sm ${activeSection === 'imports' ? 'btn-primary' : ''}" data-sandbox-section="imports">
+                                <i class="ph ph-upload-simple"></i> Imports <span class="sandbox-count-badge">${allImports.length}</span>
+                            </button>
+                            <button class="btn btn-secondary btn-sm ${activeSection === 'sets' ? 'btn-primary' : ''}" data-sandbox-section="sets">
+                                <i class="ph ph-squares-four"></i> Sets <span class="sandbox-count-badge">${allSets.length}</span>
+                            </button>
+                            <button class="btn btn-secondary btn-sm ${activeSection === 'views' ? 'btn-primary' : ''}" data-sandbox-section="views">
+                                <i class="ph ph-layout"></i> Views <span class="sandbox-count-badge">${allViews.length}</span>
+                            </button>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <span class="text-xs text-gray-500">Mode:</span>
+                            <button class="btn btn-secondary btn-sm ${modeFilter === 'all' ? 'btn-primary' : ''}" data-sandbox-mode="all">All</button>
+                            <button class="btn btn-secondary btn-sm ${modeFilter === 'live' ? 'btn-primary' : ''}" data-sandbox-mode="live">
+                                <span class="sandbox-mode-dot live"></span> Live <span class="sandbox-count-badge">${liveCount}</span>
+                            </button>
+                            <button class="btn btn-secondary btn-sm ${modeFilter === 'sandbox' ? 'btn-primary' : ''}" data-sandbox-mode="sandbox">
+                                <span class="sandbox-mode-dot sandbox"></span> Dev <span class="sandbox-count-badge">${sandboxCount}</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- IMPORTS Section -->
+                    ${(activeSection === 'all' || activeSection === 'imports') ? `
+                    <div class="sandbox-section">
+                        <div class="sandbox-section-header">
+                            <h3><i class="ph ph-upload-simple"></i> Imports</h3>
+                            <button class="btn btn-primary btn-sm" onclick="triggerFileImport()">
+                                <i class="ph ph-plus"></i> Import File
+                            </button>
+                        </div>
+                        ${renderSandboxImportsTable(allImports)}
+                    </div>
+                    ` : ''}
+
+                    <!-- SETS Section -->
+                    ${(activeSection === 'all' || activeSection === 'sets') ? `
+                    <div class="sandbox-section">
+                        <div class="sandbox-section-header">
+                            <h3><i class="ph ph-squares-four"></i> Sets</h3>
+                            <button class="btn btn-primary btn-sm" onclick="openAddSetModal()">
+                                <i class="ph ph-plus"></i> New Set
+                            </button>
+                        </div>
+                        ${renderSandboxSetsTable(allSets)}
+                    </div>
+                    ` : ''}
+
+                    <!-- VIEWS Section -->
+                    ${(activeSection === 'all' || activeSection === 'views') ? `
+                    <div class="sandbox-section">
+                        <div class="sandbox-section-header">
+                            <h3><i class="ph ph-layout"></i> Views</h3>
+                            <button class="btn btn-primary btn-sm" onclick="handleAddViewClick()">
+                                <i class="ph ph-plus"></i> New View
+                            </button>
+                        </div>
+                        ${renderSandboxViewsTable(filteredViews)}
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+
+            // Attach section filter handlers
+            document.querySelectorAll('[data-sandbox-section]').forEach(btn => {
+                btn.onclick = () => renderSandboxPage(btn.dataset.sandboxSection, modeFilter);
+            });
+
+            // Attach mode filter handlers
+            document.querySelectorAll('[data-sandbox-mode]').forEach(btn => {
+                btn.onclick = () => renderSandboxPage(activeSection, btn.dataset.sandboxMode);
+            });
+
+            // Attach import action handlers
+            document.querySelectorAll('[data-import-open]').forEach(btn => {
+                btn.onclick = () => {
+                    const importId = btn.dataset.importOpen;
+                    openImportView(importId);
+                };
+            });
+
+            document.querySelectorAll('[data-import-delete]').forEach(btn => {
+                btn.onclick = () => {
+                    const importId = btn.dataset.importDelete;
+                    if (confirm('Are you sure you want to delete this import?')) {
+                        state.imports?.delete(importId);
+                        renderSandboxPage(activeSection, modeFilter);
+                        showToast('Import deleted');
+                    }
+                };
+            });
+
+            // Attach set action handlers
+            document.querySelectorAll('[data-set-open]').forEach(btn => {
+                btn.onclick = () => {
+                    const setId = btn.dataset.setOpen;
+                    const set = state.sets.get(setId);
+                    if (set && set.views && set.views.size > 0) {
+                        const firstViewId = Array.from(set.views.keys())[0];
+                        switchSet(setId, firstViewId);
+                    }
+                };
+            });
+
+            document.querySelectorAll('[data-set-edit]').forEach(btn => {
+                btn.onclick = () => {
+                    const setId = btn.dataset.setEdit;
+                    openEditSetModal(setId);
+                };
+            });
+
+            // Attach view action handlers
+            document.querySelectorAll('[data-sandbox-view-open]').forEach(btn => {
+                btn.onclick = () => {
+                    const [setId, viewId] = btn.dataset.sandboxViewOpen.split(':');
+                    switchSet(setId, viewId);
+                };
+            });
+
+            document.querySelectorAll('[data-sandbox-view-promote]').forEach(btn => {
+                btn.onclick = () => {
+                    const [setId, viewId] = btn.dataset.sandboxViewPromote.split(':');
+                    const view = state.views?.get(viewId);
+                    if (view) {
+                        view.viewMode = 'live';
+                        showToast('View promoted to Live');
+                        renderSandboxPage(activeSection, modeFilter);
+                    }
+                };
+            });
+
+            document.querySelectorAll('[data-sandbox-view-demote]').forEach(btn => {
+                btn.onclick = () => {
+                    const [setId, viewId] = btn.dataset.sandboxViewDemote.split(':');
+                    const view = state.views?.get(viewId);
+                    if (view) {
+                        view.viewMode = 'sandbox';
+                        showToast('View demoted to Dev');
+                        renderSandboxPage(activeSection, modeFilter);
+                    }
+                };
+            });
+
+            document.querySelectorAll('[data-sandbox-view-delete]').forEach(btn => {
+                btn.onclick = () => {
+                    const [setId, viewId] = btn.dataset.sandboxViewDelete.split(':');
+                    if (confirm('Are you sure you want to delete this view?')) {
+                        deleteViewFromSet(setId, viewId);
+                        renderSandboxPage(activeSection, modeFilter);
+                        showToast('View deleted');
+                    }
+                };
+            });
+        }
+
+        function renderSandboxImportsTable(imports) {
+            if (!imports.length) {
+                return `
+                    <div class="sandbox-empty-state">
+                        <i class="ph ph-upload-simple"></i>
+                        <p>No imports yet</p>
+                        <p class="text-xs">Import CSV, JSON, or Excel files to get started</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="overflow-auto border border-gray-200 rounded-lg bg-white">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Name</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Format</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Rows</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Columns</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Imported</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Used In</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            ${imports.map(imp => {
+                                const format = imp.source?.format || imp.format || 'unknown';
+                                const formatIcon = format === 'csv' ? 'ph-file-csv' : format === 'json' ? 'ph-file-code' : 'ph-file-xls';
+                                const rows = imp.rowCount || imp.rows?.length || 0;
+                                const cols = imp.columnCount || imp.headers?.length || 0;
+                                const importedAt = imp.source?.importedAt
+                                    ? new Date(imp.source.importedAt).toLocaleDateString()
+                                    : '—';
+                                const usedIn = imp.usedIn?.length || 0;
+
+                                return `
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-2">
+                                                <i class="ph ${formatIcon} text-gray-400"></i>
+                                                <span class="font-medium text-gray-900">${escapeHtml(imp.name || 'Untitled')}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 uppercase">
+                                                ${format}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-600">${rows.toLocaleString()}</td>
+                                        <td class="px-4 py-3 text-gray-600">${cols}</td>
+                                        <td class="px-4 py-3 text-gray-500 text-xs">${importedAt}</td>
+                                        <td class="px-4 py-3">
+                                            ${usedIn > 0
+                                                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700">${usedIn} set${usedIn !== 1 ? 's' : ''}</span>`
+                                                : '<span class="text-gray-400">—</span>'
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3 text-right">
+                                            <div class="flex items-center justify-end gap-1">
+                                                <button class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" data-import-open="${imp.id}" title="View import">
+                                                    <i class="ph ph-arrow-square-out text-sm"></i>
+                                                </button>
+                                                <button class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" data-import-delete="${imp.id}" title="Delete import">
+                                                    <i class="ph ph-trash text-sm"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderSandboxSetsTable(sets) {
+            if (!sets.length) {
+                return `
+                    <div class="sandbox-empty-state">
+                        <i class="ph ph-squares-four"></i>
+                        <p>No sets yet</p>
+                        <p class="text-xs">Create a set to organize your data</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="overflow-auto border border-gray-200 rounded-lg bg-white">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Set</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Records</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Views</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Origin</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Fields</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            ${sets.map(set => {
+                                const origin = set.origin || 'manual';
+                                const originIcon = origin === 'import' ? 'ph-upload-simple' : origin === 'derived' ? 'ph-git-branch' : 'ph-pencil-simple';
+                                const fieldCount = set.schema?.length || 0;
+
+                                return `
+                                    <tr class="hover:bg-gray-50 transition-colors cursor-pointer" data-set-row="${set.id}">
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-gray-400">${renderIcon(set.icon || 'ph-squares-four')}</span>
+                                                <span class="font-medium text-gray-900">${escapeHtml(set.name || 'Untitled')}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-600">${set.recordCount.toLocaleString()}</td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                                                ${set.viewCount} view${set.viewCount !== 1 ? 's' : ''}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center gap-1 text-xs text-gray-500">
+                                                <i class="ph ${originIcon}"></i> ${origin}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-600">${fieldCount}</td>
+                                        <td class="px-4 py-3 text-right">
+                                            <div class="flex items-center justify-end gap-1">
+                                                <button class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" data-set-open="${set.id}" title="Open set">
+                                                    <i class="ph ph-arrow-square-out text-sm"></i>
+                                                </button>
+                                                <button class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors" data-set-edit="${set.id}" title="Edit set">
+                                                    <i class="ph ph-pencil-simple text-sm"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderSandboxViewsTable(views) {
+            if (!views.length) {
+                return `
+                    <div class="sandbox-empty-state">
+                        <i class="ph ph-layout"></i>
+                        <p>No views found</p>
+                        <p class="text-xs">Create a view to visualize your data</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="overflow-auto border border-gray-200 rounded-lg bg-white">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">View</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Mode</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Type</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Set</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Records</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Filters</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            ${views.map(view => {
+                                const viewIcon = view.icon || VIEW_TYPE_ICONS[view.type] || 'ph-table';
+                                const viewType = formatViewType(view.type);
+                                const filterCount = (view.filters || []).length;
+                                const viewMode = view.viewMode || 'live';
+                                const modeLabel = viewMode === 'sandbox' ? 'Dev' : 'Live';
+                                const modeClass = viewMode === 'sandbox' ? 'sandbox' : 'live';
+
+                                return `
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-gray-400">${renderIcon(viewIcon)}</span>
+                                                <span class="font-medium text-gray-900">${escapeHtml(view.name || 'Untitled')}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="sandbox-mode-badge ${modeClass}">
+                                                <span class="sandbox-mode-dot ${modeClass}"></span>
+                                                ${modeLabel}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                                ${viewType}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-600">${escapeHtml(view.setName || '—')}</td>
+                                        <td class="px-4 py-3 text-gray-600">${view.recordCount.toLocaleString()}</td>
+                                        <td class="px-4 py-3">
+                                            ${filterCount > 0
+                                                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">${filterCount}</span>`
+                                                : '<span class="text-gray-400">—</span>'
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3 text-right">
+                                            <div class="flex items-center justify-end gap-1">
+                                                <button class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" data-sandbox-view-open="${view.setId}:${view.id}" title="Open view">
+                                                    <i class="ph ph-arrow-square-out text-sm"></i>
+                                                </button>
+                                                ${viewMode === 'sandbox'
+                                                    ? `<button class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" data-sandbox-view-promote="${view.setId}:${view.id}" title="Promote to Live">
+                                                        <i class="ph ph-arrow-fat-up text-sm"></i>
+                                                       </button>`
+                                                    : `<button class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" data-sandbox-view-demote="${view.setId}:${view.id}" title="Demote to Dev">
+                                                        <i class="ph ph-arrow-fat-down text-sm"></i>
+                                                       </button>`
+                                                }
+                                                <button class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" data-sandbox-view-delete="${view.setId}:${view.id}" title="Delete view">
+                                                    <i class="ph ph-trash text-sm"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function openImportView(importId) {
+            const imp = state.imports?.get(importId);
+            if (!imp) {
+                showToast('Import not found');
+                return;
+            }
+            // Open the imports table view with this import selected
+            openImportsTableView();
         }
 
         function formatViewType(type) {
