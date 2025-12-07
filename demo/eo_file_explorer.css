@@ -35,7 +35,7 @@
   background: var(--white);
   color: var(--gray-500);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .eo-drop-zone:hover {
@@ -128,7 +128,7 @@
   color: var(--gray-400);
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .eo-add-btn:hover {
@@ -159,7 +159,7 @@
   margin-bottom: 2px;
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .eo-item:hover {
@@ -285,7 +285,7 @@
   color: var(--gray-400);
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .eo-action-btn:hover {
@@ -454,7 +454,7 @@
   color: var(--gray-400);
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .eo-modal-close:hover {
@@ -498,7 +498,7 @@
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .eo-btn-primary {
@@ -540,7 +540,7 @@
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .eo-preview-tab:hover {

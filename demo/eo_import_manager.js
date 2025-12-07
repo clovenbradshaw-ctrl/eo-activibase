@@ -570,6 +570,7 @@ class EOImportManager {
 
   /**
    * Analyze schema from rows
+   * Uses sampling for large datasets (max 1000 rows) to improve performance
    */
   analyzeSchema(rows, headers) {
     const columns = {};
@@ -594,8 +595,23 @@ class EOImportManager {
       };
     });
 
-    // Analyze each row
-    rows.forEach((row, rowIdx) => {
+    // Sample-based analysis for large datasets (max 1000 rows)
+    const MAX_SAMPLE_SIZE = 1000;
+    let sampleRows = rows;
+    let sampleRatio = 1;
+
+    if (rows.length > MAX_SAMPLE_SIZE) {
+      // Stratified sampling: take rows from start, middle, and end
+      const startSample = rows.slice(0, Math.floor(MAX_SAMPLE_SIZE / 3));
+      const middleStart = Math.floor((rows.length - MAX_SAMPLE_SIZE / 3) / 2);
+      const middleSample = rows.slice(middleStart, middleStart + Math.floor(MAX_SAMPLE_SIZE / 3));
+      const endSample = rows.slice(-Math.floor(MAX_SAMPLE_SIZE / 3));
+      sampleRows = [...startSample, ...middleSample, ...endSample];
+      sampleRatio = rows.length / sampleRows.length;
+    }
+
+    // Analyze each row in the sample
+    sampleRows.forEach((row, rowIdx) => {
       headers.forEach(header => {
         const value = row[header];
         const col = columns[header];
@@ -662,13 +678,19 @@ class EOImportManager {
 
     // Determine inferred types
     const inferredTypes = {};
+    const sampleSize = sampleRows.length;
     headers.forEach(header => {
       const col = columns[header];
-      inferredTypes[header] = this.inferColumnType(col, rows.length);
+      inferredTypes[header] = this.inferColumnType(col, sampleSize);
 
-      // Convert unique values set to count
+      // Convert unique values set to count, extrapolating for sampled data
       col.uniqueCount = col.uniqueValues.size;
-      col.uniqueRatio = rows.length > 0 ? col.uniqueCount / rows.length : 0;
+      // Estimate null count for full dataset if sampled
+      if (sampleRatio > 1) {
+        col.nullCount = Math.round(col.nullCount * sampleRatio);
+      }
+      col.uniqueRatio = sampleSize > 0 ? col.uniqueCount / sampleSize : 0;
+      col.wasSampled = sampleRatio > 1;
       delete col.uniqueValues; // Don't store the full set
     });
 
@@ -895,11 +917,12 @@ class EOImportManager {
 
     const completeness = totalCells > 0 ? ((totalCells - nullCells) / totalCells) : 1;
 
-    // Check for duplicate rows
+    // Check for duplicate rows using efficient hash-based detection
     const rowHashes = new Set();
     let duplicateCount = 0;
     rows.forEach(row => {
-      const hash = JSON.stringify(row);
+      // Use efficient hash instead of JSON.stringify
+      const hash = this._hashRow(row, Object.keys(columns));
       if (rowHashes.has(hash)) {
         duplicateCount++;
       } else {
@@ -1259,6 +1282,27 @@ class EOImportManager {
         this.imports.set(imp.id, imp);
       });
     }
+  }
+
+  /**
+   * Efficient hash function for row duplicate detection
+   * Uses djb2 algorithm - faster than JSON.stringify for large datasets
+   */
+  _hashRow(row, keys) {
+    let hash = 5381;
+    for (const key of keys) {
+      if (key === '_sourceRow') continue; // Skip metadata
+      const value = row[key];
+      const str = value === null || value === undefined ? '' : String(value);
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) + str.charCodeAt(i);
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      // Add separator between fields
+      hash = ((hash << 5) + hash) + 0x1F;
+      hash = hash & hash;
+    }
+    return hash;
   }
 }
 

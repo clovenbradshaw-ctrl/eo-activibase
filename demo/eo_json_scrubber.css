@@ -138,7 +138,7 @@
     border-radius: 4px;
     color: #6b7280;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .breadcrumb-item:hover {
@@ -202,7 +202,7 @@
     border-radius: 10px;
     padding: 12px 14px;
     position: relative;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
     cursor: pointer;
 }
 
@@ -414,7 +414,7 @@
     border-radius: 16px;
     font-size: 11px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .value-chip:hover {
@@ -466,7 +466,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .card-action:hover {
@@ -596,7 +596,7 @@
     font-size: 13px;
     font-weight: 500;
     opacity: 0;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, transform 0.3s ease;
     z-index: 10020;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }

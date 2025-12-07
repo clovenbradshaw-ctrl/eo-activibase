@@ -58,7 +58,7 @@
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .column-width-toolbar .toolbar-btn:hover {
@@ -118,7 +118,7 @@
     background: transparent;
     color: #64748b;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .column-width-modal .modal-close:hover {
@@ -171,7 +171,7 @@
     border-radius: 8px;
     background: #fff;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .mode-option:hover {
@@ -240,7 +240,7 @@
     border-radius: 8px;
     background: #fff;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .overflow-option:hover {
@@ -399,7 +399,7 @@
     background: #fff;
     color: #64748b;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .custom-width-item .btn-auto-fit:hover {

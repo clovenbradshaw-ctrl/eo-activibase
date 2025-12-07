@@ -13,6 +13,114 @@
  * - Operator palette for edge creation
  */
 
+// ============================================================================
+// QUADTREE IMPLEMENTATION FOR BARNES-HUT OPTIMIZATION
+// Reduces physics simulation from O(n²) to O(n log n)
+// ============================================================================
+
+class Quadtree {
+    constructor(x, y, width, height, capacity = 4) {
+        this.boundary = { x, y, width, height };
+        this.capacity = capacity;
+        this.points = [];
+        this.divided = false;
+        this.mass = 0;
+        this.centerOfMass = { x: 0, y: 0 };
+        this.northwest = null;
+        this.northeast = null;
+        this.southwest = null;
+        this.southeast = null;
+    }
+
+    contains(point) {
+        return (
+            point.x >= this.boundary.x &&
+            point.x < this.boundary.x + this.boundary.width &&
+            point.y >= this.boundary.y &&
+            point.y < this.boundary.y + this.boundary.height
+        );
+    }
+
+    subdivide() {
+        const { x, y, width, height } = this.boundary;
+        const w = width / 2;
+        const h = height / 2;
+
+        this.northwest = new Quadtree(x, y, w, h, this.capacity);
+        this.northeast = new Quadtree(x + w, y, w, h, this.capacity);
+        this.southwest = new Quadtree(x, y + h, w, h, this.capacity);
+        this.southeast = new Quadtree(x + w, y + h, w, h, this.capacity);
+        this.divided = true;
+    }
+
+    insert(point) {
+        if (!this.contains(point)) return false;
+
+        // Update center of mass
+        const totalMass = this.mass + 1;
+        this.centerOfMass.x = (this.centerOfMass.x * this.mass + point.x) / totalMass;
+        this.centerOfMass.y = (this.centerOfMass.y * this.mass + point.y) / totalMass;
+        this.mass = totalMass;
+
+        if (this.points.length < this.capacity && !this.divided) {
+            this.points.push(point);
+            return true;
+        }
+
+        if (!this.divided) {
+            this.subdivide();
+            // Redistribute existing points
+            for (const p of this.points) {
+                this.northwest.insert(p) ||
+                this.northeast.insert(p) ||
+                this.southwest.insert(p) ||
+                this.southeast.insert(p);
+            }
+            this.points = [];
+        }
+
+        return (
+            this.northwest.insert(point) ||
+            this.northeast.insert(point) ||
+            this.southwest.insert(point) ||
+            this.southeast.insert(point)
+        );
+    }
+
+    // Barnes-Hut force calculation with theta threshold
+    calculateForce(point, theta = 0.5) {
+        let fx = 0;
+        let fy = 0;
+
+        if (this.mass === 0) return { fx: 0, fy: 0 };
+
+        const dx = this.centerOfMass.x - point.x;
+        const dy = this.centerOfMass.y - point.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+        // Calculate s/d ratio for Barnes-Hut approximation
+        const size = Math.max(this.boundary.width, this.boundary.height);
+        const ratio = size / dist;
+
+        if (!this.divided || ratio < theta) {
+            // Treat this node as a single body
+            const force = -5000 * this.mass / (dist * dist);
+            fx = (dx / dist) * force;
+            fy = (dy / dist) * force;
+        } else {
+            // Recurse into children
+            const nw = this.northwest.calculateForce(point, theta);
+            const ne = this.northeast.calculateForce(point, theta);
+            const sw = this.southwest.calculateForce(point, theta);
+            const se = this.southeast.calculateForce(point, theta);
+            fx = nw.fx + ne.fx + sw.fx + se.fx;
+            fy = nw.fy + ne.fy + sw.fy + se.fy;
+        }
+
+        return { fx, fy };
+    }
+}
+
 class EOGraphVisualization {
     constructor(container, graph, options = {}) {
         this.container = typeof container === 'string'
@@ -34,6 +142,10 @@ class EOGraphVisualization {
             onOperatorSelect: options.onOperatorSelect || null,
             ...options
         };
+
+        // Throttle tracking for mousemove
+        this._lastMouseMoveTime = 0;
+        this._mouseMoveThrottle = 16; // ~60fps
 
         // Canvas and context
         this.canvas = null;
@@ -247,25 +359,49 @@ class EOGraphVisualization {
             }
         });
 
-        // Repulsion between nodes
-        for (let i = 0; i < nodes.length; i++) {
-            for (let j = i + 1; j < nodes.length; j++) {
-                const posA = this.nodePositions.get(nodes[i].id);
-                const posB = this.nodePositions.get(nodes[j].id);
-                if (!posA || !posB) continue;
+        // Use Barnes-Hut quadtree for large graphs (O(n log n) instead of O(n²))
+        if (nodes.length > 20) {
+            // Build quadtree
+            const quadtree = new Quadtree(0, 0, this.options.width, this.options.height);
 
-                const dx = posB.x - posA.x;
-                const dy = posB.y - posA.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const force = 5000 / (dist * dist);
+            // Insert all node positions
+            nodes.forEach(node => {
+                const pos = this.nodePositions.get(node.id);
+                if (pos) {
+                    quadtree.insert({ x: pos.x, y: pos.y, id: node.id });
+                }
+            });
 
-                const fx = (dx / dist) * force;
-                const fy = (dy / dist) * force;
+            // Calculate repulsion forces using Barnes-Hut
+            nodes.forEach(node => {
+                const pos = this.nodePositions.get(node.id);
+                if (!pos) return;
 
-                posA.fx -= fx;
-                posA.fy -= fy;
-                posB.fx += fx;
-                posB.fy += fy;
+                const { fx, fy } = quadtree.calculateForce(pos, 0.5);
+                pos.fx += fx;
+                pos.fy += fy;
+            });
+        } else {
+            // For small graphs, use direct O(n²) calculation (more accurate)
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const posA = this.nodePositions.get(nodes[i].id);
+                    const posB = this.nodePositions.get(nodes[j].id);
+                    if (!posA || !posB) continue;
+
+                    const dx = posB.x - posA.x;
+                    const dy = posB.y - posA.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const force = 5000 / (dist * dist);
+
+                    const fx = (dx / dist) * force;
+                    const fy = (dy / dist) * force;
+
+                    posA.fx -= fx;
+                    posA.fy -= fy;
+                    posB.fx += fx;
+                    posB.fy += fy;
+                }
             }
         }
 
@@ -669,6 +805,13 @@ class EOGraphVisualization {
     }
 
     _onMouseMove(e) {
+        // Throttle mousemove to ~60fps (16ms)
+        const now = performance.now();
+        if (now - this._lastMouseMoveTime < this._mouseMoveThrottle) {
+            return;
+        }
+        this._lastMouseMoveTime = now;
+
         const pos = this._getMousePos(e);
 
         if (this.isDragging) {

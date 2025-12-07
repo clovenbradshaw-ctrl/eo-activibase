@@ -25,46 +25,46 @@ function renderViewManager(state, setId) {
     const views = getSetViews(state, setId);
     const currentViewId = state.currentViewId;
 
-    let html = '<div class="view-manager">';
-    html += '<div class="view-tabs">';
+    // Use array.push() + join() for better performance
+    const parts = ['<div class="view-manager">', '<div class="view-tabs">'];
 
     views.forEach(view => {
         const isActive = view.id === currentViewId;
         const isDirty = view.isDirty ? ' *' : '';
-        html += `
+        parts.push(`
             <div class="view-tab ${isActive ? 'active' : ''}" data-view-id="${view.id}">
                 <span class="view-icon">${view.icon || '📋'}</span>
                 <span class="view-name">${escapeHtml(view.name)}${isDirty}</span>
                 <button class="view-menu-btn" data-view-id="${view.id}" title="View options">⋮</button>
             </div>
-        `;
+        `);
     });
 
-    html += `
+    parts.push(`
         <button class="view-tab-add" title="New view">
             <span class="icon">+</span> New View
         </button>
-    `;
+    `);
 
-    html += '</div>'; // .view-tabs
+    parts.push('</div>'); // .view-tabs
 
     // View actions (shown when view is dirty)
     if (currentViewId) {
         const currentView = state.views?.get(currentViewId);
         if (currentView?.isDirty) {
-            html += `
+            parts.push(`
                 <div class="view-actions">
                     <span class="unsaved-label">Unsaved changes</span>
                     <button class="btn-save-view" data-view-id="${currentViewId}">Save View</button>
                     <button class="btn-save-view-as" data-view-id="${currentViewId}">Save As...</button>
                 </div>
-            `;
+            `);
         }
     }
 
-    html += '</div>'; // .view-manager
+    parts.push('</div>'); // .view-manager
 
-    return html;
+    return parts.join('');
 }
 
 /**
@@ -727,33 +727,33 @@ function showMergeRecordsDialog(state, setId, recordIds) {
  * Render merge comparison table
  */
 function renderMergeTable(schema, records) {
-    let html = '<table class="merge-comparison-table">';
-    html += '<thead><tr><th>Field</th>';
+    // Use array.push() + join() for better performance
+    const parts = ['<table class="merge-comparison-table">', '<thead><tr><th>Field</th>'];
     records.forEach((rec, idx) => {
-        html += `<th>Record ${idx + 1}</th>`;
+        parts.push(`<th>Record ${idx + 1}</th>`);
     });
-    html += '<th>Strategy</th></tr></thead><tbody>';
+    parts.push('<th>Strategy</th></tr></thead><tbody>');
 
     schema.forEach(field => {
-        html += '<tr>';
-        html += `<td class="field-name">${escapeHtml(field.name || field.id)}</td>`;
+        parts.push('<tr>');
+        parts.push(`<td class="field-name">${escapeHtml(field.name || field.id)}</td>`);
 
         records.forEach((rec, idx) => {
             const value = rec[field.id];
             const displayValue = value !== undefined && value !== null && value !== '' ?
                 escapeHtml(String(value)) : '<em>empty</em>';
 
-            html += `
+            parts.push(`
                 <td>
                     <label>
                         <input type="radio" name="field_${field.id}" value="index_${idx}" ${idx === 0 ? 'checked' : ''}>
                         ${displayValue}
                     </label>
                 </td>
-            `;
+            `);
         });
 
-        html += `
+        parts.push(`
             <td>
                 <select class="strategy-select" data-field="${field.id}">
                     <option value="first">First</option>
@@ -761,13 +761,13 @@ function renderMergeTable(schema, records) {
                     <option value="concat">Concatenate</option>
                 </select>
             </td>
-        `;
+        `);
 
-        html += '</tr>';
+        parts.push('</tr>');
     });
 
-    html += '</tbody></table>';
-    return html;
+    parts.push('</tbody></table>');
+    return parts.join('');
 }
 
 /**
@@ -991,93 +991,94 @@ function renderEnhancedSearchModal(state) {
  * Render zero-input content (shown before typing)
  */
 function renderZeroInputContent(data) {
-    let html = '<div class="zero-input-search">';
+    // Use array.push() + join() for better performance
+    const parts = ['<div class="zero-input-search">'];
 
     // Recent items
     if (data.recent.length > 0) {
-        html += '<div class="search-section">';
-        html += '<h3>Recent</h3>';
-        html += '<div class="recent-items">';
+        parts.push('<div class="search-section">');
+        parts.push('<h3>Recent</h3>');
+        parts.push('<div class="recent-items">');
         data.recent.forEach(item => {
-            html += `
+            parts.push(`
                 <div class="search-result-item" data-type="${item.type}" data-id="${item.id}">
                     <span class="type-badge">${item.type}</span>
                     <span class="item-name">${getEntityDisplayName(item.entity)}</span>
                     <span class="item-meta">${new Date(item.lastAccessed).toLocaleString()}</span>
                 </div>
-            `;
+            `);
         });
-        html += '</div></div>';
+        parts.push('</div></div>');
     }
 
     // Frequent fields
     if (data.frequentFields.length > 0) {
-        html += '<div class="search-section">';
-        html += '<h3>Frequently Used Fields</h3>';
-        html += '<div class="frequent-fields">';
+        parts.push('<div class="search-section">');
+        parts.push('<h3>Frequently Used Fields</h3>');
+        parts.push('<div class="frequent-fields">');
         data.frequentFields.forEach(item => {
-            html += `
+            parts.push(`
                 <div class="search-result-item" data-type="Field" data-id="${item.fieldId}" data-set-id="${item.setId}">
                     <span class="type-badge">Field</span>
                     <span class="item-name">${escapeHtml(item.field.name || item.fieldId)}</span>
                     <span class="item-meta">${item.count} uses in ${item.setName}</span>
                 </div>
-            `;
+            `);
         });
-        html += '</div></div>';
+        parts.push('</div></div>');
     }
 
     // New & Updated
     if (data.newAndUpdated.length > 0) {
-        html += '<div class="search-section">';
-        html += '<h3>New & Updated</h3>';
-        html += '<div class="new-updated-items">';
+        parts.push('<div class="search-section">');
+        parts.push('<h3>New & Updated</h3>');
+        parts.push('<div class="new-updated-items">');
         data.newAndUpdated.forEach(item => {
-            html += `
+            parts.push(`
                 <div class="search-result-item" data-type="${item.type}" data-id="${item.id}">
                     <span class="type-badge">${item.type}</span>
                     <span class="item-name">${escapeHtml(item.name)}</span>
                     <span class="item-meta">${item.action} ${new Date(item.timestamp).toLocaleDateString()}</span>
                 </div>
-            `;
+            `);
         });
-        html += '</div></div>';
+        parts.push('</div></div>');
     }
 
     // Structural Highlights
     if (data.structuralHighlights.length > 0) {
-        html += '<div class="search-section">';
-        html += '<h3>Structural Highlights</h3>';
-        html += '<div class="highlights">';
+        parts.push('<div class="search-section">');
+        parts.push('<h3>Structural Highlights</h3>');
+        parts.push('<div class="highlights">');
         data.structuralHighlights.forEach(highlight => {
-            html += `
+            parts.push(`
                 <div class="highlight-item" data-highlight-type="${highlight.type}">
                     <span class="highlight-label">${highlight.label}</span>
                     <span class="highlight-count">${highlight.count}</span>
                 </div>
-            `;
+            `);
         });
-        html += '</div></div>';
+        parts.push('</div></div>');
     }
 
     // Browse
-    html += '<div class="search-section">';
-    html += '<h3>Browse</h3>';
-    html += '<div class="browse-categories">';
+    parts.push('<div class="search-section">');
+    parts.push('<h3>Browse</h3>');
+    parts.push('<div class="browse-categories">');
     Object.entries(data.browse).forEach(([type, count]) => {
         if (count > 0) {
-            html += `
+            parts.push(`
                 <div class="browse-item" data-entity-type="${type}">
                     <span class="browse-label">${capitalize(type)}</span>
                     <span class="browse-count">${count}</span>
                 </div>
-            `;
+            `);
         }
     });
-    html += '</div></div>';
+    parts.push('</div></div>');
 
-    html += '</div>'; // .zero-input-search
-    return html;
+    parts.push('</div>'); // .zero-input-search
+    return parts.join('');
 }
 
 /**
@@ -1101,35 +1102,35 @@ function handleSearchInput(state, query) {
     // Search
     const results = searchAllEntities(state, query);
 
-    // Render filtered results
-    let html = '<div class="filtered-search-results">';
+    // Render filtered results using array.push() + join() for better performance
+    const parts = ['<div class="filtered-search-results">'];
 
     Object.entries(results).forEach(([category, items]) => {
         if (items.length > 0) {
-            html += `<div class="search-section">`;
-            html += `<h3>${capitalize(category)} (${items.length})</h3>`;
-            html += '<div class="search-results-list">';
+            parts.push(`<div class="search-section">`);
+            parts.push(`<h3>${capitalize(category)} (${items.length})</h3>`);
+            parts.push('<div class="search-results-list">');
 
             items.forEach(item => {
-                html += `
+                parts.push(`
                     <div class="search-result-item" data-type="${item.type}" data-id="${item.id}">
                         <span class="type-badge">${item.type}</span>
                         <span class="item-name">${escapeHtml(item.name || item.term || item.id)}</span>
                         ${item.setName ? `<span class="item-meta">in ${escapeHtml(item.setName)}</span>` : ''}
                     </div>
-                `;
+                `);
             });
 
-            html += '</div></div>';
+            parts.push('</div></div>');
         }
     });
 
     if (Object.values(results).every(arr => arr.length === 0)) {
-        html += '<div class="no-results">No results found</div>';
+        parts.push('<div class="no-results">No results found</div>');
     }
 
-    html += '</div>';
-    resultsContainer.innerHTML = html;
+    parts.push('</div>');
+    resultsContainer.innerHTML = parts.join('');
 }
 
 // ============================================================================
