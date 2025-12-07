@@ -886,8 +886,19 @@
 
         document.body.appendChild(menu);
 
+        // Close on click outside - define handler first for proper cleanup
+        const closeMenuHandler = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenuHandler);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeMenuHandler), 0);
+
+        // Handle menu item clicks with proper listener cleanup
         menu.querySelectorAll('.context-menu-item').forEach(item => {
             item.addEventListener('click', () => {
+                document.removeEventListener('click', closeMenuHandler);
                 applyColumnWidthMode(state, viewId, item.dataset.mode, {
                     onApply: () => {
                         if (typeof renderCurrentView === 'function') {
@@ -898,16 +909,6 @@
                 menu.remove();
             });
         });
-
-        // Close on click outside
-        setTimeout(() => {
-            document.addEventListener('click', function closeMenu(e) {
-                if (!menu.contains(e.target)) {
-                    menu.remove();
-                    document.removeEventListener('click', closeMenu);
-                }
-            });
-        }, 0);
     }
 
     /**

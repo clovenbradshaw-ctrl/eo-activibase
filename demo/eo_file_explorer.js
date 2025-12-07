@@ -998,6 +998,24 @@ class EOFileExplorer {
     div.textContent = str;
     return div.innerHTML;
   }
+
+  /**
+   * Destroy and cleanup all resources
+   */
+  destroy() {
+    // Clear references
+    this.selectedItem = null;
+    this.expandedSections.clear();
+    this.dragState = null;
+    this.importManager = null;
+    this.state = null;
+
+    // Clear DOM
+    if (this.container) {
+      this.container.innerHTML = '';
+      this.container = null;
+    }
+  }
 }
 
 // Export for both Node.js and browser

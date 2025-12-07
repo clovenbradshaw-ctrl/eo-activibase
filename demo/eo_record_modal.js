@@ -488,14 +488,27 @@ class EORecordModal {
   }
 
   /**
-   * Destroy and cleanup
+   * Destroy and cleanup all resources
    */
   destroy() {
+    // Remove escape key handler if present
+    if (this.escHandler) {
+      document.removeEventListener('keydown', this.escHandler);
+      this.escHandler = null;
+    }
+
+    // Remove modal from DOM
     if (this.modal) {
       this.modal.remove();
       this.modal = null;
     }
+
+    // Restore body scroll
     document.body.style.overflow = '';
+
+    // Clear references
+    this.currentRecordId = null;
+    this.config = {};
   }
 }
 

@@ -101,15 +101,22 @@ function showViewMenu(state, viewId, buttonElement) {
 
     document.body.appendChild(menu);
 
-    // Close on click outside
-    setTimeout(() => {
-        document.addEventListener('click', function closeMenu(e) {
-            if (!menu.contains(e.target)) {
-                menu.remove();
-                document.removeEventListener('click', closeMenu);
-            }
+    // Close on click outside - use a named function for proper cleanup
+    const closeMenuHandler = (e) => {
+        if (!menu.contains(e.target)) {
+            menu.remove();
+            document.removeEventListener('click', closeMenuHandler);
+        }
+    };
+    // Delay to prevent immediate close from the triggering click
+    setTimeout(() => document.addEventListener('click', closeMenuHandler), 0);
+
+    // Also clean up when menu items are clicked
+    menu.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+            document.removeEventListener('click', closeMenuHandler);
         });
-    }, 0);
+    });
 }
 
 /**
@@ -444,24 +451,25 @@ function showJSONScrubberMenu(state, setId, buttonElement) {
 
     document.body.appendChild(menu);
 
-    // Handle menu item clicks
+    // Close on click outside - use a named function for proper cleanup
+    const closeMenuHandler = (e) => {
+        if (!menu.contains(e.target)) {
+            menu.remove();
+            document.removeEventListener('click', closeMenuHandler);
+        }
+    };
+    // Delay to prevent immediate close from the triggering click
+    setTimeout(() => document.addEventListener('click', closeMenuHandler), 0);
+
+    // Handle menu item clicks with proper listener cleanup
     menu.querySelectorAll('.menu-item').forEach(item => {
         item.addEventListener('click', () => {
             const mode = item.dataset.mode;
+            document.removeEventListener('click', closeMenuHandler);
             menu.remove();
             showJSONScrubber(state, setId, mode);
         });
     });
-
-    // Close on click outside
-    setTimeout(() => {
-        document.addEventListener('click', function closeMenu(e) {
-            if (!menu.contains(e.target)) {
-                menu.remove();
-                document.removeEventListener('click', closeMenu);
-            }
-        });
-    }, 0);
 }
 
 /**

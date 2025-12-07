@@ -393,8 +393,9 @@ class EOLinkedFieldsModal {
             }
         });
 
-        // Escape key to close
-        document.addEventListener('keydown', this.handleEscapeKey.bind(this));
+        // Escape key to close - store bound handler for proper cleanup
+        this._boundEscapeHandler = this.handleEscapeKey.bind(this);
+        document.addEventListener('keydown', this._boundEscapeHandler);
 
         // Linked set selection
         const linkedSetItems = this.modal.querySelectorAll('.linked-set-item');
@@ -610,7 +611,11 @@ class EOLinkedFieldsModal {
      * Close the modal
      */
     close() {
-        document.removeEventListener('keydown', this.handleEscapeKey.bind(this));
+        // Remove escape key handler using stored bound reference
+        if (this._boundEscapeHandler) {
+            document.removeEventListener('keydown', this._boundEscapeHandler);
+            this._boundEscapeHandler = null;
+        }
 
         if (this.modal) {
             this.modal.remove();
