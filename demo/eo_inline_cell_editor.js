@@ -634,6 +634,14 @@ class EOInlineCellEditor {
         input._datetimeEditor.destroy();
       } else if (input.type === 'checkbox') {
         newValue = input.checked;
+      } else if (input.classList.contains('eo-number-input')) {
+        // Parse number value
+        if (typeof EONumberFormatter !== 'undefined') {
+          newValue = EONumberFormatter.parseNumber(input.value);
+        } else {
+          const parsed = parseFloat(input.value);
+          newValue = isNaN(parsed) ? null : parsed;
+        }
       } else {
         newValue = input.value;
       }

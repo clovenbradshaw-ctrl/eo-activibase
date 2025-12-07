@@ -661,6 +661,23 @@ class EOImportIntegration {
       config.options = colAnalysis.samples || [];
     }
 
+    // For NUMBER fields, add number formatting config
+    if (inferredType === 'NUMBER' && colAnalysis) {
+      config.number = this.inferNumberConfig(colAnalysis);
+    }
+
+    // For CURRENCY fields, add currency-specific config
+    if (inferredType === 'CURRENCY' && colAnalysis) {
+      config.number = {
+        format: 'currency',
+        currencyCode: this.detectCurrencyCode(colAnalysis) || 'USD',
+        decimalPlaces: 2,
+        thousandSeparator: true,
+        negativeDisplay: 'minus',
+        allowNegative: true
+      };
+    }
+
     // Check if this is a foreign key
     const fkHint = imp.schema.foreignKeyHints.find(fk => fk.column === header);
     if (fkHint) {
@@ -671,6 +688,104 @@ class EOImportIntegration {
     }
 
     return config;
+  }
+
+  /**
+   * Infer number field configuration from column analysis
+   * @param {Object} colAnalysis - Column analysis data
+   * @returns {Object} Number config
+   */
+  inferNumberConfig(colAnalysis) {
+    const config = {
+      format: 'decimal',
+      decimalPlaces: 2,
+      thousandSeparator: true,
+      negativeDisplay: 'minus',
+      allowNegative: true
+    };
+
+    if (!colAnalysis || !colAnalysis.samples) {
+      return config;
+    }
+
+    // Analyze samples to infer format
+    const samples = colAnalysis.samples.slice(0, 20);
+    let hasDecimals = false;
+    let maxDecimals = 0;
+    let hasPercentage = false;
+    let hasNegatives = false;
+
+    samples.forEach(sample => {
+      const str = String(sample);
+
+      // Check for percentage
+      if (str.includes('%')) {
+        hasPercentage = true;
+      }
+
+      // Check for decimals
+      const decimalMatch = str.match(/\.(\d+)/);
+      if (decimalMatch) {
+        hasDecimals = true;
+        maxDecimals = Math.max(maxDecimals, decimalMatch[1].length);
+      }
+
+      // Check for negatives
+      if (str.includes('-') || str.includes('(')) {
+        hasNegatives = true;
+      }
+    });
+
+    // Set format based on analysis
+    if (hasPercentage) {
+      config.format = 'percentage';
+      config.decimalPlaces = Math.min(maxDecimals, 4);
+    } else if (!hasDecimals) {
+      config.format = 'integer';
+      config.decimalPlaces = 0;
+    } else {
+      config.format = 'decimal';
+      config.decimalPlaces = Math.min(maxDecimals, 6);
+    }
+
+    config.allowNegative = hasNegatives || true;
+
+    return config;
+  }
+
+  /**
+   * Detect currency code from column samples
+   * @param {Object} colAnalysis - Column analysis data
+   * @returns {string|null} Currency code or null
+   */
+  detectCurrencyCode(colAnalysis) {
+    if (!colAnalysis || !colAnalysis.samples) {
+      return null;
+    }
+
+    const currencyPatterns = [
+      { pattern: /\$/, code: 'USD' },
+      { pattern: /€/, code: 'EUR' },
+      { pattern: /£/, code: 'GBP' },
+      { pattern: /¥/, code: 'JPY' },
+      { pattern: /₹/, code: 'INR' },
+      { pattern: /₽/, code: 'RUB' },
+      { pattern: /₩/, code: 'KRW' },
+      { pattern: /C\$/, code: 'CAD' },
+      { pattern: /A\$/, code: 'AUD' },
+      { pattern: /CHF/, code: 'CHF' }
+    ];
+
+    for (const sample of colAnalysis.samples.slice(0, 10)) {
+      const str = String(sample);
+      for (const { pattern, code } of currencyPatterns) {
+        if (pattern.test(str)) {
+          return code;
+        }
+      }
+    }
+
+    return null;
   }
 
   // ============================================
