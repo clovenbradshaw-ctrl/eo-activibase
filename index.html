@@ -8768,10 +8768,22 @@
                             </button>
                             <div class="toolbar-menu">
                                 <button id="toolbarMenuToggle" class="btn btn-secondary btn-sm toolbar-menu-toggle">
-                                    <i class="ph ph-dots-three-outline"></i>
-                                    Actions
+                                    <i class="ph ph-dots-three"></i>
                                 </button>
                                 <div class="toolbar-menu-panel" id="toolbarMenuPanel">
+                                    <button id="tossSelectedBtn" class="btn btn-secondary btn-sm toolbar-menu-item" disabled>
+                                        <i class="ph ph-hand-fist"></i>
+                                        Toss Selected
+                                    </button>
+                                    <button id="tossPileBtn" class="btn btn-secondary btn-sm toolbar-menu-item toss-pile-toggle" onclick="TossPileUI.togglePanel()">
+                                        <i class="ph ph-recycle"></i>
+                                        Toss Pile ${getTossPileBadgeHtml()}
+                                    </button>
+                                    <button id="ghostToggleBtn" class="btn btn-secondary btn-sm toolbar-menu-item ${getGhostToggleClass()}" onclick="toggleGhostVisibility()">
+                                        <i class="ph ph-eye${getGhostToggleIcon()}"></i>
+                                        ${isGhostVisible() ? 'Hide Ghosts' : 'Show Ghosts'}
+                                    </button>
+                                    <div class="toolbar-menu-divider"></div>
                                     <button id="popupSettingsBtn" class="btn btn-secondary btn-sm toolbar-menu-item">
                                         <i class="ph ph-gear-six"></i>
                                         Details
@@ -8791,17 +8803,6 @@
                                     </button>
                                 </div>
                             </div>
-                            <button id="tossSelectedBtn" class="btn btn-danger btn-sm" disabled>
-                                <i class="ph ph-hand-fist"></i>
-                                Toss
-                            </button>
-                            <button id="ghostToggleBtn" class="btn btn-secondary btn-sm ${getGhostToggleClass()}" onclick="toggleGhostVisibility()" title="${getGhostToggleTitle()}">
-                                <i class="ph ph-eye${getGhostToggleIcon()}"></i>
-                            </button>
-                            <button id="tossPileBtn" class="btn btn-secondary btn-sm toss-pile-toggle" onclick="TossPileUI.togglePanel()" title="View toss pile">
-                                <i class="ph ph-recycle"></i>
-                                ${getTossPileBadgeHtml()}
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -8845,11 +8846,15 @@
             const btn = document.getElementById('ghostToggleBtn');
             if (!btn) return;
             const visible = isGhostVisible();
-            btn.className = `btn btn-secondary btn-sm ${visible ? 'ghost-visible' : 'ghost-hidden'}`;
-            btn.title = visible ? 'Hide ghost data' : 'Show ghost data';
+            btn.className = `btn btn-secondary btn-sm toolbar-menu-item ${visible ? 'ghost-visible' : 'ghost-hidden'}`;
             const icon = btn.querySelector('i');
             if (icon) {
                 icon.className = `ph ph-eye${visible ? '' : '-slash'}`;
+            }
+            // Update text content (keep icon, update label)
+            const textNode = Array.from(btn.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+            if (textNode) {
+                textNode.textContent = visible ? 'Hide Ghosts' : 'Show Ghosts';
             }
         }
 
