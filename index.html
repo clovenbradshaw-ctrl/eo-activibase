@@ -13837,11 +13837,8 @@
                         if (hasViews) {
                             toggleSetExpansion(set.id);
                         } else {
-                            state.currentSetId = set.id;
-                            state.currentViewId = null;
-                            state.currentSpecialView = null;
-                            renderCurrentView();
-                            renderSidebar();
+                            // Use switchSet to properly handle tab creation
+                            switchSet(set.id, null);
                         }
                     };
 
@@ -14638,6 +14635,26 @@
          */
         function renderPaneHTML(pane) {
             const isActive = state.layout?.activePaneId === pane.id;
+
+            // Validate and clean up tabs - remove ones where set/view no longer exists
+            const validTabs = (pane.tabs || []).filter(tab => {
+                if (tab.specialView) {
+                    return SPECIAL_VIEW_CONFIG[tab.specialView] != null;
+                }
+                const set = state.sets.get(tab.setId);
+                const view = set?.views.get(tab.viewId);
+                return set && view;
+            });
+
+            // Update pane tabs if any were removed
+            if (validTabs.length !== (pane.tabs || []).length) {
+                pane.tabs = validTabs;
+                // Adjust activeTabIndex if needed
+                if (pane.activeTabIndex >= validTabs.length) {
+                    pane.activeTabIndex = Math.max(0, validTabs.length - 1);
+                }
+            }
+
             const tabs = pane.tabs || [];
             const activeTabIndex = pane.activeTabIndex || 0;
 
@@ -29255,18 +29272,13 @@
                 exitEditMode(true);
             }
 
-            state.currentSetId = setId;
-            state.currentSpecialView = null;
-            state.currentViewId = null;
-
-            // Get the set and open its default view
+            // Get the set and its first view
             const set = state.sets.get(setId);
-            if (set && set.views.size > 0) {
-                state.currentViewId = Array.from(set.views.keys())[0];
-            }
+            if (!set) return;
 
-            renderSidebar();
-            renderCurrentView();
+            // Use switchSet to properly create tabs and update state
+            const firstViewId = set.views.size > 0 ? Array.from(set.views.keys())[0] : null;
+            switchSet(setId, firstViewId);
         }
 
         function expandOneLevel(setId, recordIds) {
