@@ -134,7 +134,7 @@
         FIELD_TYPES: Object.freeze([
             'TEXT', 'NUMBER', 'CURRENCY', 'SELECT', 'MULTI_SELECT',
             'DATE', 'CHECKBOX', 'EMAIL', 'URL', 'LONG_TEXT',
-            'FORMULA', 'ROLLUP', 'LOOKUP', 'LINKED_RECORD', 'JSON'
+            'FORMULA', 'ROLLUP', 'LOOKUP', 'LINKED_RECORD', 'JSON', 'MULTI_FIELD'
         ]),
 
         // ============================================================================
@@ -159,7 +159,8 @@
             'LOOKUP': 'ph-arrow-square-out',
             'LINKED_RECORD': 'ph-link-simple',
             'LINK_RECORD': 'ph-link-simple',
-            'JSON': 'ph-brackets-curly'
+            'JSON': 'ph-brackets-curly',
+            'MULTI_FIELD': 'ph-stack'
         }),
 
         // ============================================================================
@@ -184,7 +185,8 @@
             'LOOKUP': '#22d3ee',       // Cyan light
             'LINKED_RECORD': '#8b5cf6',// Violet
             'LINK_RECORD': '#8b5cf6',  // Violet
-            'JSON': '#64748b'          // Slate
+            'JSON': '#64748b',         // Slate
+            'MULTI_FIELD': '#059669'   // Emerald darker
         }),
 
         // ============================================================================

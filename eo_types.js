@@ -155,7 +155,7 @@
     // ============================================================================
 
     /**
-     * @typedef {'TEXT'|'NUMBER'|'CURRENCY'|'SELECT'|'MULTI_SELECT'|'DATE'|'DATETIME'|'TIME'|'CHECKBOX'|'EMAIL'|'URL'|'LONG_TEXT'|'FORMULA'|'ROLLUP'|'LOOKUP'|'LINKED_RECORD'} EOFieldType
+     * @typedef {'TEXT'|'NUMBER'|'CURRENCY'|'SELECT'|'MULTI_SELECT'|'DATE'|'DATETIME'|'TIME'|'CHECKBOX'|'EMAIL'|'URL'|'LONG_TEXT'|'FORMULA'|'ROLLUP'|'LOOKUP'|'LINKED_RECORD'|'MULTI_FIELD'} EOFieldType
      */
 
     /**
@@ -380,7 +380,7 @@
     const VALID_FIELD_TYPES = [
         'TEXT', 'NUMBER', 'CURRENCY', 'SELECT', 'MULTI_SELECT',
         'DATE', 'DATETIME', 'TIME', 'CHECKBOX', 'EMAIL', 'URL', 'LONG_TEXT',
-        'FORMULA', 'ROLLUP', 'LOOKUP', 'LINKED_RECORD', 'JSON'
+        'FORMULA', 'ROLLUP', 'LOOKUP', 'LINKED_RECORD', 'JSON', 'MULTI_FIELD'
     ];
 
     /**

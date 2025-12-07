@@ -238,6 +238,13 @@ class EOInlineCellEditor {
       }
     }
 
+    // If it's a multi-field, open the multi-field editor
+    if (fieldType.toUpperCase() === 'MULTI_FIELD') {
+      event.stopPropagation();
+      this.openMultiFieldEditor(cell, recordId, fieldName);
+      return;
+    }
+
     // If it's a linked record field and we have the editor, open the linked record editor
     if (metadata.isLinked && this.linkedRecordEditor) {
       event.stopPropagation();
@@ -392,6 +399,56 @@ class EOInlineCellEditor {
     navigator.clipboard.writeText(text).catch(err => {
       console.error('Failed to copy:', err);
     });
+  }
+
+  /**
+   * Open multi-field editor for MULTI_FIELD type cells
+   */
+  openMultiFieldEditor(cell, recordId, fieldName) {
+    // Get the field schema
+    const fieldSchema = this.config.getFieldSchema(fieldName);
+    if (!fieldSchema) {
+      console.warn('Field schema not found for:', fieldName);
+      return;
+    }
+
+    // Get current value
+    const cellData = this.config.getCellData(recordId, fieldName);
+    let currentValue = null;
+
+    // Parse the current value if it's stored as JSON string
+    if (cellData && cellData.value) {
+      if (typeof cellData.value === 'object') {
+        currentValue = cellData.value;
+      } else if (typeof cellData.value === 'string') {
+        try {
+          currentValue = JSON.parse(cellData.value);
+        } catch (e) {
+          // Not JSON, might need parsing based on field config
+          if (typeof EOMultiFieldUtils !== 'undefined') {
+            currentValue = EOMultiFieldUtils.parseFromText(cellData.value, fieldSchema.config);
+          }
+        }
+      }
+    }
+
+    // Check if EOMultiFieldEditor is available
+    if (typeof EOMultiFieldEditor !== 'undefined') {
+      const editor = new EOMultiFieldEditor();
+      editor.show({
+        fieldSchema: fieldSchema,
+        currentValue: currentValue,
+        recordId: recordId,
+        onSave: (newValue) => {
+          // Call the edit callback
+          this.config.onEdit(recordId, fieldName, currentValue, newValue);
+        }
+      });
+    } else {
+      console.warn('EOMultiFieldEditor not available');
+      // Fallback: show a basic alert
+      alert('Multi-field editor is not available. Please ensure eo_multi_field_editor.js is loaded.');
+    }
   }
 
   /**
@@ -571,6 +628,15 @@ class EOInlineCellEditor {
         input.value = currentValue;
         input.rows = 3;
         input.className = 'eo-cell-input';
+        break;
+
+      case 'multi_field':
+        // Multi-field uses a modal editor, not inline
+        // Create a button that opens the editor
+        input = document.createElement('button');
+        input.className = 'eo-cell-input eo-multi-field-trigger';
+        input.textContent = 'Click to edit...';
+        input.type = 'button';
         break;
 
       default:
