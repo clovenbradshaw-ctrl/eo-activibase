@@ -35,6 +35,7 @@
     cursor: pointer;
     transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
     font-size: 14px;
+    position: relative; /* For relationship indicators */
 }
 
 .view-tab:hover {
@@ -1488,6 +1489,275 @@
     border-radius: 4px;
     font-size: 14px;
     color: var(--text-secondary, #666);
+}
+
+/* ============================================================================
+   VIEW RELATIONSHIP INDICATORS
+   ============================================================================ */
+
+/* Link badge on view tabs */
+.view-link-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 10px;
+    flex-shrink: 0;
+    margin-right: 2px;
+}
+
+.view-link-badge.linked {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border: 1px solid #93c5fd;
+}
+
+.view-link-badge.linked .link-icon {
+    font-size: 10px;
+    line-height: 1;
+}
+
+.view-link-badge.source {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border: 1px solid #86efac;
+    min-width: 18px;
+    width: auto;
+    padding: 0 4px;
+    border-radius: 9px;
+}
+
+.view-link-badge.source .source-count {
+    font-size: 10px;
+    font-weight: 700;
+    color: #166534;
+}
+
+/* Linked view tab styling */
+.view-tab.linked {
+    border-left: 3px solid #3b82f6;
+    padding-left: 9px;
+}
+
+.view-tab.linked:not(.active) {
+    background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+}
+
+/* Source view tab styling */
+.view-tab.source:not(.active) {
+    border-left: 3px solid #22c55e;
+    padding-left: 9px;
+}
+
+/* Sandbox view tab styling - exploratory/temporary */
+.view-tab.sandbox {
+    border-style: dashed !important;
+    border-width: 1px !important;
+    border-color: #9ca3af !important;
+    background: repeating-linear-gradient(
+        -45deg,
+        #f9fafb,
+        #f9fafb 5px,
+        #f3f4f6 5px,
+        #f3f4f6 10px
+    ) !important;
+    opacity: 0.85;
+}
+
+.view-tab.sandbox:hover {
+    opacity: 1;
+    border-color: #6b7280 !important;
+}
+
+.view-tab.sandbox.active {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
+    border-color: #f59e0b !important;
+    border-style: dashed !important;
+    opacity: 1;
+}
+
+.sandbox-indicator {
+    font-size: 12px;
+    margin-left: 2px;
+    opacity: 0.7;
+}
+
+/* ============================================================================
+   VIEW LINEAGE BAR
+   ============================================================================ */
+
+.view-lineage-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 13px;
+}
+
+/* Lineage chain (breadcrumb of parent views) */
+.lineage-chain {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.lineage-label {
+    font-weight: 600;
+    color: #64748b;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.lineage-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: #475569;
+}
+
+.lineage-item:hover {
+    background: #f1f5f9;
+    border-color: #3b82f6;
+    color: #1e40af;
+}
+
+.lineage-item.current {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border-color: #1d4ed8;
+    color: white;
+    font-weight: 600;
+    cursor: default;
+}
+
+.lineage-icon {
+    font-size: 12px;
+}
+
+.lineage-name {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lineage-arrow {
+    color: #94a3b8;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Dependents section */
+.lineage-dependents {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.dependents-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #22c55e;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.dependent-item {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border: 1px solid #86efac;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #166534;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.dependent-item:hover {
+    background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%);
+    border-color: #22c55e;
+}
+
+.more-dependents {
+    font-size: 11px;
+    color: #64748b;
+    font-style: italic;
+}
+
+/* Sandbox mode bar */
+.sandbox-mode-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px dashed #f59e0b;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.sandbox-icon {
+    font-size: 16px;
+}
+
+.sandbox-text {
+    flex: 1;
+    color: #92400e;
+    font-weight: 500;
+}
+
+.btn-promote-view {
+    padding: 4px 10px;
+    background: white;
+    border: 1px solid #f59e0b;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #92400e;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-promote-view:hover {
+    background: #fef3c7;
+    border-color: #d97706;
+}
+
+/* ============================================================================
+   VIEW RELATIONSHIP VISUAL CONNECTOR (optional future enhancement)
+   ============================================================================ */
+
+/* Visual connector line between related tabs */
+.view-tabs .view-tab.linked::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 3px;
+    height: 60%;
+    transform: translateY(-50%);
+    background: linear-gradient(180deg, transparent 0%, #3b82f6 50%, transparent 100%);
+    border-radius: 0 2px 2px 0;
+}
+
+/* When both linked and source, show both indicators */
+.view-tab.linked.source {
+    border-left: 3px solid;
+    border-image: linear-gradient(180deg, #3b82f6 0%, #22c55e 100%) 1;
 }
 
 /* ============================================================================

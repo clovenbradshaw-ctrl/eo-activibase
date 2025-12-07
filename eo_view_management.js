@@ -241,10 +241,21 @@ function cloneView(state, viewId, newName) {
 /**
  * Create a view from current focus
  * Captures the focused entity and creates a filtered view around it
+ * The new view is marked as derived from the current view for lineage tracking
  */
 function createViewFromFocus(state, focus, name) {
     const set = state.sets.get(state.currentSetId);
     if (!set) return null;
+
+    // Track derivation from current view if one exists
+    const currentViewId = state.currentViewId;
+    const currentView = currentViewId ? state.views?.get(currentViewId) : null;
+    const derivedFromViewIds = currentView ? [currentView.id] : [];
+
+    // Determine derivation type for provenance notes
+    let derivationType = 'focus';
+    if (focus.kind === 'value') derivationType = 'filter';
+    if (focus.kind === 'field') derivationType = 'pivot';
 
     const config = {
         setId: set.id,
@@ -255,7 +266,16 @@ function createViewFromFocus(state, focus, name) {
         filters: [],
         sorts: [],
         groups: [],
-        notes: 'View created from focus'
+        derivedFromViewIds,
+        notes: `View created from ${derivationType}${currentView ? ` on "${currentView.name}"` : ''}`,
+        // Track pivot metadata for lineage display
+        pivotMetadata: focus.kind === 'value' || focus.kind === 'field' ? {
+            sourceViewId: currentViewId,
+            sourceViewName: currentView?.name,
+            pivotField: focus.fieldId || focus.id,
+            pivotValue: focus.value,
+            pivotType: derivationType
+        } : null
     };
 
     // Add default filter based on focus type
