@@ -1,9 +1,15 @@
 /**
  * EO Linked Fields Modal
  *
- * Allows users to add fields from linked/related sets with:
- * - Lookup (for 1-to-1 relationships)
- * - Rollup with aggregation (for 1-to-many relationships)
+ * Allows users to add lookup fields from linked/related sets.
+ *
+ * KEY CONCEPT: All lookups can optionally have a rollup formula.
+ * - A lookup without a rollup formula returns the raw value(s)
+ * - A lookup with a rollup formula aggregates the values
+ *
+ * REQUIREMENTS:
+ * - Lookup fields REQUIRE a linked record field first
+ * - All lookup fields CAN be rollups - the rollup formula is a parameter on the lookup
  *
  * Implements Airtable-style linked field UX with automatic cardinality detection.
  */
@@ -15,7 +21,7 @@ class EOLinkedFieldsModal {
         this.currentSet = null;
         this.linkedSets = [];
         this.selectedLinkedSet = null;
-        this.selectedFields = new Map(); // fieldId -> { fieldName, fieldType, operation, aggregation }
+        this.selectedFields = new Map(); // fieldId -> { fieldName, fieldType, rollupFormula }
         this.state = null;
     }
 
@@ -260,7 +266,7 @@ class EOLinkedFieldsModal {
         return targetSet.schema.map(field => {
             const fieldKey = `${this.selectedLinkedSet.setId}.${field.id}`;
             const isSelected = this.selectedFields.has(fieldKey);
-            const selectedConfig = this.selectedFields.get(fieldKey) || { operation: 'lookup', aggregation: null };
+            const selectedConfig = this.selectedFields.get(fieldKey) || { rollupFormula: null };
 
             return `
                 <div class="field-row" data-field-id="${field.id}" data-field-key="${fieldKey}">
@@ -273,9 +279,7 @@ class EOLinkedFieldsModal {
                         <span class="field-type-badge">${field.type}</span>
                     </div>
                     <div class="agg-controls">
-                        ${cardinality === 'one'
-                            ? this.renderLookupOnlyControl(fieldKey, selectedConfig)
-                            : this.renderLookupRollupControl(fieldKey, selectedConfig, field)}
+                        ${this.renderRollupFormulaControl(fieldKey, selectedConfig, field, cardinality)}
                     </div>
                 </div>
             `;
@@ -283,45 +287,24 @@ class EOLinkedFieldsModal {
     }
 
     /**
-     * Render lookup-only control for 1-to-1 relationships
+     * Render rollup formula control for lookups
+     * All lookups can optionally have a rollup formula
      */
-    renderLookupOnlyControl(fieldKey, config) {
-        return `
-            <select class="operation-select" data-field-key="${fieldKey}" disabled>
-                <option value="lookup">Lookup</option>
-            </select>
-        `;
-    }
-
-    /**
-     * Render lookup/rollup control for 1-to-many relationships
-     */
-    renderLookupRollupControl(fieldKey, config, field) {
-        const operation = config.operation || 'lookup';
-        const aggregation = config.aggregation || 'count';
-
-        return `
-            <select class="operation-select" data-field-key="${fieldKey}">
-                <option value="lookup" ${operation === 'lookup' ? 'selected' : ''}>Lookup</option>
-                <option value="rollup" ${operation === 'rollup' ? 'selected' : ''}>Rollup</option>
-            </select>
-            ${operation === 'rollup' ? this.renderAggregationSelect(fieldKey, aggregation, field) : ''}
-        `;
-    }
-
-    /**
-     * Render aggregation function select for rollup
-     */
-    renderAggregationSelect(fieldKey, currentAggregation, field) {
+    renderRollupFormulaControl(fieldKey, config, field, cardinality) {
+        const rollupFormula = config.rollupFormula || null;
         const fieldType = field.type;
 
-        // Determine which aggregation functions are applicable
+        // Get applicable aggregation functions for this field type
         const aggregations = this.getApplicableAggregations(fieldType);
 
+        // For 1-to-1, default display shows single value; for 1-to-many, shows all values
+        const defaultLabel = cardinality === 'one' ? '(single value)' : '(all values)';
+
         return `
-            <select class="aggregation-select" data-field-key="${fieldKey}">
+            <select class="rollup-formula-select" data-field-key="${fieldKey}">
+                <option value="" ${!rollupFormula ? 'selected' : ''}>No formula ${defaultLabel}</option>
                 ${aggregations.map(agg => `
-                    <option value="${agg.value}" ${currentAggregation === agg.value ? 'selected' : ''}>
+                    <option value="${agg.value}" ${rollupFormula === agg.value ? 'selected' : ''}>
                         ${agg.label}
                     </option>
                 `).join('')}
@@ -365,14 +348,15 @@ class EOLinkedFieldsModal {
 
             if (!field || !targetSet) return;
 
-            const operationText = config.operation === 'rollup'
-                ? `Rollup (${config.aggregation})`
-                : 'Lookup';
+            // Show lookup with optional rollup formula
+            const formulaText = config.rollupFormula
+                ? `with ${config.rollupFormula} formula`
+                : '(raw values)';
 
             items.push(`
                 <div class="summary-item">
                     <div class="summary-item-name">${targetSet.name} – ${field.name}</div>
-                    <div class="summary-meta">${operationText} from ${targetSet.name}.${field.name}</div>
+                    <div class="summary-meta">Lookup ${formulaText}</div>
                 </div>
             `);
         });
@@ -430,30 +414,20 @@ class EOLinkedFieldsModal {
             });
         });
 
-        // Operation select change
-        const operationSelects = this.modal.querySelectorAll('.operation-select');
-        operationSelects.forEach(select => {
-            select.addEventListener('change', (e) => {
-                const fieldKey = e.target.dataset.fieldKey;
-                const operation = e.target.value;
-                this.updateFieldOperation(fieldKey, operation);
-            });
-        });
-
-        // Aggregation select change (will be added dynamically)
-        this.attachAggregationListeners();
+        // Rollup formula select change
+        this.attachRollupFormulaListeners();
     }
 
     /**
-     * Attach aggregation select listeners
+     * Attach rollup formula select listeners
      */
-    attachAggregationListeners() {
-        const aggregationSelects = this.modal.querySelectorAll('.aggregation-select');
-        aggregationSelects.forEach(select => {
+    attachRollupFormulaListeners() {
+        const rollupFormulaSelects = this.modal.querySelectorAll('.rollup-formula-select');
+        rollupFormulaSelects.forEach(select => {
             select.addEventListener('change', (e) => {
                 const fieldKey = e.target.dataset.fieldKey;
-                const aggregation = e.target.value;
-                this.updateFieldAggregation(fieldKey, aggregation);
+                const rollupFormula = e.target.value || null;
+                this.updateRollupFormula(fieldKey, rollupFormula);
             });
         });
     }
@@ -486,17 +460,15 @@ class EOLinkedFieldsModal {
 
             if (!field) return;
 
-            const cardinality = this.selectedLinkedSet.cardinality;
-
             this.selectedFields.set(fieldKey, {
                 fieldId,
                 fieldName: field.name,
                 fieldType: field.type,
                 setId,
                 setName: targetSet.name,
-                operation: cardinality === 'one' ? 'lookup' : 'lookup', // default to lookup
-                aggregation: 'count', // default aggregation
-                linkFieldId: this.selectedLinkedSet.fieldId
+                rollupFormula: null, // No formula by default - returns raw value(s)
+                linkFieldId: this.selectedLinkedSet.fieldId,
+                cardinality: this.selectedLinkedSet.cardinality
             });
         } else {
             this.selectedFields.delete(fieldKey);
@@ -507,27 +479,13 @@ class EOLinkedFieldsModal {
     }
 
     /**
-     * Update field operation (lookup/rollup)
+     * Update rollup formula for a lookup field
      */
-    updateFieldOperation(fieldKey, operation) {
+    updateRollupFormula(fieldKey, rollupFormula) {
         const config = this.selectedFields.get(fieldKey);
         if (!config) return;
 
-        config.operation = operation;
-        this.selectedFields.set(fieldKey, config);
-
-        this.refreshMiddlePanel();
-        this.refreshRightPanel();
-    }
-
-    /**
-     * Update field aggregation function
-     */
-    updateFieldAggregation(fieldKey, aggregation) {
-        const config = this.selectedFields.get(fieldKey);
-        if (!config) return;
-
-        config.aggregation = aggregation;
+        config.rollupFormula = rollupFormula;
         this.selectedFields.set(fieldKey, config);
 
         this.refreshRightPanel();
@@ -550,17 +508,8 @@ class EOLinkedFieldsModal {
                 });
             });
 
-            // Re-attach operation select listeners
-            const operationSelects = fieldsList.querySelectorAll('.operation-select');
-            operationSelects.forEach(select => {
-                select.addEventListener('change', (e) => {
-                    const fieldKey = e.target.dataset.fieldKey;
-                    const operation = e.target.value;
-                    this.updateFieldOperation(fieldKey, operation);
-                });
-            });
-
-            this.attachAggregationListeners();
+            // Re-attach rollup formula select listeners
+            this.attachRollupFormulaListeners();
         }
 
         // Update linked sets list
@@ -601,44 +550,35 @@ class EOLinkedFieldsModal {
 
     /**
      * Add selected fields to view
+     *
+     * All fields are stored as lookups in view.relationships.
+     * Each lookup can optionally have a rollupFormula property.
      */
     addFieldsToView() {
         if (this.selectedFields.size === 0) return;
 
-        // Add fields to view's relationships/rollups arrays
+        // Initialize relationships array if needed
+        if (!this.currentView.relationships) {
+            this.currentView.relationships = [];
+        }
+
+        // Add all fields as lookups (with optional rollup formula)
         this.selectedFields.forEach((config, fieldKey) => {
-            if (config.operation === 'lookup') {
-                // Add to view relationships as lookup
-                if (!this.currentView.relationships) {
-                    this.currentView.relationships = [];
-                }
+            const displayName = config.rollupFormula
+                ? `${config.setName} – ${config.fieldName} (${config.rollupFormula})`
+                : `${config.setName} – ${config.fieldName}`;
 
-                this.currentView.relationships.push({
-                    id: `linked_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-                    type: 'lookup',
-                    sourceFieldId: config.linkFieldId,
-                    targetSetId: config.setId,
-                    targetFieldId: config.fieldId,
-                    displayName: `${config.setName} – ${config.fieldName}`,
-                    createdAt: Date.now()
-                });
-            } else if (config.operation === 'rollup') {
-                // Add to view rollups
-                if (!this.currentView.rollups) {
-                    this.currentView.rollups = [];
-                }
-
-                this.currentView.rollups.push({
-                    id: `rollup_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-                    type: 'rollup',
-                    sourceFieldId: config.linkFieldId,
-                    targetSetId: config.setId,
-                    targetFieldId: config.fieldId,
-                    aggregation: config.aggregation,
-                    displayName: `${config.setName} – ${config.fieldName} (${config.aggregation})`,
-                    createdAt: Date.now()
-                });
-            }
+            this.currentView.relationships.push({
+                id: `lookup_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+                type: 'lookup',
+                sourceFieldId: config.linkFieldId,
+                targetSetId: config.setId,
+                targetFieldId: config.fieldId,
+                rollupFormula: config.rollupFormula, // null if no aggregation, or aggregation function name
+                cardinality: config.cardinality,
+                displayName: displayName,
+                createdAt: Date.now()
+            });
         });
 
         // Mark view as dirty
