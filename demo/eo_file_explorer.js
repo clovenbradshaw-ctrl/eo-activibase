@@ -20,6 +20,12 @@ class EOFileExplorer {
     this.expandedSections = new Set(['imports', 'sets', 'views']);
     this.dragState = null;
 
+    // Track maturity context for relationship calculations
+    this.maturityContext = {
+      establishedLinks: [],
+      setRelationships: {}
+    };
+
     this.onImportSelect = options.onImportSelect || (() => {});
     this.onSetSelect = options.onSetSelect || (() => {});
     this.onViewSelect = options.onViewSelect || (() => {});
@@ -140,6 +146,7 @@ class EOFileExplorer {
 
   /**
    * Render a single import item (data file)
+   * Now includes maturity calculation for visual hierarchy
    */
   renderImportItem(imp, sets = []) {
     const isSelected = this.selectedItem?.type === 'import' && this.selectedItem?.id === imp.id;
@@ -147,6 +154,18 @@ class EOFileExplorer {
     const timeAgo = this.getTimeAgo(imp.createdAt);
     const usedCount = imp.usedIn ? imp.usedIn.length : 0;
     const isUnused = usedCount === 0;
+
+    // Calculate data maturity for visual treatment
+    const maturity = typeof EODataMaturity !== 'undefined'
+      ? EODataMaturity.calculateImportMaturity(imp, this.maturityContext)
+      : { stage: 'emanon', aspects: {}, hints: [], score: 0 };
+
+    const maturityClass = typeof EODataMaturity !== 'undefined'
+      ? EODataMaturity.getStageClass(maturity.stage)
+      : '';
+
+    // Check if this is a new import (created in last 5 minutes)
+    const isNew = (Date.now() - new Date(imp.createdAt).getTime()) < 5 * 60 * 1000;
 
     // Find workspace names this import is used in
     const usedInWorkspaces = (imp.usedIn || []).map(usage => {
@@ -157,11 +176,28 @@ class EOFileExplorer {
       return null;
     }).filter(Boolean);
 
+    // Render readiness indicator if available
+    const readinessHTML = typeof EODataMaturity !== 'undefined' && maturity.score < 100
+      ? EODataMaturity.renderReadinessIndicator(maturity, { compact: true })
+      : '';
+
+    // Get the primary action hint if data needs attention
+    const primaryHint = maturity.hints.length > 0 && maturity.stage !== 'holon'
+      ? maturity.hints[0]
+      : null;
+
+    // Quality badge for ready data
+    const qualityBadge = maturity.stage === 'holon' && imp.quality?.score
+      ? `<span class="eo-quality-badge eo-quality-${this.getQualityLevel(imp.quality.score)}" title="Quality: ${imp.quality.score}%">${imp.quality.score}</span>`
+      : '';
+
     return `
-      <div class="eo-item eo-import-item ${isSelected ? 'eo-selected' : ''} ${isUnused ? 'eo-unused' : ''}"
+      <div class="eo-item eo-import-item ${maturityClass} ${isSelected ? 'eo-selected' : ''} ${isUnused ? 'eo-unused' : ''} ${isNew ? 'eo-new-import' : ''}"
            data-type="import"
            data-id="${imp.id}"
-           draggable="true">
+           data-maturity="${maturity.stage}"
+           draggable="true"
+           title="${maturity.summary || ''}">
         <div class="eo-item-icon">
           <i class="ph-bold ${formatIcon}"></i>
         </div>
@@ -171,6 +207,7 @@ class EOFileExplorer {
             <span>${imp.rowCount} rows</span>
             <span class="eo-dot">·</span>
             <span>${timeAgo}</span>
+            ${readinessHTML}
           </div>
           ${usedInWorkspaces.length > 0 ? `
             <div class="eo-item-usage">
@@ -179,13 +216,20 @@ class EOFileExplorer {
             </div>
           ` : `
             <div class="eo-item-usage eo-unused-hint">
-              <i class="ph ph-info"></i>
-              <span>Not used yet - drag to a workspace</span>
+              <i class="ph ph-hand-pointing"></i>
+              <span>Drag to a workspace to use</span>
             </div>
           `}
+          ${primaryHint && isUnused ? `
+            <div class="eo-action-hint eo-hint-${primaryHint.type}" title="${primaryHint.text}">
+              <i class="ph ${typeof EODataMaturity !== 'undefined' ? EODataMaturity.getHintIcon(primaryHint.type) : 'ph-info'}"></i>
+              <span>${this.truncate(primaryHint.text, 35)}</span>
+            </div>
+          ` : ''}
         </div>
         <div class="eo-item-badges">
-          ${imp.schema && imp.schema.foreignKeyHints && imp.schema.foreignKeyHints.length > 0 ? `<span class="eo-badge eo-badge-link" title="Has relationships"><i class="ph-bold ph-link"></i></span>` : ''}
+          ${qualityBadge}
+          ${imp.schema?.foreignKeyHints?.length > 0 ? `<span class="eo-badge eo-badge-link" title="Has potential relationships"><i class="ph-bold ph-link"></i></span>` : ''}
         </div>
         <div class="eo-item-actions">
           <button class="eo-action-btn" data-action="preview" data-id="${imp.id}" title="Preview">
@@ -200,7 +244,18 @@ class EOFileExplorer {
   }
 
   /**
+   * Get quality level string for CSS class
+   */
+  getQualityLevel(score) {
+    if (score >= 90) return 'excellent';
+    if (score >= 70) return 'good';
+    if (score >= 50) return 'fair';
+    return 'poor';
+  }
+
+  /**
    * Render a single workspace item with its data sources
+   * Now includes maturity calculation for visual hierarchy
    */
   renderSetItem(set, allImports) {
     const isSelected = this.selectedItem?.type === 'set' && this.selectedItem?.id === set.id;
@@ -211,14 +266,46 @@ class EOFileExplorer {
       imp.usedIn && imp.usedIn.some(u => u.type === 'set' && u.id === set.id)
     );
 
+    // Calculate workspace maturity
+    const maturity = typeof EODataMaturity !== 'undefined'
+      ? EODataMaturity.calculateSetMaturity(set, allImports, this.maturityContext)
+      : { stage: 'emanon', aspects: {}, hints: [], score: 0, sourceCount: sourceImports.length };
+
+    const maturityClass = typeof EODataMaturity !== 'undefined'
+      ? EODataMaturity.getStageClass(maturity.stage)
+      : '';
+
     // Get source file names for display
     const sourceNames = sourceImports.map(imp => this.truncate(imp.name, 12));
 
+    // Get the primary action hint if the workspace needs attention
+    const primaryHint = maturity.hints.length > 0 && maturity.stage !== 'holon'
+      ? maturity.hints[0]
+      : null;
+
+    // Show readiness badge for non-ready workspaces
+    const readinessBadge = typeof EODataMaturity !== 'undefined' && recordCount > 0
+      ? EODataMaturity.renderSetReadinessIndicator(maturity, { compact: true })
+      : '';
+
+    // Trust signal for ready workspaces
+    const trustSignal = maturity.stage === 'holon' && recordCount > 0
+      ? `<span class="eo-trust-signal" title="Data is well-organized"><i class="ph-bold ph-seal-check"></i></span>`
+      : '';
+
+    // View count indicator for active workspaces
+    const viewCount = set.views ? set.views.length : 0;
+    const viewIndicator = viewCount > 0
+      ? `<span class="eo-connected-badge" title="${viewCount} view${viewCount > 1 ? 's' : ''}"><i class="ph ph-eye"></i>${viewCount}</span>`
+      : '';
+
     return `
-      <div class="eo-item eo-set-item ${isSelected ? 'eo-selected' : ''} eo-droppable"
+      <div class="eo-item eo-set-item ${maturityClass} ${isSelected ? 'eo-selected' : ''} eo-droppable"
            data-type="set"
            data-id="${set.id}"
-           data-drop-target="set">
+           data-maturity="${maturity.stage}"
+           data-drop-target="set"
+           title="${maturity.summary || ''}">
         <div class="eo-item-icon">
           <i class="ph-bold ${set.icon || 'ph-squares-four'}"></i>
         </div>
@@ -226,6 +313,7 @@ class EOFileExplorer {
           <div class="eo-item-name" title="${set.name}">${this.truncate(set.name, 24)}</div>
           <div class="eo-item-meta">
             <span>${recordCount} records</span>
+            ${readinessBadge}
           </div>
           ${sourceImports.length > 0 ? `
             <div class="eo-item-sources-list">
@@ -234,10 +322,20 @@ class EOFileExplorer {
             </div>
           ` : `
             <div class="eo-item-sources-list eo-no-sources">
-              <i class="ph ph-plus-circle"></i>
+              <i class="ph ph-cloud-arrow-up"></i>
               <span>Drop data files here</span>
             </div>
           `}
+          ${primaryHint && recordCount === 0 ? `
+            <div class="eo-action-hint eo-hint-${primaryHint.type}" title="${primaryHint.text}">
+              <i class="ph ${typeof EODataMaturity !== 'undefined' ? EODataMaturity.getHintIcon(primaryHint.type) : 'ph-info'}"></i>
+              <span>${this.truncate(primaryHint.text, 35)}</span>
+            </div>
+          ` : ''}
+        </div>
+        <div class="eo-item-badges">
+          ${trustSignal}
+          ${viewIndicator}
         </div>
         ${sourceImports.length > 0 ? `
           <div class="eo-item-sources">

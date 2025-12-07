@@ -1,0 +1,605 @@
+/**
+ * EO Data Maturity Styles
+ *
+ * Visual hierarchy for data as it matures through its lifecycle.
+ * These styles embody the journey without labeling it.
+ *
+ * Stage treatments:
+ * - Raw (emanon): Tentative, sketchy, needs attention
+ * - Forming (protogon): Solid, connected, in progress
+ * - Ready (holon): Confident, complete, trustworthy
+ */
+
+/* ============================================
+   Maturity Stage Variables
+   ============================================ */
+
+:root {
+  /* Raw/Emanon stage - tentative, uncertain */
+  --maturity-raw-border: var(--gray-300);
+  --maturity-raw-bg: var(--gray-50);
+  --maturity-raw-accent: var(--amber-500);
+  --maturity-raw-text: var(--gray-600);
+
+  /* Forming/Protogon stage - solid, connecting */
+  --maturity-forming-border: var(--blue-300);
+  --maturity-forming-bg: var(--white);
+  --maturity-forming-accent: var(--blue-500);
+  --maturity-forming-text: var(--gray-700);
+
+  /* Ready/Holon stage - confident, complete */
+  --maturity-ready-border: var(--green-400);
+  --maturity-ready-bg: var(--white);
+  --maturity-ready-accent: var(--green-500);
+  --maturity-ready-text: var(--gray-800);
+  --maturity-ready-glow: rgba(34, 197, 94, 0.1);
+}
+
+/* ============================================
+   Base Maturity Classes (on .eo-item)
+   ============================================ */
+
+/* RAW STAGE - Tentative, needs attention */
+.eo-item.eo-maturity-raw {
+  border-left: 3px dashed var(--maturity-raw-border);
+  background: linear-gradient(to right, var(--amber-50) 0%, transparent 40%);
+  opacity: 0.92;
+}
+
+.eo-item.eo-maturity-raw:hover {
+  opacity: 1;
+  border-left-color: var(--maturity-raw-accent);
+}
+
+.eo-item.eo-maturity-raw .eo-item-icon {
+  background: var(--amber-100);
+  color: var(--amber-600);
+  border: 1px dashed var(--amber-300);
+}
+
+.eo-item.eo-maturity-raw .eo-item-name {
+  color: var(--maturity-raw-text);
+}
+
+/* FORMING STAGE - Solid, in progress */
+.eo-item.eo-maturity-forming {
+  border-left: 3px solid var(--maturity-forming-border);
+  background: var(--maturity-forming-bg);
+}
+
+.eo-item.eo-maturity-forming:hover {
+  border-left-color: var(--maturity-forming-accent);
+  background: var(--blue-50);
+}
+
+.eo-item.eo-maturity-forming .eo-item-icon {
+  background: var(--blue-100);
+  color: var(--blue-600);
+}
+
+.eo-item.eo-maturity-forming .eo-item-name {
+  color: var(--maturity-forming-text);
+}
+
+/* READY STAGE - Confident, complete */
+.eo-item.eo-maturity-ready {
+  border-left: 3px solid var(--maturity-ready-border);
+  background: var(--maturity-ready-bg);
+  box-shadow: 0 1px 3px var(--maturity-ready-glow);
+}
+
+.eo-item.eo-maturity-ready:hover {
+  border-left-color: var(--maturity-ready-accent);
+  background: var(--green-50);
+  box-shadow: 0 2px 6px var(--maturity-ready-glow);
+}
+
+.eo-item.eo-maturity-ready .eo-item-icon {
+  background: var(--green-100);
+  color: var(--green-600);
+}
+
+.eo-item.eo-maturity-ready .eo-item-name {
+  color: var(--maturity-ready-text);
+  font-weight: 600;
+}
+
+/* ============================================
+   Readiness Indicator Component
+   ============================================ */
+
+.eo-readiness-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.eo-readiness-indicator.eo-compact {
+  gap: 4px;
+}
+
+.eo-readiness-segments {
+  display: flex;
+  gap: 2px;
+}
+
+.eo-readiness-segment {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.eo-readiness-indicator.eo-compact .eo-readiness-segment {
+  width: 4px;
+  height: 4px;
+}
+
+/* Segment status states */
+.eo-readiness-segment.eo-segment-pending {
+  background: var(--gray-300);
+  opacity: 0.5;
+}
+
+.eo-readiness-segment.eo-segment-partial {
+  background: var(--amber-400);
+}
+
+.eo-readiness-segment.eo-segment-complete {
+  background: var(--green-500);
+}
+
+/* Stage-specific segment styling */
+.eo-maturity-raw .eo-readiness-segment.eo-segment-complete {
+  background: var(--amber-500);
+}
+
+.eo-maturity-forming .eo-readiness-segment.eo-segment-complete {
+  background: var(--blue-500);
+}
+
+/* Hint icon */
+.eo-readiness-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--amber-500);
+  font-size: 10px;
+  cursor: help;
+}
+
+.eo-maturity-ready .eo-readiness-hint {
+  display: none; /* No hints needed for ready data */
+}
+
+/* ============================================
+   Set Readiness Indicator
+   ============================================ */
+
+.eo-set-readiness {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.eo-set-readiness.eo-maturity-raw {
+  background: var(--amber-100);
+  color: var(--amber-700);
+}
+
+.eo-set-readiness.eo-maturity-forming {
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+
+.eo-set-readiness.eo-maturity-ready {
+  background: var(--green-100);
+  color: var(--green-700);
+}
+
+.eo-set-score {
+  font-weight: 700;
+}
+
+.eo-source-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 7px;
+  font-size: 9px;
+}
+
+/* ============================================
+   Action Hints
+   ============================================ */
+
+.eo-action-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--gray-600);
+  background: var(--gray-100);
+  border-radius: 6px;
+  border-left: 2px solid var(--gray-300);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.eo-action-hint:hover {
+  background: var(--gray-200);
+  border-left-color: var(--blue-400);
+  color: var(--gray-700);
+}
+
+.eo-action-hint i {
+  font-size: 12px;
+  color: var(--gray-400);
+}
+
+.eo-action-hint:hover i {
+  color: var(--blue-500);
+}
+
+/* Hint type variations */
+.eo-action-hint.eo-hint-action {
+  border-left-color: var(--blue-400);
+  background: var(--blue-50);
+}
+
+.eo-action-hint.eo-hint-action i {
+  color: var(--blue-500);
+}
+
+.eo-action-hint.eo-hint-attention {
+  border-left-color: var(--amber-400);
+  background: var(--amber-50);
+}
+
+.eo-action-hint.eo-hint-attention i {
+  color: var(--amber-500);
+}
+
+.eo-action-hint.eo-hint-opportunity {
+  border-left-color: var(--purple-400);
+  background: var(--purple-50);
+}
+
+.eo-action-hint.eo-hint-opportunity i {
+  color: var(--purple-500);
+}
+
+/* ============================================
+   Progress Pulse Animation
+   ============================================ */
+
+@keyframes maturity-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.eo-item.eo-maturity-forming.eo-processing {
+  animation: maturity-pulse 2s ease-in-out infinite;
+}
+
+/* ============================================
+   Workspace Card Maturity Styles
+   ============================================ */
+
+.eo-set-item.eo-maturity-raw {
+  border-left: 3px dashed var(--gray-300);
+}
+
+.eo-set-item.eo-maturity-raw .eo-item-icon {
+  background: var(--gray-100);
+  color: var(--gray-500);
+  border: 1px dashed var(--gray-300);
+}
+
+.eo-set-item.eo-maturity-forming {
+  border-left: 3px solid var(--purple-300);
+}
+
+.eo-set-item.eo-maturity-forming .eo-item-icon {
+  background: var(--purple-100);
+  color: var(--purple-600);
+}
+
+.eo-set-item.eo-maturity-ready {
+  border-left: 3px solid var(--green-400);
+  box-shadow: 0 1px 3px rgba(34, 197, 94, 0.08);
+}
+
+.eo-set-item.eo-maturity-ready .eo-item-icon {
+  background: var(--green-100);
+  color: var(--green-600);
+}
+
+.eo-set-item.eo-maturity-ready .eo-item-name {
+  font-weight: 600;
+}
+
+/* ============================================
+   Empty/New State Styling
+   ============================================ */
+
+.eo-item.eo-new-import {
+  position: relative;
+}
+
+.eo-item.eo-new-import::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  background: var(--amber-500);
+  border-radius: 50%;
+  animation: new-badge-pulse 2s ease-in-out 3;
+}
+
+@keyframes new-badge-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.7;
+  }
+}
+
+/* ============================================
+   Connected/Linked State Indicator
+   ============================================ */
+
+.eo-item .eo-connected-badge {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--blue-600);
+  background: var(--blue-100);
+  border-radius: 10px;
+}
+
+.eo-item .eo-connected-badge i {
+  font-size: 10px;
+}
+
+/* ============================================
+   Quality Score Badge (Enhanced)
+   ============================================ */
+
+.eo-quality-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 9px;
+}
+
+.eo-quality-excellent {
+  background: var(--green-100);
+  color: var(--green-700);
+}
+
+.eo-quality-good {
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+
+.eo-quality-fair {
+  background: var(--amber-100);
+  color: var(--amber-700);
+}
+
+.eo-quality-poor {
+  background: var(--red-100);
+  color: var(--red-700);
+}
+
+/* ============================================
+   Data Journey Progress Bar
+   ============================================ */
+
+.eo-journey-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--gray-50);
+  border-radius: 8px;
+  margin: 8px 0;
+}
+
+.eo-journey-steps {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.eo-journey-step {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--gray-400);
+}
+
+.eo-journey-step.eo-complete {
+  color: var(--green-600);
+}
+
+.eo-journey-step.eo-current {
+  color: var(--blue-600);
+  font-weight: 600;
+}
+
+.eo-journey-step i {
+  font-size: 14px;
+}
+
+.eo-journey-connector {
+  flex: 1;
+  height: 2px;
+  background: var(--gray-200);
+  margin: 0 4px;
+}
+
+.eo-journey-connector.eo-complete {
+  background: var(--green-400);
+}
+
+/* ============================================
+   Trust Signal (for ready/holon data)
+   ============================================ */
+
+.eo-trust-signal {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--green-700);
+  background: var(--green-100);
+  border-radius: 10px;
+  border: 1px solid var(--green-200);
+}
+
+.eo-trust-signal i {
+  font-size: 10px;
+}
+
+/* ============================================
+   Dark Mode Overrides
+   ============================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --maturity-raw-border: #6b7280;
+    --maturity-raw-bg: #374151;
+    --maturity-raw-accent: #f59e0b;
+    --maturity-raw-text: #d1d5db;
+
+    --maturity-forming-border: #60a5fa;
+    --maturity-forming-bg: #1f2937;
+    --maturity-forming-accent: #3b82f6;
+    --maturity-forming-text: #e5e7eb;
+
+    --maturity-ready-border: #4ade80;
+    --maturity-ready-bg: #1f2937;
+    --maturity-ready-accent: #22c55e;
+    --maturity-ready-text: #f3f4f6;
+    --maturity-ready-glow: rgba(34, 197, 94, 0.15);
+  }
+
+  .eo-item.eo-maturity-raw {
+    background: linear-gradient(to right, rgba(251, 191, 36, 0.1) 0%, transparent 40%);
+  }
+
+  .eo-item.eo-maturity-raw .eo-item-icon {
+    background: rgba(251, 191, 36, 0.2);
+    border-color: rgba(251, 191, 36, 0.3);
+  }
+
+  .eo-item.eo-maturity-forming:hover {
+    background: rgba(59, 130, 246, 0.1);
+  }
+
+  .eo-item.eo-maturity-ready:hover {
+    background: rgba(34, 197, 94, 0.1);
+  }
+
+  .eo-action-hint {
+    background: #374151;
+    color: #d1d5db;
+  }
+
+  .eo-action-hint:hover {
+    background: #4b5563;
+    color: #f3f4f6;
+  }
+
+  .eo-action-hint.eo-hint-action {
+    background: rgba(59, 130, 246, 0.15);
+  }
+
+  .eo-action-hint.eo-hint-attention {
+    background: rgba(251, 191, 36, 0.15);
+  }
+
+  .eo-action-hint.eo-hint-opportunity {
+    background: rgba(147, 51, 234, 0.15);
+  }
+
+  .eo-set-readiness.eo-maturity-raw {
+    background: rgba(251, 191, 36, 0.2);
+  }
+
+  .eo-set-readiness.eo-maturity-forming {
+    background: rgba(59, 130, 246, 0.2);
+  }
+
+  .eo-set-readiness.eo-maturity-ready {
+    background: rgba(34, 197, 94, 0.2);
+  }
+
+  .eo-quality-excellent {
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+  }
+
+  .eo-quality-good {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+  }
+
+  .eo-quality-fair {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+  }
+
+  .eo-quality-poor {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+  }
+
+  .eo-journey-progress {
+    background: #374151;
+  }
+
+  .eo-journey-connector {
+    background: #4b5563;
+  }
+
+  .eo-trust-signal {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: #4ade80;
+  }
+}

@@ -173,13 +173,30 @@ class EODataSourcesPanel {
 
   /**
    * Render a single source card
+   * Now includes maturity-based visual treatment
    */
   renderSourceCard(source) {
     const isActive = this.activeSourceFilter === source.id;
 
+    // Get the full import to calculate maturity
+    const imp = this.importManager?.getImport(source.id);
+    const maturity = typeof EODataMaturity !== 'undefined' && imp
+      ? EODataMaturity.calculateImportMaturity(imp, {})
+      : { stage: 'emanon', score: 0 };
+
+    const maturityClass = typeof EODataMaturity !== 'undefined'
+      ? EODataMaturity.getStageClass(maturity.stage)
+      : '';
+
+    // Render readiness segments for this source
+    const readinessHTML = typeof EODataMaturity !== 'undefined' && maturity.score < 100
+      ? EODataMaturity.renderReadinessIndicator(maturity, { compact: true, showHint: false })
+      : '';
+
     return `
-      <div class="eo-dsp-source-card ${isActive ? 'eo-active' : ''}"
+      <div class="eo-dsp-source-card ${maturityClass} ${isActive ? 'eo-active' : ''}"
            data-source-id="${source.id}"
+           data-maturity="${maturity.stage}"
            data-action="select-source"
            title="Click to filter by this source">
         <div class="eo-dsp-source-icon">
@@ -191,6 +208,7 @@ class EODataSourcesPanel {
             <span>${source.recordCount} records</span>
             <span class="eo-dsp-dot">·</span>
             <span>${this.getTimeAgo(source.importedAt)}</span>
+            ${readinessHTML}
           </div>
         </div>
         ${source.quality !== null ? `
