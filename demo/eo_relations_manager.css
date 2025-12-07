@@ -133,7 +133,7 @@
     font-weight: 500;
     color: #6b7280;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
     white-space: nowrap;
 }
 
@@ -466,7 +466,7 @@
     cursor: pointer;
     color: #4b5563;
     font-size: 16px;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .relations-manager .modal-close:hover {
@@ -536,7 +536,7 @@
     font-weight: 500;
     color: #374151;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .relations-manager .btn-secondary:hover {
@@ -580,7 +580,7 @@
     border-radius: 12px;
     background: #f9fafb;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .import-zone:hover,

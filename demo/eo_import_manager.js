@@ -570,9 +570,21 @@ class EOImportManager {
 
   /**
    * Analyze schema from rows
+   * Uses sampling for large datasets to improve performance
    */
   analyzeSchema(rows, headers) {
     const columns = {};
+
+    // Pre-compile regex patterns for better performance
+    const regexPatterns = {
+      numeric: /^-?\d*\.?\d+$/,
+      numericClean: /[,$%]/g,
+      date: /^\d{4}-\d{2}-\d{2}/,
+      email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      url: /^https?:\/\//,
+      uuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    };
+    const booleanValues = new Set(['true', 'false', 'yes', 'no', '1', '0', 'y', 'n']);
 
     headers.forEach(header => {
       columns[header] = {
@@ -594,8 +606,28 @@ class EOImportManager {
       };
     });
 
-    // Analyze each row
-    rows.forEach((row, rowIdx) => {
+    // Sample rows for type detection to reduce O(n*m) complexity
+    // Use first 1000 rows for schema inference, then sample every Nth row for larger datasets
+    const SAMPLE_SIZE = 1000;
+    const totalRows = rows.length;
+    let rowsToAnalyze;
+
+    if (totalRows <= SAMPLE_SIZE) {
+      // Small dataset - analyze all rows
+      rowsToAnalyze = rows;
+    } else {
+      // Large dataset - use first 500 rows + sampled rows from rest
+      rowsToAnalyze = rows.slice(0, 500);
+      const step = Math.max(1, Math.floor((totalRows - 500) / 500));
+      for (let i = 500; i < totalRows && rowsToAnalyze.length < SAMPLE_SIZE; i += step) {
+        rowsToAnalyze.push(rows[i]);
+      }
+    }
+
+    const sampleSize = rowsToAnalyze.length;
+
+    // Analyze sampled rows
+    rowsToAnalyze.forEach((row) => {
       headers.forEach(header => {
         const value = row[header];
         const col = columns[header];
@@ -622,35 +654,35 @@ class EOImportManager {
         col.minLength = Math.min(col.minLength, strValue.length);
         col.maxLength = Math.max(col.maxLength, strValue.length);
 
-        // Type detection
+        // Type detection (early exit on first mismatch)
         if (strValue) {
           // Numeric
-          if (col.isNumeric && !/^-?\d*\.?\d+$/.test(strValue.replace(/[,$%]/g, ''))) {
+          if (col.isNumeric && !regexPatterns.numeric.test(strValue.replace(regexPatterns.numericClean, ''))) {
             col.isNumeric = false;
           }
 
           // Date
-          if (col.isDate && isNaN(Date.parse(strValue)) && !/^\d{4}-\d{2}-\d{2}/.test(strValue)) {
+          if (col.isDate && isNaN(Date.parse(strValue)) && !regexPatterns.date.test(strValue)) {
             col.isDate = false;
           }
 
           // Boolean
-          if (col.isBoolean && !['true', 'false', 'yes', 'no', '1', '0', 'y', 'n'].includes(strValue.toLowerCase())) {
+          if (col.isBoolean && !booleanValues.has(strValue.toLowerCase())) {
             col.isBoolean = false;
           }
 
           // Email
-          if (col.isEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(strValue)) {
+          if (col.isEmail && !regexPatterns.email.test(strValue)) {
             col.isEmail = false;
           }
 
           // URL
-          if (col.isUrl && !/^https?:\/\//.test(strValue)) {
+          if (col.isUrl && !regexPatterns.url.test(strValue)) {
             col.isUrl = false;
           }
 
           // UUID
-          if (col.isUuid && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strValue)) {
+          if (col.isUuid && !regexPatterns.uuid.test(strValue)) {
             col.isUuid = false;
           }
 
@@ -659,6 +691,14 @@ class EOImportManager {
         }
       });
     });
+
+    // Extrapolate null counts for full dataset if we sampled
+    if (sampleSize < totalRows) {
+      const scaleFactor = totalRows / sampleSize;
+      headers.forEach(header => {
+        columns[header].nullCount = Math.round(columns[header].nullCount * scaleFactor);
+      });
+    }
 
     // Determine inferred types
     const inferredTypes = {};
@@ -895,11 +935,20 @@ class EOImportManager {
 
     const completeness = totalCells > 0 ? ((totalCells - nullCells) / totalCells) : 1;
 
-    // Check for duplicate rows
+    // Check for duplicate rows using efficient composite key hash
+    // Instead of JSON.stringify (which allocates huge strings), build a hash from key values
     const rowHashes = new Set();
     let duplicateCount = 0;
+    const keys = Object.keys(rows[0] || {}).filter(k => k !== '_sourceRow');
+
     rows.forEach(row => {
-      const hash = JSON.stringify(row);
+      // Build hash from concatenated values with separator that won't appear in data
+      // This is O(n) per row instead of O(n*m) for JSON.stringify
+      let hash = '';
+      for (let i = 0; i < keys.length; i++) {
+        const val = row[keys[i]];
+        hash += (i > 0 ? '\x00' : '') + (val === null || val === undefined ? '' : String(val));
+      }
       if (rowHashes.has(hash)) {
         duplicateCount++;
       } else {

@@ -15,6 +15,38 @@
 class EOFormulaEngine {
   constructor() {
     this.functions = this.initializeFunctions();
+    // Cache for parsed ASTs - avoids re-parsing same formula for every record
+    this._parseCache = new Map();
+    this._parseCacheMaxSize = 1000;
+  }
+
+  /**
+   * Get parsed result from cache or parse and cache
+   */
+  _getCachedParse(formula) {
+    if (this._parseCache.has(formula)) {
+      return this._parseCache.get(formula);
+    }
+
+    // Parse the formula
+    const result = this._parseInternal(formula);
+
+    // Cache with LRU eviction if at capacity
+    if (this._parseCache.size >= this._parseCacheMaxSize) {
+      // Remove oldest entry (first key)
+      const firstKey = this._parseCache.keys().next().value;
+      this._parseCache.delete(firstKey);
+    }
+    this._parseCache.set(formula, result);
+
+    return result;
+  }
+
+  /**
+   * Clear the parse cache (useful when memory is constrained)
+   */
+  clearParseCache() {
+    this._parseCache.clear();
   }
 
   /**
@@ -129,8 +161,16 @@ class EOFormulaEngine {
 
   /**
    * Parse a formula string into an Abstract Syntax Tree (AST)
+   * Uses caching to avoid re-parsing the same formula
    */
   parse(formula) {
+    return this._getCachedParse(formula);
+  }
+
+  /**
+   * Internal parse implementation (called by cache)
+   */
+  _parseInternal(formula) {
     this.formula = formula;
     this.pos = 0;
     this.dependencies = new Set();
@@ -239,7 +279,45 @@ class EOFormulaEngine {
   }
 
   evaluateFunction(name, args, record) {
-    const func = this.functions[name.toUpperCase()];
+    const upperName = name.toUpperCase();
+
+    // Short-circuit evaluation for logical functions
+    // These evaluate arguments lazily to avoid unnecessary computation
+    switch (upperName) {
+      case 'IF': {
+        // IF(condition, trueVal, falseVal) - only evaluate the needed branch
+        if (args.length < 2) return null;
+        const condition = this.evaluateNode(args[0], record);
+        if (condition) {
+          return args.length > 1 ? this.evaluateNode(args[1], record) : null;
+        } else {
+          return args.length > 2 ? this.evaluateNode(args[2], record) : null;
+        }
+      }
+
+      case 'AND': {
+        // AND(...args) - stop evaluating on first falsy value
+        for (const arg of args) {
+          if (!this.evaluateNode(arg, record)) {
+            return false;
+          }
+        }
+        return true;
+      }
+
+      case 'OR': {
+        // OR(...args) - stop evaluating on first truthy value
+        for (const arg of args) {
+          if (this.evaluateNode(arg, record)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    }
+
+    // Standard evaluation for other functions
+    const func = this.functions[upperName];
     if (!func) {
       throw new Error(`Unknown function: ${name}`);
     }
@@ -303,12 +381,14 @@ class EOFormulaEngine {
     if (!cell.values || cell.values.length === 0) return null;
     if (cell.values.length === 1) return cell.values[0].value;
 
-    // Simple strategy: use most recent value
-    const sorted = [...cell.values].sort((a, b) =>
-      new Date(b.timestamp) - new Date(a.timestamp)
-    );
+    // Find most recent value using reduce (O(n)) instead of sort (O(n log n))
+    const mostRecent = cell.values.reduce((best, current) => {
+      const currentTime = new Date(current.timestamp).getTime();
+      const bestTime = new Date(best.timestamp).getTime();
+      return currentTime > bestTime ? current : best;
+    });
 
-    return sorted[0].value;
+    return mostRecent.value;
   }
 
   // Parsing methods

@@ -221,7 +221,7 @@ class EOGraphVisualization {
     }
 
     // =========================================================================
-    // PHYSICS SIMULATION
+    // PHYSICS SIMULATION WITH QUADTREE OPTIMIZATION
     // =========================================================================
 
     _startSimulation() {
@@ -232,6 +232,147 @@ class EOGraphVisualization {
         };
 
         this.animationFrame = requestAnimationFrame(simulate);
+    }
+
+    /**
+     * Build a quadtree for Barnes-Hut approximation
+     * This reduces O(n²) to O(n log n) for repulsion calculations
+     */
+    _buildQuadtree(nodes) {
+        // Find bounds
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        const nodeData = [];
+
+        nodes.forEach(node => {
+            const pos = this.nodePositions.get(node.id);
+            if (pos) {
+                minX = Math.min(minX, pos.x);
+                minY = Math.min(minY, pos.y);
+                maxX = Math.max(maxX, pos.x);
+                maxY = Math.max(maxY, pos.y);
+                nodeData.push({ id: node.id, x: pos.x, y: pos.y, pos });
+            }
+        });
+
+        if (nodeData.length === 0) return null;
+
+        // Add padding
+        const padding = 50;
+        minX -= padding; minY -= padding;
+        maxX += padding; maxY += padding;
+
+        // Create root node
+        const size = Math.max(maxX - minX, maxY - minY);
+        const root = {
+            x: minX,
+            y: minY,
+            size: size,
+            cx: 0,      // Center of mass x
+            cy: 0,      // Center of mass y
+            mass: 0,    // Total mass (node count)
+            children: null,
+            node: null
+        };
+
+        // Insert nodes
+        nodeData.forEach(nd => this._insertQuadtree(root, nd));
+        this._computeCenterOfMass(root);
+
+        return root;
+    }
+
+    _insertQuadtree(quad, nodeData) {
+        if (quad.mass === 0) {
+            // Empty quad - insert directly
+            quad.node = nodeData;
+            quad.mass = 1;
+            quad.cx = nodeData.x;
+            quad.cy = nodeData.y;
+            return;
+        }
+
+        // Initialize children if needed
+        if (!quad.children) {
+            quad.children = new Array(4).fill(null);
+            // Move existing node to appropriate child
+            if (quad.node) {
+                const existingQuadrant = this._getQuadrant(quad, quad.node.x, quad.node.y);
+                quad.children[existingQuadrant] = this._createChildQuad(quad, existingQuadrant);
+                this._insertQuadtree(quad.children[existingQuadrant], quad.node);
+                quad.node = null;
+            }
+        }
+
+        // Insert new node into appropriate child
+        const quadrant = this._getQuadrant(quad, nodeData.x, nodeData.y);
+        if (!quad.children[quadrant]) {
+            quad.children[quadrant] = this._createChildQuad(quad, quadrant);
+        }
+        this._insertQuadtree(quad.children[quadrant], nodeData);
+        quad.mass++;
+    }
+
+    _getQuadrant(quad, x, y) {
+        const midX = quad.x + quad.size / 2;
+        const midY = quad.y + quad.size / 2;
+        const right = x >= midX ? 1 : 0;
+        const bottom = y >= midY ? 2 : 0;
+        return right + bottom;
+    }
+
+    _createChildQuad(parent, quadrant) {
+        const halfSize = parent.size / 2;
+        const x = parent.x + (quadrant & 1 ? halfSize : 0);
+        const y = parent.y + (quadrant & 2 ? halfSize : 0);
+        return { x, y, size: halfSize, cx: 0, cy: 0, mass: 0, children: null, node: null };
+    }
+
+    _computeCenterOfMass(quad) {
+        if (!quad) return;
+
+        if (quad.node) {
+            quad.cx = quad.node.x;
+            quad.cy = quad.node.y;
+            return;
+        }
+
+        if (quad.children) {
+            let totalMass = 0, cx = 0, cy = 0;
+            quad.children.forEach(child => {
+                if (child && child.mass > 0) {
+                    this._computeCenterOfMass(child);
+                    totalMass += child.mass;
+                    cx += child.cx * child.mass;
+                    cy += child.cy * child.mass;
+                }
+            });
+            if (totalMass > 0) {
+                quad.cx = cx / totalMass;
+                quad.cy = cy / totalMass;
+            }
+        }
+    }
+
+    _applyQuadtreeForce(quad, pos, theta = 0.9) {
+        if (!quad || quad.mass === 0) return;
+
+        const dx = quad.cx - pos.x;
+        const dy = quad.cy - pos.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+        // Barnes-Hut criterion: if node is far enough, treat as single mass
+        if (quad.size / dist < theta || quad.node) {
+            if (dist > 1) {  // Avoid self-interaction
+                const force = 5000 * quad.mass / (dist * dist);
+                pos.fx -= (dx / dist) * force;
+                pos.fy -= (dy / dist) * force;
+            }
+        } else if (quad.children) {
+            // Recurse into children
+            quad.children.forEach(child => {
+                if (child) this._applyQuadtreeForce(child, pos, theta);
+            });
+        }
     }
 
     _simulationStep() {
@@ -247,25 +388,40 @@ class EOGraphVisualization {
             }
         });
 
-        // Repulsion between nodes
-        for (let i = 0; i < nodes.length; i++) {
-            for (let j = i + 1; j < nodes.length; j++) {
-                const posA = this.nodePositions.get(nodes[i].id);
-                const posB = this.nodePositions.get(nodes[j].id);
-                if (!posA || !posB) continue;
+        // Use quadtree for repulsion (O(n log n) instead of O(n²))
+        const nodeCount = nodes.length;
+        if (nodeCount > 50) {
+            // Build quadtree for Barnes-Hut approximation
+            const quadtree = this._buildQuadtree(nodes);
+            if (quadtree) {
+                nodes.forEach(node => {
+                    const pos = this.nodePositions.get(node.id);
+                    if (pos) {
+                        this._applyQuadtreeForce(quadtree, pos);
+                    }
+                });
+            }
+        } else {
+            // For small graphs, direct O(n²) is fine
+            for (let i = 0; i < nodeCount; i++) {
+                for (let j = i + 1; j < nodeCount; j++) {
+                    const posA = this.nodePositions.get(nodes[i].id);
+                    const posB = this.nodePositions.get(nodes[j].id);
+                    if (!posA || !posB) continue;
 
-                const dx = posB.x - posA.x;
-                const dy = posB.y - posA.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const force = 5000 / (dist * dist);
+                    const dx = posB.x - posA.x;
+                    const dy = posB.y - posA.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const force = 5000 / (dist * dist);
 
-                const fx = (dx / dist) * force;
-                const fy = (dy / dist) * force;
+                    const fx = (dx / dist) * force;
+                    const fy = (dy / dist) * force;
 
-                posA.fx -= fx;
-                posA.fy -= fy;
-                posB.fx += fx;
-                posB.fy += fy;
+                    posA.fx -= fx;
+                    posA.fy -= fy;
+                    posB.fx += fx;
+                    posB.fy += fy;
+                }
             }
         }
 
@@ -586,10 +742,37 @@ class EOGraphVisualization {
 
     _bindEvents() {
         this.canvas.addEventListener('mousedown', (e) => this._onMouseDown(e));
-        this.canvas.addEventListener('mousemove', (e) => this._onMouseMove(e));
+        // Throttle mousemove to ~60fps (16ms) for better performance
+        this.canvas.addEventListener('mousemove', this._throttle((e) => this._onMouseMove(e), 16));
         this.canvas.addEventListener('mouseup', (e) => this._onMouseUp(e));
         this.canvas.addEventListener('wheel', (e) => this._onWheel(e));
         this.canvas.addEventListener('dblclick', (e) => this._onDoubleClick(e));
+    }
+
+    /**
+     * Throttle function to limit execution rate
+     */
+    _throttle(fn, delay) {
+        let lastCall = 0;
+        let scheduled = false;
+        let lastArgs = null;
+
+        return function(...args) {
+            const now = Date.now();
+            lastArgs = args;
+
+            if (now - lastCall >= delay) {
+                lastCall = now;
+                fn.apply(this, args);
+            } else if (!scheduled) {
+                scheduled = true;
+                setTimeout(() => {
+                    scheduled = false;
+                    lastCall = Date.now();
+                    fn.apply(this, lastArgs);
+                }, delay - (now - lastCall));
+            }
+        };
     }
 
     _getMousePos(e) {
