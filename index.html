@@ -2715,6 +2715,216 @@
         .modal-header { padding: 24px 24px 16px 24px; border-bottom: 1px solid #f0f0f0; }
         .modal-body { padding: 24px; }
         .modal-footer { padding: 16px 24px; border-top: 1px solid #f0f0f0; background: #fafafa; }
+
+        /* SORT BUILDER - Custom Dropdowns */
+        .sort-rule {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            transition: all 0.15s ease;
+        }
+        .sort-rule:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        .sort-rule-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: #e2e8f0;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .sort-dropdown {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+        }
+        .sort-dropdown-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 12px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 14px;
+            color: #0f172a;
+            font-weight: 500;
+        }
+        .sort-dropdown-trigger:hover {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+        }
+        .sort-dropdown-trigger.open {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .sort-dropdown-trigger .placeholder {
+            color: #94a3b8;
+            font-weight: 400;
+        }
+        .sort-dropdown-trigger i {
+            color: #94a3b8;
+            font-size: 12px;
+            transition: transform 0.2s ease;
+        }
+        .sort-dropdown-trigger.open i {
+            transform: rotate(180deg);
+        }
+        .sort-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+            z-index: 100;
+            max-height: 240px;
+            overflow-y: auto;
+            display: none;
+            animation: sortDropdownIn 0.15s ease;
+        }
+        @keyframes sortDropdownIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .sort-dropdown-menu.open {
+            display: block;
+        }
+        .sort-dropdown-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            font-size: 14px;
+            color: #374151;
+        }
+        .sort-dropdown-option:first-child {
+            border-radius: 9px 9px 0 0;
+        }
+        .sort-dropdown-option:last-child {
+            border-radius: 0 0 9px 9px;
+        }
+        .sort-dropdown-option:hover {
+            background: #f1f5f9;
+        }
+        .sort-dropdown-option.selected {
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+        .sort-dropdown-option i {
+            font-size: 16px;
+            color: #64748b;
+            width: 20px;
+            text-align: center;
+        }
+        .sort-dropdown-option.selected i {
+            color: #1d4ed8;
+        }
+        .sort-direction-toggle {
+            display: flex;
+            align-items: center;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .sort-direction-btn {
+            padding: 8px 14px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .sort-direction-btn:first-child {
+            border-right: 1px solid #e2e8f0;
+        }
+        .sort-direction-btn:hover {
+            background: #f8fafc;
+            color: #374151;
+        }
+        .sort-direction-btn.active {
+            background: #0f172a;
+            color: #fff;
+        }
+        .sort-direction-btn i {
+            font-size: 14px;
+        }
+        .sort-rule-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .sort-action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: #64748b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            font-size: 14px;
+        }
+        .sort-action-btn:hover:not(:disabled) {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+            color: #374151;
+        }
+        .sort-action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .sort-action-btn.danger:hover:not(:disabled) {
+            border-color: #fecaca;
+            background: #fef2f2;
+            color: #dc2626;
+        }
+        .sort-empty-state {
+            text-align: center;
+            padding: 32px 24px;
+            color: #64748b;
+        }
+        .sort-empty-state i {
+            font-size: 32px;
+            color: #cbd5e1;
+            margin-bottom: 12px;
+        }
+        .sort-empty-state p {
+            margin: 0;
+            font-size: 14px;
+        }
+
         #addFieldModal .modal-header { padding: 16px 18px 10px 18px; }
         #addFieldModal .modal-body { padding: 16px 18px 18px 18px; }
         #addFieldModal .modal-footer { padding: 14px 18px; background: #f8fafc; }
@@ -24191,6 +24401,35 @@
             openModal('sortModal');
         }
 
+        function getFieldIcon(fieldType) {
+            const icons = {
+                'TEXT': 'ph-text-aa',
+                'LONG_TEXT': 'ph-article',
+                'NUMBER': 'ph-hash',
+                'CURRENCY': 'ph-currency-dollar',
+                'DATE': 'ph-calendar',
+                'DATETIME': 'ph-calendar-blank',
+                'CHECKBOX': 'ph-check-square',
+                'SELECT': 'ph-list-bullets',
+                'MULTI_SELECT': 'ph-list-checks',
+                'URL': 'ph-link',
+                'EMAIL': 'ph-envelope',
+                'PHONE': 'ph-phone',
+                'USER': 'ph-user',
+                'ATTACHMENT': 'ph-paperclip',
+                'LINKED_RECORD': 'ph-link-simple',
+                'LINKED_LOOKUP': 'ph-eye',
+                'LINKED_ROLLUP': 'ph-calculator',
+                'FORMULA': 'ph-function',
+                'AUTONUMBER': 'ph-number-circle-one',
+                'CREATED_TIME': 'ph-clock',
+                'LAST_MODIFIED_TIME': 'ph-clock-clockwise',
+                'CREATED_BY': 'ph-user-plus',
+                'LAST_MODIFIED_BY': 'ph-user-switch'
+            };
+            return icons[fieldType] || 'ph-textbox';
+        }
+
         function renderSortBuilder() {
             const set = getCurrentSet();
             const view = getCurrentView();
@@ -24200,29 +24439,101 @@
             const schema = set.schema;
 
             if (!view.sorts || view.sorts.length === 0) {
-                container.innerHTML = '<p class="text-sm text-gray-500">No sorts configured. Add a field to start sorting.</p>';
+                container.innerHTML = `
+                    <div class="sort-empty-state">
+                        <i class="ph ph-sort-ascending"></i>
+                        <p>No sorts configured. Click "Add Sort" to start sorting your data.</p>
+                    </div>
+                `;
                 return;
             }
 
-            container.innerHTML = view.sorts.map((sort, index) => `
-                <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
-                    <div class="text-xs font-semibold text-gray-500">#${index + 1}</div>
-                    <select class="flex-1" onchange="updateSortField(${index}, this.value)">
-                        <option value="">Select field...</option>
-                        ${schema.map(f => `<option value="${f.id}" ${f.id === sort.fieldId ? 'selected' : ''}>${f.name}</option>`).join('')}
-                    </select>
-                    <select onchange="updateSortDirection(${index}, this.value)">
-                        <option value="asc" ${sort.direction === 'asc' ? 'selected' : ''}>Ascending</option>
-                        <option value="desc" ${sort.direction === 'desc' ? 'selected' : ''}>Descending</option>
-                    </select>
-                    <div class="flex items-center gap-1">
-                        <button class="btn btn-secondary btn-sm" onclick="moveSort(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
-                        <button class="btn btn-secondary btn-sm" onclick="moveSort(${index}, 1)" ${index === view.sorts.length - 1 ? 'disabled' : ''}>▼</button>
-                        <button class="btn btn-danger btn-sm" onclick="removeSortRule(${index})">✕</button>
+            container.innerHTML = view.sorts.map((sort, index) => {
+                const selectedField = schema.find(f => f.id === sort.fieldId);
+                const fieldName = selectedField ? selectedField.name : 'Select field...';
+                const fieldIcon = selectedField ? getFieldIcon(selectedField.type) : 'ph-textbox';
+                const isPlaceholder = !selectedField;
+
+                return `
+                    <div class="sort-rule" data-sort-index="${index}">
+                        <div class="sort-rule-number">${index + 1}</div>
+                        <div class="sort-dropdown" data-dropdown-index="${index}">
+                            <div class="sort-dropdown-trigger" onclick="toggleSortDropdown(${index})">
+                                <span class="${isPlaceholder ? 'placeholder' : ''}">
+                                    ${!isPlaceholder ? `<i class="ph ${fieldIcon}" style="margin-right: 6px;"></i>` : ''}${fieldName}
+                                </span>
+                                <i class="ph ph-caret-down"></i>
+                            </div>
+                            <div class="sort-dropdown-menu" id="sortDropdown-${index}">
+                                ${schema.map(f => `
+                                    <div class="sort-dropdown-option ${f.id === sort.fieldId ? 'selected' : ''}"
+                                         onclick="selectSortField(${index}, '${f.id}')">
+                                        <i class="ph ${getFieldIcon(f.type)}"></i>
+                                        <span>${f.name}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="sort-direction-toggle">
+                            <button class="sort-direction-btn ${sort.direction === 'asc' ? 'active' : ''}"
+                                    onclick="updateSortDirection(${index}, 'asc')">
+                                <i class="ph ph-sort-ascending"></i>
+                                A-Z
+                            </button>
+                            <button class="sort-direction-btn ${sort.direction === 'desc' ? 'active' : ''}"
+                                    onclick="updateSortDirection(${index}, 'desc')">
+                                <i class="ph ph-sort-descending"></i>
+                                Z-A
+                            </button>
+                        </div>
+                        <div class="sort-rule-actions">
+                            <button class="sort-action-btn" onclick="moveSort(${index}, -1)" ${index === 0 ? 'disabled' : ''} title="Move up">
+                                <i class="ph ph-caret-up"></i>
+                            </button>
+                            <button class="sort-action-btn" onclick="moveSort(${index}, 1)" ${index === view.sorts.length - 1 ? 'disabled' : ''} title="Move down">
+                                <i class="ph ph-caret-down"></i>
+                            </button>
+                            <button class="sort-action-btn danger" onclick="removeSortRule(${index})" title="Remove sort">
+                                <i class="ph ph-x"></i>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
+
+        function toggleSortDropdown(index) {
+            const dropdown = document.getElementById(`sortDropdown-${index}`);
+            const trigger = dropdown?.previousElementSibling;
+            const isOpen = dropdown?.classList.contains('open');
+
+            // Close all other dropdowns first
+            closeSortDropdowns();
+
+            if (!isOpen && dropdown) {
+                dropdown.classList.add('open');
+                trigger?.classList.add('open');
+            }
+        }
+
+        function closeSortDropdowns() {
+            document.querySelectorAll('.sort-dropdown-menu.open').forEach(menu => {
+                menu.classList.remove('open');
+                menu.previousElementSibling?.classList.remove('open');
+            });
+        }
+
+        function selectSortField(index, fieldId) {
+            updateSortField(index, fieldId);
+            closeSortDropdowns();
+        }
+
+        // Close sort dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.sort-dropdown')) {
+                closeSortDropdowns();
+            }
+        });
 
         function addSortRule() {
             const set = getCurrentSet();
