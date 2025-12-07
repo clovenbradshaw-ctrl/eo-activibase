@@ -3561,6 +3561,35 @@
             border-left: 2px dashed #d97706;
         }
 
+        /* Add column button (last column) */
+        .add-column-header {
+            width: 80px;
+            min-width: 80px;
+            text-align: center;
+            background: #f0f9ff !important;
+            border-left: 2px dashed #3b82f6;
+        }
+        .add-column-header:hover {
+            background: #dbeafe !important;
+        }
+        .add-column-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #2563eb;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .add-column-trigger i {
+            font-size: 16px;
+        }
+        .add-column-cell {
+            width: 80px;
+            min-width: 80px;
+            background: #f8fafc;
+            border-left: 2px dashed #3b82f6;
+        }
+
         .json-tab {
             padding: 12px 20px;
             font-size: 14px;
@@ -15619,6 +15648,19 @@
                 headerRow.appendChild(hiddenHeader);
             }
 
+            // Add column button (always last)
+            const addColumnHeader = document.createElement('th');
+            addColumnHeader.className = 'column-header add-column-header';
+            addColumnHeader.innerHTML = `
+                <span class="add-column-trigger">
+                    <i class="ph ph-plus"></i>
+                </span>
+            `;
+            addColumnHeader.title = 'Add a new column';
+            addColumnHeader.style.cursor = 'pointer';
+            addColumnHeader.onclick = () => openAddFieldModal();
+            headerRow.appendChild(addColumnHeader);
+
             const table = document.getElementById('dataTable');
             const minimumTableWidth = tableSchema.reduce((sum, field) => sum + getFieldWidth(field, view), 0);
             table.style.minWidth = `${Math.max(minimumTableWidth, 600)}px`;
@@ -15704,6 +15746,11 @@
                     hiddenTd.className = 'hidden-fields-cell';
                     tr.appendChild(hiddenTd);
                 }
+
+                // Add empty cell for add column button
+                const addColumnTd = document.createElement('td');
+                addColumnTd.className = 'add-column-cell';
+                tr.appendChild(addColumnTd);
 
                 tbody.appendChild(tr);
             });
