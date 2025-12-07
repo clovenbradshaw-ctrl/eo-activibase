@@ -27,6 +27,7 @@
     <script src="demo/eo_toss_pile.js"></script>
     <script src="demo/eo_toss_pile_ui.js"></script>
     <script src="demo/eo_set_management.js"></script>
+    <script src="demo/eo_column_width_settings.js"></script>
     <script src="demo/eo_relations_manager.js"></script>
     <script src="demo/eo_available_fields_explorer.js"></script>
     <link rel="stylesheet" href="demo/eo_linked_fields_modal.css">
@@ -34,6 +35,7 @@
     <link rel="stylesheet" href="demo/eo_file_explorer.css">
     <link rel="stylesheet" href="demo/eo_toss_pile.css">
     <link rel="stylesheet" href="demo/eo_set_management.css">
+    <link rel="stylesheet" href="demo/eo_column_width_settings.css">
     <link rel="stylesheet" href="demo/eo_relations_manager.css">
     <link rel="stylesheet" href="eo_workbench_styles.css">
     <style>
@@ -6484,7 +6486,12 @@
             return Math.min(COLUMN_WIDTH_MAX, Math.max(COLUMN_WIDTH_MIN, width));
         }
 
-        function getFieldWidth(field) {
+        function getFieldWidth(field, view) {
+            // Check view-level column widths first
+            if (view?.columnWidths?.[field?.id]) {
+                return clampColumnWidth(view.columnWidths[field.id]);
+            }
+            // Fall back to field-level width
             const numericWidth = parseInt(field?.width || '150', 10);
             return clampColumnWidth(numericWidth);
         }
@@ -8413,6 +8420,9 @@
             const visualizeBtn = document.getElementById('visualizeBtn');
             if (visualizeBtn) visualizeBtn.onclick = openVisualizationModal;
 
+            const columnWidthBtn = document.getElementById('columnWidthBtn');
+            if (columnWidthBtn) columnWidthBtn.onclick = showColumnWidthMenu;
+
             const tossSelectedBtn = document.getElementById('tossSelectedBtn');
             if (tossSelectedBtn) tossSelectedBtn.onclick = handleTossSelectedRecords;
 
@@ -8547,6 +8557,12 @@
                                     <i class="ph ph-chart-bar"></i>
                                     Visualize
                                 </button>
+                                <div class="column-width-dropdown-container" style="position: relative;">
+                                    <button id="columnWidthBtn" class="btn btn-secondary btn-sm column-width-btn">
+                                        <i class="ph ph-columns"></i>
+                                        Columns
+                                    </button>
+                                </div>
                             </div>
                             ${extraControls ? `<div class="toolbar-group">${extraControls}</div>` : ''}
                         </div>
@@ -14952,8 +14968,17 @@
             const normalizedWidth = clampColumnWidth(width);
             const widthPx = `${normalizedWidth}px`;
             const set = getCurrentSet();
+            const view = getCurrentView();
             const field = set?.schema.find(f => f.id === fieldId);
             if (field) field.width = widthPx;
+
+            // Save to view-level column widths
+            if (view) {
+                if (!view.columnWidths) view.columnWidths = {};
+                view.columnWidths[fieldId] = normalizedWidth;
+                view.columnWidthMode = 'custom';
+                view.isDirty = true;
+            }
 
             document.querySelectorAll(`[data-field-id="${fieldId}"]`).forEach(el => {
                 el.style.width = widthPx;
@@ -14961,7 +14986,7 @@
 
             const table = document.getElementById('dataTable');
             if (table && set) {
-                const totalWidth = set.schema.reduce((sum, f) => sum + getFieldWidth(f), 0);
+                const totalWidth = set.schema.reduce((sum, f) => sum + getFieldWidth(f, view), 0);
                 table.style.minWidth = `${Math.max(totalWidth, 600)}px`;
             }
         }
@@ -14975,7 +15000,7 @@
             element.appendChild(resizer);
 
             let startX = 0;
-            let startWidth = getFieldWidth(field);
+            let startWidth = getFieldWidth(field, getCurrentView());
 
             const onMouseMove = (event) => {
                 const delta = event.clientX - startX;
@@ -14992,7 +15017,7 @@
                 event.stopPropagation();
                 event.preventDefault();
                 startX = event.clientX;
-                startWidth = getFieldWidth(field);
+                startWidth = getFieldWidth(field, getCurrentView());
                 document.body.classList.add('resizing');
                 document.addEventListener('mousemove', onMouseMove);
                 document.addEventListener('mouseup', onMouseUp);
@@ -15327,7 +15352,7 @@
                 th.className = 'column-header';
                 th.dataset.type = field.type;
                 th.dataset.fieldId = field.id;
-                const width = `${getFieldWidth(field)}px`;
+                const width = `${getFieldWidth(field, view)}px`;
                 th.style.width = width;
                 const sortIndex = view?.sorts?.findIndex(s => s.fieldId === field.id) ?? -1;
                 const sortConfig = sortIndex >= 0 ? view.sorts[sortIndex] : null;
@@ -15371,8 +15396,13 @@
             }
 
             const table = document.getElementById('dataTable');
-            const minimumTableWidth = tableSchema.reduce((sum, field) => sum + getFieldWidth(field), 0);
+            const minimumTableWidth = tableSchema.reduce((sum, field) => sum + getFieldWidth(field, view), 0);
             table.style.minWidth = `${Math.max(minimumTableWidth, 600)}px`;
+
+            // Apply content overflow class
+            const overflowMode = view?.contentOverflow || 'clip';
+            table.classList.remove('overflow-clip', 'overflow-wrap', 'overflow-expand', 'overflow-tooltip');
+            table.classList.add(`overflow-${overflowMode}`);
 
             const tbody = document.getElementById('tableBody');
             records.forEach((record, index) => {
@@ -15418,7 +15448,7 @@
                     td.className = isRecordIdColumn ? 'cell-static' : 'cell-editable';
                     td.dataset.recordId = record.id;
                     td.dataset.fieldId = field.id;
-                    td.style.width = `${getFieldWidth(field)}px`;
+                    td.style.width = `${getFieldWidth(field, view)}px`;
                     const value = record[field.id];
                     td.innerHTML = renderCellValue(value, field, record);
                     addColumnResizer(td, field);
@@ -23232,6 +23262,202 @@
             renderFilterBuilder();
         }
 
+        // COLUMN WIDTH SETTINGS
+        function showColumnWidthMenu(event) {
+            event.stopPropagation();
+            const btn = event.currentTarget;
+            const view = getCurrentView();
+            if (!view) return;
+
+            // Remove any existing menu
+            const existingMenu = document.querySelector('.column-width-dropdown');
+            if (existingMenu) existingMenu.remove();
+
+            const rect = btn.getBoundingClientRect();
+            const menu = document.createElement('div');
+            menu.className = 'context-menu column-width-dropdown';
+            menu.style.cssText = `position: fixed; top: ${rect.bottom + 4}px; left: ${rect.left}px; z-index: 1000; min-width: 220px;`;
+
+            const currentMode = view.columnWidthMode || 'auto';
+            const currentOverflow = view.contentOverflow || 'clip';
+
+            menu.innerHTML = `
+                <div class="context-menu-header" style="padding: 8px 14px 6px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Column Widths</div>
+                <div class="context-menu-item ${currentMode === 'auto' ? 'active' : ''}" data-mode="auto">
+                    <i class="ph ph-text-columns"></i>
+                    <span>Auto-fit Content</span>
+                </div>
+                <div class="context-menu-item ${currentMode === 'fit-to-screen' ? 'active' : ''}" data-mode="fit-to-screen">
+                    <i class="ph ph-arrows-out-line-horizontal"></i>
+                    <span>Fit to Screen</span>
+                </div>
+                <div class="context-menu-item" data-submenu="uniform">
+                    <i class="ph ph-equals"></i>
+                    <span>Uniform Width</span>
+                    <i class="ph ph-caret-right" style="margin-left: auto; font-size: 12px; opacity: 0.5;"></i>
+                </div>
+                <div class="context-menu-separator"></div>
+                <div class="context-menu-header" style="padding: 8px 14px 6px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Content Overflow</div>
+                <div class="context-menu-item ${currentOverflow === 'clip' ? 'active' : ''}" data-overflow="clip">
+                    <i class="ph ph-dots-three"></i>
+                    <span>Clip (Ellipsis)</span>
+                </div>
+                <div class="context-menu-item ${currentOverflow === 'wrap' ? 'active' : ''}" data-overflow="wrap">
+                    <i class="ph ph-text-align-left"></i>
+                    <span>Wrap Text</span>
+                </div>
+                <div class="context-menu-item ${currentOverflow === 'expand' ? 'active' : ''}" data-overflow="expand">
+                    <i class="ph ph-arrows-out-simple"></i>
+                    <span>Expand Rows</span>
+                </div>
+                <div class="context-menu-separator"></div>
+                <div class="context-menu-item" data-action="settings">
+                    <i class="ph ph-gear-six"></i>
+                    <span>Advanced Settings...</span>
+                </div>
+            `;
+
+            document.body.appendChild(menu);
+
+            // Add active class styling
+            const activeStyle = document.createElement('style');
+            activeStyle.id = 'column-width-menu-style';
+            activeStyle.textContent = `
+                .column-width-dropdown .context-menu-item.active {
+                    background: #eff6ff;
+                    color: #1d4ed8;
+                }
+                .column-width-dropdown .context-menu-item.active i {
+                    color: #3b82f6;
+                }
+                .column-width-dropdown .context-menu-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+                .column-width-dropdown .context-menu-item i {
+                    font-size: 16px;
+                    color: #64748b;
+                    width: 20px;
+                    text-align: center;
+                }
+            `;
+            if (!document.getElementById('column-width-menu-style')) {
+                document.head.appendChild(activeStyle);
+            }
+
+            // Wire up menu items
+            menu.querySelectorAll('.context-menu-item[data-mode]').forEach(item => {
+                item.onclick = () => {
+                    const mode = item.dataset.mode;
+                    if (typeof ColumnWidthSettings !== 'undefined') {
+                        ColumnWidthSettings.applyColumnWidthMode(state, view.id, mode, {
+                            onApply: () => renderCurrentView()
+                        });
+                    }
+                    menu.remove();
+                };
+            });
+
+            menu.querySelectorAll('.context-menu-item[data-overflow]').forEach(item => {
+                item.onclick = () => {
+                    const overflow = item.dataset.overflow;
+                    if (typeof ColumnWidthSettings !== 'undefined') {
+                        ColumnWidthSettings.setContentOverflowMode(state, view.id, overflow);
+                        renderCurrentView();
+                    }
+                    menu.remove();
+                };
+            });
+
+            // Uniform width submenu
+            const uniformItem = menu.querySelector('[data-submenu="uniform"]');
+            if (uniformItem) {
+                uniformItem.onmouseenter = () => showUniformWidthSubmenu(uniformItem, view);
+            }
+
+            // Settings action
+            const settingsItem = menu.querySelector('[data-action="settings"]');
+            if (settingsItem) {
+                settingsItem.onclick = () => {
+                    menu.remove();
+                    if (typeof ColumnWidthSettings !== 'undefined') {
+                        ColumnWidthSettings.showColumnWidthSettingsModal(state, view.id);
+                    }
+                };
+            }
+
+            // Close on click outside
+            setTimeout(() => {
+                document.addEventListener('click', function closeMenu(e) {
+                    if (!menu.contains(e.target) && e.target !== btn) {
+                        menu.remove();
+                        document.removeEventListener('click', closeMenu);
+                    }
+                });
+            }, 0);
+        }
+
+        function showUniformWidthSubmenu(parentItem, view) {
+            const existingSubmenu = document.querySelector('.uniform-width-submenu');
+            if (existingSubmenu) existingSubmenu.remove();
+
+            const rect = parentItem.getBoundingClientRect();
+            const submenu = document.createElement('div');
+            submenu.className = 'context-menu uniform-width-submenu';
+            submenu.style.cssText = `position: fixed; top: ${rect.top}px; left: ${rect.right + 4}px; z-index: 1001; min-width: 180px;`;
+
+            const currentMode = view.columnWidthMode || 'auto';
+
+            submenu.innerHTML = `
+                <div class="context-menu-item ${currentMode === 'uniform-min' ? 'active' : ''}" data-mode="uniform-min">
+                    <i class="ph ph-arrow-line-left"></i>
+                    <span>Minimum Width</span>
+                </div>
+                <div class="context-menu-item ${currentMode === 'uniform-avg' ? 'active' : ''}" data-mode="uniform-avg">
+                    <i class="ph ph-equals"></i>
+                    <span>Average Width</span>
+                </div>
+                <div class="context-menu-item ${currentMode === 'uniform-max' ? 'active' : ''}" data-mode="uniform-max">
+                    <i class="ph ph-arrow-line-right"></i>
+                    <span>Maximum Width</span>
+                </div>
+            `;
+
+            document.body.appendChild(submenu);
+
+            submenu.querySelectorAll('.context-menu-item').forEach(item => {
+                item.onclick = () => {
+                    const mode = item.dataset.mode;
+                    if (typeof ColumnWidthSettings !== 'undefined') {
+                        ColumnWidthSettings.applyColumnWidthMode(state, view.id, mode, {
+                            onApply: () => renderCurrentView()
+                        });
+                    }
+                    // Close both menus
+                    document.querySelector('.column-width-dropdown')?.remove();
+                    submenu.remove();
+                };
+            });
+
+            // Close submenu when mouse leaves both items
+            parentItem.onmouseleave = (e) => {
+                setTimeout(() => {
+                    if (!submenu.matches(':hover') && !parentItem.matches(':hover')) {
+                        submenu.remove();
+                    }
+                }, 100);
+            };
+
+            submenu.onmouseleave = () => {
+                setTimeout(() => {
+                    if (!submenu.matches(':hover') && !parentItem.matches(':hover')) {
+                        submenu.remove();
+                    }
+                }, 100);
+            };
+        }
+
         // VISUALIZATION
         function openVisualizationModal() {
             openModal('visualizationModal');
@@ -25544,6 +25770,7 @@
         // CONTEXT MENUS
         function showColumnMenu(e, field) {
             const currentView = getCurrentView();
+            const set = getCurrentSet();
             const isIdentifier = currentView?.identifierField === field.id;
             const isRecordIdField = field.id === '__recordId';
             const hasCustomDisplayName = currentView?.columnDisplayNames?.[field.id];
@@ -25551,6 +25778,20 @@
             showContextMenu(e, [
                 { label: 'Edit Display Name…', action: () => editColumnDisplayName(field) },
                 hasCustomDisplayName ? { label: 'Reset Display Name', action: () => resetColumnDisplayName(field.id) } : null,
+                { label: 'separator' },
+                { label: 'Auto-fit Column Width', icon: 'ph-arrows-in-line-horizontal', action: () => {
+                    if (typeof ColumnWidthSettings !== 'undefined' && set) {
+                        const width = ColumnWidthSettings.calculateContentWidth(state, set.id, field.id);
+                        if (currentView) {
+                            if (!currentView.columnWidths) currentView.columnWidths = {};
+                            currentView.columnWidths[field.id] = width;
+                            currentView.columnWidthMode = 'custom';
+                            currentView.isDirty = true;
+                        }
+                        applyColumnWidth(field.id, width);
+                    }
+                }},
+                { label: 'Set Column Width…', icon: 'ph-text-columns', action: () => openSetColumnWidthDialog(field) },
                 { label: 'separator' },
                 { label: 'Create View from Column', action: () => createViewFromColumn(field) },
                 // Don't allow setting Record ID as the identifier field - it's static
@@ -25560,6 +25801,28 @@
                 { label: 'Hide Field', action: () => hideField(field.id) },
                 { label: 'Delete Field', action: () => confirmDelete('field', field.id), danger: true }
             ].filter(Boolean));
+        }
+
+        function openSetColumnWidthDialog(field) {
+            const view = getCurrentView();
+            const currentWidth = getFieldWidth(field, view);
+
+            const width = prompt(`Set column width for "${field.name}" (${COLUMN_WIDTH_MIN}-${COLUMN_WIDTH_MAX}px):`, currentWidth);
+            if (width === null) return;
+
+            const numWidth = parseInt(width, 10);
+            if (isNaN(numWidth) || numWidth < COLUMN_WIDTH_MIN || numWidth > COLUMN_WIDTH_MAX) {
+                showToast(`Invalid width. Please enter a number between ${COLUMN_WIDTH_MIN} and ${COLUMN_WIDTH_MAX}.`);
+                return;
+            }
+
+            if (view) {
+                if (!view.columnWidths) view.columnWidths = {};
+                view.columnWidths[field.id] = numWidth;
+                view.columnWidthMode = 'custom';
+                view.isDirty = true;
+            }
+            applyColumnWidth(field.id, numWidth);
         }
 
         function editColumnDisplayName(field) {
@@ -25732,7 +25995,8 @@
                 if (!item || item.label === 'separator') {
                     return '<div class="context-menu-separator"></div>';
                 }
-                return `<div class="context-menu-item ${item.danger ? 'danger' : ''}">${item.label}</div>`;
+                const iconHtml = item.icon ? `<i class="ph ${item.icon}" style="font-size: 16px; color: #64748b; width: 20px; text-align: center; margin-right: 6px;"></i>` : '';
+                return `<div class="context-menu-item ${item.danger ? 'danger' : ''}">${iconHtml}${item.label}</div>`;
             }).join('');
 
             // Bind click handlers only to actual menu items

@@ -38,6 +38,16 @@ function createViewEntity(config) {
         columnRules: config.columnRules || {},
         columnDisplayNames: config.columnDisplayNames || {}, // View-specific column display names
 
+        // Column width configuration
+        columnWidths: config.columnWidths || {}, // Per-column widths: { fieldId: number }
+        columnWidthMode: config.columnWidthMode || 'auto', // 'auto' | 'fit-to-screen' | 'uniform-min' | 'uniform-avg' | 'uniform-max' | 'custom'
+        columnWidthDefault: config.columnWidthDefault || 150, // Default column width in pixels
+
+        // Content overflow configuration
+        contentOverflow: config.contentOverflow || 'clip', // 'clip' | 'wrap' | 'expand' | 'tooltip'
+        cellMinHeight: config.cellMinHeight || 32, // Minimum cell height in pixels
+        cellMaxHeight: config.cellMaxHeight || null, // Maximum cell height (null = unlimited for wrap/expand)
+
         // View logic
         filters: config.filters || [],
         sorts: config.sorts || [],
