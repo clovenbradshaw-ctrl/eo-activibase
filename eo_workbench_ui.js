@@ -25,46 +25,46 @@ function renderViewManager(state, setId) {
     const views = getSetViews(state, setId);
     const currentViewId = state.currentViewId;
 
-    let html = '<div class="view-manager">';
-    html += '<div class="view-tabs">';
+    // Use array + join for better performance than string concatenation
+    const parts = ['<div class="view-manager">', '<div class="view-tabs">'];
 
     views.forEach(view => {
         const isActive = view.id === currentViewId;
         const isDirty = view.isDirty ? ' *' : '';
-        html += `
+        parts.push(`
             <div class="view-tab ${isActive ? 'active' : ''}" data-view-id="${view.id}">
                 <span class="view-icon">${view.icon || '📋'}</span>
                 <span class="view-name">${escapeHtml(view.name)}${isDirty}</span>
                 <button class="view-menu-btn" data-view-id="${view.id}" title="View options">⋮</button>
             </div>
-        `;
+        `);
     });
 
-    html += `
+    parts.push(`
         <button class="view-tab-add" title="New view">
             <span class="icon">+</span> New View
         </button>
-    `;
+    `);
 
-    html += '</div>'; // .view-tabs
+    parts.push('</div>'); // .view-tabs
 
     // View actions (shown when view is dirty)
     if (currentViewId) {
         const currentView = state.views?.get(currentViewId);
         if (currentView?.isDirty) {
-            html += `
+            parts.push(`
                 <div class="view-actions">
                     <span class="unsaved-label">Unsaved changes</span>
                     <button class="btn-save-view" data-view-id="${currentViewId}">Save View</button>
                     <button class="btn-save-view-as" data-view-id="${currentViewId}">Save As...</button>
                 </div>
-            `;
+            `);
         }
     }
 
-    html += '</div>'; // .view-manager
+    parts.push('</div>'); // .view-manager
 
-    return html;
+    return parts.join('');
 }
 
 /**
@@ -725,35 +725,36 @@ function showMergeRecordsDialog(state, setId, recordIds) {
 
 /**
  * Render merge comparison table
+ * Uses array + join for better performance than string concatenation
  */
 function renderMergeTable(schema, records) {
-    let html = '<table class="merge-comparison-table">';
-    html += '<thead><tr><th>Field</th>';
+    const parts = ['<table class="merge-comparison-table">', '<thead><tr><th>Field</th>'];
+
     records.forEach((rec, idx) => {
-        html += `<th>Record ${idx + 1}</th>`;
+        parts.push(`<th>Record ${idx + 1}</th>`);
     });
-    html += '<th>Strategy</th></tr></thead><tbody>';
+    parts.push('<th>Strategy</th></tr></thead><tbody>');
 
     schema.forEach(field => {
-        html += '<tr>';
-        html += `<td class="field-name">${escapeHtml(field.name || field.id)}</td>`;
+        parts.push('<tr>');
+        parts.push(`<td class="field-name">${escapeHtml(field.name || field.id)}</td>`);
 
         records.forEach((rec, idx) => {
             const value = rec[field.id];
             const displayValue = value !== undefined && value !== null && value !== '' ?
                 escapeHtml(String(value)) : '<em>empty</em>';
 
-            html += `
+            parts.push(`
                 <td>
                     <label>
                         <input type="radio" name="field_${field.id}" value="index_${idx}" ${idx === 0 ? 'checked' : ''}>
                         ${displayValue}
                     </label>
                 </td>
-            `;
+            `);
         });
 
-        html += `
+        parts.push(`
             <td>
                 <select class="strategy-select" data-field="${field.id}">
                     <option value="first">First</option>
@@ -761,13 +762,13 @@ function renderMergeTable(schema, records) {
                     <option value="concat">Concatenate</option>
                 </select>
             </td>
-        `;
+        `);
 
-        html += '</tr>';
+        parts.push('</tr>');
     });
 
-    html += '</tbody></table>';
-    return html;
+    parts.push('</tbody></table>');
+    return parts.join('');
 }
 
 /**
@@ -809,22 +810,23 @@ function showSplitRecordDialog(state, setId, recordId) {
         const count = parseInt(countInput.value);
         const schema = set.schema || [];
 
-        let html = '';
+        // Use array + join for better performance
+        const parts = [];
         for (let i = 0; i < count; i++) {
-            html += `<div class="split-record-form"><h4>Record ${i + 1}</h4>`;
+            parts.push(`<div class="split-record-form"><h4>Record ${i + 1}</h4>`);
             schema.forEach(field => {
                 const originalValue = record[field.id] || '';
-                html += `
+                parts.push(`
                     <div class="form-group inline">
                         <label>${escapeHtml(field.name || field.id)}</label>
                         <input type="text" name="split_${i}_${field.id}" value="${escapeHtml(String(originalValue))}">
                     </div>
-                `;
+                `);
             });
-            html += '</div>';
+            parts.push('</div>');
         }
 
-        container.innerHTML = html;
+        container.innerHTML = parts.join('');
     }
 
     renderSplitForms();
