@@ -490,6 +490,10 @@
 
         closePickUpDialog();
         renderCurrentView();
+        // Apply restoration highlights after DOM update
+        requestAnimationFrame(() => {
+            applyRestorationHighlights(state);
+        });
         updateTossPilePanel();
 
         if (result) {
@@ -569,6 +573,13 @@
 
         closeTossedColumnsDialog();
         renderCurrentView();
+        // Apply restoration highlights after DOM update
+        requestAnimationFrame(() => {
+            applyRestorationHighlights(state);
+            if (result.restoredEntries.length > 2) {
+                renderRestorationBanner(result.restoredEntries.length);
+            }
+        });
         updateTossPilePanel();
 
         if (result.restoredEntries.length > 0) {
@@ -626,6 +637,13 @@
         const result = TossPile.pickUpEntries(state, entries.map(e => e.id));
 
         renderCurrentView();
+        // Apply restoration highlights after DOM update
+        requestAnimationFrame(() => {
+            applyRestorationHighlights(state);
+            if (result.restoredEntries.length > 2) {
+                renderRestorationBanner(result.restoredEntries.length);
+            }
+        });
         updateTossPilePanel();
 
         if (result.restoredEntries.length > 0) {
@@ -702,6 +720,89 @@
     }
 
     // ============================================================================
+    // REAPPEARANCE HIGHLIGHT SYSTEM
+    // ============================================================================
+
+    /**
+     * Apply highlight classes to recently restored rows/cells in the DOM
+     * Call this after renderCurrentView() to highlight restored data
+     */
+    function applyRestorationHighlights(state) {
+        const restoredRecordIds = TossPile.getRecentlyRestoredRecords(state);
+
+        if (restoredRecordIds.length === 0) return;
+
+        // Apply highlights to each restored record's row
+        restoredRecordIds.forEach(recordId => {
+            // Find the table row for this record
+            const row = document.querySelector(`tr[data-record-id="${recordId}"]`);
+            if (row) {
+                // Add the restored-row class for full row animation
+                row.classList.add('restored-row');
+
+                // Also highlight specific restored cells
+                const restoredCellFieldIds = TossPile.getRecentlyRestoredCells(state, recordId);
+                restoredCellFieldIds.forEach(fieldId => {
+                    const cell = row.querySelector(`td[data-field-id="${fieldId}"]`);
+                    if (cell) {
+                        cell.classList.add('restored-cell');
+                    }
+                });
+            }
+        });
+
+        // Schedule cleanup of highlight classes after animation completes
+        TossPile.scheduleHighlightClear(state, () => {
+            removeRestorationHighlights();
+        });
+    }
+
+    /**
+     * Remove restoration highlight classes from all elements
+     */
+    function removeRestorationHighlights() {
+        document.querySelectorAll('.restored-row').forEach(el => {
+            el.classList.remove('restored-row');
+        });
+        document.querySelectorAll('.restored-cell').forEach(el => {
+            el.classList.remove('restored-cell');
+        });
+    }
+
+    /**
+     * Render a restoration notification banner (optional, shown above the table)
+     */
+    function renderRestorationBanner(count) {
+        // Remove any existing banner
+        const existing = document.getElementById('restorationBanner');
+        if (existing) existing.remove();
+
+        const banner = document.createElement('div');
+        banner.id = 'restorationBanner';
+        banner.className = 'restoration-banner';
+        banner.innerHTML = `
+            <span class="restore-indicator">
+                <span class="icon">↩</span>
+                <span>${count} item${count !== 1 ? 's' : ''} restored</span>
+            </span>
+        `;
+
+        // Insert at the top of the main content area
+        const tableContainer = document.querySelector('.table-container') ||
+                              document.querySelector('.data-grid') ||
+                              document.querySelector('main');
+        if (tableContainer) {
+            tableContainer.insertBefore(banner, tableContainer.firstChild);
+
+            // Auto-remove after animation completes
+            setTimeout(() => {
+                banner.classList.add('fade-out');
+                setTimeout(() => banner.remove(), 300);
+            }, 3000);
+        }
+    }
+
+    // ============================================================================
     // PICK UP ACTIONS
     // ============================================================================
 
@@ -710,6 +811,10 @@
         const result = TossPile.pickUpEntry(state, entryId);
         if (result) {
             renderCurrentView();
+            // Apply restoration highlights after DOM update
+            requestAnimationFrame(() => {
+                applyRestorationHighlights(state);
+            });
             updateTossPilePanel();
             showToast('✓ Item picked up');
         }
@@ -720,6 +825,13 @@
         const result = TossPile.pickUpAction(state, actionId);
         if (result) {
             renderCurrentView();
+            // Apply restoration highlights after DOM update
+            requestAnimationFrame(() => {
+                applyRestorationHighlights(state);
+                if (result.restoredEntries.length > 2) {
+                    renderRestorationBanner(result.restoredEntries.length);
+                }
+            });
             updateTossPilePanel();
             showToast(`✓ Picked up ${result.restoredEntries.length} items`);
         }
@@ -730,6 +842,10 @@
         const result = TossPile.pickUpRecord(state, actionId, recordId);
         if (result) {
             renderCurrentView();
+            // Apply restoration highlights after DOM update
+            requestAnimationFrame(() => {
+                applyRestorationHighlights(state);
+            });
             updateTossPilePanel();
             showToast(`✓ Record picked up (${result.restoredEntries.length} fields)`);
         }
@@ -748,6 +864,13 @@
         });
 
         renderCurrentView();
+        // Apply restoration highlights after DOM update
+        requestAnimationFrame(() => {
+            applyRestorationHighlights(state);
+            if (totalRestored > 2) {
+                renderRestorationBanner(totalRestored);
+            }
+        });
         updateTossPilePanel();
 
         if (totalRestored > 0) {
@@ -771,6 +894,13 @@
 
         closeTossedColumnsDialog();
         renderCurrentView();
+        // Apply restoration highlights after DOM update
+        requestAnimationFrame(() => {
+            applyRestorationHighlights(state);
+            if (totalRestored > 2) {
+                renderRestorationBanner(totalRestored);
+            }
+        });
         updateTossPilePanel();
 
         if (totalRestored > 0) {
@@ -837,6 +967,11 @@
         renderTossedColumnsIndicator,
         renderSetTossBanner,
         dismissBanner,
+
+        // Reappearance highlights
+        applyRestorationHighlights,
+        removeRestorationHighlights,
+        renderRestorationBanner,
 
         // Dialogs
         showPickUpDialog,

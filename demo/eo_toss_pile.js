@@ -69,17 +69,33 @@
                 actionIdCounter: 1,
                 entryIdCounter: 1,
                 redoStack: [], // Stack of action IDs that can be re-tossed
+                recentlyRestored: {
+                    records: new Set(),    // Record IDs that were just restored
+                    cells: new Map(),      // Map of recordId -> Set of fieldIds
+                    timestamp: null,       // When the last restoration happened
+                    expiresAt: null        // When to clear the highlight
+                },
                 settings: {
                     showGhosts: true,
                     ghostMaxAge: null, // null = show all, otherwise ms
                     panelOpen: false,
-                    panelWidth: 320
+                    panelWidth: 320,
+                    reappearanceHighlightDuration: 3000 // ms to show the highlight
                 }
             };
         }
         // Ensure redoStack exists for older state objects
         if (!state.tossPile.redoStack) {
             state.tossPile.redoStack = [];
+        }
+        // Ensure recentlyRestored exists for older state objects
+        if (!state.tossPile.recentlyRestored) {
+            state.tossPile.recentlyRestored = {
+                records: new Set(),
+                cells: new Map(),
+                timestamp: null,
+                expiresAt: null
+            };
         }
         return state.tossPile;
     }
@@ -481,6 +497,9 @@
         // Restore the value
         record[entry.fieldId] = entry.value;
         entry.status = 'picked_up';
+
+        // Track as recently restored for visual highlighting
+        markAsRestored(state, entry.recordId, entry.fieldId);
 
         // Create event
         if (typeof createEvent === 'function') {
@@ -891,6 +910,118 @@
     }
 
     // ============================================================================
+    // REAPPEARANCE TRACKING
+    // ============================================================================
+
+    /**
+     * Mark a record/cell as recently restored for visual highlighting
+     */
+    function markAsRestored(state, recordId, fieldId = null) {
+        const pile = initTossPile(state);
+        const now = Date.now();
+        const duration = pile.settings.reappearanceHighlightDuration || 3000;
+
+        // If this is a new restoration batch, reset the tracking
+        if (!pile.recentlyRestored.timestamp || now - pile.recentlyRestored.timestamp > 100) {
+            pile.recentlyRestored.records = new Set();
+            pile.recentlyRestored.cells = new Map();
+        }
+
+        pile.recentlyRestored.timestamp = now;
+        pile.recentlyRestored.expiresAt = now + duration;
+        pile.recentlyRestored.records.add(recordId);
+
+        if (fieldId) {
+            if (!pile.recentlyRestored.cells.has(recordId)) {
+                pile.recentlyRestored.cells.set(recordId, new Set());
+            }
+            pile.recentlyRestored.cells.get(recordId).add(fieldId);
+        }
+    }
+
+    /**
+     * Check if a record was recently restored (for highlighting)
+     */
+    function isRecentlyRestored(state, recordId, fieldId = null) {
+        const pile = initTossPile(state);
+        const now = Date.now();
+
+        // Check if the highlight has expired
+        if (!pile.recentlyRestored.expiresAt || now > pile.recentlyRestored.expiresAt) {
+            return false;
+        }
+
+        // Check if record is in the recently restored set
+        if (!pile.recentlyRestored.records.has(recordId)) {
+            return false;
+        }
+
+        // If fieldId specified, check if that specific cell was restored
+        if (fieldId && pile.recentlyRestored.cells.has(recordId)) {
+            return pile.recentlyRestored.cells.get(recordId).has(fieldId);
+        }
+
+        // Record was restored (either full record or we're not checking specific field)
+        return true;
+    }
+
+    /**
+     * Get all recently restored record IDs (for batch highlighting)
+     */
+    function getRecentlyRestoredRecords(state) {
+        const pile = initTossPile(state);
+        const now = Date.now();
+
+        if (!pile.recentlyRestored.expiresAt || now > pile.recentlyRestored.expiresAt) {
+            return [];
+        }
+
+        return Array.from(pile.recentlyRestored.records);
+    }
+
+    /**
+     * Get recently restored cells for a specific record
+     */
+    function getRecentlyRestoredCells(state, recordId) {
+        const pile = initTossPile(state);
+        const now = Date.now();
+
+        if (!pile.recentlyRestored.expiresAt || now > pile.recentlyRestored.expiresAt) {
+            return [];
+        }
+
+        if (!pile.recentlyRestored.cells.has(recordId)) {
+            return [];
+        }
+
+        return Array.from(pile.recentlyRestored.cells.get(recordId));
+    }
+
+    /**
+     * Clear the recently restored tracking (after animation completes)
+     */
+    function clearRecentlyRestored(state) {
+        const pile = initTossPile(state);
+        pile.recentlyRestored.records = new Set();
+        pile.recentlyRestored.cells = new Map();
+        pile.recentlyRestored.timestamp = null;
+        pile.recentlyRestored.expiresAt = null;
+    }
+
+    /**
+     * Schedule automatic clearing of recently restored highlights
+     */
+    function scheduleHighlightClear(state, callback) {
+        const pile = initTossPile(state);
+        const duration = pile.settings.reappearanceHighlightDuration || 3000;
+
+        setTimeout(() => {
+            clearRecentlyRestored(state);
+            if (callback) callback();
+        }, duration);
+    }
+
+    // ============================================================================
     // SETTINGS
     // ============================================================================
 
@@ -992,6 +1123,14 @@
         getGhostData,
         getTossPileStats,
         getRelatedEntries,
+
+        // Reappearance tracking
+        markAsRestored,
+        isRecentlyRestored,
+        getRecentlyRestoredRecords,
+        getRecentlyRestoredCells,
+        clearRecentlyRestored,
+        scheduleHighlightClear,
 
         // Settings
         setGhostVisibility,
