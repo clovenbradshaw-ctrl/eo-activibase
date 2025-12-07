@@ -3933,6 +3933,10 @@
         .selection-indicator { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-weight: 700; font-size: 12px; }
         .selection-indicator.hidden { display: none; }
         .selection-indicator i { font-size: 14px; }
+        .toss-selected-btn { background: #fef2f2 !important; border-color: #fecaca !important; color: #dc2626 !important; }
+        .toss-selected-btn:hover { background: #fee2e2 !important; border-color: #f87171 !important; }
+        .toss-selected-btn.hidden { display: none; }
+        .toss-selected-btn i { color: #dc2626; }
 
         .view-stage-body { padding: 14px 16px 18px; background: #ffffff; flex: 1; }
 
@@ -9979,6 +9983,9 @@
             const tossSelectedBtn = document.getElementById('tossSelectedBtn');
             if (tossSelectedBtn) tossSelectedBtn.onclick = handleTossSelectedRecords;
 
+            const tossSelectedBtnVisible = document.getElementById('tossSelectedBtnVisible');
+            if (tossSelectedBtnVisible) tossSelectedBtnVisible.onclick = handleTossSelectedRecords;
+
             const reifyBtn = document.getElementById('reifyViewBtn');
             if (reifyBtn) reifyBtn.onclick = reifyCurrentView;
 
@@ -10158,6 +10165,10 @@
                                     <i class="ph ph-check-square-offset"></i>
                                     <span><span id="selectedCount">0</span> selected</span>
                                 </div>
+                                <button id="tossSelectedBtnVisible" class="btn btn-secondary btn-sm toss-selected-btn hidden" title="Toss selected records">
+                                    <i class="ph ph-hand-fist"></i>
+                                    Toss
+                                </button>
                             </div>
                             <div class="view-stage-inline-actions">
                                 ${promoteButton}
@@ -17515,6 +17526,13 @@
 
             const tossBtn = document.getElementById('tossSelectedBtn');
             if (tossBtn) tossBtn.disabled = !state.selectedRecordIds || state.selectedRecordIds.size === 0;
+
+            // Show/hide the visible toss button based on selection
+            const tossBtnVisible = document.getElementById('tossSelectedBtnVisible');
+            if (tossBtnVisible) {
+                const hasSelection = state.selectedRecordIds && state.selectedRecordIds.size > 0;
+                tossBtnVisible.classList.toggle('hidden', !hasSelection);
+            }
         }
 
         function handleTossSelectedRecords() {
@@ -18047,6 +18065,16 @@
 
                     // Click on row background opens record modal (cells handle their own clicks)
                     openExpandedRecord(record.id);
+                };
+
+                // Right-click context menu for record
+                tr.oncontextmenu = (event) => {
+                    // Don't show if clicking on a cell (cells have their own context menus)
+                    const cell = event.target.closest('td.cell-editable');
+                    if (cell) return; // Let the cell context menu handle it
+
+                    event.preventDefault();
+                    showRecordContextMenu(event, record.id);
                 };
 
                 // Checkbox cell comes first (leftmost)
@@ -30036,6 +30064,86 @@
             setTimeout(() => {
                 document.addEventListener('click', function close() { menu.remove(); document.removeEventListener('click', close); });
             }, 0);
+        }
+
+        function showRecordContextMenu(e, recordId) {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            const record = set.records.get(recordId);
+            if (!record) return;
+
+            // Check if this record has tossed entries that can be picked up
+            let hasTossedEntries = false;
+            let tossActionId = null;
+            if (typeof TossPile !== 'undefined') {
+                const pile = TossPile.init(state);
+                const tossedForRecord = Array.from(pile.entries.values())
+                    .filter(e => e.recordId === recordId && e.status === 'tossed');
+                hasTossedEntries = tossedForRecord.length > 0;
+                if (hasTossedEntries && tossedForRecord[0]) {
+                    tossActionId = tossedForRecord[0].actionId;
+                }
+            }
+
+            const items = [
+                { label: 'Open Record', icon: 'ph-arrow-square-out', action: () => openExpandedRecord(recordId) },
+                { label: 'separator' },
+                { label: 'Select Record', icon: 'ph-check-square', action: () => {
+                    if (!state.selectedRecordIds) state.selectedRecordIds = new Set();
+                    state.selectedRecordIds.add(recordId);
+                    updateSelectionUI([...set.records.values()]);
+                }},
+                { label: 'Copy Record ID', icon: 'ph-clipboard-text', action: () => {
+                    navigator.clipboard.writeText(recordId).then(() => {
+                        showToast('✓ Record ID copied');
+                    });
+                }}
+            ];
+
+            // Add pick up option if record has tossed entries
+            if (hasTossedEntries && tossActionId) {
+                items.push({ label: 'separator' });
+                items.push({ label: 'Pick Up Tossed Fields', icon: 'ph-arrow-u-up-left', action: () => {
+                    if (typeof TossPileUI !== 'undefined') {
+                        TossPileUI.pickUpRecord(tossActionId, recordId);
+                    }
+                }});
+            }
+
+            items.push({ label: 'separator' });
+            items.push({ label: 'Toss Record', icon: 'ph-hand-fist', action: () => tossRecord(recordId), danger: true });
+
+            showContextMenu(e, items);
+        }
+
+        function tossRecord(recordId) {
+            const set = getCurrentSet();
+            if (!set || !set.records.has(recordId)) return;
+
+            showConfirm('Are you sure you want to toss this record? It can be restored from the toss pile.', () => {
+                if (typeof TossPile !== 'undefined') {
+                    const action = TossPile.tossRecord(state, recordId);
+                    if (action) {
+                        // Remove from selection if selected
+                        if (state.selectedRecordIds?.has(recordId)) {
+                            state.selectedRecordIds.delete(recordId);
+                        }
+                        renderCurrentView();
+                        showToast('✓ Record tossed (can be restored)');
+                        return;
+                    }
+                }
+
+                // Fallback: hard delete
+                set.records.delete(recordId);
+                deleteEntity(recordId);
+                if (state.selectedRecordIds?.has(recordId)) {
+                    state.selectedRecordIds.delete(recordId);
+                }
+                renderCurrentView();
+                showToast('✓ Record deleted');
+            });
         }
 
         function showSetContextMenu(e, setId) {
