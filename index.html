@@ -39,6 +39,8 @@
     <script defer src="demo/eo_linked_fields_modal.js"></script>
     <script defer src="demo/eo_import_manager.js"></script>
     <script defer src="demo/eo_file_explorer.js"></script>
+    <script defer src="eo_content_store.js"></script>
+    <script defer src="eo_deduplication_ui.js"></script>
     <script defer src="demo/eo_import_integration.js"></script>
     <script defer src="demo/eo_toss_pile.js"></script>
     <script defer src="demo/eo_toss_pile_ui.js"></script>
@@ -13241,6 +13243,27 @@
             const banner = document.createElement('div');
             banner.className = 'floating-import-banner';
             banner.dataset.viewId = view.id;
+
+            // Get deduplication stats if available
+            let dedupInfo = '';
+            if (typeof EOContentStore !== 'undefined' && view.importMetadata?.importId) {
+                const dedupStats = EOContentStore.getImportStats(view.importMetadata.importId);
+                if (dedupStats && parseFloat(dedupStats.compressionRatio) > 0) {
+                    dedupInfo = `
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px 10px; background: rgba(34, 197, 94, 0.1); border-radius: 6px; font-size: 11px;">
+                            <i class="ph ph-hard-drives" style="color: #22c55e;"></i>
+                            <span><strong>${dedupStats.compressionRatio}%</strong> storage optimized</span>
+                            <span style="color: rgba(255,255,255,0.5);">|</span>
+                            <span>${dedupStats.duplicateRecords} duplicates</span>
+                            ${dedupStats.deltaRecords > 0 ? `<span style="color: rgba(255,255,255,0.5);">|</span><span>${dedupStats.deltaRecords} deltas</span>` : ''}
+                            <button onclick="showImportStorageDetails('${view.importMetadata.importId}')" style="margin-left: auto; background: transparent; border: 1px solid rgba(255,255,255,0.3); color: white; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">
+                                Details
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+
             banner.innerHTML = `
                 <button class="floating-import-banner-close" onclick="dismissFloatingImportBanner('${view.id}')" title="Dismiss">
                     <i class="ph ph-x"></i>
@@ -13251,6 +13274,7 @@
                     <div class="floating-import-banner-text">
                         This data is stored in your browser. Hit "Save" to sync to cloud. If you export your world now, this data will be included.
                     </div>
+                    ${dedupInfo}
                     <div class="floating-import-banner-actions">
                         <button class="floating-import-banner-btn primary" onclick="showSaveImportAsViewDialog()">
                             <i class="ph ph-cloud-arrow-up"></i> Save to Cloud
@@ -13269,6 +13293,47 @@
                 setTimeout(() => banner.remove(), 200);
             }
         }
+
+        /**
+         * Show detailed storage/deduplication info for an import
+         */
+        function showImportStorageDetails(importId) {
+            if (typeof EODeduplicationUI === 'undefined') {
+                showToast('Storage details module not available', 'error');
+                return;
+            }
+
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'storageDetailsModal';
+            modal.style.display = 'flex';
+
+            const imp = state.importManager?.getImport(importId);
+            const impName = imp?.name || 'Import';
+
+            modal.innerHTML = `
+                <div class="modal" style="width: 90%; max-width: 800px; max-height: 85vh; display: flex; flex-direction: column;">
+                    <div class="modal-header">
+                        <h3 style="display: flex; align-items: center; gap: 10px;">
+                            <i class="ph ph-hard-drives" style="color: #6366f1;"></i>
+                            Storage Details: ${impName}
+                        </h3>
+                        <button class="modal-close" onclick="closeModal('storageDetailsModal')">×</button>
+                    </div>
+                    <div class="modal-body" style="flex: 1; overflow: auto; padding: 0;">
+                        ${EODeduplicationUI.renderImportStorageTab(importId)}
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeModal('storageDetailsModal')">Close</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+        }
+
+        // Expose to global scope for onclick handlers
+        window.showImportStorageDetails = showImportStorageDetails;
 
         function reifyImportView() {
             const view = getCurrentView();
@@ -30621,6 +30686,9 @@
                             <button class="btn btn-sm import-tab" data-tab="schema" onclick="switchImportTab(this, 'schema')">Schema</button>
                             <button class="btn btn-sm import-tab" data-tab="metadata" onclick="switchImportTab(this, 'metadata')">Metadata</button>
                             <button class="btn btn-sm import-tab" data-tab="quality" onclick="switchImportTab(this, 'quality')">Quality</button>
+                            <button class="btn btn-sm import-tab" data-tab="storage" onclick="switchImportTab(this, 'storage')">
+                                <i class="ph ph-hard-drives" style="margin-right: 4px;"></i>Storage
+                            </button>
                         </div>
 
                         <!-- Data Tab -->
@@ -30767,10 +30835,16 @@
                                 }).join('')}
                             </div>
                         </div>
+
+                        <!-- Storage Tab (Deduplication) -->
+                        <div class="import-tab-content" data-content="storage" style="display: none;">
+                            ${typeof EODeduplicationUI !== 'undefined' ? EODeduplicationUI.renderImportStorageTab(imp.id) : '<div style="padding: 40px; text-align: center; color: var(--text-secondary);">Storage optimization module not loaded</div>'}
+                        </div>
                     </div>
                     <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="font-size: 12px; color: var(--text-secondary);">
                             ${imp.usedIn.length > 0 ? `Used in ${imp.usedIn.length} set(s)` : 'Not used yet'}
+                            ${imp.deduplicationStats ? ` · <span style="color: #22c55e;"><i class="ph ph-hard-drives"></i> ${imp.deduplicationStats.compressionRatio}% storage saved</span>` : ''}
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button class="btn btn-secondary" onclick="closeModal('importPreviewModal')">Close</button>

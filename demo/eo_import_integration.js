@@ -7,12 +7,14 @@
  * - Creating sets from imports
  * - Joining/linking imports based on detected relationships
  * - View creation from imports
+ * - Content-addressable deduplication via EOContentStore
  */
 
 class EOImportIntegration {
   constructor(options = {}) {
     this.importManager = options.importManager;
     this.state = options.state;
+    this.contentStore = typeof EOContentStore !== 'undefined' ? EOContentStore : null;
     this.callbacks = {
       onSetCreated: options.onSetCreated || (() => {}),
       onRecordsAdded: options.onRecordsAdded || (() => {}),
@@ -58,9 +60,10 @@ class EOImportIntegration {
     // Map import columns to set fields
     const fieldMapping = this.mapImportToSetFields(imp, targetSet, options);
 
-    // Create records with provenance
+    // Create records with provenance and content-addressable deduplication
     const importTimestamp = Date.now();
     const recordsAdded = [];
+    const recordsForDedup = [];
 
     imp.rows.forEach((row, rowIndex) => {
       const record = this.createRecordWithProvenance(
@@ -72,7 +75,29 @@ class EOImportIntegration {
         importTimestamp
       );
       recordsAdded.push(record);
+
+      // Collect for batch deduplication
+      if (this.contentStore) {
+        recordsForDedup.push({
+          recordId: record.id,
+          fields: record
+        });
+      }
     });
+
+    // Process batch deduplication if content store available
+    let dedupStats = null;
+    if (this.contentStore && recordsForDedup.length > 0) {
+      dedupStats = this.contentStore.processImportBatch(imp.id, recordsForDedup, {
+        enableDelta: true,
+        deltaThreshold: 0.7
+      });
+
+      // Store dedup stats in the import
+      if (imp) {
+        imp.deduplicationStats = dedupStats;
+      }
+    }
 
     // Track usage in import
     this.importManager.trackUsage(importId, 'set', targetSetId, recordsAdded.length);
@@ -110,7 +135,8 @@ class EOImportIntegration {
       setId: targetSetId,
       viewId,
       recordsAdded: recordsAdded.length,
-      createdNewSet
+      createdNewSet,
+      deduplicationStats: dedupStats
     };
   }
 
@@ -332,7 +358,8 @@ class EOImportIntegration {
         importId: imp.id,
         filename: imp.name,
         timestamp: importTimestamp,
-        recordCount: records.length
+        recordCount: records.length,
+        hasDeduplicationStats: !!imp.deduplicationStats
       },
 
       createdAt: new Date().toISOString()
@@ -644,6 +671,98 @@ class EOImportIntegration {
     }
 
     return config;
+  }
+
+  // ============================================
+  // Deduplication Methods
+  // ============================================
+
+  /**
+   * Get deduplication statistics for an import
+   * @param {string} importId - Import identifier
+   * @returns {Object|null} Deduplication stats or null
+   */
+  getDeduplicationStats(importId) {
+    if (!this.contentStore) return null;
+    return this.contentStore.getImportStats(importId);
+  }
+
+  /**
+   * Get human-readable deduplication summary for an import
+   * @param {string} importId - Import identifier
+   * @returns {Object|null} Summary or null
+   */
+  getDeduplicationSummary(importId) {
+    if (!this.contentStore) return null;
+    return this.contentStore.getImportSummary(importId);
+  }
+
+  /**
+   * Get global deduplication statistics
+   * @returns {Object} Global stats
+   */
+  getGlobalDeduplicationStats() {
+    if (!this.contentStore) return null;
+    return this.contentStore.getGlobalStats();
+  }
+
+  /**
+   * Find records duplicated across imports
+   * @returns {Array} List of cross-import duplicates
+   */
+  findCrossImportDuplicates() {
+    if (!this.contentStore) return [];
+    return this.contentStore.findCrossImportDuplicates();
+  }
+
+  /**
+   * Check if a record is a duplicate
+   * @param {string} recordId - Record identifier
+   * @returns {boolean} True if record shares content with others
+   */
+  isRecordDuplicate(recordId) {
+    if (!this.contentStore) return false;
+    return this.contentStore.isDuplicate(recordId);
+  }
+
+  /**
+   * Get all records that share the same content as given record
+   * @param {string} recordId - Record identifier
+   * @returns {string[]} Array of record IDs with same content
+   */
+  getDuplicateRecordIds(recordId) {
+    if (!this.contentStore) return [recordId];
+    return this.contentStore.getDuplicateRecordIds(recordId);
+  }
+
+  /**
+   * Get deduplication stats for a view (based on its import source)
+   * @param {string} viewId - View identifier
+   * @returns {Object|null} Deduplication stats or null
+   */
+  getViewDeduplicationStats(viewId) {
+    const view = this.state.views?.get(viewId);
+    if (!view?.importMetadata?.importId) return null;
+    return this.getDeduplicationStats(view.importMetadata.importId);
+  }
+
+  /**
+   * Export content store for persistence
+   * @returns {Object} Serializable content store state
+   */
+  exportContentStore() {
+    if (!this.contentStore) return null;
+    return this.contentStore.exportStore();
+  }
+
+  /**
+   * Import content store from persisted state
+   * @param {Object} data - Previously exported state
+   * @returns {boolean} Success status
+   */
+  importContentStore(data) {
+    if (!this.contentStore) return false;
+    return this.contentStore.importStore(data);
   }
 }
 
