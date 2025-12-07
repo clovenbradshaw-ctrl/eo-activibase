@@ -10232,25 +10232,31 @@
                     name: view?.columnDisplayNames?.[field.id] || field.name
                 }));
 
-            // Add linked fields (lookups and rollups) from view
+            // Add linked fields (lookups with optional rollup formulas) from view
             const linkedFields = [];
 
-            // Add lookup fields
+            // All lookups are in view.relationships - they may optionally have a rollupFormula
             if (view?.relationships && Array.isArray(view.relationships)) {
                 view.relationships.forEach(rel => {
                     if (rel.type === 'lookup') {
+                        // Determine field type based on whether rollupFormula is set
+                        const fieldType = rel.rollupFormula ? 'LINKED_ROLLUP' : 'LINKED_LOOKUP';
                         linkedFields.push({
                             id: rel.id,
                             name: view?.columnDisplayNames?.[rel.id] || rel.displayName || `Linked: ${rel.targetFieldId}`,
-                            type: 'LINKED_LOOKUP',
-                            _linkedConfig: rel,
+                            type: fieldType,
+                            _linkedConfig: {
+                                ...rel,
+                                // Map rollupFormula to aggregation for compatibility with rollup engine
+                                aggregation: rel.rollupFormula || null
+                            },
                             width: '150px'
                         });
                     }
                 });
             }
 
-            // Add rollup fields
+            // Legacy support: Also check view.rollups for backward compatibility
             if (view?.rollups && Array.isArray(view.rollups)) {
                 view.rollups.forEach(rollup => {
                     linkedFields.push({
