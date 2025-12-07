@@ -59,6 +59,14 @@
         IMPORT_COMPLETED: 'import:completed',
         IMPORT_FAILED: 'import:failed',
 
+        // Background processing events
+        DEDUP_STARTED: 'dedup:started',
+        DEDUP_PROGRESS: 'dedup:progress',
+        DEDUP_COMPLETED: 'dedup:completed',
+        LINKING_STARTED: 'linking:started',
+        LINKING_PROGRESS: 'linking:progress',
+        LINKING_COMPLETED: 'linking:completed',
+
         // Toss pile events
         TOSS_RECORD: 'toss:record',
         TOSS_RECORDS: 'toss:records',
