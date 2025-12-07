@@ -96,7 +96,8 @@ class EOLinkedFieldsModal {
                     configuredCardinality: field.config?.cardinality || null,
                     configuredLimit: field.config?.limit || null,
                     recordCount: this.getLinkedRecordCount(currentSetId, field.id),
-                    direction: 'outgoing'
+                    direction: 'outgoing',
+                    relationshipVerb: field.config?.relationshipVerb || null
                 });
             }
         });
@@ -131,7 +132,9 @@ class EOLinkedFieldsModal {
                         recordCount: this.getLinkedRecordCount(otherSetId, field.id),
                         direction: 'incoming',
                         sourceSetId: otherSetId,
-                        sourceSetName: otherSet.name
+                        sourceSetName: otherSet.name,
+                        relationshipVerb: field.config?.relationshipVerb || null,
+                        inverseVerb: field.config?.inverseVerb || null
                     });
                 }
             });
@@ -243,13 +246,31 @@ class EOLinkedFieldsModal {
     renderLinkedSetsList() {
         return this.linkedSets.map(linkedSet => {
             const isActive = this.selectedLinkedSet?.setId === linkedSet.setId;
+            const verbDisplay = linkedSet.relationshipVerb
+                ? `<div class="linked-set-verb">"${this.escapeHtml(linkedSet.relationshipVerb)}"</div>`
+                : '';
+            const cardinalityBadge = linkedSet.cardinality === 'one' ? '1:1' : '1:N';
             return `
                 <div class="linked-set-item ${isActive ? 'active' : ''}" data-set-id="${linkedSet.setId}">
-                    <div class="linked-set-name">${linkedSet.setName}</div>
-                    <div class="linked-set-meta">${linkedSet.recordCount}</div>
+                    <div class="linked-set-name">${this.escapeHtml(linkedSet.setName)}</div>
+                    ${verbDisplay}
+                    <div class="linked-set-meta">
+                        <span class="cardinality-badge">${cardinalityBadge}</span>
+                        ${linkedSet.recordCount}
+                    </div>
                 </div>
             `;
         }).join('');
+    }
+
+    /**
+     * Escape HTML for safe display
+     */
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     /**

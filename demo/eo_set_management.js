@@ -142,7 +142,9 @@
                     fieldName: field.name,
                     targetSetId: field.config.linkedSetId,
                     targetSetName: linkedSet?.name || 'Unknown Set',
-                    linkCount: countLinkedRecords(set, field.id)
+                    linkCount: countLinkedRecords(set, field.id),
+                    relationshipVerb: field.config.relationshipVerb || null,
+                    cardinality: field.config.cardinality || 'many'
                 });
             }
         });
@@ -158,7 +160,10 @@
                         setName: otherSet.name,
                         fieldId: field.id,
                         fieldName: field.name,
-                        linkCount: countLinkedRecords(otherSet, field.id)
+                        linkCount: countLinkedRecords(otherSet, field.id),
+                        relationshipVerb: field.config.relationshipVerb || null,
+                        inverseVerb: field.config.inverseVerb || null,
+                        cardinality: field.config.cardinality || 'many'
                     });
                 }
             });
@@ -417,7 +422,11 @@
                                 <div class="relationship-item outgoing">
                                     <span class="rel-icon"><i class="ph ph-arrow-right"></i></span>
                                     <span class="rel-set">${escapeHtml(link.targetSetName)}</span>
+                                    ${link.relationshipVerb ? `
+                                        <span class="rel-verb">"${escapeHtml(link.relationshipVerb)}"</span>
+                                    ` : ''}
                                     <span class="rel-via">via ${escapeHtml(link.fieldName)}</span>
+                                    <span class="rel-cardinality">${link.cardinality === 'one' ? '1:1' : '1:N'}</span>
                                     <span class="rel-count">${link.linkCount} links</span>
                                 </div>
                             `).join('')}
@@ -433,7 +442,11 @@
                                 <div class="relationship-item incoming">
                                     <span class="rel-icon"><i class="ph ph-arrow-left"></i></span>
                                     <span class="rel-set">${escapeHtml(ref.setName)}</span>
+                                    ${ref.relationshipVerb ? `
+                                        <span class="rel-verb">"${escapeHtml(ref.relationshipVerb)}"</span>
+                                    ` : ''}
                                     <span class="rel-via">via ${escapeHtml(ref.fieldName)}</span>
+                                    <span class="rel-cardinality">${ref.cardinality === 'one' ? '1:1' : '1:N'}</span>
                                     <span class="rel-count">${ref.linkCount} links</span>
                                 </div>
                             `).join('')}

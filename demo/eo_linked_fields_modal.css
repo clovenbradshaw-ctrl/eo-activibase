@@ -135,9 +135,28 @@
     margin-bottom: 2px;
 }
 
+.linked-set-verb {
+    font-size: 11px;
+    color: #4f46e5;
+    font-style: italic;
+    margin: 2px 0;
+}
+
 .linked-set-meta {
     font-size: 11px;
     color: #6b7280;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.linked-set-meta .cardinality-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 4px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    color: #4b5563;
 }
 
 /* Fields List (Middle Panel) */
