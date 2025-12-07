@@ -13666,11 +13666,42 @@
             // Render tabs
             let tabsHTML = '';
             tabs.forEach((tab, index) => {
+                const isActiveTab = index === activeTabIndex;
+
+                // Handle special view tabs (entities, relations, etc.)
+                if (tab.specialView) {
+                    const config = SPECIAL_VIEW_CONFIG[tab.specialView];
+                    if (!config) return;
+
+                    tabsHTML += `
+                        <div class="pane-tab special-view-tab ${isActiveTab ? 'active' : ''}"
+                             data-pane-id="${pane.id}"
+                             data-tab-index="${index}"
+                             data-special-view="${tab.specialView}"
+                             draggable="true"
+                             onclick="handlePaneTabClick('${pane.id}', ${index})"
+                             oncontextmenu="showPaneTabContextMenu(event, '${pane.id}', ${index})"
+                             ondragstart="handlePaneTabDragStart(event, '${pane.id}', ${index})"
+                             ondragend="handlePaneTabDragEnd(event)">
+                            <span class="pane-tab-icon"><i class="ph ${config.icon}"></i></span>
+                            <div class="pane-tab-text">
+                                <span class="pane-tab-name">${config.label}</span>
+                            </div>
+                            <div class="pane-tab-actions">
+                                <button class="pane-tab-btn" onclick="event.stopPropagation(); closePaneTab('${pane.id}', ${index})">
+                                    <i class="ph ph-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Handle regular set/view tabs
                 const set = state.sets.get(tab.setId);
                 const view = set?.views.get(tab.viewId);
                 if (!set || !view) return;
 
-                const isActiveTab = index === activeTabIndex;
                 const isImportView = view.isTemporary && view.importMetadata;
                 const viewIcon = view.icon || VIEW_TYPE_ICONS[view.type] || 'ph-table';
 
@@ -13790,12 +13821,21 @@
             // Update global state
             const tab = pane.tabs[tabIndex];
             if (tab) {
-                state.currentSetId = tab.setId;
-                state.currentViewId = tab.viewId;
-                state.currentSpecialView = null;
-
-                // Update openTabs for backward compatibility
-                ensureOpenTab(tab.setId, tab.viewId);
+                // Handle special view tabs
+                if (tab.specialView) {
+                    state.currentSpecialView = tab.specialView;
+                    state.currentSetId = null;
+                    state.currentViewId = null;
+                    // Update openTabs for backward compatibility
+                    ensureOpenSpecialTab(tab.specialView);
+                } else {
+                    // Handle regular set/view tabs
+                    state.currentSetId = tab.setId;
+                    state.currentViewId = tab.viewId;
+                    state.currentSpecialView = null;
+                    // Update openTabs for backward compatibility
+                    ensureOpenTab(tab.setId, tab.viewId);
+                }
             }
 
             // Re-render
@@ -13825,9 +13865,16 @@
 
             // Also remove from openTabs for backward compatibility
             if (tab) {
-                const openTabIndex = state.openTabs.findIndex(
-                    t => t.setId === tab.setId && t.viewId === tab.viewId
-                );
+                let openTabIndex;
+                if (tab.specialView) {
+                    // Handle special view tabs
+                    openTabIndex = state.openTabs.findIndex(t => t.specialView === tab.specialView);
+                } else {
+                    // Handle regular set/view tabs
+                    openTabIndex = state.openTabs.findIndex(
+                        t => t.setId === tab.setId && t.viewId === tab.viewId
+                    );
+                }
                 if (openTabIndex !== -1) {
                     state.openTabs.splice(openTabIndex, 1);
                 }
@@ -13842,8 +13889,17 @@
             if (pane.tabs.length > 0) {
                 const newActiveTab = pane.tabs[pane.activeTabIndex];
                 if (newActiveTab) {
-                    state.currentSetId = newActiveTab.setId;
-                    state.currentViewId = newActiveTab.viewId;
+                    // Handle special view tabs
+                    if (newActiveTab.specialView) {
+                        state.currentSpecialView = newActiveTab.specialView;
+                        state.currentSetId = null;
+                        state.currentViewId = null;
+                    } else {
+                        // Handle regular set/view tabs
+                        state.currentSetId = newActiveTab.setId;
+                        state.currentViewId = newActiveTab.viewId;
+                        state.currentSpecialView = null;
+                    }
                 }
             } else if (paneId === state.layout.activePaneId) {
                 // Find another pane with tabs
@@ -13851,11 +13907,25 @@
                 const paneWithTabs = allPanes.find(p => p.tabs.length > 0);
                 if (paneWithTabs) {
                     state.layout.activePaneId = paneWithTabs.id;
-                    const tab = paneWithTabs.tabs[paneWithTabs.activeTabIndex];
-                    if (tab) {
-                        state.currentSetId = tab.setId;
-                        state.currentViewId = tab.viewId;
+                    const fallbackTab = paneWithTabs.tabs[paneWithTabs.activeTabIndex];
+                    if (fallbackTab) {
+                        // Handle special view tabs
+                        if (fallbackTab.specialView) {
+                            state.currentSpecialView = fallbackTab.specialView;
+                            state.currentSetId = null;
+                            state.currentViewId = null;
+                        } else {
+                            // Handle regular set/view tabs
+                            state.currentSetId = fallbackTab.setId;
+                            state.currentViewId = fallbackTab.viewId;
+                            state.currentSpecialView = null;
+                        }
                     }
+                } else {
+                    // No tabs left anywhere
+                    state.currentSpecialView = null;
+                    state.currentSetId = null;
+                    state.currentViewId = null;
                 }
             }
 
@@ -13863,7 +13933,8 @@
             EOLayout.emitLayoutEvent(state, EOLayout.LAYOUT_EVENT_TYPES.TAB_CLOSED, {
                 paneId,
                 setId: tab?.setId,
-                viewId: tab?.viewId
+                viewId: tab?.viewId,
+                specialView: tab?.specialView
             });
 
             renderLayout();
@@ -13896,9 +13967,18 @@
             const tab = pane.tabs[pane.activeTabIndex];
             if (!tab) return;
 
-            // Update state for rendering
-            state.currentSetId = tab.setId;
-            state.currentViewId = tab.viewId;
+            // Update state for rendering based on tab type
+            if (tab.specialView) {
+                // Handle special view tabs
+                state.currentSpecialView = tab.specialView;
+                state.currentSetId = null;
+                state.currentViewId = null;
+            } else {
+                // Handle regular set/view tabs
+                state.currentSetId = tab.setId;
+                state.currentViewId = tab.viewId;
+                state.currentSpecialView = null;
+            }
 
             // Call existing render function
             renderCurrentView();
@@ -13943,8 +14023,17 @@
             if (pane.tabs.length > 0) {
                 const tab = pane.tabs[pane.activeTabIndex];
                 if (tab) {
-                    state.currentSetId = tab.setId;
-                    state.currentViewId = tab.viewId;
+                    // Handle special view tabs
+                    if (tab.specialView) {
+                        state.currentSpecialView = tab.specialView;
+                        state.currentSetId = null;
+                        state.currentViewId = null;
+                    } else {
+                        // Handle regular set/view tabs
+                        state.currentSetId = tab.setId;
+                        state.currentViewId = tab.viewId;
+                        state.currentSpecialView = null;
+                    }
                 }
             }
 
@@ -14067,7 +14156,8 @@
                 paneId,
                 tabIndex,
                 setId: tab.setId,
-                viewId: tab.viewId
+                viewId: tab.viewId,
+                specialView: tab.specialView
             }));
 
             event.target.classList.add('dragging');
@@ -14163,7 +14253,7 @@
             if (!layoutDragState.dragging || !layoutDragState.draggedTab) return;
 
             const { draggedTab, sourcePaneId, dropZone } = layoutDragState;
-            const { setId, viewId } = draggedTab;
+            const { setId, viewId, specialView } = draggedTab;
 
             // Hide indicators
             document.querySelectorAll('.drop-zone-indicator').forEach(zone => {
@@ -14180,16 +14270,39 @@
                     return;
                 }
 
-                EOLayout.moveTabToPane(state, sourcePaneId, setId, viewId, targetPaneId);
+                // Handle special view tabs
+                if (specialView) {
+                    // Find and remove from source pane
+                    const sourcePane = EOLayout.findPaneById(state.layout.root, sourcePaneId);
+                    const targetPane = EOLayout.findPaneById(state.layout.root, targetPaneId);
+                    if (sourcePane && targetPane) {
+                        const tabIdx = sourcePane.tabs.findIndex(t => t.specialView === specialView);
+                        if (tabIdx !== -1) {
+                            sourcePane.tabs.splice(tabIdx, 1);
+                            if (sourcePane.activeTabIndex >= sourcePane.tabs.length) {
+                                sourcePane.activeTabIndex = Math.max(0, sourcePane.tabs.length - 1);
+                            }
+                            // Add to target pane
+                            targetPane.tabs.push({ specialView });
+                            targetPane.activeTabIndex = targetPane.tabs.length - 1;
+                        }
+                    }
+                } else {
+                    EOLayout.moveTabToPane(state, sourcePaneId, setId, viewId, targetPaneId);
+                }
             } else {
                 // Create split
                 const direction = (dropZone === 'left' || dropZone === 'right') ? 'horizontal' : 'vertical';
-                const tabToMove = { setId, viewId };
 
                 // First, remove from source pane
                 const sourcePane = EOLayout.findPaneById(state.layout.root, sourcePaneId);
                 if (sourcePane) {
-                    const tabIdx = sourcePane.tabs.findIndex(t => t.setId === setId && t.viewId === viewId);
+                    let tabIdx;
+                    if (specialView) {
+                        tabIdx = sourcePane.tabs.findIndex(t => t.specialView === specialView);
+                    } else {
+                        tabIdx = sourcePane.tabs.findIndex(t => t.setId === setId && t.viewId === viewId);
+                    }
                     if (tabIdx !== -1) {
                         sourcePane.tabs.splice(tabIdx, 1);
                         if (sourcePane.activeTabIndex >= sourcePane.tabs.length) {
@@ -14202,19 +14315,21 @@
                 const newPane = EOLayout.splitPane(state, targetPaneId, direction);
                 if (newPane) {
                     // Determine which pane gets the tab based on drop zone
-                    if (dropZone === 'left' || dropZone === 'top') {
-                        // Tab goes to new pane (first child)
-                        newPane.tabs = [{ setId, viewId }];
+                    if (specialView) {
+                        newPane.tabs = [{ specialView }];
                         newPane.activeTabIndex = 0;
+                        state.layout.activePaneId = newPane.id;
+                        state.currentSpecialView = specialView;
+                        state.currentSetId = null;
+                        state.currentViewId = null;
                     } else {
-                        // Tab goes to new pane (second child)
                         newPane.tabs = [{ setId, viewId }];
                         newPane.activeTabIndex = 0;
+                        state.layout.activePaneId = newPane.id;
+                        state.currentSetId = setId;
+                        state.currentViewId = viewId;
+                        state.currentSpecialView = null;
                     }
-
-                    state.layout.activePaneId = newPane.id;
-                    state.currentSetId = setId;
-                    state.currentViewId = viewId;
                 }
 
                 // Check if source pane is empty
@@ -14224,7 +14339,11 @@
             }
 
             // Update backward compatibility
-            ensureOpenTab(setId, viewId);
+            if (specialView) {
+                ensureOpenSpecialTab(specialView);
+            } else {
+                ensureOpenTab(setId, viewId);
+            }
 
             // Log event
             EOLayout.emitLayoutEvent(state, EOLayout.LAYOUT_EVENT_TYPES.TAB_MOVED, {
@@ -14232,6 +14351,7 @@
                 toPaneId: targetPaneId,
                 setId,
                 viewId,
+                specialView,
                 dropZone
             });
 
@@ -14295,47 +14415,75 @@
             const tab = pane.tabs[tabIndex];
             if (!tab) return;
 
-            const set = state.sets.get(tab.setId);
-            const view = set?.views.get(tab.viewId);
-            if (!set || !view) return;
-
             // Remove existing menu
             document.querySelector('.layout-context-menu')?.remove();
 
             const menu = document.createElement('div');
             menu.className = 'layout-context-menu';
-            menu.innerHTML = `
-                <div class="layout-context-menu-item" onclick="editViewFromContextMenu('${tab.viewId}')">
-                    <i class="ph ph-pencil-simple"></i>
-                    Edit View
-                </div>
-                <div class="layout-context-menu-item" onclick="duplicateViewFromContextMenu('${tab.viewId}')">
-                    <i class="ph ph-copy"></i>
-                    Duplicate View
-                </div>
-                <div class="layout-context-menu-divider"></div>
-                <div class="layout-context-menu-item" onclick="splitPaneWithTab('${paneId}', ${tabIndex}, 'horizontal')">
-                    <i class="ph ph-split-horizontal"></i>
-                    Split Right
-                </div>
-                <div class="layout-context-menu-item" onclick="splitPaneWithTab('${paneId}', ${tabIndex}, 'vertical')">
-                    <i class="ph ph-split-vertical"></i>
-                    Split Down
-                </div>
-                <div class="layout-context-menu-item" onclick="popOutSpecificTab('${paneId}', ${tabIndex})">
-                    <i class="ph ph-arrow-square-out"></i>
-                    Pop Out
-                </div>
-                <div class="layout-context-menu-divider"></div>
-                <div class="layout-context-menu-item" onclick="closePaneTab('${paneId}', ${tabIndex})">
-                    <i class="ph ph-x"></i>
-                    Close Tab
-                </div>
-                <div class="layout-context-menu-item danger" onclick="deleteViewFromContextMenu('${tab.viewId}', '${paneId}', ${tabIndex})">
-                    <i class="ph ph-trash"></i>
-                    Delete View
-                </div>
-            `;
+
+            // Handle special view tabs (entities, relations, etc.)
+            if (tab.specialView) {
+                const config = SPECIAL_VIEW_CONFIG[tab.specialView];
+                if (!config) return;
+
+                menu.innerHTML = `
+                    <div class="layout-context-menu-item" onclick="splitPaneWithTab('${paneId}', ${tabIndex}, 'horizontal')">
+                        <i class="ph ph-split-horizontal"></i>
+                        Split Right
+                    </div>
+                    <div class="layout-context-menu-item" onclick="splitPaneWithTab('${paneId}', ${tabIndex}, 'vertical')">
+                        <i class="ph ph-split-vertical"></i>
+                        Split Down
+                    </div>
+                    <div class="layout-context-menu-item" onclick="popOutSpecificTab('${paneId}', ${tabIndex})">
+                        <i class="ph ph-arrow-square-out"></i>
+                        Pop Out
+                    </div>
+                    <div class="layout-context-menu-divider"></div>
+                    <div class="layout-context-menu-item" onclick="closePaneTab('${paneId}', ${tabIndex})">
+                        <i class="ph ph-x"></i>
+                        Close Tab
+                    </div>
+                `;
+            } else {
+                // Handle regular set/view tabs
+                const set = state.sets.get(tab.setId);
+                const view = set?.views.get(tab.viewId);
+                if (!set || !view) return;
+
+                menu.innerHTML = `
+                    <div class="layout-context-menu-item" onclick="editViewFromContextMenu('${tab.viewId}')">
+                        <i class="ph ph-pencil-simple"></i>
+                        Edit View
+                    </div>
+                    <div class="layout-context-menu-item" onclick="duplicateViewFromContextMenu('${tab.viewId}')">
+                        <i class="ph ph-copy"></i>
+                        Duplicate View
+                    </div>
+                    <div class="layout-context-menu-divider"></div>
+                    <div class="layout-context-menu-item" onclick="splitPaneWithTab('${paneId}', ${tabIndex}, 'horizontal')">
+                        <i class="ph ph-split-horizontal"></i>
+                        Split Right
+                    </div>
+                    <div class="layout-context-menu-item" onclick="splitPaneWithTab('${paneId}', ${tabIndex}, 'vertical')">
+                        <i class="ph ph-split-vertical"></i>
+                        Split Down
+                    </div>
+                    <div class="layout-context-menu-item" onclick="popOutSpecificTab('${paneId}', ${tabIndex})">
+                        <i class="ph ph-arrow-square-out"></i>
+                        Pop Out
+                    </div>
+                    <div class="layout-context-menu-divider"></div>
+                    <div class="layout-context-menu-item" onclick="closePaneTab('${paneId}', ${tabIndex})">
+                        <i class="ph ph-x"></i>
+                        Close Tab
+                    </div>
+                    <div class="layout-context-menu-item danger" onclick="deleteViewFromContextMenu('${tab.viewId}', '${paneId}', ${tabIndex})">
+                        <i class="ph ph-trash"></i>
+                        Delete View
+                    </div>
+                `;
+            }
 
             // Position menu
             menu.style.left = `${event.clientX}px`;
@@ -14369,8 +14517,16 @@
             const newPane = EOLayout.splitPane(state, paneId, direction, tab);
             if (newPane) {
                 state.layout.activePaneId = newPane.id;
-                state.currentSetId = tab.setId;
-                state.currentViewId = tab.viewId;
+                // Handle special view tabs
+                if (tab.specialView) {
+                    state.currentSpecialView = tab.specialView;
+                    state.currentSetId = null;
+                    state.currentViewId = null;
+                } else {
+                    state.currentSetId = tab.setId;
+                    state.currentViewId = tab.viewId;
+                    state.currentSpecialView = null;
+                }
                 renderLayout();
                 renderPaneContent(newPane.id);
             }
@@ -14388,7 +14544,12 @@
             const tab = pane.tabs[tabIndex];
             if (!tab) return;
 
-            EOLayout.popOutTab(state, paneId, tab.setId, tab.viewId);
+            // Handle special view tabs
+            if (tab.specialView) {
+                EOLayout.popOutTab(state, paneId, null, null, tab.specialView);
+            } else {
+                EOLayout.popOutTab(state, paneId, tab.setId, tab.viewId);
+            }
             renderLayout();
         }
 
@@ -14698,6 +14859,24 @@
             state.currentSetId = null;
             state.currentViewId = null;
             ensureOpenSpecialTab(specialView);
+
+            // Sync with layout system if available
+            if (state.layout && typeof EOLayout !== 'undefined') {
+                const targetPaneId = state.layout.activePaneId || 'pane-main';
+                const pane = EOLayout.findPaneById(state.layout.root, targetPaneId);
+                if (pane) {
+                    // Check if special view is already in this pane
+                    const existingIdx = pane.tabs.findIndex(t => t.specialView === specialView);
+                    if (existingIdx !== -1) {
+                        pane.activeTabIndex = existingIdx;
+                    } else {
+                        // Add special view tab to active pane
+                        pane.tabs.push({ specialView });
+                        pane.activeTabIndex = pane.tabs.length - 1;
+                    }
+                }
+            }
+
             closeMobileSidebar();
             renderSidebar();
             renderViewTabs();

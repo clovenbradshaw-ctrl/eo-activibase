@@ -361,16 +361,25 @@ function activateTab(state, paneId, tabIndex) {
     // Update global state for current view
     const tab = pane.tabs[tabIndex];
     if (tab) {
-        state.currentSetId = tab.setId;
-        state.currentViewId = tab.viewId;
-        state.currentSpecialView = null;
+        // Handle special view tabs
+        if (tab.specialView) {
+            state.currentSpecialView = tab.specialView;
+            state.currentSetId = null;
+            state.currentViewId = null;
+        } else {
+            // Handle regular set/view tabs
+            state.currentSetId = tab.setId;
+            state.currentViewId = tab.viewId;
+            state.currentSpecialView = null;
+        }
     }
 
     emitLayoutEvent(state, LAYOUT_EVENT_TYPES.TAB_ACTIVATED, {
         paneId,
         tabIndex,
         setId: tab?.setId,
-        viewId: tab?.viewId
+        viewId: tab?.viewId,
+        specialView: tab?.specialView
     });
 
     return true;
@@ -442,9 +451,28 @@ function splitPane(state, paneId, direction, tabToMove = null) {
 
     // If a tab was specified to move, move it to the new pane
     if (tabToMove) {
-        const fromResult = findPaneContainingView(layout, tabToMove.setId, tabToMove.viewId);
-        if (fromResult) {
-            moveTabToPane(state, fromResult.pane.id, tabToMove.setId, tabToMove.viewId, newPane.id, 0);
+        // Handle special view tabs
+        if (tabToMove.specialView) {
+            const fromResult = findPaneInLayout(layout, paneId);
+            if (fromResult) {
+                const tabIndex = fromResult.pane.tabs.findIndex(t => t.specialView === tabToMove.specialView);
+                if (tabIndex !== -1) {
+                    // Remove from source pane
+                    fromResult.pane.tabs.splice(tabIndex, 1);
+                    if (fromResult.pane.activeTabIndex >= fromResult.pane.tabs.length) {
+                        fromResult.pane.activeTabIndex = Math.max(0, fromResult.pane.tabs.length - 1);
+                    }
+                    // Add to new pane
+                    newPane.tabs.push({ specialView: tabToMove.specialView });
+                    newPane.activeTabIndex = 0;
+                }
+            }
+        } else {
+            // Handle regular set/view tabs
+            const fromResult = findPaneContainingView(layout, tabToMove.setId, tabToMove.viewId);
+            if (fromResult) {
+                moveTabToPane(state, fromResult.pane.id, tabToMove.setId, tabToMove.viewId, newPane.id, 0);
+            }
         }
     }
 
@@ -591,19 +619,47 @@ function collapseEmptyPane(state, paneId, portalId = null) {
 /**
  * Pop out a tab into a new window
  */
-function popOutTab(state, paneId, setId, viewId) {
+function popOutTab(state, paneId, setId, viewId, specialView = null) {
     const layout = state.layout;
 
-    // Find the tab
-    const result = findPaneContainingView(layout, setId, viewId);
-    if (!result) return null;
+    // Find the tab - handle both regular views and special views
+    let fromPane, tabIndex, fromPortalId;
 
-    const { pane: fromPane, tabIndex, portalId: fromPortalId } = result;
+    if (specialView) {
+        // Find the pane containing the special view tab
+        const result = findPaneInLayout(layout, paneId);
+        if (!result) return null;
+        fromPane = result.pane;
+        fromPortalId = result.portalId;
+        tabIndex = fromPane.tabs.findIndex(t => t.specialView === specialView);
+        if (tabIndex === -1) return null;
+    } else {
+        // Find the tab by setId/viewId
+        const result = findPaneContainingView(layout, setId, viewId);
+        if (!result) return null;
+        fromPane = result.pane;
+        tabIndex = result.tabIndex;
+        fromPortalId = result.portalId;
+    }
 
     // Get view info for window title
-    const set = state.sets?.get(setId);
-    const view = set?.views?.get(viewId);
-    const title = view ? `${view.name} - ${set.name}` : 'EO View';
+    let title;
+    if (specialView) {
+        // For special views, use a simple title
+        const specialViewLabels = {
+            dashboard: 'Dashboard',
+            entities: 'Entities',
+            relations: 'Relations',
+            definitions: 'Definitions',
+            views: 'Views',
+            explore: 'Explore'
+        };
+        title = specialViewLabels[specialView] || 'EO View';
+    } else {
+        const set = state.sets?.get(setId);
+        const view = set?.views?.get(viewId);
+        title = view ? `${view.name} - ${set.name}` : 'EO View';
+    }
 
     // Create portal
     const portal = createPortal({
@@ -630,6 +686,7 @@ function popOutTab(state, paneId, setId, viewId) {
         portalId: portal.id,
         setId,
         viewId,
+        specialView,
         fromPaneId: paneId,
         bounds: portal.bounds
     });
