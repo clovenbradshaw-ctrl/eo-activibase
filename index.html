@@ -52,8 +52,10 @@
     <script defer src="demo/eo_available_fields_explorer.js"></script>
     <script defer src="demo/eo_datetime_field.js"></script>
     <script defer src="demo/eo_custom_dropdown.js"></script>
+    <script defer src="demo/eo_select_field_settings.js"></script>
     <script defer src="demo/eo_inline_cell_editor.js"></script>
     <link rel="stylesheet" href="demo/eo_custom_dropdown.css">
+    <link rel="stylesheet" href="demo/eo_select_field_settings.css">
     <link rel="stylesheet" href="demo/eo_linked_fields_modal.css">
     <link rel="stylesheet" href="demo/eo_link_column_modal.css">
     <link rel="stylesheet" href="demo/eo_datetime_field.css">
@@ -6010,14 +6012,8 @@
                     <input type="hidden" id="newFieldType" value="TEXT">
                 </div>
                 <div id="selectConfig" class="config-section">
-                    <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                        <label class="form-label">Options</label>
-                        <div id="selectOptionsList" class="space-y-2 mb-3"></div>
-                        <button onclick="addSelectOption()" class="btn btn-secondary btn-sm">+ Add Option</button>
-                        <div class="mt-4 flex items-center">
-                            <input type="checkbox" id="acceptNewOptions" checked class="mr-2">
-                            <label for="acceptNewOptions" class="text-sm text-gray-700">Accept new options</label>
-                        </div>
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div id="selectOptionsContainer"></div>
                     </div>
                 </div>
                 <div id="linkToRecordConfig" class="config-section">
@@ -6266,14 +6262,8 @@
                 </div>
                 <div id="changeFieldSubtypeConfig" class="config-section"></div>
                 <div id="changeSelectConfig" class="config-section">
-                    <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                        <label class="form-label">Options</label>
-                        <div id="changeSelectOptionsList" class="space-y-2 mb-3"></div>
-                        <button onclick="changeAddSelectOption()" class="btn btn-secondary btn-sm">+ Add Option</button>
-                        <div class="mt-4 flex items-center">
-                            <input type="checkbox" id="changeAcceptNewOptions" checked class="mr-2">
-                            <label for="changeAcceptNewOptions" class="text-sm text-gray-700">Accept new options</label>
-                        </div>
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div id="changeSelectOptionsContainer"></div>
                     </div>
                 </div>
                 <div id="changeLinkToRecordConfig" class="config-section">
@@ -26456,8 +26446,37 @@
       }
 
       function openAddFieldModal() {
-          // Reset select options
-          state.selectOptions = [{ value: 'Option 1', color: 'blue' }];
+          // Initialize enhanced select field settings
+          const selectContainer = document.getElementById('selectOptionsContainer');
+          if (selectContainer && typeof EOSelectFieldSettings !== 'undefined') {
+              state.selectFieldSettings = new EOSelectFieldSettings();
+              state.selectFieldSettings.initialize({
+                  container: selectContainer,
+                  options: [{ value: 'Option 1', color: 'blue' }],
+                  config: {
+                      selectionMode: 'single',
+                      selectionLimit: 3,
+                      acceptNewOptions: true,
+                      conditionalLimits: []
+                  },
+                  onChange: (data) => {
+                      // Store the data in state for backward compatibility
+                      state.selectOptions = data.options;
+                      state.selectConfig = data.config;
+                  }
+              });
+              // Initialize state
+              state.selectOptions = [{ value: 'Option 1', color: 'blue' }];
+              state.selectConfig = {
+                  selectionMode: 'single',
+                  selectionLimit: 3,
+                  acceptNewOptions: true,
+                  conditionalLimits: []
+              };
+          } else {
+              // Fallback for when component isn't loaded
+              state.selectOptions = [{ value: 'Option 1', color: 'blue' }];
+          }
 
           // Generate auto-name for the field
           const set = getCurrentSet();
@@ -26718,13 +26737,27 @@
         }
 
         function buildChangeFieldConfig(typeId) {
-            if (typeId === 'SELECT') {
-                const acceptNewOptions = document.getElementById('changeAcceptNewOptions')?.checked ?? true;
-                return {
-                    options: state.changeSelectOptions.map(o => o.value),
-                    colors: Object.fromEntries(state.changeSelectOptions.map(o => [o.value, o.color])),
-                    acceptNewOptions: acceptNewOptions
+            if (typeId === 'SELECT' || typeId === 'MULTI_SELECT') {
+                // Use enhanced select field settings if available
+                const selectState = state.changeSelectFieldSettings?.getState?.() || {
+                    options: state.changeSelectOptions || [],
+                    config: state.changeSelectConfig || { acceptNewOptions: true, selectionMode: 'single' }
                 };
+
+                const config = {
+                    options: selectState.options.map(o => o.value),
+                    colors: Object.fromEntries(selectState.options.map(o => [o.value, o.color])),
+                    acceptNewOptions: selectState.config.acceptNewOptions,
+                    selectionMode: selectState.config.selectionMode,
+                    selectionLimit: selectState.config.selectionLimit,
+                    conditionalLimits: selectState.config.conditionalLimits
+                };
+
+                // If MULTI_SELECT type selected, force multi mode
+                if (typeId === 'MULTI_SELECT') {
+                    config.selectionMode = 'multi';
+                }
+                return config;
             }
             if (typeId === 'LINK_RECORD') {
                 return { linkedSetId: state.changeLinkedSetId || state.currentSetId };
@@ -26912,9 +26945,34 @@
             document.getElementById('formulaConfig').classList.remove('visible');
             document.getElementById('numberConfig').classList.remove('visible');
             document.getElementById('dateConfig').classList.remove('visible');
-            if (typeId === 'SELECT') {
+            if (typeId === 'SELECT' || typeId === 'MULTI_SELECT') {
                 document.getElementById('selectConfig').classList.add('visible');
-                renderSelectOptions();
+                // Initialize or re-render select field settings
+                const selectContainer = document.getElementById('selectOptionsContainer');
+                if (selectContainer && typeof EOSelectFieldSettings !== 'undefined') {
+                    if (!state.selectFieldSettings) {
+                        state.selectFieldSettings = new EOSelectFieldSettings();
+                    }
+                    // Set default mode based on field type
+                    const defaultMode = typeId === 'MULTI_SELECT' ? 'multi' : 'single';
+                    state.selectFieldSettings.initialize({
+                        container: selectContainer,
+                        options: state.selectOptions || [{ value: 'Option 1', color: 'blue' }],
+                        config: {
+                            selectionMode: state.selectConfig?.selectionMode || defaultMode,
+                            selectionLimit: state.selectConfig?.selectionLimit || 3,
+                            acceptNewOptions: state.selectConfig?.acceptNewOptions !== false,
+                            conditionalLimits: state.selectConfig?.conditionalLimits || []
+                        },
+                        onChange: (data) => {
+                            state.selectOptions = data.options;
+                            state.selectConfig = data.config;
+                        }
+                    });
+                } else {
+                    // Fallback to legacy render
+                    renderSelectOptions();
+                }
             } else if (typeId === 'LINK_RECORD') {
                 document.getElementById('linkToRecordConfig').classList.add('visible');
                 setupLinkCardinalityListeners('linkCardinality', 'linkLimitInput');
@@ -27024,9 +27082,32 @@
                 }
             }
 
-            if (typeId === 'SELECT') {
+            if (typeId === 'SELECT' || typeId === 'MULTI_SELECT') {
                 document.getElementById('changeSelectConfig').classList.add('visible');
-                renderChangeSelectOptions();
+                // Initialize enhanced select field settings for change modal
+                const changeSelectContainer = document.getElementById('changeSelectOptionsContainer');
+                if (changeSelectContainer && typeof EOSelectFieldSettings !== 'undefined') {
+                    if (!state.changeSelectFieldSettings) {
+                        state.changeSelectFieldSettings = new EOSelectFieldSettings();
+                    }
+                    const defaultMode = typeId === 'MULTI_SELECT' ? 'multi' : 'single';
+                    state.changeSelectFieldSettings.initialize({
+                        container: changeSelectContainer,
+                        options: state.changeSelectOptions || [{ value: 'Option 1', color: 'blue' }],
+                        config: {
+                            selectionMode: state.changeSelectConfig?.selectionMode || defaultMode,
+                            selectionLimit: state.changeSelectConfig?.selectionLimit || 3,
+                            acceptNewOptions: state.changeSelectConfig?.acceptNewOptions !== false,
+                            conditionalLimits: state.changeSelectConfig?.conditionalLimits || []
+                        },
+                        onChange: (data) => {
+                            state.changeSelectOptions = data.options;
+                            state.changeSelectConfig = data.config;
+                        }
+                    });
+                } else {
+                    renderChangeSelectOptions();
+                }
             } else if (typeId === 'LINK_RECORD') {
                 document.getElementById('changeLinkToRecordConfig').classList.add('visible');
             } else if (typeId === 'LOOKUP') {
@@ -27154,13 +27235,24 @@
             changeLinkToSetContainer.appendChild(state.changeLinkToSetDropdown.create());
         }
 
+        // Legacy fallback functions for change modal select options
         function renderChangeSelectOptions() {
+            // If using new component, delegate to it
+            if (state.changeSelectFieldSettings) {
+                state.changeSelectFieldSettings.render();
+                return;
+            }
+
+            // Legacy fallback - render to old container if it exists
             const container = document.getElementById('changeSelectOptionsList');
+            if (!container) return;
+
+            const colors = ['blue', 'green', 'yellow', 'red', 'purple', 'gray', 'cyan', 'pink', 'indigo', 'teal', 'orange', 'lime'];
             container.innerHTML = state.changeSelectOptions.map((opt, i) => `
                 <div class="option-row">
                     <input type="text" value="${opt.value}" onchange="changeUpdateSelectOption(${i}, this.value, '${opt.color}')" placeholder="Option ${i + 1}">
                     <div class="color-picker">
-                        ${['blue', 'green', 'yellow', 'red', 'purple', 'gray'].map(c => `
+                        ${colors.slice(0, 6).map(c => `
                             <div class="color-option badge-${c} ${opt.color === c ? 'selected' : ''}"
                                  onclick="changeUpdateSelectOption(${i}, '${opt.value}', '${c}')"></div>
                         `).join('')}
@@ -27171,22 +27263,40 @@
         }
 
         function changeAddSelectOption() {
-            state.changeSelectOptions.push({ value: `Option ${state.changeSelectOptions.length + 1}`, color: 'blue' });
+            // If using new component, delegate to it
+            if (state.changeSelectFieldSettings) {
+                state.changeSelectFieldSettings.addOption();
+                return;
+            }
+            const colors = ['blue', 'green', 'yellow', 'red', 'purple', 'gray', 'cyan', 'pink', 'indigo', 'teal', 'orange', 'lime'];
+            const nextColorIndex = state.changeSelectOptions.length % colors.length;
+            state.changeSelectOptions.push({ value: `Option ${state.changeSelectOptions.length + 1}`, color: colors[nextColorIndex] });
             renderChangeSelectOptions();
         }
 
         function changeUpdateSelectOption(index, value, color) {
+            // If using new component, delegate to it
+            if (state.changeSelectFieldSettings) {
+                state.changeSelectFieldSettings.updateOption(index, value);
+                if (color) state.changeSelectFieldSettings.updateOptionColor(index, color);
+                return;
+            }
             state.changeSelectOptions[index] = { value, color };
             renderChangeSelectOptions();
         }
 
         function changeRemoveSelectOption(index) {
+            // If using new component, delegate to it
+            if (state.changeSelectFieldSettings) {
+                state.changeSelectFieldSettings.removeOption(index);
+                return;
+            }
             state.changeSelectOptions.splice(index, 1);
             renderChangeSelectOptions();
         }
 
         function resetChangeFieldConfig(typeId, field = null) {
-            if (typeId === 'SELECT') {
+            if (typeId === 'SELECT' || typeId === 'MULTI_SELECT') {
                 if (field?.config?.options) {
                     state.changeSelectOptions = field.config.options.map(opt => ({
                         value: typeof opt === 'string' ? opt : opt.value,
@@ -27195,10 +27305,19 @@
                 } else {
                     state.changeSelectOptions = [{ value: 'Option 1', color: 'blue' }];
                 }
-                // Set the accept new options checkbox
-                const acceptNewOptionsCheckbox = document.getElementById('changeAcceptNewOptions');
-                if (acceptNewOptionsCheckbox) {
-                    acceptNewOptionsCheckbox.checked = field?.config?.acceptNewOptions ?? true;
+                // Set enhanced config if available
+                state.changeSelectConfig = {
+                    selectionMode: field?.config?.selectionMode || (typeId === 'MULTI_SELECT' ? 'multi' : 'single'),
+                    selectionLimit: field?.config?.selectionLimit || 3,
+                    acceptNewOptions: field?.config?.acceptNewOptions !== false,
+                    conditionalLimits: field?.config?.conditionalLimits || []
+                };
+                // Update component if initialized
+                if (state.changeSelectFieldSettings) {
+                    state.changeSelectFieldSettings.setState({
+                        options: state.changeSelectOptions,
+                        config: state.changeSelectConfig
+                    });
                 }
             } else if (typeId === 'LINK_RECORD') {
                 state.changeLinkedSetId = field?.config?.linkedSetId || state.currentSetId;
@@ -27262,14 +27381,25 @@
             changeLinkToSetContainer.appendChild(state.changeLinkToSetDropdown.create());
         }
 
+        // Legacy fallback functions for select options (used when EOSelectFieldSettings is not available)
         function renderSelectOptions() {
+            // If using new component, delegate to it
+            if (state.selectFieldSettings) {
+                state.selectFieldSettings.render();
+                return;
+            }
+
+            // Legacy fallback - render to old container if it exists
             const container = document.getElementById('selectOptionsList');
+            if (!container) return;
+
+            const colors = ['blue', 'green', 'yellow', 'red', 'purple', 'gray', 'cyan', 'pink', 'indigo', 'teal', 'orange', 'lime'];
             container.innerHTML = state.selectOptions.map((opt, i) => `
                 <div class="option-row">
                     <input type="text" value="${opt.value}" onchange="updateSelectOption(${i}, this.value, '${opt.color}')" placeholder="Option ${i + 1}">
                     <div class="color-picker">
-                        ${['blue', 'green', 'yellow', 'red', 'purple', 'gray'].map(c => `
-                            <div class="color-option badge-${c} ${opt.color === c ? 'selected' : ''}" 
+                        ${colors.slice(0, 6).map(c => `
+                            <div class="color-option badge-${c} ${opt.color === c ? 'selected' : ''}"
                                  onclick="updateSelectOption(${i}, '${opt.value}', '${c}')"></div>
                         `).join('')}
                     </div>
@@ -27279,16 +27409,35 @@
         }
 
         function addSelectOption() {
-            state.selectOptions.push({ value: `Option ${state.selectOptions.length + 1}`, color: 'blue' });
+            // If using new component, delegate to it
+            if (state.selectFieldSettings) {
+                state.selectFieldSettings.addOption();
+                return;
+            }
+            // Get next auto color
+            const colors = ['blue', 'green', 'yellow', 'red', 'purple', 'gray', 'cyan', 'pink', 'indigo', 'teal', 'orange', 'lime'];
+            const nextColorIndex = state.selectOptions.length % colors.length;
+            state.selectOptions.push({ value: `Option ${state.selectOptions.length + 1}`, color: colors[nextColorIndex] });
             renderSelectOptions();
         }
 
         function updateSelectOption(index, value, color) {
+            // If using new component, delegate to it
+            if (state.selectFieldSettings) {
+                state.selectFieldSettings.updateOption(index, value);
+                if (color) state.selectFieldSettings.updateOptionColor(index, color);
+                return;
+            }
             state.selectOptions[index] = { value, color };
             renderSelectOptions();
         }
 
         function removeSelectOption(index) {
+            // If using new component, delegate to it
+            if (state.selectFieldSettings) {
+                state.selectFieldSettings.removeOption(index);
+                return;
+            }
             state.selectOptions.splice(index, 1);
             renderSelectOptions();
         }
@@ -27327,13 +27476,26 @@
             const subtype = document.getElementById('fieldManagerNewSubtype')?.value || null;
             const newField = { id: fieldId, name: name, type: type, subtype: subtype, width: '150px', config: {} };
 
-            if (type === 'SELECT') {
-                const acceptNewOptions = document.getElementById('acceptNewOptions')?.checked ?? true;
-                newField.config = {
-                    options: state.selectOptions.map(o => o.value),
-                    colors: Object.fromEntries(state.selectOptions.map(o => [o.value, o.color])),
-                    acceptNewOptions: acceptNewOptions
+            if (type === 'SELECT' || type === 'MULTI_SELECT') {
+                // Use enhanced select field settings if available
+                const selectState = state.selectFieldSettings?.getState?.() || {
+                    options: state.selectOptions || [],
+                    config: state.selectConfig || { acceptNewOptions: true, selectionMode: 'single' }
                 };
+
+                newField.config = {
+                    options: selectState.options.map(o => o.value),
+                    colors: Object.fromEntries(selectState.options.map(o => [o.value, o.color])),
+                    acceptNewOptions: selectState.config.acceptNewOptions,
+                    selectionMode: selectState.config.selectionMode,
+                    selectionLimit: selectState.config.selectionLimit,
+                    conditionalLimits: selectState.config.conditionalLimits
+                };
+
+                // If MULTI_SELECT type selected, force multi mode
+                if (type === 'MULTI_SELECT') {
+                    newField.config.selectionMode = 'multi';
+                }
             } else if (type === 'LINK_RECORD') {
                 const linkedSetId = state.linkToSetDropdown?.getValue() || '';
                 if (!linkedSetId) { showConfirm('Select a set to link to', () => {}); return; }
