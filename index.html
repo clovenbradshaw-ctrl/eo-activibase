@@ -14269,11 +14269,10 @@
                         if (state.editingCell) {
                             exitEditMode(true);
                         }
-                        state.currentSetId = set.id;
-                        state.currentViewId = null;
-                        state.currentSpecialView = null;
-                        renderCurrentView();
-                        renderSidebar();
+                        // Open Set Management modal with Sources tab
+                        if (typeof SetManagement !== 'undefined') {
+                            SetManagement.openSetManagementModal(set.id, 'sources');
+                        }
                     };
 
                     setsContainer.appendChild(setHeader);
@@ -14903,11 +14902,9 @@
                         if (state.editingCell) {
                             exitEditMode(true);
                         }
-                        if (hasViews) {
-                            toggleSetExpansion(set.id);
-                        } else {
-                            // Use switchSet to properly handle tab creation
-                            switchSet(set.id, null);
+                        // Open Set Management modal with Sources tab
+                        if (typeof SetManagement !== 'undefined') {
+                            SetManagement.openSetManagementModal(set.id, 'sources');
                         }
                     };
 
