@@ -12,9 +12,17 @@
  */
 
 class EOImportManager {
-  constructor() {
+  constructor(options = {}) {
     this.imports = new Map(); // id -> Import object
     this.listeners = new Set();
+
+    // Initialize the robust type detector
+    this.typeDetector = new EOTypeDetector({
+      decimalCharacter: options.decimalCharacter || '.',
+      thousandsSeparator: options.thousandsSeparator || ',',
+      locale: options.locale || 'en',
+      confidenceThreshold: options.confidenceThreshold || 0.7
+    });
   }
 
   /**
@@ -40,10 +48,29 @@ class EOImportManager {
       return { success: false, error: parseResult.error };
     }
 
-    // Analyze schema and data quality
+    // Analyze schema and data quality using robust type detection
     const schemaAnalysis = this.analyzeSchema(parseResult.rows, parseResult.headers);
     const qualityAnalysis = this.analyzeDataQuality(parseResult.rows, schemaAnalysis);
     const relationshipHints = this.detectRelationshipHints(schemaAnalysis, parseResult.rows);
+
+    // Perform robust type detection and create assessment
+    const typeDetectionResults = this.typeDetector.analyzeDataset(parseResult.rows, parseResult.headers);
+    const typeAssessment = this.typeDetector.createTypeAssessment(typeDetectionResults);
+
+    // Merge robust type detection into inferred types (prefer robust detection)
+    for (const header of parseResult.headers) {
+      if (typeDetectionResults[header]) {
+        const robustResult = typeDetectionResults[header];
+        // Use robust detection if confidence is reasonable
+        if (robustResult.confidence >= 0.5) {
+          schemaAnalysis.inferredTypes[header] = robustResult.type;
+          // Store detailed detection info
+          if (schemaAnalysis.columns[header]) {
+            schemaAnalysis.columns[header].robustDetection = robustResult;
+          }
+        }
+      }
+    }
 
     // Extract embedded metadata from content
     const embeddedMetadata = this.extractEmbeddedMetadata(parseResult);
@@ -83,6 +110,9 @@ class EOImportManager {
         foreignKeyHints: relationshipHints.foreignKeyColumns,
         relationshipHints: relationshipHints.relationships
       },
+
+      // Type assessment with confidence scores and alternatives
+      typeAssessment,
 
       // Data quality metrics
       quality: qualityAnalysis,
@@ -1303,6 +1333,229 @@ class EOImportManager {
       hash = hash & hash;
     }
     return hash;
+  }
+
+  // ============================================
+  // Type Assessment Review Methods
+  // ============================================
+
+  /**
+   * Get type assessment summary for an import
+   * @param {string} importId - The import ID
+   * @returns {Object|null} Assessment summary or null if not found
+   */
+  getTypeAssessmentSummary(importId) {
+    const importObj = this.imports.get(importId);
+    if (!importObj || !importObj.typeAssessment) return null;
+
+    const assessment = importObj.typeAssessment;
+    return {
+      importId,
+      importName: importObj.name,
+      summary: assessment.summary,
+      fieldsNeedingReview: assessment.summary.needsReview.map(fieldName => ({
+        fieldName,
+        ...assessment.fields[fieldName]
+      }))
+    };
+  }
+
+  /**
+   * Get detailed type assessment for a specific field
+   * @param {string} importId - The import ID
+   * @param {string} fieldName - The field name
+   * @returns {Object|null} Field assessment or null
+   */
+  getFieldTypeAssessment(importId, fieldName) {
+    const importObj = this.imports.get(importId);
+    if (!importObj || !importObj.typeAssessment) return null;
+
+    const fieldAssessment = importObj.typeAssessment.fields[fieldName];
+    if (!fieldAssessment) return null;
+
+    // Include sample values from the data
+    const samples = importObj.rows
+      .slice(0, 10)
+      .map(row => row[fieldName])
+      .filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+
+    return {
+      fieldName,
+      ...fieldAssessment,
+      sampleValues: samples.slice(0, 5)
+    };
+  }
+
+  /**
+   * Override the detected type for a field
+   * @param {string} importId - The import ID
+   * @param {string} fieldName - The field name
+   * @param {string} newType - The new type to use
+   * @param {Object} config - Optional configuration for the type
+   * @returns {boolean} Success
+   */
+  overrideFieldType(importId, fieldName, newType, config = {}) {
+    const importObj = this.imports.get(importId);
+    if (!importObj) return false;
+
+    // Update inferred types
+    if (importObj.schema && importObj.schema.inferredTypes) {
+      importObj.schema.inferredTypes[fieldName] = newType;
+    }
+
+    // Record the override in assessment
+    if (importObj.typeAssessment && importObj.typeAssessment.fields[fieldName]) {
+      importObj.typeAssessment.fields[fieldName].userOverride = {
+        type: newType,
+        config,
+        overriddenAt: new Date().toISOString()
+      };
+      importObj.typeAssessment.fields[fieldName].needsReview = false;
+
+      // Update needs review list
+      const idx = importObj.typeAssessment.summary.needsReview.indexOf(fieldName);
+      if (idx > -1) {
+        importObj.typeAssessment.summary.needsReview.splice(idx, 1);
+      }
+    }
+
+    // Update the column analysis
+    if (importObj.schema && importObj.schema.columns[fieldName]) {
+      importObj.schema.columns[fieldName].userOverriddenType = newType;
+      importObj.schema.columns[fieldName].userConfig = config;
+    }
+
+    importObj.updatedAt = new Date().toISOString();
+    this.notifyListeners('type_override', { importId, fieldName, newType, config });
+
+    return true;
+  }
+
+  /**
+   * Accept the detected type for a field (mark as reviewed)
+   * @param {string} importId - The import ID
+   * @param {string} fieldName - The field name
+   * @returns {boolean} Success
+   */
+  acceptFieldType(importId, fieldName) {
+    const importObj = this.imports.get(importId);
+    if (!importObj || !importObj.typeAssessment) return false;
+
+    const field = importObj.typeAssessment.fields[fieldName];
+    if (!field) return false;
+
+    field.needsReview = false;
+    field.acceptedAt = new Date().toISOString();
+
+    // Update needs review list
+    const idx = importObj.typeAssessment.summary.needsReview.indexOf(fieldName);
+    if (idx > -1) {
+      importObj.typeAssessment.summary.needsReview.splice(idx, 1);
+    }
+
+    importObj.updatedAt = new Date().toISOString();
+    this.notifyListeners('type_accepted', { importId, fieldName });
+
+    return true;
+  }
+
+  /**
+   * Accept all detected types (mark entire import as reviewed)
+   * @param {string} importId - The import ID
+   * @returns {boolean} Success
+   */
+  acceptAllFieldTypes(importId) {
+    const importObj = this.imports.get(importId);
+    if (!importObj || !importObj.typeAssessment) return false;
+
+    for (const fieldName of Object.keys(importObj.typeAssessment.fields)) {
+      importObj.typeAssessment.fields[fieldName].needsReview = false;
+      importObj.typeAssessment.fields[fieldName].acceptedAt = new Date().toISOString();
+    }
+
+    importObj.typeAssessment.summary.needsReview = [];
+    importObj.updatedAt = new Date().toISOString();
+    this.notifyListeners('all_types_accepted', { importId });
+
+    return true;
+  }
+
+  /**
+   * Re-run type detection for an import with new options
+   * @param {string} importId - The import ID
+   * @param {Object} options - New detection options
+   * @returns {Object|null} Updated assessment or null
+   */
+  redetectTypes(importId, options = {}) {
+    const importObj = this.imports.get(importId);
+    if (!importObj || !importObj.rows || !importObj.headers) return null;
+
+    // Create a new detector with updated options
+    const detector = new EOTypeDetector({
+      ...this.typeDetector.options,
+      ...options
+    });
+
+    // Re-run detection
+    const typeDetectionResults = detector.analyzeDataset(importObj.rows, importObj.headers);
+    const typeAssessment = detector.createTypeAssessment(typeDetectionResults);
+
+    // Preserve user overrides
+    if (importObj.typeAssessment) {
+      for (const [fieldName, field] of Object.entries(importObj.typeAssessment.fields)) {
+        if (field.userOverride && typeAssessment.fields[fieldName]) {
+          typeAssessment.fields[fieldName].userOverride = field.userOverride;
+          typeAssessment.fields[fieldName].needsReview = false;
+        }
+      }
+    }
+
+    // Update import object
+    importObj.typeAssessment = typeAssessment;
+
+    // Update inferred types
+    for (const header of importObj.headers) {
+      if (typeDetectionResults[header] && typeDetectionResults[header].confidence >= 0.5) {
+        importObj.schema.inferredTypes[header] = typeDetectionResults[header].type;
+        if (importObj.schema.columns[header]) {
+          importObj.schema.columns[header].robustDetection = typeDetectionResults[header];
+        }
+      }
+    }
+
+    importObj.updatedAt = new Date().toISOString();
+    this.notifyListeners('types_redetected', { importId, assessment: typeAssessment });
+
+    return typeAssessment;
+  }
+
+  /**
+   * Get confidence breakdown for all fields
+   * @param {string} importId - The import ID
+   * @returns {Object|null} Confidence breakdown or null
+   */
+  getConfidenceBreakdown(importId) {
+    const importObj = this.imports.get(importId);
+    if (!importObj || !importObj.typeAssessment) return null;
+
+    const breakdown = {
+      high: [],
+      medium: [],
+      low: [],
+      uncertain: []
+    };
+
+    for (const [fieldName, field] of Object.entries(importObj.typeAssessment.fields)) {
+      const level = field.confidenceLevel;
+      breakdown[level].push({
+        fieldName,
+        type: field.detectedType,
+        confidence: field.confidence,
+        alternatives: field.alternatives
+      });
+    }
+
+    return breakdown;
   }
 }
 
