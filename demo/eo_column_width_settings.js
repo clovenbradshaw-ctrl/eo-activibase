@@ -688,11 +688,22 @@
                         <div class="custom-widths-list">
                             ${schema.map(field => {
                                 const rules = getFieldWidthRules(field);
+                                const typeColor = window.EOFieldTypeUtils?.getFieldTypeColor(field.type)
+                                    || window.EO_CONSTANTS?.FIELD_TYPE_COLORS?.[field.type]
+                                    || '#6b7280';
+                                const iconClass = window.EOFieldTypeUtils?.getFieldTypeIcon(field.type)
+                                    || window.EO_CONSTANTS?.FIELD_TYPE_ICONS?.[field.type]
+                                    || 'ph-text-aa';
                                 return `
                                 <div class="custom-width-item">
                                     <div class="field-info">
                                         <span class="field-name">${escapeHtml(field.name)}</span>
-                                        <span class="field-type-hint">${field.type || 'Text'} · ${rules.min}-${rules.max}px</span>
+                                        <span class="field-type-hint" style="display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="ph ${iconClass}" style="color: ${typeColor};"></i>
+                                            <span style="color: ${typeColor};">${field.type || 'Text'}</span>
+                                            <span style="color: #9ca3af;">·</span>
+                                            <span>${rules.min}-${rules.max}px</span>
+                                        </span>
                                     </div>
                                     <div class="width-controls">
                                         <input type="range"

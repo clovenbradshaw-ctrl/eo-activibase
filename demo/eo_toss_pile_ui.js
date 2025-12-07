@@ -526,18 +526,28 @@
                     </div>
                     <div class="modal-body">
                         <div class="tossed-columns-list">
-                            ${columns.map(col => `
+                            ${columns.map(col => {
+                                const typeColor = window.EOFieldTypeUtils?.getFieldTypeColor(col.fieldType)
+                                    || window.EO_CONSTANTS?.FIELD_TYPE_COLORS?.[col.fieldType]
+                                    || '#6b7280';
+                                const iconClass = window.EOFieldTypeUtils?.getFieldTypeIcon(col.fieldType)
+                                    || window.EO_CONSTANTS?.FIELD_TYPE_ICONS?.[col.fieldType]
+                                    || 'ph-text-aa';
+                                return `
                                 <div class="tossed-column-item">
                                     <div class="column-info">
                                         <span class="column-name">${col.fieldName}</span>
-                                        <span class="column-type">${col.fieldType}</span>
+                                        <span class="column-type" style="background-color: ${typeColor}20; color: ${typeColor}; display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; font-size: 11px;">
+                                            <i class="ph ${iconClass}" style="font-size: 11px;"></i>
+                                            ${col.fieldType}
+                                        </span>
                                         <span class="column-count">${col.count} values</span>
                                     </div>
                                     <button class="btn-secondary" onclick="TossPileUI.pickUpColumn('${col.fieldId}')">
                                         Pick Up Column
                                     </button>
                                 </div>
-                            `).join('')}
+                            `}).join('')}
                         </div>
                     </div>
                     <div class="modal-footer">
