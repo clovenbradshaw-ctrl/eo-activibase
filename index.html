@@ -10384,9 +10384,13 @@
             const linkedFields = [];
 
             // All lookups are in view.relationships - they may optionally have a rollupFormula
+            // Filter out hidden lookups using the same visibilitySet
             if (view?.relationships && Array.isArray(view.relationships)) {
                 view.relationships.forEach(rel => {
                     if (rel.type === 'lookup') {
+                        // Skip if this lookup is hidden
+                        if (visibilitySet.has(rel.id)) return;
+
                         // Determine field type based on whether rollupFormula is set
                         const fieldType = rel.rollupFormula ? 'LINKED_ROLLUP' : 'LINKED_LOOKUP';
                         linkedFields.push({
@@ -10405,8 +10409,12 @@
             }
 
             // Legacy support: Also check view.rollups for backward compatibility
+            // Filter out hidden rollups using the same visibilitySet
             if (view?.rollups && Array.isArray(view.rollups)) {
                 view.rollups.forEach(rollup => {
+                    // Skip if this rollup is hidden
+                    if (visibilitySet.has(rollup.id)) return;
+
                     linkedFields.push({
                         id: rollup.id,
                         name: view?.columnDisplayNames?.[rollup.id] || rollup.displayName || `Rollup: ${rollup.targetFieldId}`,
