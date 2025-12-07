@@ -247,9 +247,37 @@ class EOInlineCellEditor {
 
   /**
    * Copy cell value to clipboard
+   * Strips superscript numbers and SUP indicators, formats with quotes if needed
    */
   copyValueToClipboard(cell) {
-    const text = cell.textContent.replace(/●\d+/, '').trim(); // Remove SUP indicator
+    // Clone the cell to manipulate
+    const clone = cell.cloneNode(true);
+
+    // Remove superscript elements (linked superscripts)
+    clone.querySelectorAll('.linked-superscript').forEach(el => el.remove());
+
+    // Remove SUP indicators
+    clone.querySelectorAll('.eo-sup-indicator').forEach(el => el.remove());
+
+    // Get text content from remaining elements
+    let text = '';
+
+    // Check if this is a linked record or lookup container
+    const linkedContainer = clone.querySelector('.linked-record-container, .lookup-array-container');
+    if (linkedContainer) {
+      // Extract values from pills
+      const pills = linkedContainer.querySelectorAll('.linked-record-pill, .lookup-value-pill');
+      const values = Array.from(pills).map(pill => {
+        const val = pill.textContent.trim();
+        // Quote if contains comma or quotes
+        return val.includes(',') || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val;
+      });
+      text = values.join(', ');
+    } else {
+      // Regular cell - just get text content
+      text = clone.textContent.replace(/●\d+/, '').trim();
+    }
+
     navigator.clipboard.writeText(text).catch(err => {
       console.error('Failed to copy:', err);
     });
