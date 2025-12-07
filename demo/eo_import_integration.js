@@ -21,17 +21,22 @@ class EOImportIntegration {
       onViewCreated: options.onViewCreated || (() => {}),
       showToast: options.showToast || ((msg) => console.log(msg)),
       createEvent: options.createEvent || (() => {}),
-      switchSet: options.switchSet || (() => {})
+      switchSet: options.switchSet || (() => {}),
+      onBackgroundProcessingUpdate: options.onBackgroundProcessingUpdate || (() => {})
     };
   }
 
   /**
    * Add an import to a set (existing or new)
    *
+   * Records are loaded immediately for fast display, while deduplication
+   * and linking run asynchronously in the background.
+   *
    * @param {string} importId - The import to add
    * @param {string|null} setId - Existing set ID, or null to create new
    * @param {string|null} newSetName - Name for new set (if setId is null)
    * @param {object} options - Additional options
+   * @param {boolean} options.skipBackgroundProcessing - Skip dedup/linking (for testing)
    * @returns {object} Result with recordsAdded, setId, viewId
    */
   addImportToSet(importId, setId = null, newSetName = null, options = {}) {
@@ -60,10 +65,12 @@ class EOImportIntegration {
     // Map import columns to set fields
     const fieldMapping = this.mapImportToSetFields(imp, targetSet, options);
 
-    // Create records with provenance and content-addressable deduplication
+    // ============================================
+    // PHASE 1: Immediate record creation (fast path)
+    // Records are created and displayed immediately
+    // ============================================
     const importTimestamp = Date.now();
     const recordsAdded = [];
-    const recordsForDedup = [];
 
     imp.rows.forEach((row, rowIndex) => {
       const record = this.createRecordWithProvenance(
@@ -75,35 +82,22 @@ class EOImportIntegration {
         importTimestamp
       );
       recordsAdded.push(record);
-
-      // Collect for batch deduplication
-      if (this.contentStore) {
-        recordsForDedup.push({
-          recordId: record.id,
-          fields: record
-        });
-      }
     });
-
-    // Process batch deduplication if content store available
-    let dedupStats = null;
-    if (this.contentStore && recordsForDedup.length > 0) {
-      dedupStats = this.contentStore.processImportBatch(imp.id, recordsForDedup, {
-        enableDelta: true,
-        deltaThreshold: 0.7
-      });
-
-      // Store dedup stats in the import
-      if (imp) {
-        imp.deduplicationStats = dedupStats;
-      }
-    }
 
     // Track usage in import
     this.importManager.trackUsage(importId, 'set', targetSetId, recordsAdded.length);
 
     // Create import view (temporary view showing just this import's records)
     const viewId = this.createImportView(targetSet, imp, recordsAdded, importTimestamp);
+
+    // Mark import as having pending background processing
+    imp.backgroundProcessing = {
+      status: 'pending',
+      dedupStatus: 'pending',
+      linkingStatus: 'pending',
+      startedAt: null,
+      completedAt: null
+    };
 
     // Create batch import event
     this.callbacks.createEvent(
@@ -116,7 +110,8 @@ class EOImportIntegration {
         recordCount: recordsAdded.length,
         createdNewSet,
         viewId,
-        timestamp: importTimestamp
+        timestamp: importTimestamp,
+        backgroundProcessingPending: true
       }
     );
 
@@ -130,14 +125,351 @@ class EOImportIntegration {
     // Switch to the new view
     this.callbacks.switchSet(targetSetId, viewId);
 
+    // ============================================
+    // PHASE 2: Background processing (async)
+    // Deduplication and linking run after UI updates
+    // ============================================
+    if (!options.skipBackgroundProcessing) {
+      this._scheduleBackgroundProcessing(imp, targetSet, recordsAdded, viewId);
+    }
+
     return {
       success: true,
       setId: targetSetId,
       viewId,
       recordsAdded: recordsAdded.length,
       createdNewSet,
-      deduplicationStats: dedupStats
+      backgroundProcessingPending: true
     };
+  }
+
+  /**
+   * Schedule background deduplication and linking
+   * Runs after the main import completes so UI is responsive
+   * @private
+   */
+  _scheduleBackgroundProcessing(imp, targetSet, recordsAdded, viewId) {
+    // Use setTimeout to defer processing to next tick
+    // This allows the UI to render the imported data first
+    setTimeout(() => {
+      this._runBackgroundProcessing(imp, targetSet, recordsAdded, viewId);
+    }, 0);
+  }
+
+  /**
+   * Run background deduplication and linking
+   * @private
+   */
+  async _runBackgroundProcessing(imp, targetSet, recordsAdded, viewId) {
+    const eventBus = typeof EOEventBus !== 'undefined' ? EOEventBus : null;
+
+    imp.backgroundProcessing.status = 'running';
+    imp.backgroundProcessing.startedAt = Date.now();
+
+    // Notify via callback
+    this.callbacks.onBackgroundProcessingUpdate({
+      importId: imp.id,
+      status: 'started',
+      phase: 'deduplication'
+    });
+
+    // Emit start event
+    if (eventBus) {
+      eventBus.emit('dedup:started', {
+        importId: imp.id,
+        importName: imp.name,
+        recordCount: recordsAdded.length,
+        setId: targetSet.id,
+        viewId
+      }, { source: 'import_integration' });
+    }
+
+    try {
+      // ============================================
+      // DEDUPLICATION PHASE
+      // ============================================
+      imp.backgroundProcessing.dedupStatus = 'running';
+
+      let dedupStats = null;
+      if (this.contentStore && recordsAdded.length > 0) {
+        const recordsForDedup = recordsAdded.map(record => ({
+          recordId: record.id,
+          fields: record
+        }));
+
+        // Process in batches for large imports to allow UI updates
+        const batchSize = 500;
+        const totalBatches = Math.ceil(recordsForDedup.length / batchSize);
+
+        if (recordsForDedup.length <= batchSize) {
+          // Small import - process all at once
+          dedupStats = this.contentStore.processImportBatch(imp.id, recordsForDedup, {
+            enableDelta: true,
+            deltaThreshold: 0.7
+          });
+        } else {
+          // Large import - process in batches with progress updates
+          dedupStats = await this._processDeduplicationInBatches(
+            imp, recordsForDedup, batchSize, eventBus
+          );
+        }
+
+        // Store dedup stats in the import
+        imp.deduplicationStats = dedupStats;
+      }
+
+      imp.backgroundProcessing.dedupStatus = 'completed';
+
+      // Emit dedup progress/completion
+      if (eventBus) {
+        eventBus.emit('dedup:progress', {
+          importId: imp.id,
+          phase: 'deduplication',
+          progress: 100,
+          stats: dedupStats
+        }, { source: 'import_integration' });
+      }
+
+      // ============================================
+      // LINKING PHASE (detect and suggest relationships)
+      // ============================================
+      imp.backgroundProcessing.linkingStatus = 'running';
+
+      if (eventBus) {
+        eventBus.emit('linking:started', {
+          importId: imp.id,
+          setId: targetSet.id
+        }, { source: 'import_integration' });
+      }
+
+      const linkingSuggestions = this._detectLinkingSuggestions(imp, targetSet);
+      imp.linkingSuggestions = linkingSuggestions;
+
+      imp.backgroundProcessing.linkingStatus = 'completed';
+
+      if (eventBus) {
+        eventBus.emit('linking:progress', {
+          importId: imp.id,
+          phase: 'linking',
+          progress: 100,
+          suggestions: linkingSuggestions
+        }, { source: 'import_integration' });
+      }
+
+      // ============================================
+      // ALL BACKGROUND PROCESSING COMPLETE
+      // ============================================
+      imp.backgroundProcessing.status = 'completed';
+      imp.backgroundProcessing.completedAt = Date.now();
+
+      // Emit completion event
+      if (eventBus) {
+        eventBus.emit('dedup:completed', {
+          importId: imp.id,
+          importName: imp.name,
+          setId: targetSet.id,
+          viewId,
+          deduplicationStats: dedupStats,
+          linkingSuggestions,
+          duration: imp.backgroundProcessing.completedAt - imp.backgroundProcessing.startedAt
+        }, { source: 'import_integration' });
+      }
+
+      // Notify via callback
+      this.callbacks.onBackgroundProcessingUpdate({
+        importId: imp.id,
+        status: 'completed',
+        deduplicationStats: dedupStats,
+        linkingSuggestions,
+        duration: imp.backgroundProcessing.completedAt - imp.backgroundProcessing.startedAt
+      });
+
+      // Show completion toast with stats
+      if (dedupStats && (dedupStats.duplicateRecords > 0 || dedupStats.deltaRecords > 0)) {
+        const savedPct = dedupStats.compressionRatio;
+        this.callbacks.showToast(
+          `✓ Deduplication complete: ${dedupStats.duplicateRecords} duplicates, ${savedPct}% storage saved`
+        );
+      }
+
+    } catch (error) {
+      console.error('[EOImportIntegration] Background processing error:', error);
+      imp.backgroundProcessing.status = 'error';
+      imp.backgroundProcessing.error = error.message;
+
+      // Notify via callback
+      this.callbacks.onBackgroundProcessingUpdate({
+        importId: imp.id,
+        status: 'error',
+        error: error.message
+      });
+
+      if (eventBus) {
+        eventBus.emit('dedup:completed', {
+          importId: imp.id,
+          error: error.message,
+          success: false
+        }, { source: 'import_integration' });
+      }
+    }
+  }
+
+  /**
+   * Process deduplication in batches for large imports
+   * @private
+   */
+  async _processDeduplicationInBatches(imp, recordsForDedup, batchSize, eventBus) {
+    const totalRecords = recordsForDedup.length;
+    const totalBatches = Math.ceil(totalRecords / batchSize);
+
+    // We'll accumulate stats across batches
+    let aggregatedStats = {
+      importId: imp.id,
+      totalRecords: 0,
+      uniqueContents: 0,
+      duplicateRecords: 0,
+      deltaRecords: 0,
+      rawBytes: 0,
+      actualBytes: 0,
+      savedBytes: 0,
+      compressionRatio: 0,
+      fieldDedup: {},
+      createdAt: new Date().toISOString()
+    };
+
+    for (let i = 0; i < totalBatches; i++) {
+      const start = i * batchSize;
+      const end = Math.min(start + batchSize, totalRecords);
+      const batch = recordsForDedup.slice(start, end);
+
+      // Process this batch
+      const batchStats = this.contentStore.processImportBatch(
+        `${imp.id}_batch_${i}`,
+        batch,
+        { enableDelta: true, deltaThreshold: 0.7 }
+      );
+
+      // Aggregate stats
+      aggregatedStats.totalRecords += batchStats.totalRecords;
+      aggregatedStats.duplicateRecords += batchStats.duplicateRecords;
+      aggregatedStats.deltaRecords += batchStats.deltaRecords;
+      aggregatedStats.rawBytes += batchStats.rawBytes;
+      aggregatedStats.actualBytes += batchStats.actualBytes;
+
+      // Emit progress
+      const progress = Math.round(((i + 1) / totalBatches) * 100);
+      if (eventBus) {
+        eventBus.emit('dedup:progress', {
+          importId: imp.id,
+          phase: 'deduplication',
+          progress,
+          batchIndex: i,
+          totalBatches,
+          processedRecords: end
+        }, { source: 'import_integration' });
+      }
+
+      // Yield to UI thread between batches
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    // Finalize aggregated stats
+    aggregatedStats.savedBytes = aggregatedStats.rawBytes - aggregatedStats.actualBytes;
+    aggregatedStats.compressionRatio = aggregatedStats.rawBytes > 0
+      ? ((aggregatedStats.savedBytes / aggregatedStats.rawBytes) * 100).toFixed(1)
+      : 0;
+
+    return aggregatedStats;
+  }
+
+  /**
+   * Detect potential linking suggestions based on foreign key hints
+   * @private
+   */
+  _detectLinkingSuggestions(imp, targetSet) {
+    const suggestions = [];
+
+    // Check foreign key hints from schema analysis
+    if (imp.schema?.foreignKeyHints) {
+      for (const fkHint of imp.schema.foreignKeyHints) {
+        // Look for matching sets in the state
+        if (this.state.sets) {
+          for (const [otherSetId, otherSet] of this.state.sets) {
+            if (otherSetId === targetSet.id) continue;
+
+            // Check if the referenced entity matches the other set
+            const entityMatch = otherSet.entityType &&
+              fkHint.referencedEntity?.toLowerCase() === otherSet.entityType.toLowerCase();
+
+            const nameMatch = otherSet.name.toLowerCase().includes(
+              fkHint.referencedEntity?.toLowerCase() || ''
+            );
+
+            if (entityMatch || nameMatch) {
+              suggestions.push({
+                type: 'foreign_key',
+                sourceSetId: targetSet.id,
+                sourceField: this.slugifyFieldId(fkHint.column),
+                targetSetId: otherSetId,
+                targetSetName: otherSet.name,
+                confidence: fkHint.confidence,
+                referencedEntity: fkHint.referencedEntity
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return suggestions;
+  }
+
+  /**
+   * Get the background processing status for an import
+   * @param {string} importId - Import identifier
+   * @returns {Object|null} Background processing status or null if not found
+   */
+  getBackgroundProcessingStatus(importId) {
+    const imp = this.importManager?.getImport(importId);
+    if (!imp) return null;
+
+    return {
+      importId,
+      importName: imp.name,
+      backgroundProcessing: imp.backgroundProcessing || null,
+      deduplicationStats: imp.deduplicationStats || null,
+      linkingSuggestions: imp.linkingSuggestions || null,
+      isComplete: imp.backgroundProcessing?.status === 'completed',
+      isRunning: imp.backgroundProcessing?.status === 'running',
+      isPending: imp.backgroundProcessing?.status === 'pending',
+      hasError: imp.backgroundProcessing?.status === 'error',
+      error: imp.backgroundProcessing?.error || null
+    };
+  }
+
+  /**
+   * Check if any imports have pending background processing
+   * @returns {Array} List of imports with pending/running background processing
+   */
+  getPendingBackgroundProcessing() {
+    const pending = [];
+    if (!this.importManager) return pending;
+
+    const imports = this.importManager.getImports?.() || [];
+    for (const imp of imports) {
+      if (imp.backgroundProcessing &&
+          (imp.backgroundProcessing.status === 'pending' ||
+           imp.backgroundProcessing.status === 'running')) {
+        pending.push({
+          importId: imp.id,
+          importName: imp.name,
+          status: imp.backgroundProcessing.status,
+          dedupStatus: imp.backgroundProcessing.dedupStatus,
+          linkingStatus: imp.backgroundProcessing.linkingStatus
+        });
+      }
+    }
+    return pending;
   }
 
   /**
