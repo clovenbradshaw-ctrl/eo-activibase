@@ -139,6 +139,9 @@
      * @property {EOHistoryEntry[]} edit_history - Edit history
      * @property {*[]} value_history - Value change history
      * @property {EOStabilityInfo} stability - Stability classification
+     * @property {string} [sourceImportId] - Import this record came from (null if manual)
+     * @property {number} [sourceRowNumber] - Row number in source import
+     * @property {string} [contentHash] - Hash for deduplication
      */
 
     /**
@@ -189,6 +192,20 @@
      */
 
     /**
+     * @typedef {Object} EOImportSource
+     * @property {string} importId - Import identifier
+     * @property {string} importName - Import filename
+     * @property {number} recordCount - Records from this import
+     * @property {string[]} recordIds - Record IDs from this import
+     * @property {string} addedAt - When import was added to set
+     * @property {'additive'|'merge'|'linked'} mode - How import was added
+     * @property {Object} dedupStats - Deduplication statistics
+     * @property {number} dedupStats.duplicatesFound - Duplicates detected
+     * @property {number} dedupStats.duplicatesHidden - Duplicates currently hidden
+     * @property {'hide'|'show'|'sup'} dedupStats.handling - How duplicates are handled
+     */
+
+    /**
      * @typedef {Object} EOSet
      * @property {string} id - Set identifier
      * @property {string} name - Display name
@@ -196,7 +213,9 @@
      * @property {Map<string, Object>} records - Record map
      * @property {string} createdAt - Creation timestamp
      * @property {string} updatedAt - Last update timestamp
-     * @property {string} [importId] - Source import ID
+     * @property {string} [importId] - Source import ID (legacy, single import)
+     * @property {EOImportSource[]} [sources] - All import sources feeding this set
+     * @property {'import'|'manual'|'derived'} [origin] - How set was created
      */
 
     /**

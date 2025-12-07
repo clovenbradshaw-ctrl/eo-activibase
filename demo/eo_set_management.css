@@ -370,6 +370,301 @@
     border-radius: 10px;
 }
 
+/* ============================================================================
+   SOURCES TAB
+   ============================================================================ */
+
+.sources-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Sources Summary Header */
+.sources-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.sources-summary .summary-stats {
+    display: flex;
+    gap: 24px;
+}
+
+.sources-summary .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.sources-summary .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.sources-summary .stat-label {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.summary-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* Deduplication Banner */
+.dedup-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+}
+
+.dedup-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #92400e;
+}
+
+.dedup-info i {
+    font-size: 18px;
+}
+
+.dedup-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.dedup-handling {
+    padding: 6px 12px;
+    border: 1px solid #d97706;
+    border-radius: 6px;
+    background: white;
+    font-size: 13px;
+    color: #92400e;
+    cursor: pointer;
+}
+
+.dedup-handling:focus {
+    outline: none;
+    border-color: #b45309;
+}
+
+/* Source Cards List */
+.sources-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Individual Source Card */
+.source-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.source-card:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.source-card.manual-source {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+/* Source Header */
+.source-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.source-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 20px;
+    color: #6b7280;
+}
+
+.source-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.source-name {
+    font-weight: 600;
+    color: #111827;
+    font-size: 14px;
+}
+
+.source-meta {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.source-warning {
+    color: #f59e0b;
+    font-size: 18px;
+}
+
+/* Source Stats */
+.source-stats {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.source-stats .stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.source-stats .stat i {
+    font-size: 14px;
+}
+
+.source-stats .quality-score.quality-high {
+    color: #059669;
+}
+
+.source-stats .quality-score.quality-medium {
+    color: #d97706;
+}
+
+.source-stats .quality-score.quality-low {
+    color: #dc2626;
+}
+
+.source-stats .duplicates {
+    color: #f59e0b;
+}
+
+/* Source Actions */
+.source-actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    color: #6b7280;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-icon:hover {
+    background: #f3f4f6;
+    color: #374151;
+    border-color: #d1d5db;
+}
+
+.btn-icon.btn-danger-icon:hover {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fecaca;
+}
+
+/* Source Details Modal */
+.source-details-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.source-details-grid .detail-row {
+    display: flex;
+    padding: 8px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.source-details-grid .detail-row:last-child {
+    border-bottom: none;
+}
+
+.source-details-grid .detail-label {
+    min-width: 140px;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.source-details-grid .detail-value {
+    color: #111827;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.detail-section {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.detail-section h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* Add Import Modal */
+.modal-description {
+    margin: 0 0 20px 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.form-select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
 /* Tossed Tab */
 .tossed-section {
     display: flex;
@@ -513,6 +808,86 @@
 
     .empty-state i {
         color: #4b5563;
+    }
+
+    /* Sources Tab Dark Mode */
+    .sources-summary {
+        border-bottom-color: #374151;
+    }
+
+    .sources-summary .stat-value {
+        color: #f3f4f6;
+    }
+
+    .dedup-banner {
+        background: #422006;
+        border-color: #78350f;
+    }
+
+    .dedup-info {
+        color: #fbbf24;
+    }
+
+    .dedup-handling {
+        background: #1f2937;
+        border-color: #78350f;
+        color: #fbbf24;
+    }
+
+    .source-card {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .source-card:hover {
+        border-color: #4b5563;
+    }
+
+    .source-card.manual-source {
+        background: #052e16;
+        border-color: #166534;
+    }
+
+    .source-icon {
+        background: #374151;
+        border-color: #4b5563;
+    }
+
+    .source-name {
+        color: #f3f4f6;
+    }
+
+    .source-actions {
+        border-top-color: #374151;
+    }
+
+    .btn-icon {
+        background: #374151;
+        border-color: #4b5563;
+        color: #9ca3af;
+    }
+
+    .btn-icon:hover {
+        background: #4b5563;
+        color: #e5e7eb;
+    }
+
+    .source-details-grid .detail-row {
+        border-bottom-color: #374151;
+    }
+
+    .source-details-grid .detail-value {
+        color: #f3f4f6;
+    }
+
+    .detail-section {
+        border-top-color: #374151;
+    }
+
+    .form-select {
+        background: #1f2937;
+        border-color: #374151;
+        color: #f3f4f6;
     }
 }
 
