@@ -33,6 +33,7 @@
     <script defer src="demo/eo_function_builder_ui.js"></script>
     <script defer src="demo/eo_rollup_engine.js"></script>
     <script defer src="demo/eo_linked_fields_modal.js"></script>
+    <script defer src="demo/eo_link_column_modal.js"></script>
     <script defer src="demo/eo_linked_record_editor.js"></script>
     <script defer src="demo/eo_cell_profile_card.js"></script>
     <script defer src="demo/eo_import_manager.js"></script>
@@ -46,7 +47,11 @@
     <script defer src="demo/eo_column_width_settings.js"></script>
     <script defer src="demo/eo_relations_manager.js"></script>
     <script defer src="demo/eo_available_fields_explorer.js"></script>
+    <script defer src="demo/eo_datetime_field.js"></script>
+    <script defer src="demo/eo_inline_cell_editor.js"></script>
     <link rel="stylesheet" href="demo/eo_linked_fields_modal.css">
+    <link rel="stylesheet" href="demo/eo_link_column_modal.css">
+    <link rel="stylesheet" href="demo/eo_datetime_field.css">
     <link rel="stylesheet" href="demo/eo_available_fields_explorer.css">
     <link rel="stylesheet" href="demo/eo_file_explorer.css">
     <link rel="stylesheet" href="demo/eo_toss_pile.css">
@@ -1821,7 +1826,7 @@
         table { width: auto; border-collapse: collapse; table-layout: fixed; }
         thead { background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
         th {
-            padding: 12px 16px;
+            padding: 8px 16px;
             text-align: left;
             font-size: 12px;
             font-weight: 700;
@@ -1889,7 +1894,7 @@
         tbody tr:hover td:first-child { color: #3b82f6; font-weight: 700; }
         tbody tr:last-child { border-bottom: none; }
         td {
-            padding: 16px;
+            padding: 10px 16px;
             font-size: 14px;
             color: #1f2937;
             vertical-align: middle;
@@ -2715,6 +2720,216 @@
         .modal-header { padding: 24px 24px 16px 24px; border-bottom: 1px solid #f0f0f0; }
         .modal-body { padding: 24px; }
         .modal-footer { padding: 16px 24px; border-top: 1px solid #f0f0f0; background: #fafafa; }
+
+        /* SORT BUILDER - Custom Dropdowns */
+        .sort-rule {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            transition: all 0.15s ease;
+        }
+        .sort-rule:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        .sort-rule-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: #e2e8f0;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .sort-dropdown {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+        }
+        .sort-dropdown-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 12px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 14px;
+            color: #0f172a;
+            font-weight: 500;
+        }
+        .sort-dropdown-trigger:hover {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+        }
+        .sort-dropdown-trigger.open {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .sort-dropdown-trigger .placeholder {
+            color: #94a3b8;
+            font-weight: 400;
+        }
+        .sort-dropdown-trigger i {
+            color: #94a3b8;
+            font-size: 12px;
+            transition: transform 0.2s ease;
+        }
+        .sort-dropdown-trigger.open i {
+            transform: rotate(180deg);
+        }
+        .sort-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+            z-index: 100;
+            max-height: 240px;
+            overflow-y: auto;
+            display: none;
+            animation: sortDropdownIn 0.15s ease;
+        }
+        @keyframes sortDropdownIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .sort-dropdown-menu.open {
+            display: block;
+        }
+        .sort-dropdown-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            font-size: 14px;
+            color: #374151;
+        }
+        .sort-dropdown-option:first-child {
+            border-radius: 9px 9px 0 0;
+        }
+        .sort-dropdown-option:last-child {
+            border-radius: 0 0 9px 9px;
+        }
+        .sort-dropdown-option:hover {
+            background: #f1f5f9;
+        }
+        .sort-dropdown-option.selected {
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+        .sort-dropdown-option i {
+            font-size: 16px;
+            color: #64748b;
+            width: 20px;
+            text-align: center;
+        }
+        .sort-dropdown-option.selected i {
+            color: #1d4ed8;
+        }
+        .sort-direction-toggle {
+            display: flex;
+            align-items: center;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .sort-direction-btn {
+            padding: 8px 14px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .sort-direction-btn:first-child {
+            border-right: 1px solid #e2e8f0;
+        }
+        .sort-direction-btn:hover {
+            background: #f8fafc;
+            color: #374151;
+        }
+        .sort-direction-btn.active {
+            background: #0f172a;
+            color: #fff;
+        }
+        .sort-direction-btn i {
+            font-size: 14px;
+        }
+        .sort-rule-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .sort-action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: #64748b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            font-size: 14px;
+        }
+        .sort-action-btn:hover:not(:disabled) {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+            color: #374151;
+        }
+        .sort-action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .sort-action-btn.danger:hover:not(:disabled) {
+            border-color: #fecaca;
+            background: #fef2f2;
+            color: #dc2626;
+        }
+        .sort-empty-state {
+            text-align: center;
+            padding: 32px 24px;
+            color: #64748b;
+        }
+        .sort-empty-state i {
+            font-size: 32px;
+            color: #cbd5e1;
+            margin-bottom: 12px;
+        }
+        .sort-empty-state p {
+            margin: 0;
+            font-size: 14px;
+        }
+
         #addFieldModal .modal-header { padding: 16px 18px 10px 18px; }
         #addFieldModal .modal-body { padding: 16px 18px 18px 18px; }
         #addFieldModal .modal-footer { padding: 14px 18px; background: #f8fafc; }
@@ -3745,7 +3960,6 @@
             min-width: 60px;
             text-align: center;
             background: var(--surface, #fff) !important;
-            border-left: 1px solid #e2e8f0;
         }
         .add-column-header:hover {
             background: #f8fafc !important;
@@ -3768,7 +3982,6 @@
             width: 60px;
             min-width: 60px;
             background: var(--surface, #fff);
-            border-left: 1px solid #e2e8f0;
         }
 
         .json-tab {
@@ -6795,7 +7008,8 @@
             csvImportState: { headers: [], rows: [], mappings: {}, previewRows: [], matches: [], targetMode: 'new', targetSetId: null, newSetName: '' },
             jsonImportState: { keys: [], rows: [], mappings: {}, previewRows: [], matches: [], targetMode: 'new', targetSetId: null, newSetName: '', filename: '' },
             fuzzyPanelState: { threshold: 0.65, matches: [] },
-            fieldTypeHistory: new Map()
+            fieldTypeHistory: new Map(),
+            connectionTypeUsage: new Map() // Track usage counts for operator+verb combos
         };
 
         // Make state globally accessible for external modules
@@ -8118,6 +8332,143 @@
             return null;
         }
 
+        // Connection type usage tracking
+        function getConnectionTypeKey(operator, verb) {
+            return `${operator}::${verb}`;
+        }
+
+        function trackConnectionTypeUsage(operator, verb) {
+            if (!operator || !verb) return;
+            const key = getConnectionTypeKey(operator, verb);
+            const current = state.connectionTypeUsage.get(key) || { count: 0, lastUsed: null };
+            state.connectionTypeUsage.set(key, {
+                count: current.count + 1,
+                lastUsed: Date.now(),
+                operator,
+                verb
+            });
+            // Persist to localStorage
+            try {
+                const usageData = {};
+                state.connectionTypeUsage.forEach((val, k) => { usageData[k] = val; });
+                localStorage.setItem('eo_connection_type_usage', JSON.stringify(usageData));
+            } catch (e) { /* ignore storage errors */ }
+        }
+
+        function loadConnectionTypeUsage() {
+            try {
+                const stored = localStorage.getItem('eo_connection_type_usage');
+                if (stored) {
+                    const usageData = JSON.parse(stored);
+                    Object.entries(usageData).forEach(([key, val]) => {
+                        state.connectionTypeUsage.set(key, val);
+                    });
+                }
+            } catch (e) { /* ignore storage errors */ }
+        }
+
+        function getConnectionTypeUsageCount(operator, verb) {
+            const key = getConnectionTypeKey(operator, verb);
+            return state.connectionTypeUsage.get(key)?.count || 0;
+        }
+
+        // Get connection types sorted by priority: CON first, then by usage
+        function getSortedConnectionTypes() {
+            const operators = state.connectionModes?.operators || {};
+            const operatorCodes = Object.keys(state.connectionModes || {}).filter(k => k !== 'operators' && k !== 'meta');
+
+            // Define base priority - CON is most likely, then common relationship operators
+            const operatorPriority = {
+                'CON': 0,  // Connect - most common
+                'SEG': 1,  // Segment - part-of relationships
+                'INS': 2,  // Instantiate - creates/produces
+                'DES': 3,  // Designate - labels/names
+                'ALT': 4,  // Alternate - either/or
+                'SYN': 5,  // Synthesize - combines
+                'SUP': 6,  // Superpose - overlays
+                'REC': 7,  // Recurse - references self
+                'NUL': 8   // Null - absence
+            };
+
+            // Collect all verb+operator combinations
+            const allTypes = [];
+            operatorCodes.forEach(op => {
+                const verbs = state.connectionModes[op] || [];
+                const opInfo = operators[op] || {};
+                verbs.forEach(verb => {
+                    const usageCount = getConnectionTypeUsageCount(op, verb);
+                    allTypes.push({
+                        operator: op,
+                        verb,
+                        operatorName: opInfo.name || op,
+                        operatorSymbol: opInfo.symbol || '',
+                        operatorColor: opInfo.style?.color || '#6B7280',
+                        usageCount,
+                        basePriority: operatorPriority[op] ?? 99
+                    });
+                });
+            });
+
+            // Sort: first by usage count (desc), then by base priority (asc), then alphabetically
+            allTypes.sort((a, b) => {
+                // Items with usage always come first
+                if (a.usageCount > 0 && b.usageCount === 0) return -1;
+                if (b.usageCount > 0 && a.usageCount === 0) return 1;
+
+                // Among used items, sort by usage count
+                if (a.usageCount !== b.usageCount) return b.usageCount - a.usageCount;
+
+                // Among unused items, sort by base priority
+                if (a.basePriority !== b.basePriority) return a.basePriority - b.basePriority;
+
+                // Finally, alphabetically by verb
+                return a.verb.localeCompare(b.verb);
+            });
+
+            return allTypes;
+        }
+
+        // Get quick pick connection types (most useful defaults + most used)
+        function getQuickPickConnectionTypes(limit = 6) {
+            const sorted = getSortedConnectionTypes();
+            const quickPicks = [];
+            const seen = new Set();
+
+            // Always include these default quick picks if they exist (CON verbs first - most common)
+            const defaultQuickPicks = [
+                { operator: 'CON', verb: 'depends on' },
+                { operator: 'CON', verb: 'relates to' },
+                { operator: 'CON', verb: 'references' },
+                { operator: 'CON', verb: 'is linked to' },
+                { operator: 'SEG', verb: 'includes' },
+                { operator: 'INS', verb: 'creates' }
+            ];
+
+            // First, add any frequently used types (used 2+ times)
+            sorted.filter(t => t.usageCount >= 2).slice(0, limit).forEach(type => {
+                const key = `${type.operator}::${type.verb}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    quickPicks.push(type);
+                }
+            });
+
+            // Fill remaining slots with defaults
+            for (const def of defaultQuickPicks) {
+                if (quickPicks.length >= limit) break;
+                const key = `${def.operator}::${def.verb}`;
+                if (!seen.has(key)) {
+                    const typeInfo = sorted.find(t => t.operator === def.operator && t.verb === def.verb);
+                    if (typeInfo) {
+                        seen.add(key);
+                        quickPicks.push(typeInfo);
+                    }
+                }
+            }
+
+            return quickPicks;
+        }
+
         function normalizeParamList(params = []) {
             if (params === undefined || params === null) return [];
             if (!Array.isArray(params)) throw new Error('Parameter lists must be arrays');
@@ -8423,6 +8774,7 @@
 
             initializeOperatorRules();
             await loadConnectionModes();
+            loadConnectionTypeUsage(); // Load usage stats from localStorage
             await loadRelationshipTypes();
             createSampleData();
             applyRouteParams();
@@ -13952,12 +14304,21 @@
 
             const menu = document.createElement('div');
             menu.className = 'context-menu view-tab-context-menu';
+            // Check if this tab is already a shortcut
+            const shortcuts = getTabShortcuts();
+            const isShortcut = shortcuts.some(s => s.setId === setId && s.viewId === viewId);
+
             menu.innerHTML = `
                 <div class="menu-item" data-action="edit">
                     <span class="icon"><i class="ph ph-pencil-simple"></i></span> Edit View
                 </div>
                 <div class="menu-item" data-action="duplicate">
                     <span class="icon"><i class="ph ph-copy"></i></span> Duplicate
+                </div>
+                <div class="menu-separator"></div>
+                <div class="menu-item" data-action="shortcut">
+                    <span class="icon"><i class="ph ${isShortcut ? 'ph-bookmark-simple-fill' : 'ph-bookmark-simple'}"></i></span>
+                    ${isShortcut ? 'Remove Shortcut' : 'Save as Shortcut'}
                 </div>
                 <div class="menu-separator"></div>
                 <div class="menu-item" data-action="close">
@@ -13990,6 +14351,14 @@
                             cloneView(state, viewId, newName);
                             renderSidebar();
                             renderViewTabs();
+                            break;
+                        case 'shortcut':
+                            if (isShortcut) {
+                                const existingShortcut = shortcuts.find(s => s.setId === setId && s.viewId === viewId);
+                                if (existingShortcut) removeTabShortcut(existingShortcut.id);
+                            } else {
+                                addTabShortcut({ setId, viewId });
+                            }
                             break;
                         case 'close':
                             closeViewTab(setId, viewId);
@@ -15533,9 +15902,18 @@
             // Remove any existing context menu
             document.querySelectorAll('.view-tab-context-menu').forEach(menu => menu.remove());
 
+            // Check if this special view is already a shortcut
+            const shortcuts = getTabShortcuts();
+            const isShortcut = shortcuts.some(s => s.specialView === specialView);
+
             const menu = document.createElement('div');
             menu.className = 'context-menu view-tab-context-menu';
             menu.innerHTML = `
+                <div class="menu-item" data-action="shortcut">
+                    <span class="icon"><i class="ph ${isShortcut ? 'ph-bookmark-simple-fill' : 'ph-bookmark-simple'}"></i></span>
+                    ${isShortcut ? 'Remove Shortcut' : 'Save as Shortcut'}
+                </div>
+                <div class="menu-separator"></div>
                 <div class="menu-item" data-action="close">
                     <span class="icon"><i class="ph ph-x"></i></span> Close Tab
                 </div>
@@ -15552,7 +15930,14 @@
                 item.addEventListener('click', () => {
                     const action = item.dataset.action;
                     menu.remove();
-                    if (action === 'close') {
+                    if (action === 'shortcut') {
+                        if (isShortcut) {
+                            const existingShortcut = shortcuts.find(s => s.specialView === specialView);
+                            if (existingShortcut) removeTabShortcut(existingShortcut.id);
+                        } else {
+                            addTabShortcut({ specialView });
+                        }
+                    } else if (action === 'close') {
                         closeViewTab(null, null, specialView);
                     }
                 });
@@ -15566,6 +15951,134 @@
                     }
                 });
             }, 0);
+        }
+
+        // ============================================================================
+        // TAB SHORTCUTS (Browser-like bookmarks for quick tab access)
+        // ============================================================================
+
+        /**
+         * Get tab shortcuts for the current world
+         */
+        function getTabShortcuts() {
+            const world = getWorld();
+            return world?.tabShortcuts || [];
+        }
+
+        /**
+         * Save tab shortcuts to the current world
+         */
+        function saveTabShortcuts(shortcuts) {
+            const world = getWorld();
+            if (world) {
+                world.tabShortcuts = shortcuts;
+            }
+        }
+
+        /**
+         * Add a tab as a shortcut
+         * @param {Object} tab - { setId, viewId } or { specialView }
+         */
+        function addTabShortcut(tab) {
+            const shortcuts = getTabShortcuts();
+
+            // Check if shortcut already exists
+            const exists = shortcuts.some(s => {
+                if (tab.specialView) {
+                    return s.specialView === tab.specialView;
+                }
+                return s.setId === tab.setId && s.viewId === tab.viewId;
+            });
+
+            if (exists) {
+                showToast('This tab is already a shortcut');
+                return false;
+            }
+
+            // Get display info for the shortcut
+            let shortcut;
+            if (tab.specialView) {
+                const config = SPECIAL_VIEW_CONFIG[tab.specialView];
+                shortcut = {
+                    id: `shortcut_${Date.now()}`,
+                    specialView: tab.specialView,
+                    label: config?.label || tab.specialView,
+                    icon: config?.icon || 'ph-bookmark'
+                };
+            } else {
+                const set = state.sets.get(tab.setId);
+                const view = set?.views.get(tab.viewId);
+                if (!set || !view) {
+                    showToast('Could not save shortcut: view not found');
+                    return false;
+                }
+                shortcut = {
+                    id: `shortcut_${Date.now()}`,
+                    setId: tab.setId,
+                    viewId: tab.viewId,
+                    label: view.name,
+                    setName: set.name,
+                    icon: view.icon || VIEW_TYPE_ICONS[view.type] || 'ph-table'
+                };
+            }
+
+            shortcuts.push(shortcut);
+            saveTabShortcuts(shortcuts);
+            showToast('✓ Saved as shortcut');
+
+            // Re-render dashboard if currently viewing it
+            if (state.currentSpecialView === 'dashboard') {
+                renderDashboardPage();
+            }
+
+            return true;
+        }
+
+        /**
+         * Remove a tab shortcut by id
+         */
+        function removeTabShortcut(shortcutId) {
+            const shortcuts = getTabShortcuts();
+            const index = shortcuts.findIndex(s => s.id === shortcutId);
+            if (index !== -1) {
+                shortcuts.splice(index, 1);
+                saveTabShortcuts(shortcuts);
+                showToast('✓ Shortcut removed');
+
+                // Re-render dashboard if currently viewing it
+                if (state.currentSpecialView === 'dashboard') {
+                    renderDashboardPage();
+                }
+            }
+        }
+
+        /**
+         * Navigate to a shortcut
+         */
+        function navigateToShortcut(shortcut) {
+            if (shortcut.specialView) {
+                switchToSpecialTab(shortcut.specialView);
+            } else {
+                switchSet(shortcut.setId, shortcut.viewId);
+            }
+        }
+
+        /**
+         * Move a shortcut to a new position
+         */
+        function reorderShortcut(shortcutId, newIndex) {
+            const shortcuts = getTabShortcuts();
+            const currentIndex = shortcuts.findIndex(s => s.id === shortcutId);
+            if (currentIndex === -1 || currentIndex === newIndex) return;
+
+            const [shortcut] = shortcuts.splice(currentIndex, 1);
+            shortcuts.splice(newIndex, 0, shortcut);
+            saveTabShortcuts(shortcuts);
+
+            // Re-render dashboard if currently viewing it
+            if (state.currentSpecialView === 'dashboard') {
+                renderDashboardPage();
+            }
         }
 
         function getCurrentSet() { return state.sets.get(state.currentSetId); }
@@ -16558,9 +17071,49 @@
             const {
                 sourceFieldId,
                 targetSetId,
-                targetFieldId
+                targetFieldId,
+                direction,
+                sourceSetId
             } = lookupConfig;
 
+            // Handle incoming links differently - need to find records that link TO this record
+            if (direction === 'incoming' && sourceSetId) {
+                const sourceSet = state.sets.get(sourceSetId);
+                if (!sourceSet) return [];
+
+                const targetField = sourceSet.schema.find(f => f.id === targetFieldId);
+
+                // Find all records in sourceSet that link to this record via sourceFieldId
+                const values = [];
+                sourceSet.records.forEach((sourceRecord) => {
+                    const linkedValue = sourceRecord[sourceFieldId];
+                    if (!linkedValue) return;
+
+                    // Check if this record links to our current record
+                    const linkedIds = Array.isArray(linkedValue) ? linkedValue : [linkedValue];
+                    if (!linkedIds.includes(record.id)) return;
+
+                    // Get the target field value from this linked record
+                    const value = sourceRecord[targetFieldId];
+                    if (value === undefined || value === null || value === '') return;
+
+                    // Prevent recursion for linked field types
+                    if (targetField?.type === 'LINKED_LOOKUP' || targetField?.type === 'LINKED_ROLLUP') {
+                        values.push(String(value));
+                        return;
+                    }
+
+                    // Format value based on target field type
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = renderCellValue(value, targetField || { type: 'TEXT', id: targetFieldId }, sourceRecord);
+                    const formatted = tempDiv.textContent || tempDiv.innerText || String(value);
+                    values.push(formatted);
+                });
+
+                return values;
+            }
+
+            // Original outgoing link logic
             // Get linked record ID(s) from source field
             const linkedRecordId = record[sourceFieldId];
 
@@ -21691,6 +22244,33 @@
             const world = getWorld();
             const setsForWorld = getSetsForWorld();
             const hasData = setsForWorld.length > 0;
+            const shortcuts = getTabShortcuts();
+
+            // Build shortcuts HTML
+            const shortcutsHtml = shortcuts.map((shortcut, index) => {
+                const shortcutNum = index < 9 ? `<span class="shortcut-hint" style="font-size: 0.625rem; color: #94a3b8; margin-left: 0.25rem;">Ctrl+${index + 1}</span>` : '';
+                const label = shortcut.label || 'Untitled';
+                const subtitle = shortcut.setName ? `<div style="font-size: 0.75rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortcut.setName}</div>` : '';
+                return `
+                    <div class="dashboard-shortcut-card" data-shortcut-id="${shortcut.id}"
+                         style="padding: 0.75rem 1rem; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.15s; background: white; min-width: 140px; max-width: 180px; position: relative;">
+                        <button class="shortcut-remove-btn" data-shortcut-id="${shortcut.id}"
+                                style="position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border: none; background: transparent; cursor: pointer; color: #94a3b8; border-radius: 4px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s;"
+                                title="Remove shortcut">
+                            <i class="ph ph-x" style="font-size: 0.75rem;"></i>
+                        </button>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="ph ${shortcut.icon || 'ph-bookmark'}" style="font-size: 1rem; color: #6366f1;"></i>
+                            <div style="min-width: 0; flex: 1;">
+                                <div style="font-weight: 500; color: #1e293b; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center;">
+                                    ${label}${shortcutNum}
+                                </div>
+                                ${subtitle}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
 
             // Build recent sets list for quick navigation
             const recentSetsHtml = setsForWorld.slice(0, 5).map(set => {
@@ -21745,6 +22325,22 @@
                             </h1>
                             <p style="color: #64748b; font-size: 0.875rem;">Jump into your data or import more</p>
                         </div>
+
+                        ${shortcuts.length > 0 ? `
+                        <!-- Shortcuts (browser-like bookmarks) -->
+                        <div>
+                            <div style="font-weight: 600; color: #475569; margin-bottom: 0.75rem; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="ph ph-bookmark-simple" style="color: #6366f1;"></i>
+                                Shortcuts
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                ${shortcutsHtml}
+                            </div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.5rem;">
+                                Right-click any tab to add or remove shortcuts
+                            </div>
+                        </div>
+                        ` : ''}
 
                         <!-- Primary action: Import more data -->
                         <div style="display: flex; gap: 0.75rem; justify-content: center;">
@@ -21807,6 +22403,50 @@
                     card.style.borderColor = '#e5e7eb';
                     card.style.background = 'white';
                 });
+            });
+
+            // Add event handlers for shortcut cards
+            container.querySelectorAll('.dashboard-shortcut-card').forEach(card => {
+                const shortcutId = card.dataset.shortcutId;
+                const shortcut = shortcuts.find(s => s.id === shortcutId);
+                if (!shortcut) return;
+
+                // Hover effects
+                card.addEventListener('mouseenter', () => {
+                    card.style.borderColor = '#6366f1';
+                    card.style.background = '#f8fafc';
+                    const removeBtn = card.querySelector('.shortcut-remove-btn');
+                    if (removeBtn) removeBtn.style.opacity = '1';
+                });
+                card.addEventListener('mouseleave', () => {
+                    card.style.borderColor = '#e5e7eb';
+                    card.style.background = 'white';
+                    const removeBtn = card.querySelector('.shortcut-remove-btn');
+                    if (removeBtn) removeBtn.style.opacity = '0';
+                });
+
+                // Click to navigate
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.shortcut-remove-btn')) return; // Don't navigate when clicking remove
+                    navigateToShortcut(shortcut);
+                });
+
+                // Remove button
+                const removeBtn = card.querySelector('.shortcut-remove-btn');
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        removeTabShortcut(shortcutId);
+                    });
+                    removeBtn.addEventListener('mouseenter', () => {
+                        removeBtn.style.background = '#fee2e2';
+                        removeBtn.style.color = '#dc2626';
+                    });
+                    removeBtn.addEventListener('mouseleave', () => {
+                        removeBtn.style.background = 'transparent';
+                        removeBtn.style.color = '#94a3b8';
+                    });
+                }
             });
         }
 
@@ -23901,6 +24541,8 @@
                         targetSetId: linkedSetId,
                         targetFieldId: targetField.id,
                         displayName: `${linkedSet.name} – ${targetField.name}`,
+                        direction: 'outgoing',
+                        sourceSetId: null,
                         createdAt: Date.now()
                     });
                 } else {
@@ -23915,6 +24557,8 @@
                         targetFieldId: targetField.id,
                         aggregation: aggregation,
                         displayName: `${linkedSet.name} – ${targetField.name} (${aggregation})`,
+                        direction: 'outgoing',
+                        sourceSetId: null,
                         createdAt: Date.now()
                     });
                 }
@@ -24147,6 +24791,35 @@
             openModal('sortModal');
         }
 
+        function getFieldIcon(fieldType) {
+            const icons = {
+                'TEXT': 'ph-text-aa',
+                'LONG_TEXT': 'ph-article',
+                'NUMBER': 'ph-hash',
+                'CURRENCY': 'ph-currency-dollar',
+                'DATE': 'ph-calendar',
+                'DATETIME': 'ph-calendar-blank',
+                'CHECKBOX': 'ph-check-square',
+                'SELECT': 'ph-list-bullets',
+                'MULTI_SELECT': 'ph-list-checks',
+                'URL': 'ph-link',
+                'EMAIL': 'ph-envelope',
+                'PHONE': 'ph-phone',
+                'USER': 'ph-user',
+                'ATTACHMENT': 'ph-paperclip',
+                'LINKED_RECORD': 'ph-link-simple',
+                'LINKED_LOOKUP': 'ph-eye',
+                'LINKED_ROLLUP': 'ph-calculator',
+                'FORMULA': 'ph-function',
+                'AUTONUMBER': 'ph-number-circle-one',
+                'CREATED_TIME': 'ph-clock',
+                'LAST_MODIFIED_TIME': 'ph-clock-clockwise',
+                'CREATED_BY': 'ph-user-plus',
+                'LAST_MODIFIED_BY': 'ph-user-switch'
+            };
+            return icons[fieldType] || 'ph-textbox';
+        }
+
         function renderSortBuilder() {
             const set = getCurrentSet();
             const view = getCurrentView();
@@ -24156,29 +24829,101 @@
             const schema = set.schema;
 
             if (!view.sorts || view.sorts.length === 0) {
-                container.innerHTML = '<p class="text-sm text-gray-500">No sorts configured. Add a field to start sorting.</p>';
+                container.innerHTML = `
+                    <div class="sort-empty-state">
+                        <i class="ph ph-sort-ascending"></i>
+                        <p>No sorts configured. Click "Add Sort" to start sorting your data.</p>
+                    </div>
+                `;
                 return;
             }
 
-            container.innerHTML = view.sorts.map((sort, index) => `
-                <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
-                    <div class="text-xs font-semibold text-gray-500">#${index + 1}</div>
-                    <select class="flex-1" onchange="updateSortField(${index}, this.value)">
-                        <option value="">Select field...</option>
-                        ${schema.map(f => `<option value="${f.id}" ${f.id === sort.fieldId ? 'selected' : ''}>${f.name}</option>`).join('')}
-                    </select>
-                    <select onchange="updateSortDirection(${index}, this.value)">
-                        <option value="asc" ${sort.direction === 'asc' ? 'selected' : ''}>Ascending</option>
-                        <option value="desc" ${sort.direction === 'desc' ? 'selected' : ''}>Descending</option>
-                    </select>
-                    <div class="flex items-center gap-1">
-                        <button class="btn btn-secondary btn-sm" onclick="moveSort(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
-                        <button class="btn btn-secondary btn-sm" onclick="moveSort(${index}, 1)" ${index === view.sorts.length - 1 ? 'disabled' : ''}>▼</button>
-                        <button class="btn btn-danger btn-sm" onclick="removeSortRule(${index})">✕</button>
+            container.innerHTML = view.sorts.map((sort, index) => {
+                const selectedField = schema.find(f => f.id === sort.fieldId);
+                const fieldName = selectedField ? selectedField.name : 'Select field...';
+                const fieldIcon = selectedField ? getFieldIcon(selectedField.type) : 'ph-textbox';
+                const isPlaceholder = !selectedField;
+
+                return `
+                    <div class="sort-rule" data-sort-index="${index}">
+                        <div class="sort-rule-number">${index + 1}</div>
+                        <div class="sort-dropdown" data-dropdown-index="${index}">
+                            <div class="sort-dropdown-trigger" onclick="toggleSortDropdown(${index})">
+                                <span class="${isPlaceholder ? 'placeholder' : ''}">
+                                    ${!isPlaceholder ? `<i class="ph ${fieldIcon}" style="margin-right: 6px;"></i>` : ''}${fieldName}
+                                </span>
+                                <i class="ph ph-caret-down"></i>
+                            </div>
+                            <div class="sort-dropdown-menu" id="sortDropdown-${index}">
+                                ${schema.map(f => `
+                                    <div class="sort-dropdown-option ${f.id === sort.fieldId ? 'selected' : ''}"
+                                         onclick="selectSortField(${index}, '${f.id}')">
+                                        <i class="ph ${getFieldIcon(f.type)}"></i>
+                                        <span>${f.name}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="sort-direction-toggle">
+                            <button class="sort-direction-btn ${sort.direction === 'asc' ? 'active' : ''}"
+                                    onclick="updateSortDirection(${index}, 'asc')">
+                                <i class="ph ph-sort-ascending"></i>
+                                A-Z
+                            </button>
+                            <button class="sort-direction-btn ${sort.direction === 'desc' ? 'active' : ''}"
+                                    onclick="updateSortDirection(${index}, 'desc')">
+                                <i class="ph ph-sort-descending"></i>
+                                Z-A
+                            </button>
+                        </div>
+                        <div class="sort-rule-actions">
+                            <button class="sort-action-btn" onclick="moveSort(${index}, -1)" ${index === 0 ? 'disabled' : ''} title="Move up">
+                                <i class="ph ph-caret-up"></i>
+                            </button>
+                            <button class="sort-action-btn" onclick="moveSort(${index}, 1)" ${index === view.sorts.length - 1 ? 'disabled' : ''} title="Move down">
+                                <i class="ph ph-caret-down"></i>
+                            </button>
+                            <button class="sort-action-btn danger" onclick="removeSortRule(${index})" title="Remove sort">
+                                <i class="ph ph-x"></i>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
+
+        function toggleSortDropdown(index) {
+            const dropdown = document.getElementById(`sortDropdown-${index}`);
+            const trigger = dropdown?.previousElementSibling;
+            const isOpen = dropdown?.classList.contains('open');
+
+            // Close all other dropdowns first
+            closeSortDropdowns();
+
+            if (!isOpen && dropdown) {
+                dropdown.classList.add('open');
+                trigger?.classList.add('open');
+            }
+        }
+
+        function closeSortDropdowns() {
+            document.querySelectorAll('.sort-dropdown-menu.open').forEach(menu => {
+                menu.classList.remove('open');
+                menu.previousElementSibling?.classList.remove('open');
+            });
+        }
+
+        function selectSortField(index, fieldId) {
+            updateSortField(index, fieldId);
+            closeSortDropdowns();
+        }
+
+        // Close sort dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.sort-dropdown')) {
+                closeSortDropdowns();
+            }
+        });
 
         function addSortRule() {
             const set = getCurrentSet();
@@ -25475,11 +26220,6 @@
                 if (selectedOperator) builder.selectedOperator = selectedOperator;
             }
 
-            // Get available verbs based on operator selection
-            const availableVerbs = selectedOperator
-                ? getModesForOperator(selectedOperator)
-                : getAllVerbs().map(v => v.verb);
-
             // Find matching relation ID from operator+verb combo
             const formatOptions = getConnectionRelationView();
             let sidebarRelationId = null;
@@ -25511,27 +26251,36 @@
             const subjectName = getRecordDisplayName(recordId) || 'This record';
             const operatorInfo = selectedOperator ? (operators[selectedOperator] || {}) : null;
 
-            // Build verb options - group by operator when no operator selected
-            let verbOptionsHtml = '<option value="">Select verb</option>';
-            if (selectedOperator) {
-                // Show only verbs for selected operator
-                verbOptionsHtml += availableVerbs.map(verb =>
-                    `<option value="${verb}" ${verb === selectedVerb ? 'selected' : ''}>${verb}</option>`
-                ).join('');
-            } else {
-                // Group verbs by operator
-                operatorCodes.forEach(op => {
+            // Get quick picks and sorted connection types for the unified selector
+            const quickPicks = getQuickPickConnectionTypes(6);
+            const sortedTypes = getSortedConnectionTypes();
+
+            // Build unified connection type options - grouped by operator, sorted by usage
+            let connectionTypeOptionsHtml = '<option value="">Choose how to connect...</option>';
+            // Group types by operator for better organization
+            const typesByOperator = {};
+            sortedTypes.forEach(type => {
+                if (!typesByOperator[type.operator]) {
+                    typesByOperator[type.operator] = [];
+                }
+                typesByOperator[type.operator].push(type);
+            });
+
+            // Add options grouped by operator, with CON first
+            const operatorOrder = ['CON', 'SEG', 'INS', 'DES', 'ALT', 'SYN', 'SUP', 'REC', 'NUL'];
+            operatorOrder.forEach(op => {
+                const types = typesByOperator[op];
+                if (types && types.length > 0) {
                     const opInfo = operators[op] || {};
-                    const verbs = getModesForOperator(op);
-                    if (verbs.length > 0) {
-                        verbOptionsHtml += `<optgroup label="${opInfo.symbol || ''} ${op} - ${opInfo.name || op}">`;
-                        verbOptionsHtml += verbs.map(verb =>
-                            `<option value="${verb}" data-operator="${op}" ${verb === selectedVerb ? 'selected' : ''}>${verb}</option>`
-                        ).join('');
-                        verbOptionsHtml += '</optgroup>';
-                    }
-                });
-            }
+                    connectionTypeOptionsHtml += `<optgroup label="${opInfo.symbol || ''} ${op} - ${opInfo.name || op}">`;
+                    types.forEach(type => {
+                        const isSelected = type.operator === selectedOperator && type.verb === selectedVerb;
+                        const usageLabel = type.usageCount > 0 ? ` (${type.usageCount})` : '';
+                        connectionTypeOptionsHtml += `<option value="${type.operator}::${type.verb}" ${isSelected ? 'selected' : ''} data-operator="${type.operator}" data-verb="${type.verb}">${type.verb}${usageLabel}</option>`;
+                    });
+                    connectionTypeOptionsHtml += '</optgroup>';
+                }
+            });
 
             // Check if we can add the connection
             const canAddConnection = selectedRecordId && selectedOperator && selectedVerb;
@@ -25552,23 +26301,31 @@
                             <div class="font-medium text-gray-900">${subjectName}</div>
                         </div>
 
-                        <!-- Predicate: Operator -->
+                        <!-- Connection Type: Unified selector with quick picks -->
                         <div>
-                            <label class="form-label">Operator</label>
-                            <select id="sidebarOperator" class="border rounded px-3 py-2 text-sm w-full">
-                                <option value="">Select operator</option>
-                                ${operatorCodes.map(op => {
-                                    const opInfo = operators[op] || {};
-                                    return `<option value="${op}" ${op === selectedOperator ? 'selected' : ''}>${opInfo.symbol || ''} ${op} - ${opInfo.name || op}</option>`;
-                                }).join('')}
-                            </select>
-                        </div>
+                            <label class="form-label">Connection type</label>
 
-                        <!-- Predicate: Verb -->
-                        <div>
-                            <label class="form-label">Verb</label>
-                            <select id="sidebarVerb" class="border rounded px-3 py-2 text-sm w-full">
-                                ${verbOptionsHtml}
+                            <!-- Quick picks: most used + defaults -->
+                            <div class="flex flex-wrap gap-1.5 mb-2">
+                                ${quickPicks.map(type => {
+                                    const isSelected = type.operator === selectedOperator && type.verb === selectedVerb;
+                                    return `<button
+                                        type="button"
+                                        class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border transition-colors ${isSelected
+                                            ? 'bg-blue-100 border-blue-300 text-blue-800'
+                                            : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300'}"
+                                        onclick="selectConnectionType('${recordId}', '${type.operator}', '${type.verb}')"
+                                        title="${type.operatorName}: ${type.verb}"
+                                    >
+                                        <span class="font-medium" style="color: ${type.operatorColor}">${type.operatorSymbol}</span>
+                                        <span>${type.verb}</span>
+                                    </button>`;
+                                }).join('')}
+                            </div>
+
+                            <!-- Full selector dropdown -->
+                            <select id="sidebarConnectionType" class="border rounded px-3 py-2 text-sm w-full">
+                                ${connectionTypeOptionsHtml}
                             </select>
                             ${operatorInfo ? `<p class="text-xs text-gray-500 mt-1">${operatorInfo.description || ''}</p>` : ''}
                         </div>
@@ -25641,35 +26398,18 @@
 
             renderConnectionParamFields('sidebarConnectionParams', sidebarRelationId, builder.params || {});
 
-            // Attach operator change handler
-            const operatorSelect = document.getElementById('sidebarOperator');
-            if (operatorSelect) {
-                operatorSelect.onchange = (event) => {
-                    builder.selectedOperator = event.target.value || null;
-                    // Clear verb if it doesn't belong to new operator
-                    if (builder.selectedVerb && builder.selectedOperator) {
-                        const verbsForOp = getModesForOperator(builder.selectedOperator);
-                        if (!verbsForOp.includes(builder.selectedVerb)) {
-                            builder.selectedVerb = null;
-                        }
-                    }
-                    builder.params = {};
-                    renderConnectionsSidebar(container, recordId);
-                };
-            }
-
-            // Attach verb change handler
-            const verbSelect = document.getElementById('sidebarVerb');
-            if (verbSelect) {
-                verbSelect.onchange = (event) => {
-                    const selectedOption = event.target.options[event.target.selectedIndex];
-                    builder.selectedVerb = event.target.value || null;
-                    // If verb selected without operator, derive operator from verb
-                    if (builder.selectedVerb && !builder.selectedOperator) {
-                        const derivedOp = selectedOption.dataset?.operator || getOperatorForVerb(builder.selectedVerb);
-                        if (derivedOp) {
-                            builder.selectedOperator = derivedOp;
-                        }
+            // Attach unified connection type change handler
+            const connectionTypeSelect = document.getElementById('sidebarConnectionType');
+            if (connectionTypeSelect) {
+                connectionTypeSelect.onchange = (event) => {
+                    const value = event.target.value;
+                    if (value && value.includes('::')) {
+                        const [op, verb] = value.split('::');
+                        builder.selectedOperator = op;
+                        builder.selectedVerb = verb;
+                    } else {
+                        builder.selectedOperator = null;
+                        builder.selectedVerb = null;
                     }
                     builder.params = {};
                     renderConnectionsSidebar(container, recordId);
@@ -25692,6 +26432,14 @@
                     }
                 };
             });
+        }
+
+        function selectConnectionType(recordId, operator, verb) {
+            const builder = getConnectionBuilder();
+            builder.selectedOperator = operator;
+            builder.selectedVerb = verb;
+            builder.params = {};
+            renderRecordSidebar(recordId);
         }
 
         function handleConnectionSetChange(recordId, setId) {
@@ -26272,6 +27020,9 @@
                 showToast(error.message);
                 return;
             }
+
+            // Track usage for this connection type (operator + verb)
+            trackConnectionTypeUsage(builder.selectedOperator, builder.selectedVerb);
 
             builder.targetRecordId = '';
             builder.params = {};
@@ -28008,7 +28759,9 @@
                 // Search views - simple substring match
                 if (scope === 'everything') {
                     if (set.views && set.views.size > 0) {
-                        set.views.forEach((view, viewId) => {
+                        set.views.forEach((viewRef, viewId) => {
+                            // Get full view data from state.views (viewRef may be lightweight)
+                            const view = state.views?.get(viewId) || viewRef;
                             if (view && view.name && view.name.toLowerCase().includes(q)) {
                                 results.views.push({
                                     view,
@@ -29891,6 +30644,17 @@
 
                     if (state.modalStack.length > 0) {
                         closeModal(state.modalStack[state.modalStack.length - 1]);
+                    }
+                }
+
+                // Ctrl+1-9: Navigate to saved shortcuts
+                if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9' && !e.shiftKey && !e.altKey) {
+                    const shortcutIndex = parseInt(e.key) - 1;
+                    const shortcuts = getTabShortcuts();
+                    if (shortcuts[shortcutIndex]) {
+                        e.preventDefault();
+                        navigateToShortcut(shortcuts[shortcutIndex]);
+                        return;
                     }
                 }
 

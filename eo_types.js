@@ -152,7 +152,29 @@
     // ============================================================================
 
     /**
-     * @typedef {'TEXT'|'NUMBER'|'CURRENCY'|'SELECT'|'MULTI_SELECT'|'DATE'|'CHECKBOX'|'EMAIL'|'URL'|'LONG_TEXT'|'FORMULA'|'ROLLUP'|'LOOKUP'|'LINKED_RECORD'} EOFieldType
+     * @typedef {'TEXT'|'NUMBER'|'CURRENCY'|'SELECT'|'MULTI_SELECT'|'DATE'|'DATETIME'|'TIME'|'CHECKBOX'|'EMAIL'|'URL'|'LONG_TEXT'|'FORMULA'|'ROLLUP'|'LOOKUP'|'LINKED_RECORD'} EOFieldType
+     */
+
+    /**
+     * @typedef {'date'|'datetime'|'time'} EODateTimeMode
+     * Date/time field mode
+     */
+
+    /**
+     * @typedef {'24h'|'12h'|'12h_ampm'} EOTimeFormat
+     * Time display format
+     */
+
+    /**
+     * @typedef {Object} EODateTimeConfig
+     * Configuration for DATE, DATETIME, and TIME fields
+     * @property {EODateTimeMode} mode - Field mode (date, datetime, time)
+     * @property {EOTimeFormat} timeFormat - Time format (24h, 12h, 12h_ampm)
+     * @property {string} dateFormat - Date display format (MM/DD/YYYY, DD/MM/YYYY, etc.)
+     * @property {boolean} showTimezone - Whether to show timezone
+     * @property {string|null} timezone - Timezone identifier (America/Chicago, etc.)
+     * @property {boolean} includeSeconds - Whether to include seconds in time
+     * @property {boolean} allowClear - Whether to allow clearing the value
      */
 
     /**
@@ -161,7 +183,7 @@
      * @property {string} name - Display name
      * @property {EOFieldType} type - Field type
      * @property {string} width - Column width (CSS)
-     * @property {Object} config - Type-specific configuration
+     * @property {Object|EODateTimeConfig} config - Type-specific configuration
      * @property {boolean} [hidden] - Whether field is hidden
      * @property {boolean} [locked] - Whether field is locked
      */
@@ -338,7 +360,7 @@
     const VALID_STABILITY = ['emerging', 'forming', 'stable'];
     const VALID_FIELD_TYPES = [
         'TEXT', 'NUMBER', 'CURRENCY', 'SELECT', 'MULTI_SELECT',
-        'DATE', 'CHECKBOX', 'EMAIL', 'URL', 'LONG_TEXT',
+        'DATE', 'DATETIME', 'TIME', 'CHECKBOX', 'EMAIL', 'URL', 'LONG_TEXT',
         'FORMULA', 'ROLLUP', 'LOOKUP', 'LINKED_RECORD'
     ];
 

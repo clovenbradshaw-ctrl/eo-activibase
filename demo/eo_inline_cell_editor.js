@@ -512,8 +512,11 @@ class EOInlineCellEditor {
 
     switch (fieldType.toLowerCase()) {
       case 'number':
-      case 'currency':
-        input = this.createNumberInput(fieldType, currentValue, fieldName);
+        input = document.createElement('input');
+        input.type = 'number';
+        input.value = currentValue;
+        input.step = 'any';
+        input.className = 'eo-cell-input';
         break;
 
       case 'date':
@@ -567,94 +570,6 @@ class EOInlineCellEditor {
     }
 
     return input;
-  }
-
-  /**
-   * Create a number input with proper configuration
-   * Uses EONumberFormatter for parsing and validation
-   */
-  createNumberInput(fieldType, currentValue, fieldName) {
-    const input = document.createElement('input');
-    input.type = 'text'; // Use text to allow formatted input
-    input.inputMode = 'decimal'; // Hint for mobile keyboards
-    input.className = 'eo-cell-input eo-number-input';
-
-    // Parse the current value - it might be formatted
-    if (typeof EONumberFormatter !== 'undefined') {
-      const parsed = EONumberFormatter.parseNumber(currentValue);
-      input.value = parsed !== null ? parsed : '';
-    } else {
-      // Fallback: strip non-numeric characters
-      const parsed = parseFloat(String(currentValue).replace(/[^0-9.\-+eE]/g, ''));
-      input.value = isNaN(parsed) ? '' : parsed;
-    }
-
-    // Get field config for constraints
-    const fieldConfig = this.config.getFieldConfig ? this.config.getFieldConfig(fieldName) : null;
-    const numberConfig = fieldConfig?.number || {};
-
-    // Set step based on format
-    if (numberConfig.format === 'integer') {
-      input.step = '1';
-    } else {
-      const decimals = numberConfig.decimalPlaces !== undefined ? numberConfig.decimalPlaces : 2;
-      input.step = Math.pow(10, -decimals).toString();
-    }
-
-    // Set min/max if defined
-    if (numberConfig.min !== null && numberConfig.min !== undefined) {
-      input.min = numberConfig.min;
-    }
-    if (numberConfig.max !== null && numberConfig.max !== undefined) {
-      input.max = numberConfig.max;
-    }
-
-    // Add validation on input
-    input.addEventListener('input', (e) => {
-      this.validateNumberInput(e.target, numberConfig);
-    });
-
-    return input;
-  }
-
-  /**
-   * Validate number input in real-time
-   */
-  validateNumberInput(input, config = {}) {
-    const value = input.value.trim();
-
-    if (!value) {
-      input.classList.remove('eo-input-invalid');
-      return true;
-    }
-
-    if (typeof EONumberFormatter !== 'undefined') {
-      const result = EONumberFormatter.validateNumber(value, config);
-      input.classList.toggle('eo-input-invalid', !result.isValid);
-      return result.isValid;
-    }
-
-    // Fallback validation
-    const num = parseFloat(value);
-    const isValid = !isNaN(num);
-    input.classList.toggle('eo-input-invalid', !isValid);
-    return isValid;
-  }
-
-  /**
-   * Format a number value for display based on field config
-   */
-  formatNumberForDisplay(value, fieldConfig) {
-    if (typeof EONumberFormatter !== 'undefined' && fieldConfig?.number) {
-      const result = EONumberFormatter.formatNumber(value, fieldConfig.number);
-      return result.formatted;
-    }
-
-    // Fallback: basic formatting
-    if (typeof value === 'number') {
-      return value.toLocaleString();
-    }
-    return String(value);
   }
 
   /**

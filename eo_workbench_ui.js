@@ -304,6 +304,10 @@ function renderViewToolbar(state, setId) {
                     <span class="icon">🔗</span>
                     <span class="label">Linked Fields</span>
                 </button>
+                <button class="toolbar-btn" id="btnNewLinkColumn" title="Create a new link column to connect sets">
+                    <span class="icon">➕🔗</span>
+                    <span class="label">New Link</span>
+                </button>
                 <button class="toolbar-btn highlight" id="btnJSONScrubber" title="JSON Scrubber - Explore data as cards">
                     <span class="icon">🎴</span>
                     <span class="label">Scrub JSON</span>
@@ -496,6 +500,23 @@ function attachViewToolbarListeners(state, setId) {
                     const modal = new window.EOLinkedFieldsModal();
                     modal.show(view, set, state);
                 }
+            }
+        });
+    }
+
+    // New Link Column button - creates a LINK_RECORD field with relationship type
+    const btnNewLink = document.getElementById('btnNewLinkColumn');
+    if (btnNewLink) {
+        btnNewLink.addEventListener('click', () => {
+            if (window.EOLinkColumnModal) {
+                const set = state.sets.get(setId);
+                if (set) {
+                    const modal = new window.EOLinkColumnModal();
+                    modal.show(set, state);
+                }
+            } else {
+                console.warn('EOLinkColumnModal not loaded');
+                alert('Link Column Modal not available. Please ensure eo_link_column_modal.js is loaded.');
             }
         });
     }
