@@ -32,6 +32,10 @@
  *    - Lookup/single: method='derived', scale from source
  *    - Array output: method='derived', scale='collective'
  *    - Aggregated: method='aggregated', scale='collective'
+ *
+ * BACKWARD COMPATIBILITY:
+ * =======================
+ * The original evaluate() signature is still supported for existing rollup configs.
  */
 
 const EOCRollupEngine = {
@@ -43,72 +47,84 @@ const EOCRollupEngine = {
   /**
    * Evaluate a derived field (unified lookup/rollup)
    *
+   * Supports both old format (aggregation required) and new format (outputMode)
+   *
    * @param {Object} config - Derived field configuration
    * @param {string} config.sourceFieldId - The LINK_RECORD field ID
    * @param {string} config.targetSetId - The linked set ID
    * @param {string} config.targetFieldId - The field to pull from linked records
-   * @param {string} config.outputMode - 'single' | 'array' | 'aggregated'
-   * @param {string} config.aggregation - Aggregation function ID (if outputMode='aggregated')
+   * @param {string} [config.outputMode] - 'single' | 'array' | 'aggregated' (new format)
+   * @param {string} [config.aggregation] - Aggregation function ID
    * @param {Object} record - The source record
    * @param {Object} state - Global application state
-   * @returns {Object} { value, context, linkedCount }
+   * @returns {any|Object} Value or { value, context, linkedCount } for new format
    */
   evaluate(config, record, state) {
     const {
       sourceFieldId,
       targetSetId,
       targetFieldId,
-      outputMode = 'array',
-      aggregation = null
+      outputMode,
+      aggregation
     } = config;
 
     // Get linked record IDs
     const linkedRecordIds = this.getLinkedRecordIds(record, sourceFieldId);
 
-    // If no linked records, return empty based on output mode
+    // Detect if using new format (has outputMode) or old format
+    const isNewFormat = outputMode !== undefined;
+
+    // Handle empty links
     if (!linkedRecordIds || linkedRecordIds.length === 0) {
-      return {
-        value: this.getEmptyValue(outputMode, aggregation),
-        context: this.createContext(config, 0),
-        linkedCount: 0
-      };
+      if (isNewFormat) {
+        return {
+          value: this.getEmptyValue(outputMode, aggregation),
+          context: this.createContext(config, 0),
+          linkedCount: 0
+        };
+      }
+      return this.getEmptyValueLegacy(aggregation);
     }
 
     // Get target set
     const targetSet = state.sets.get(targetSetId);
     if (!targetSet) {
-      return {
-        value: this.getEmptyValue(outputMode, aggregation),
-        context: this.createContext(config, 0),
-        linkedCount: 0,
-        error: `Target set not found: ${targetSetId}`
-      };
+      if (isNewFormat) {
+        return {
+          value: this.getEmptyValue(outputMode, aggregation),
+          context: this.createContext(config, 0),
+          linkedCount: 0,
+          error: `Target set not found: ${targetSetId}`
+        };
+      }
+      return this.getEmptyValueLegacy(aggregation);
     }
 
     // Extract values from linked records
     const values = this.extractLinkedValues(linkedRecordIds, targetSet, targetFieldId);
 
-    // Apply output mode
-    let result;
-    if (outputMode === 'single') {
-      // For single cardinality, return first value
-      result = values.length > 0 ? values[0] : null;
-    } else if (outputMode === 'array') {
-      // Return raw array
-      result = values;
-    } else if (outputMode === 'aggregated' && aggregation) {
-      // Apply aggregation
-      result = this.applyAggregation(values, aggregation);
-    } else {
-      // Default to array
-      result = values;
+    // New format: handle outputMode
+    if (isNewFormat) {
+      let result;
+      if (outputMode === 'single') {
+        result = values.length > 0 ? values[0] : null;
+      } else if (outputMode === 'array') {
+        result = values;
+      } else if (outputMode === 'aggregated' && aggregation) {
+        result = this.applyAggregation(values, aggregation);
+      } else {
+        result = values;
+      }
+
+      return {
+        value: result,
+        context: this.createContext(config, linkedRecordIds.length, values),
+        linkedCount: linkedRecordIds.length
+      };
     }
 
-    return {
-      value: result,
-      context: this.createContext(config, linkedRecordIds.length, values),
-      linkedCount: linkedRecordIds.length
-    };
+    // Legacy format: apply aggregation directly
+    return this.aggregate(values, aggregation);
   },
 
   /**
@@ -189,10 +205,10 @@ const EOCRollupEngine = {
   // ===========================================
 
   /**
-   * Apply aggregation function using atomic operators
+   * Apply aggregation function (new format - uses atomic operators if available)
    */
   applyAggregation(values, aggregation) {
-    // If EOAtomicOperators is available, use it
+    // If EOAtomicOperators is available, try to use it
     if (typeof EOAtomicOperators !== 'undefined') {
       const op = EOAtomicOperators.get(aggregation.toUpperCase());
       if (op) {
@@ -205,47 +221,41 @@ const EOCRollupEngine = {
     }
 
     // Fallback to built-in aggregations
-    return this.builtInAggregate(values, aggregation);
+    return this.aggregate(values, aggregation);
   },
 
   /**
-   * Built-in aggregation functions (fallback)
+   * Apply aggregation function to values (legacy format)
    */
-  builtInAggregate(values, aggregation) {
+  aggregate(values, aggregation) {
     if (!values || values.length === 0) {
-      return this.getEmptyValue('aggregated', aggregation);
+      return this.getEmptyValueLegacy(aggregation);
     }
 
-    switch (aggregation.toLowerCase()) {
+    switch (aggregation) {
       case 'count':
         return values.length;
 
       case 'sum':
-        return values.reduce((sum, v) => sum + this.toNumber(v), 0);
+        return this.sum(values);
 
       case 'avg':
       case 'average':
-        const nums = values.map(v => this.toNumber(v)).filter(n => !isNaN(n));
-        if (nums.length === 0) return 0;
-        return nums.reduce((sum, n) => sum + n, 0) / nums.length;
+        return this.average(values);
 
       case 'min':
-        const minNums = values.map(v => this.toNumber(v)).filter(n => !isNaN(n));
-        if (minNums.length === 0) return null;
-        return Math.min(...minNums);
+        return this.min(values);
 
       case 'max':
-        const maxNums = values.map(v => this.toNumber(v)).filter(n => !isNaN(n));
-        if (maxNums.length === 0) return null;
-        return Math.max(...maxNums);
+        return this.max(values);
 
       case 'arrayjoin':
       case 'array_join':
       case 'concat':
-        return values.map(v => String(v)).filter(s => s.length > 0).join(', ');
+        return this.arrayJoin(values);
 
       case 'unique':
-        return [...new Set(values.map(v => String(v)))].join(', ');
+        return this.unique(values);
 
       case 'first':
       case 'any':
@@ -256,18 +266,180 @@ const EOCRollupEngine = {
 
       default:
         console.warn(`Unknown aggregation: ${aggregation}`);
-        return values;
+        return null;
     }
   },
 
   /**
-   * Get empty value based on output mode and aggregation
+   * Sum aggregation
+   */
+  sum(values) {
+    const numbers = values
+      .map(v => this.toNumber(v))
+      .filter(n => !isNaN(n));
+
+    if (numbers.length === 0) return 0;
+
+    return numbers.reduce((sum, n) => sum + n, 0);
+  },
+
+  /**
+   * Average aggregation
+   */
+  average(values) {
+    const numbers = values
+      .map(v => this.toNumber(v))
+      .filter(n => !isNaN(n));
+
+    if (numbers.length === 0) return 0;
+
+    const sum = numbers.reduce((s, n) => s + n, 0);
+    return sum / numbers.length;
+  },
+
+  /**
+   * Min aggregation (handles both numbers and dates)
+   */
+  min(values) {
+    // Check if values appear to be dates
+    const dateValues = values
+      .map(v => ({ original: v, timestamp: this.toTimestamp(v) }))
+      .filter(item => item.timestamp !== null);
+
+    if (dateValues.length > 0) {
+      const minItem = dateValues.reduce((min, item) =>
+        item.timestamp < min.timestamp ? item : min
+      );
+      return minItem.original;
+    }
+
+    // Fall back to numeric comparison
+    const numbers = values
+      .map(v => this.toNumber(v))
+      .filter(n => !isNaN(n));
+
+    if (numbers.length === 0) return null;
+
+    return Math.min(...numbers);
+  },
+
+  /**
+   * Max aggregation (handles both numbers and dates)
+   */
+  max(values) {
+    // Check if values appear to be dates
+    const dateValues = values
+      .map(v => ({ original: v, timestamp: this.toTimestamp(v) }))
+      .filter(item => item.timestamp !== null);
+
+    if (dateValues.length > 0) {
+      const maxItem = dateValues.reduce((max, item) =>
+        item.timestamp > max.timestamp ? item : max
+      );
+      return maxItem.original;
+    }
+
+    // Fall back to numeric comparison
+    const numbers = values
+      .map(v => this.toNumber(v))
+      .filter(n => !isNaN(n));
+
+    if (numbers.length === 0) return null;
+
+    return Math.max(...numbers);
+  },
+
+  /**
+   * Array join aggregation
+   */
+  arrayJoin(values, separator = ', ') {
+    return values
+      .map(v => String(v))
+      .filter(s => s.length > 0)
+      .join(separator);
+  },
+
+  /**
+   * Unique values aggregation
+   */
+  unique(values) {
+    return [...new Set(values.map(v => String(v)))].join(', ');
+  },
+
+  // ===========================================
+  // TYPE CONVERSION
+  // ===========================================
+
+  /**
+   * Convert value to number
+   */
+  toNumber(value) {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value);
+      return isNaN(parsed) ? NaN : parsed;
+    }
+    return NaN;
+  },
+
+  /**
+   * Convert value to timestamp for date comparisons
+   */
+  toTimestamp(value) {
+    if (!value) return null;
+
+    if (value instanceof Date) {
+      const ts = value.getTime();
+      return isNaN(ts) ? null : ts;
+    }
+
+    if (typeof value === 'string') {
+      // Skip if it looks like just a number
+      if (/^\d+(\.\d+)?$/.test(value.trim())) {
+        return null;
+      }
+
+      const date = new Date(value);
+      const ts = date.getTime();
+
+      if (isNaN(ts)) return null;
+
+      // Check if year is reasonable (1900-2100)
+      const year = date.getFullYear();
+      if (year < 1900 || year > 2100) return null;
+
+      return ts;
+    }
+
+    if (typeof value === 'number') {
+      // Timestamps are typically > 1 billion (year ~2001)
+      if (value > 100000000000) {
+        return value;
+      }
+      return null;
+    }
+
+    return null;
+  },
+
+  // ===========================================
+  // EMPTY VALUES
+  // ===========================================
+
+  /**
+   * Get empty value (new format with outputMode)
    */
   getEmptyValue(outputMode, aggregation) {
     if (outputMode === 'single') return null;
     if (outputMode === 'array') return [];
 
-    // For aggregated
+    return this.getEmptyValueLegacy(aggregation);
+  },
+
+  /**
+   * Get empty value (legacy format)
+   */
+  getEmptyValueLegacy(aggregation) {
     switch ((aggregation || '').toLowerCase()) {
       case 'count':
       case 'sum':
@@ -355,8 +527,14 @@ const EOCRollupEngine = {
   /**
    * Format rollup value for display
    */
-  formatValue(value, config, targetField) {
-    const { outputMode, aggregation } = config;
+  formatValue(value, configOrAggregation, targetField) {
+    // Handle both new format (config object) and old format (aggregation string)
+    const aggregation = typeof configOrAggregation === 'string'
+      ? configOrAggregation
+      : configOrAggregation?.aggregation;
+    const outputMode = typeof configOrAggregation === 'object'
+      ? configOrAggregation.outputMode
+      : null;
 
     if (value === null || value === undefined) return '';
 
@@ -367,26 +545,48 @@ const EOCRollupEngine = {
       return `${value.slice(0, 3).join(', ')} +${value.length - 3} more`;
     }
 
-    // Single value or aggregated
-    if (typeof value === 'number') {
-      // Format based on aggregation type
-      if (['count'].includes(aggregation?.toLowerCase())) {
-        return String(Math.round(value));
-      }
-      return Number.isInteger(value) ? String(value) : value.toFixed(2);
-    }
+    // Format based on aggregation type
+    switch (aggregation) {
+      case 'count':
+        return String(value);
 
-    // Date handling
-    if (targetField?.type === 'DATE' && value) {
-      return new Date(value).toLocaleDateString();
-    }
+      case 'sum':
+      case 'avg':
+      case 'average':
+        if (typeof value === 'number') {
+          return Number.isInteger(value) ? String(value) : value.toFixed(2);
+        }
+        return String(value);
 
-    // Checkbox
-    if (targetField?.type === 'CHECKBOX') {
-      return value ? 'Yes' : 'No';
-    }
+      case 'min':
+      case 'max':
+        if (targetField?.type === 'DATE' && value) {
+          return new Date(value).toLocaleDateString();
+        }
+        if (typeof value === 'number') {
+          return Number.isInteger(value) ? String(value) : value.toFixed(2);
+        }
+        return String(value);
 
-    return String(value);
+      case 'arrayjoin':
+      case 'array_join':
+      case 'unique':
+        return String(value);
+
+      case 'first':
+      case 'any':
+      case 'last':
+        if (targetField?.type === 'DATE' && value) {
+          return new Date(value).toLocaleDateString();
+        }
+        if (targetField?.type === 'CHECKBOX') {
+          return value ? 'Yes' : 'No';
+        }
+        return String(value);
+
+      default:
+        return String(value);
+    }
   },
 
   // ===========================================
@@ -397,7 +597,6 @@ const EOCRollupEngine = {
    * Detect optimal output mode based on link cardinality
    */
   detectOutputMode(linkField, sourceSet, state) {
-    // Check configured cardinality first
     if (linkField.config?.cardinality === 'one') {
       return 'single';
     }
@@ -406,7 +605,6 @@ const EOCRollupEngine = {
       return 'array';
     }
 
-    // Check for limit
     if (linkField.config?.cardinality === 'limit') {
       const limit = linkField.config?.limit || 1;
       return limit === 1 ? 'single' : 'array';
@@ -523,16 +721,18 @@ const EOCRollupEngine = {
     const values = [];
 
     for (const [recordId, result] of results) {
-      if (result.linkedCount > 0) {
+      const linkedCount = result.linkedCount !== undefined ? result.linkedCount : (result ? 1 : 0);
+      if (linkedCount > 0) {
         recordsWithLinks++;
-        totalLinked += result.linkedCount;
+        totalLinked += linkedCount;
       }
 
-      if (result.value !== null && result.value !== undefined) {
-        if (Array.isArray(result.value)) {
-          values.push(...result.value);
+      const value = result.value !== undefined ? result.value : result;
+      if (value !== null && value !== undefined) {
+        if (Array.isArray(value)) {
+          values.push(...value);
         } else {
-          values.push(result.value);
+          values.push(value);
         }
       }
     }
@@ -547,22 +747,6 @@ const EOCRollupEngine = {
   },
 
   // ===========================================
-  // UTILITIES
-  // ===========================================
-
-  /**
-   * Convert value to number
-   */
-  toNumber(value) {
-    if (typeof value === 'number') return value;
-    if (typeof value === 'string') {
-      const parsed = parseFloat(value);
-      return isNaN(parsed) ? 0 : parsed;
-    }
-    return 0;
-  },
-
-  // ===========================================
   // MIGRATION HELPERS
   // ===========================================
 
@@ -570,7 +754,6 @@ const EOCRollupEngine = {
    * Migrate old lookup/rollup config to unified format
    */
   migrateConfig(oldConfig) {
-    // Old lookup format
     if (oldConfig.type === 'lookup') {
       return {
         ...oldConfig,
@@ -580,13 +763,11 @@ const EOCRollupEngine = {
       };
     }
 
-    // Old rollup format
     if (oldConfig.type === 'rollup') {
       return {
         ...oldConfig,
         type: 'DERIVED',
         outputMode: 'aggregated'
-        // aggregation is already present
       };
     }
 
@@ -594,19 +775,17 @@ const EOCRollupEngine = {
   },
 
   /**
-   * Migrate view's relationships and rollups arrays to unified derivedFields
+   * Migrate view's relationships and rollups to unified derivedFields
    */
   migrateView(view) {
     const derivedFields = [];
 
-    // Migrate lookups
     if (view.relationships) {
       for (const rel of view.relationships) {
         derivedFields.push(this.migrateConfig(rel));
       }
     }
 
-    // Migrate rollups
     if (view.rollups) {
       for (const rollup of view.rollups) {
         derivedFields.push(this.migrateConfig(rollup));
@@ -616,7 +795,6 @@ const EOCRollupEngine = {
     return {
       ...view,
       derivedFields,
-      // Keep old arrays for backward compatibility but mark as migrated
       _migrated: true
     };
   }
