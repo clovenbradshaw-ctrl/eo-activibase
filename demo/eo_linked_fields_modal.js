@@ -468,7 +468,9 @@ class EOLinkedFieldsModal {
                 setName: targetSet.name,
                 rollupFormula: null, // No formula by default - returns raw value(s)
                 linkFieldId: this.selectedLinkedSet.fieldId,
-                cardinality: this.selectedLinkedSet.cardinality
+                cardinality: this.selectedLinkedSet.cardinality,
+                direction: this.selectedLinkedSet.direction || 'outgoing',
+                sourceSetId: this.selectedLinkedSet.sourceSetId || null
             });
         } else {
             this.selectedFields.delete(fieldKey);
@@ -577,6 +579,8 @@ class EOLinkedFieldsModal {
                 rollupFormula: config.rollupFormula, // null if no aggregation, or aggregation function name
                 cardinality: config.cardinality,
                 displayName: displayName,
+                direction: config.direction || 'outgoing',
+                sourceSetId: config.sourceSetId || null,
                 createdAt: Date.now()
             });
         });
