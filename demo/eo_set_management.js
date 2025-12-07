@@ -222,8 +222,10 @@
 
     /**
      * Open the set management modal
+     * @param {string} setId - The set ID to manage
+     * @param {string} activeTab - Optional tab to show initially ('details', 'sources', 'provenance', 'relationships', 'tossed'). Defaults to 'sources'.
      */
-    function openSetManagementModal(setId) {
+    function openSetManagementModal(setId, activeTab = 'sources') {
         const set = state.sets.get(setId);
         if (!set) return;
 
@@ -245,38 +247,38 @@
                     </div>
                     <div class="modal-body set-management-body">
                         <div class="set-management-tabs">
-                            <button class="tab-btn active" data-tab="details" onclick="SetManagement.switchTab('details')">Details</button>
-                            <button class="tab-btn" data-tab="sources" onclick="SetManagement.switchTab('sources')">
+                            <button class="tab-btn${activeTab === 'details' ? ' active' : ''}" data-tab="details" onclick="SetManagement.switchTab('details')">Details</button>
+                            <button class="tab-btn${activeTab === 'sources' ? ' active' : ''}" data-tab="sources" onclick="SetManagement.switchTab('sources')">
                                 Sources
                                 ${sourcesInfo.totalSources > 0 ? `<span class="tab-badge">${sourcesInfo.totalSources}</span>` : ''}
                             </button>
-                            <button class="tab-btn" data-tab="provenance" onclick="SetManagement.switchTab('provenance')">Provenance</button>
-                            <button class="tab-btn" data-tab="relationships" onclick="SetManagement.switchTab('relationships')">Relationships</button>
+                            <button class="tab-btn${activeTab === 'provenance' ? ' active' : ''}" data-tab="provenance" onclick="SetManagement.switchTab('provenance')">Provenance</button>
+                            <button class="tab-btn${activeTab === 'relationships' ? ' active' : ''}" data-tab="relationships" onclick="SetManagement.switchTab('relationships')">Relationships</button>
                             ${tossPileStats && tossPileStats.totalEntries > 0 ? `
-                                <button class="tab-btn" data-tab="tossed" onclick="SetManagement.switchTab('tossed')">
+                                <button class="tab-btn${activeTab === 'tossed' ? ' active' : ''}" data-tab="tossed" onclick="SetManagement.switchTab('tossed')">
                                     Tossed <span class="tab-badge">${tossPileStats.totalEntries}</span>
                                 </button>
                             ` : ''}
                         </div>
 
-                        <div class="tab-content active" id="tab-details">
+                        <div class="tab-content${activeTab === 'details' ? ' active' : ''}" id="tab-details">
                             ${renderDetailsTab(set, setId)}
                         </div>
 
-                        <div class="tab-content" id="tab-sources">
+                        <div class="tab-content${activeTab === 'sources' ? ' active' : ''}" id="tab-sources">
                             ${renderSourcesTab(setId, sourcesInfo)}
                         </div>
 
-                        <div class="tab-content" id="tab-provenance">
+                        <div class="tab-content${activeTab === 'provenance' ? ' active' : ''}" id="tab-provenance">
                             ${renderProvenanceTab(provenance)}
                         </div>
 
-                        <div class="tab-content" id="tab-relationships">
+                        <div class="tab-content${activeTab === 'relationships' ? ' active' : ''}" id="tab-relationships">
                             ${renderRelationshipsTab(relationships)}
                         </div>
 
                         ${tossPileStats && tossPileStats.totalEntries > 0 ? `
-                            <div class="tab-content" id="tab-tossed">
+                            <div class="tab-content${activeTab === 'tossed' ? ' active' : ''}" id="tab-tossed">
                                 ${renderTossedTab(setId, tossPileStats)}
                             </div>
                         ` : ''}
