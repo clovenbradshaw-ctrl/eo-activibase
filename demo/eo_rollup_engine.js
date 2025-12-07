@@ -384,33 +384,39 @@ const EOCRollupEngine = {
 
   /**
    * Convert value to timestamp for date comparisons
+   * Returns null if the value is not a valid date
    */
   toTimestamp(value) {
     if (!value) return null;
 
+    // If it's already a Date object
     if (value instanceof Date) {
       const ts = value.getTime();
       return isNaN(ts) ? null : ts;
     }
 
+    // If it's a string, try to parse as date
     if (typeof value === 'string') {
-      // Skip if it looks like just a number
+      // Skip if it looks like just a number (not a date)
       if (/^\d+(\.\d+)?$/.test(value.trim())) {
         return null;
       }
 
+      // Try parsing the date
       const date = new Date(value);
       const ts = date.getTime();
 
+      // Validate: reject if invalid
       if (isNaN(ts)) return null;
 
-      // Check if year is reasonable (1900-2100)
+      // Check if the parsed year is reasonable (1900-2100)
       const year = date.getFullYear();
       if (year < 1900 || year > 2100) return null;
 
       return ts;
     }
 
+    // If it's a number, check if it could be a timestamp (milliseconds since epoch)
     if (typeof value === 'number') {
       // Timestamps are typically > 1 billion (year ~2001)
       if (value > 100000000000) {
