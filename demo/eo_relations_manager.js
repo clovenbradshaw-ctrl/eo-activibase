@@ -121,7 +121,7 @@
                 </div>
                 <div class="relations-header-right">
                     <button class="btn-import" onclick="RelationsManager.showImportModal()">
-                        <i class="ph ph-upload-simple"></i>
+                        <i class="ph ph-file-arrow-down"></i>
                         Import
                     </button>
                     <button class="btn-add" onclick="RelationsManager.showAddModal()">
@@ -511,7 +511,7 @@
                     <div class="modal-footer">
                         <button class="btn-secondary" onclick="RelationsManager.closeModal()">Cancel</button>
                         <button class="btn-primary" id="importBtn" disabled>
-                            <i class="ph ph-upload-simple"></i>
+                            <i class="ph ph-file-arrow-down"></i>
                             Import
                         </button>
                     </div>
