@@ -5207,6 +5207,17 @@
                             <label class="form-label">Decimal Places</label>
                             <input type="number" id="changeFormulaDecimals" class="w-full px-3 py-2 border border-gray-300 rounded-lg" min="0" max="10" value="2">
                         </div>
+                        <div id="convertToEditableSection" class="mt-4 pt-4 border-t border-purple-200 hidden">
+                            <p class="text-sm text-gray-600 mb-2">Convert this formula field to a regular editable field. Current calculated values will be preserved.</p>
+                            <button type="button" onclick="convertFormulaToEditable()" class="btn btn-secondary w-full">
+                                <span class="flex items-center justify-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                    Convert to Editable Field
+                                </span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -22456,6 +22467,66 @@
             closeModal('changeFieldTypeModal');
         }
 
+        function convertFormulaToEditable() {
+            const context = state.changeFieldContext;
+            if (!context || context.type !== 'FORMULA') {
+                showToast('This field is not a formula field');
+                return;
+            }
+
+            const set = getCurrentSet();
+            const field = set.schema.find(f => f.id === context.id);
+            if (!field) return;
+
+            // Determine target type based on display format
+            const format = field.config?.format || 'text';
+            let targetType = 'TEXT';
+            let targetSubtype = null;
+            let targetConfig = null;
+
+            if (format === 'currency') {
+                targetType = 'CURRENCY';
+            } else if (format === 'number' || format === 'percentage') {
+                targetType = 'NUMBER';
+            } else {
+                targetType = 'TEXT';
+            }
+
+            // Calculate and freeze current formula values for all records
+            set.records.forEach((record, recordId) => {
+                // Calculate the formula value and store it as a static value
+                const calculatedValue = FormulaEngine.evaluate(field.config?.formula || '', record, set.schema);
+                record[field.id] = calculatedValue;
+            });
+
+            // Store history for undo
+            const historyKey = `${set.id}:${field.id}`;
+            const historyStack = state.fieldTypeHistory.get(historyKey) || [];
+            historyStack.push({
+                type: field.type,
+                subtype: field.subtype,
+                config: cloneConfig(field.config),
+                values: snapshotFieldValues(set, field.id)
+            });
+            state.fieldTypeHistory.set(historyKey, historyStack);
+
+            // Update field type
+            field.type = targetType;
+            field.subtype = targetSubtype;
+            field.config = targetConfig;
+
+            createEvent(
+                'Convert Formula to Editable',
+                'SEG',
+                { type: 'Field', id: field.id, setId: set.id },
+                { previousType: 'FORMULA', newType: targetType, fieldId: field.id, fieldName: field.name, setId: set.id, summary: `Converted ${field.name} from formula to ${FIELD_TYPES[targetType].name}` }
+            );
+
+            closeChangeFieldTypeModal();
+            renderCurrentView();
+            showToast(`${field.name} converted to editable ${FIELD_TYPES[targetType].name} field`);
+        }
+
         function revertFieldType(fieldId) {
             const set = getCurrentSet();
             const field = set.schema.find(f => f.id === fieldId);
@@ -22546,6 +22617,15 @@
             } else if (typeId === 'FORMULA') {
                 document.getElementById('changeFormulaConfig').classList.add('visible');
                 initChangeFormulaAutocomplete();
+                // Show convert option only if original field was a FORMULA
+                const convertSection = document.getElementById('convertToEditableSection');
+                if (convertSection) {
+                    if (state.changeFieldOriginalType === 'FORMULA') {
+                        convertSection.classList.remove('hidden');
+                    } else {
+                        convertSection.classList.add('hidden');
+                    }
+                }
             }
         }
 
