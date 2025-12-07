@@ -8,10 +8,11 @@
  * - derived values (linked or rollup) → inline edit if editable
  * - relationship-driven values → open modal
  *
- * NEW BEHAVIORS:
+ * INTERACTION PATTERN:
+ * - Single-click on any editable cell → enters edit mode directly
  * - Click into linked record field → opens linked record editor
  * - Click on linked record pill → opens that record's modal view
- * - Right-click on any cell → shows cell profile card (cell as record)
+ * - Right-click on any cell → shows cell profile card (field info/provenance)
  */
 class EOInlineCellEditor {
   constructor() {
@@ -211,7 +212,8 @@ class EOInlineCellEditor {
   }
 
   /**
-   * Handle cell click
+   * Handle cell click - enter edit mode for editable fields
+   * Single-click is the primary interaction for editing cells
    */
   handleCellClick(event, cell) {
     // Don't interfere with SUP indicator clicks
@@ -224,7 +226,7 @@ class EOInlineCellEditor {
     const fieldType = this.config.getFieldType(fieldName);
     const metadata = this.config.getFieldMetadata(recordId, fieldName);
 
-    // Check if clicking on a linked record pill
+    // Check if clicking on a linked record pill - open that record
     const linkedPill = event.target.closest('.linked-record-pill, .eo-linked-pill');
     if (linkedPill) {
       // Get the linked record ID from the pill
@@ -236,28 +238,36 @@ class EOInlineCellEditor {
       }
     }
 
-    // If it's a linked record field and we have the editor, open the editor
+    // If it's a linked record field and we have the editor, open the linked record editor
     if (metadata.isLinked && this.linkedRecordEditor) {
       event.stopPropagation();
       this.linkedRecordEditor.show(cell, recordId, fieldName);
       return;
     }
 
-    // If it's a relationship field without editor, open modal
+    // If it's a non-editable relationship field, view details
     if (metadata.isLinked && !metadata.isEditable) {
       this.config.onViewDetails(recordId, fieldName);
       return;
     }
 
-    // For complex derived fields, show option
+    // For non-editable derived/rollup fields, show view options
     if ((metadata.isDerived || metadata.isRollup) && !metadata.isEditable) {
       this.showCellMenu(cell, recordId, fieldName);
       return;
     }
+
+    // For all other editable fields, enter edit mode directly on single-click
+    if (metadata.isEditable !== false) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.enterEditMode(cell, recordId, fieldName);
+    }
   }
 
   /**
-   * Handle cell right-click - show cell profile card
+   * Handle cell right-click - show field info via cell profile card
+   * Right-click reveals provenance, history, and metadata about the cell
    */
   handleCellRightClick(event, cell) {
     event.preventDefault();
@@ -284,7 +294,8 @@ class EOInlineCellEditor {
   }
 
   /**
-   * Handle cell double-click - enter edit mode
+   * Handle cell double-click - alternative way to enter edit mode
+   * (Single-click is the primary method; double-click is kept for user familiarity)
    */
   handleCellDoubleClick(event, cell) {
     event.preventDefault();
