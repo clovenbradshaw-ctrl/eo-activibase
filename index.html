@@ -14269,10 +14269,8 @@
                         if (state.editingCell) {
                             exitEditMode(true);
                         }
-                        // Open Set Management modal with Sources tab
-                        if (typeof SetManagement !== 'undefined') {
-                            SetManagement.openSetManagementModal(set.id, 'sources');
-                        }
+                        // Open the set in a tab (will use first view if available)
+                        switchSet(set.id, null);
                     };
 
                     setsContainer.appendChild(setHeader);
@@ -14902,10 +14900,8 @@
                         if (state.editingCell) {
                             exitEditMode(true);
                         }
-                        // Open Set Management modal with Sources tab
-                        if (typeof SetManagement !== 'undefined') {
-                            SetManagement.openSetManagementModal(set.id, 'sources');
-                        }
+                        // Open the set in a tab (will use first view if available)
+                        switchSet(set.id, null);
                     };
 
                     setHeader.oncontextmenu = (e) => {
