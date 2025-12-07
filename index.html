@@ -32762,6 +32762,56 @@
                     }
                 }
 
+                // Ctrl+Z: Toss selected records
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey && !e.altKey) {
+                    e.preventDefault();
+                    if (state.selectedRecordIds && state.selectedRecordIds.size > 0) {
+                        handleTossSelectedRecords();
+                    } else if (state.selectedCell) {
+                        // If no records selected but a cell is selected, select that record first
+                        const { recordId } = state.selectedCell;
+                        if (recordId) {
+                            state.selectedRecordIds = state.selectedRecordIds || new Set();
+                            state.selectedRecordIds.add(recordId);
+                            handleTossSelectedRecords();
+                        }
+                    }
+                    return;
+                }
+
+                // Ctrl+X: Grab (pick up) the last toss action
+                if ((e.ctrlKey || e.metaKey) && e.key === 'x' && !e.shiftKey && !e.altKey) {
+                    e.preventDefault();
+                    if (typeof TossPile !== 'undefined' && state.tossPile && state.tossPile.actions.size > 0) {
+                        // Find the most recent undoable action
+                        let lastAction = null;
+                        let lastTimestamp = null;
+                        state.tossPile.actions.forEach((action) => {
+                            if (!action.undone) {
+                                if (!lastTimestamp || action.timestamp > lastTimestamp) {
+                                    lastTimestamp = action.timestamp;
+                                    lastAction = action;
+                                }
+                            }
+                        });
+
+                        if (lastAction) {
+                            const result = TossPile.pickUpAction(state, lastAction.id);
+                            if (result && result.restoredEntries.length > 0) {
+                                renderCurrentView();
+                                showToast(`Restored ${result.restoredEntries.length} item${result.restoredEntries.length === 1 ? '' : 's'} from toss pile`);
+                            } else {
+                                showToast('Nothing to restore from toss pile');
+                            }
+                        } else {
+                            showToast('No items in toss pile to restore');
+                        }
+                    } else {
+                        showToast('Toss pile is empty');
+                    }
+                    return;
+                }
+
                 // Helper: check if any modal is open (tracked or overlay-based)
                 const isModalOpen = () => state.modalStack.length > 0 || document.querySelector('.modal-overlay');
 
