@@ -9554,7 +9554,11 @@
                             renderSidebar();
                         },
                         onRecordsAdded: (setId, records) => {
-                            renderCurrentView();
+                            // Only render if records were added to the currently viewed set
+                            // switchSet will handle the render when switching to a new set
+                            if (setId === state.currentSetId) {
+                                renderCurrentView();
+                            }
                         },
                         showToast: showToast,
                         createEvent: createEvent,
@@ -31809,7 +31813,13 @@
         function closeModal(modalId) {
             closeAllContextMenus();
             const modal = document.getElementById(modalId);
-            if (modal) modal.classList.add('hidden');
+            if (modal) {
+                modal.classList.add('hidden');
+                // Remove dynamically created modals from DOM after closing
+                if (['importPreviewModal', 'addImportToSetModal'].includes(modalId)) {
+                    modal.remove();
+                }
+            }
             state.modalStack = state.modalStack.filter(id => id !== modalId);
         }
 
@@ -33603,6 +33613,243 @@
         }
 
         /**
+         * Render the field types tab content for import preview
+         */
+        function renderFieldTypesTab(imp) {
+            if (!imp.typeAssessment) {
+                return `<div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <i class="ph ph-warning" style="font-size: 32px; margin-bottom: 12px;"></i>
+                    <p>Type assessment not available for this import.</p>
+                </div>`;
+            }
+
+            const assessment = imp.typeAssessment;
+            const needsReviewCount = assessment.summary.needsReview?.length || 0;
+
+            // Get available field types for the dropdown
+            const fieldTypeOptions = Object.entries(FIELD_TYPES)
+                .filter(([key]) => !['LINK_RECORD', 'LOOKUP', 'FORMULA', 'ROLLUP'].includes(key))
+                .map(([key, ft]) => `<option value="${key}">${ft.name}</option>`)
+                .join('');
+
+            return `
+                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600;">Review Field Types</h4>
+                        <p style="margin: 0; font-size: 12px; color: var(--text-secondary);">
+                            ${needsReviewCount > 0
+                                ? `<span style="color: #ef4444; font-weight: 500;">${needsReviewCount} field${needsReviewCount > 1 ? 's' : ''} need${needsReviewCount === 1 ? 's' : ''} review</span> - verify or change the detected types below`
+                                : '<span style="color: #22c55e;">All field types look good!</span> You can still adjust them if needed.'}
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-sm btn-secondary" onclick="acceptAllFieldTypesUI('${imp.id}')">
+                            <i class="ph ph-checks"></i> Accept All
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto;">
+                    ${imp.headers.map(header => {
+                        const fieldAssessment = assessment.fields[header] || {};
+                        const detectedType = fieldAssessment.detectedType || imp.schema.inferredTypes[header] || 'TEXT';
+                        const confidence = fieldAssessment.confidence || 0;
+                        const confidenceLevel = fieldAssessment.confidenceLevel || 'uncertain';
+                        const needsReview = fieldAssessment.needsReview !== false && (confidence < 0.8 || (fieldAssessment.alternatives || []).length > 0);
+                        const isAccepted = fieldAssessment.acceptedAt || fieldAssessment.userOverride;
+                        const alternatives = fieldAssessment.alternatives || [];
+                        const samples = fieldAssessment.samples || imp.schema.columns[header]?.samples || [];
+
+                        const confidenceColors = {
+                            high: { bg: '#dcfce7', text: '#166534', border: '#86efac' },
+                            medium: { bg: '#fef9c3', text: '#854d0e', border: '#fde047' },
+                            low: { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5' },
+                            uncertain: { bg: '#f3f4f6', text: '#6b7280', border: '#d1d5db' }
+                        };
+                        const colors = confidenceColors[confidenceLevel] || confidenceColors.uncertain;
+
+                        const fieldTypeInfo = FIELD_TYPES[detectedType] || { name: detectedType, icon: 'ph-question' };
+
+                        return `
+                            <div class="field-type-card" data-field="${header}" data-import-id="${imp.id}"
+                                style="padding: 12px 16px; background: ${needsReview && !isAccepted ? '#fffbeb' : 'var(--muted-surface)'};
+                                       border: 1px solid ${needsReview && !isAccepted ? '#fcd34d' : 'var(--border)'};
+                                       border-radius: 8px; display: flex; align-items: center; gap: 16px;">
+
+                                <!-- Field name -->
+                                <div style="flex: 1; min-width: 120px;">
+                                    <div style="font-weight: 600; font-size: 13px;">${header}</div>
+                                    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">
+                                        ${samples.slice(0, 2).map(s => `<code style="padding: 1px 4px; background: var(--surface); border-radius: 3px; margin-right: 4px;">${String(s).substring(0, 15)}${String(s).length > 15 ? '...' : ''}</code>`).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- Type selector -->
+                                <div style="flex: 1; min-width: 140px;">
+                                    <select class="input field-type-select" style="width: 100%; padding: 6px 10px; font-size: 12px;"
+                                            onchange="overrideFieldTypeUI('${imp.id}', '${header}', this.value)">
+                                        ${Object.entries(FIELD_TYPES)
+                                            .filter(([key]) => !['LINK_RECORD', 'LOOKUP', 'FORMULA', 'ROLLUP'].includes(key))
+                                            .map(([key, ft]) => `<option value="${key}" ${key === detectedType ? 'selected' : ''}>${ft.name}</option>`)
+                                            .join('')}
+                                    </select>
+                                </div>
+
+                                <!-- Confidence indicator -->
+                                <div style="width: 100px; text-align: center;">
+                                    <div style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
+                                                background: ${colors.bg}; color: ${colors.text}; border: 1px solid ${colors.border};
+                                                border-radius: 12px; font-size: 10px; font-weight: 600;">
+                                        <span style="width: 6px; height: 6px; border-radius: 50%; background: ${colors.text};"></span>
+                                        ${Math.round(confidence * 100)}%
+                                    </div>
+                                </div>
+
+                                <!-- Alternatives -->
+                                <div style="flex: 1; min-width: 100px;">
+                                    ${alternatives.length > 0 ? `
+                                        <div style="font-size: 10px; color: var(--text-secondary);">
+                                            Also: ${alternatives.slice(0, 2).map(alt => `<span style="cursor: pointer; text-decoration: underline;" onclick="overrideFieldTypeUI('${imp.id}', '${header}', '${alt.type}')">${FIELD_TYPES[alt.type]?.name || alt.type}</span>`).join(', ')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+
+                                <!-- Status/Action -->
+                                <div style="width: 80px; text-align: right;">
+                                    ${isAccepted ? `
+                                        <span style="display: inline-flex; align-items: center; gap: 4px; color: #22c55e; font-size: 11px; font-weight: 500;">
+                                            <i class="ph ph-check-circle-fill"></i> OK
+                                        </span>
+                                    ` : needsReview ? `
+                                        <button class="btn btn-sm" style="padding: 4px 10px; font-size: 11px; background: #22c55e; color: white; border: none;"
+                                                onclick="acceptFieldTypeUI('${imp.id}', '${header}')">
+                                            <i class="ph ph-check"></i> Accept
+                                        </button>
+                                    ` : `
+                                        <span style="display: inline-flex; align-items: center; gap: 4px; color: #22c55e; font-size: 11px; font-weight: 500;">
+                                            <i class="ph ph-check-circle"></i> Auto
+                                        </span>
+                                    `}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+
+                <div style="margin-top: 16px; padding: 12px; background: var(--muted-surface); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
+                    <i class="ph ph-info" style="margin-right: 6px;"></i>
+                    Field types determine how data is displayed and validated. Fields with low confidence (<80%) or alternatives are flagged for review.
+                </div>
+            `;
+        }
+
+        /**
+         * Accept a field type in the UI
+         */
+        function acceptFieldTypeUI(importId, fieldName) {
+            if (state.importManager?.acceptFieldType(importId, fieldName)) {
+                // Update the card UI
+                const card = document.querySelector(`.field-type-card[data-field="${fieldName}"][data-import-id="${importId}"]`);
+                if (card) {
+                    card.style.background = 'var(--muted-surface)';
+                    card.style.borderColor = 'var(--border)';
+                    const statusDiv = card.querySelector('div:last-child');
+                    if (statusDiv) {
+                        statusDiv.innerHTML = `
+                            <span style="display: inline-flex; align-items: center; gap: 4px; color: #22c55e; font-size: 11px; font-weight: 500;">
+                                <i class="ph ph-check-circle-fill"></i> OK
+                            </span>
+                        `;
+                    }
+                }
+                // Update the tab badge
+                updateFieldTypesTabBadge(importId);
+            }
+        }
+
+        /**
+         * Override a field type in the UI
+         */
+        function overrideFieldTypeUI(importId, fieldName, newType) {
+            if (state.importManager?.overrideFieldType(importId, fieldName, newType)) {
+                // Update the card UI
+                const card = document.querySelector(`.field-type-card[data-field="${fieldName}"][data-import-id="${importId}"]`);
+                if (card) {
+                    card.style.background = 'var(--muted-surface)';
+                    card.style.borderColor = 'var(--border)';
+                    const statusDiv = card.querySelector('div:last-child');
+                    if (statusDiv) {
+                        statusDiv.innerHTML = `
+                            <span style="display: inline-flex; align-items: center; gap: 4px; color: #22c55e; font-size: 11px; font-weight: 500;">
+                                <i class="ph ph-check-circle-fill"></i> OK
+                            </span>
+                        `;
+                    }
+                }
+                // Update the tab badge
+                updateFieldTypesTabBadge(importId);
+                showToast(`✓ ${fieldName} set to ${FIELD_TYPES[newType]?.name || newType}`);
+            }
+        }
+
+        /**
+         * Accept all field types
+         */
+        function acceptAllFieldTypesUI(importId) {
+            if (state.importManager?.acceptAllFieldTypes(importId)) {
+                // Update all cards
+                document.querySelectorAll(`.field-type-card[data-import-id="${importId}"]`).forEach(card => {
+                    card.style.background = 'var(--muted-surface)';
+                    card.style.borderColor = 'var(--border)';
+                    const statusDiv = card.querySelector('div:last-child');
+                    if (statusDiv) {
+                        statusDiv.innerHTML = `
+                            <span style="display: inline-flex; align-items: center; gap: 4px; color: #22c55e; font-size: 11px; font-weight: 500;">
+                                <i class="ph ph-check-circle-fill"></i> OK
+                            </span>
+                        `;
+                    }
+                });
+                // Update the tab badge
+                updateFieldTypesTabBadge(importId);
+                showToast('✓ All field types accepted');
+            }
+        }
+
+        /**
+         * Update the Field Types tab badge count
+         */
+        function updateFieldTypesTabBadge(importId) {
+            const imp = state.importManager?.getImport(importId);
+            if (!imp) return;
+
+            const needsReviewCount = imp.typeAssessment?.summary?.needsReview?.length || 0;
+            const tabBtn = document.querySelector('.import-tab[data-tab="fieldtypes"]');
+            if (tabBtn) {
+                const badge = tabBtn.querySelector('span[style*="background: #ef4444"]');
+                if (needsReviewCount > 0) {
+                    if (badge) {
+                        badge.textContent = needsReviewCount;
+                    } else {
+                        tabBtn.innerHTML = `
+                            <i class="ph ph-sliders" style="margin-right: 4px;"></i>Field Types
+                            <span style="background: #ef4444; color: white; padding: 1px 6px; font-size: 10px; font-weight: 600; border-radius: 10px; margin-left: 4px;">${needsReviewCount}</span>
+                        `;
+                    }
+                } else {
+                    if (badge) {
+                        badge.remove();
+                    }
+                }
+            }
+        }
+
+        // Export field type UI functions
+        window.acceptFieldTypeUI = acceptFieldTypeUI;
+        window.overrideFieldTypeUI = overrideFieldTypeUI;
+        window.acceptAllFieldTypesUI = acceptAllFieldTypesUI;
+
+        /**
          * Show import preview modal
          */
         function showImportPreviewModal(imp) {
@@ -33635,6 +33882,10 @@
                         <div style="display: flex; gap: 4px; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--muted-surface);">
                             <button class="btn btn-sm import-tab active" data-tab="data" onclick="switchImportTab(this, 'data')">Data</button>
                             <button class="btn btn-sm import-tab" data-tab="schema" onclick="switchImportTab(this, 'schema')">Schema</button>
+                            <button class="btn btn-sm import-tab" data-tab="fieldtypes" onclick="switchImportTab(this, 'fieldtypes')">
+                                <i class="ph ph-sliders" style="margin-right: 4px;"></i>Field Types
+                                ${imp.typeAssessment?.summary?.needsReview?.length > 0 ? `<span style="background: #ef4444; color: white; padding: 1px 6px; font-size: 10px; font-weight: 600; border-radius: 10px; margin-left: 4px;">${imp.typeAssessment.summary.needsReview.length}</span>` : ''}
+                            </button>
                             <button class="btn btn-sm import-tab" data-tab="metadata" onclick="switchImportTab(this, 'metadata')">Metadata</button>
                             <button class="btn btn-sm import-tab" data-tab="quality" onclick="switchImportTab(this, 'quality')">Quality</button>
                             <button class="btn btn-sm import-tab" data-tab="storage" onclick="switchImportTab(this, 'storage')">
@@ -33692,6 +33943,11 @@
                                     `;
                                 }).join('')}
                             </div>
+                        </div>
+
+                        <!-- Field Types Tab -->
+                        <div class="import-tab-content" data-content="fieldtypes" style="padding: 20px; display: none;">
+                            ${renderFieldTypesTab(imp)}
                         </div>
 
                         <!-- Metadata Tab -->
@@ -33841,6 +34097,18 @@
             const imp = state.importManager?.getImport(importId);
             if (!imp) return;
 
+            // Check if field types need review
+            const needsReviewCount = imp.typeAssessment?.summary?.needsReview?.length || 0;
+            if (needsReviewCount > 0) {
+                // Show the field types tab instead and prompt user to review
+                const fieldTypesTab = document.querySelector('.import-tab[data-tab="fieldtypes"]');
+                if (fieldTypesTab) {
+                    fieldTypesTab.click();
+                }
+                showToast(`⚠️ Please review ${needsReviewCount} field type${needsReviewCount > 1 ? 's' : ''} before adding to set`, 'warning');
+                return;
+            }
+
             closeModal('importPreviewModal');
 
             const sets = Array.from(state.sets.values());
@@ -33929,11 +34197,19 @@
 
             closeModal('addImportToSetModal');
 
+            // Remove the modal from DOM to ensure clean render
+            const modal = document.getElementById('addImportToSetModal');
+            if (modal) modal.remove();
+
             try {
                 const result = state.importIntegration.addImportToSet(importId, setId, newSetName);
 
                 if (result.success) {
                     renderSidebar();
+                    // Force a repaint after the import completes to ensure the view is visible
+                    requestAnimationFrame(() => {
+                        renderCurrentView();
+                    });
                 } else {
                     showToast(`⚠️ Failed to add records: ${result.error || 'Unknown error'}`);
                 }
