@@ -28446,7 +28446,9 @@
                 // Search views - simple substring match
                 if (scope === 'everything') {
                     if (set.views && set.views.size > 0) {
-                        set.views.forEach((view, viewId) => {
+                        set.views.forEach((viewRef, viewId) => {
+                            // Get full view data from state.views (viewRef may be lightweight)
+                            const view = state.views?.get(viewId) || viewRef;
                             if (view && view.name && view.name.toLowerCase().includes(q)) {
                                 results.views.push({
                                     view,
