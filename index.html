@@ -3566,31 +3566,34 @@
 
         /* Add column button (last column) */
         .add-column-header {
-            width: 80px;
-            min-width: 80px;
+            width: 60px;
+            min-width: 60px;
             text-align: center;
-            background: #f0f9ff !important;
-            border-left: 2px dashed #3b82f6;
+            background: var(--surface, #fff) !important;
+            border-left: 1px solid #e2e8f0;
         }
         .add-column-header:hover {
-            background: #dbeafe !important;
+            background: #f8fafc !important;
         }
         .add-column-trigger {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            color: #2563eb;
-            font-size: 13px;
-            font-weight: 500;
+            justify-content: center;
+            color: #94a3b8;
+            font-size: 18px;
+            transition: color 0.15s ease;
+        }
+        .add-column-header:hover .add-column-trigger {
+            color: #3b82f6;
         }
         .add-column-trigger i {
-            font-size: 16px;
+            font-size: 18px;
         }
         .add-column-cell {
-            width: 80px;
-            min-width: 80px;
-            background: #f8fafc;
-            border-left: 2px dashed #3b82f6;
+            width: 60px;
+            min-width: 60px;
+            background: var(--surface, #fff);
+            border-left: 1px solid #e2e8f0;
         }
 
         .json-tab {
