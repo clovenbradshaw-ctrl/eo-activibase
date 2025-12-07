@@ -1,41 +1,51 @@
-# Nested Subfields Design
+# Nested Subfields Design (OBJECT Field Type)
 
 ## Overview
 
-This document explores how EO-Activibase can support **composite fields** (fields containing multiple subfields) that can:
+This document describes the **OBJECT field type** - a general-purpose nested record structure that allows any field to contain multiple subfields with their own schema.
+
+Key capabilities:
 1. Display as a single "complete" value in a view
 2. Expand to reveal individual subfields when clicked
-3. "Split out" subfields into top-level columns (morphing into linked records + lookups)
-4. Handle multiple entries (arrays of composite values)
+3. Each OBJECT field spawns its own embedded view for managing the nested schema
+4. "Split out" subfields into top-level columns (morphing into linked records + lookups)
+5. Handle multiple entries (arrays of objects) with cardinality: 'one' or 'many'
 
 ---
 
-## Core Concept: The Composite Field Type
+## Core Concept: The OBJECT Field Type
 
-### What Is a Composite Field?
+### What Is an OBJECT Field?
 
-A **composite field** is a field that contains a structured object with named subfields, rather than a single value.
+An **OBJECT field** is a field that contains a structured object with named subfields, rather than a single value. Each OBJECT field has its own schema (subfields) that can be managed independently.
 
 ```javascript
 // Traditional field value
-"email": "john@example.com"
+"status": "Active"
 
-// Composite field value
-"contactInfo": {
-  phone: "+1-555-123-4567",
-  email: "john@example.com",
-  address: "123 Main St",
-  preferredContact: "email"
+// OBJECT field value - single entry
+"metadata": {
+  _id: "obj_123",
+  createdBy: "John",
+  source: "Import",
+  confidence: 0.95
 }
+
+// OBJECT field value - multiple entries (cardinality: 'many')
+"addresses": [
+  { _id: "obj_1", type: "Home", street: "123 Main St", city: "Boston" },
+  { _id: "obj_2", type: "Work", street: "456 Office Blvd", city: "Cambridge" }
+]
 ```
 
-### The "Contact Info" Example
+### The Key Insight
 
-Instead of having 4 separate columns (Phone, Email, Address, Preferred Contact), you have one **Contact Info** column that:
-- **In the grid**: Shows a compact summary like "john@example.com, +1-555-..."
-- **On hover**: Shows a tooltip with all subfields
-- **On click**: Opens the record modal focused on this field's subfields
-- **Can be split**: User can "promote" any subfield to a top-level column
+**An OBJECT field is secretly a linked record to a hidden/embedded set.** When you create an OBJECT field:
+1. An embedded set is created with the subfield schema
+2. An embedded view is created for that set
+3. The OBJECT field stores inline data OR can be split to use linked record IDs
+
+This unified model means "split out" is just making the embedded set visible.
 
 ---
 

@@ -33,7 +33,9 @@
     <script src="demo/eo_column_width_settings.js"></script>
     <script src="demo/eo_relations_manager.js"></script>
     <script src="demo/eo_available_fields_explorer.js"></script>
+    <script src="demo/eo_object_field.js"></script>
     <link rel="stylesheet" href="demo/eo_linked_fields_modal.css">
+    <link rel="stylesheet" href="demo/eo_object_field.css">
     <link rel="stylesheet" href="demo/eo_available_fields_explorer.css">
     <link rel="stylesheet" href="demo/eo_file_explorer.css">
     <link rel="stylesheet" href="demo/eo_toss_pile.css">
@@ -5396,6 +5398,30 @@
                         </div>
                     </div>
                 </div>
+                <div id="objectConfig" class="config-section">
+                    <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                        <p class="text-sm text-indigo-700 mb-4">
+                            Object fields contain multiple subfields. You can add subfields now or later by clicking into the field.
+                        </p>
+                        <label class="form-label">Cardinality</label>
+                        <div class="object-cardinality-options flex gap-2 mb-4">
+                            <label class="flex items-center gap-2 px-3 py-2 border border-indigo-200 rounded-lg cursor-pointer hover:border-indigo-400 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-100">
+                                <input type="radio" name="objectCardinality" value="one" checked class="accent-indigo-600">
+                                <span class="text-sm font-medium">Single Object</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 border border-indigo-200 rounded-lg cursor-pointer hover:border-indigo-400 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-100">
+                                <input type="radio" name="objectCardinality" value="many" class="accent-indigo-600">
+                                <span class="text-sm font-medium">Multiple Objects</span>
+                            </label>
+                        </div>
+
+                        <div class="initial-subfields-section">
+                            <label class="form-label">Initial Subfields (optional)</label>
+                            <div id="initialSubfieldsList" class="initial-subfields-list space-y-2 mb-3"></div>
+                            <button type="button" onclick="addInitialSubfield()" class="btn btn-secondary btn-sm">+ Add Subfield</button>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer flex justify-end gap-2">
                 <button id="cancelAddFieldBtn" class="btn btn-secondary">Cancel</button>
@@ -6889,6 +6915,15 @@
                 defaultValue: '',
                 icon: 'ph-chart-line-up',
                 isDerived: true
+            },
+            OBJECT: {
+                id: 'OBJECT',
+                name: 'Object',
+                description: 'Nested fields that can expand into their own view',
+                defaultValue: {},
+                icon: 'ph-cube',
+                needsConfig: true,
+                isComposite: true
             }
         };
 
@@ -16329,6 +16364,20 @@
                     const targetField = targetSet?.schema.find(f => f.id === field._linkedConfig.targetFieldId);
                     const formattedRollup = window.EOCRollupEngine.formatValue(rollupValue, field._linkedConfig.aggregation, targetField);
                     return `<span class="text-gray-700">${formattedRollup}</span>`;
+                case 'OBJECT':
+                    // Render OBJECT field using EOObjectField
+                    if (window.EOObjectField) {
+                        return EOObjectField.renderObjectCell(field, value);
+                    }
+                    // Fallback if module not loaded
+                    if (!value) return '<span class="text-gray-400 italic">Click to add...</span>';
+                    if (Array.isArray(value)) {
+                        return `<span class="text-gray-700">${value.length} entries</span>`;
+                    }
+                    const keys = Object.keys(value).filter(k => k !== '_id');
+                    if (keys.length === 0) return '<span class="text-gray-400 italic">Empty</span>';
+                    const firstValue = value[keys[0]];
+                    return `<span class="text-gray-700">${firstValue || ''}</span>`;
                 default:
                     return value || '';
             }
@@ -21962,6 +22011,17 @@
                 // Formula and Record ID fields are read-only, exit edit mode
                 exitEditMode(false);
                 return;
+            } else if (field.type === 'OBJECT') {
+                // Open OBJECT field modal
+                exitEditMode(false);
+                if (window.EOObjectField) {
+                    const set = getCurrentSet();
+                    const modal = new EOObjectField.ObjectFieldModal();
+                    modal.show(state, set.id, recordId, field.id, {
+                        onSave: () => renderCurrentView()
+                    });
+                }
+                return;
             } else {
                 makeContentEditable(td, recordId, field);
             }
@@ -23140,6 +23200,7 @@
             document.getElementById('selectConfig').classList.remove('visible');
             document.getElementById('linkToRecordConfig').classList.remove('visible');
             document.getElementById('formulaConfig').classList.remove('visible');
+            document.getElementById('objectConfig').classList.remove('visible');
             if (typeId === 'SELECT') {
                 document.getElementById('selectConfig').classList.add('visible');
                 renderSelectOptions();
@@ -23149,7 +23210,61 @@
             } else if (typeId === 'FORMULA') {
                 document.getElementById('formulaConfig').classList.add('visible');
                 initFormulaAutocomplete();
+            } else if (typeId === 'OBJECT') {
+                document.getElementById('objectConfig').classList.add('visible');
+                // Clear initial subfields list
+                document.getElementById('initialSubfieldsList').innerHTML = '';
+                state.initialSubfields = [];
             }
+        }
+
+        // OBJECT field initial subfields management
+        function addInitialSubfield() {
+            if (!state.initialSubfields) state.initialSubfields = [];
+            const idx = state.initialSubfields.length;
+            state.initialSubfields.push({ name: '', type: 'TEXT' });
+            renderInitialSubfields();
+            // Focus the new input
+            setTimeout(() => {
+                const inputs = document.querySelectorAll('#initialSubfieldsList input[type="text"]');
+                if (inputs[idx]) inputs[idx].focus();
+            }, 50);
+        }
+
+        function removeInitialSubfield(idx) {
+            if (!state.initialSubfields) return;
+            state.initialSubfields.splice(idx, 1);
+            renderInitialSubfields();
+        }
+
+        function updateInitialSubfield(idx, field, value) {
+            if (!state.initialSubfields || !state.initialSubfields[idx]) return;
+            state.initialSubfields[idx][field] = value;
+        }
+
+        function renderInitialSubfields() {
+            const container = document.getElementById('initialSubfieldsList');
+            if (!container || !state.initialSubfields) return;
+
+            container.innerHTML = state.initialSubfields.map((sf, idx) => `
+                <div class="initial-subfield-row flex items-center gap-2 p-2 bg-white border border-gray-200 rounded-lg">
+                    <input type="text" placeholder="Subfield name" value="${escapeHtml(sf.name)}"
+                           onchange="updateInitialSubfield(${idx}, 'name', this.value)"
+                           class="flex-1 px-2 py-1 border border-gray-300 rounded text-sm">
+                    <select onchange="updateInitialSubfield(${idx}, 'type', this.value)" class="px-2 py-1 border border-gray-300 rounded text-sm">
+                        <option value="TEXT" ${sf.type === 'TEXT' ? 'selected' : ''}>Text</option>
+                        <option value="NUMBER" ${sf.type === 'NUMBER' ? 'selected' : ''}>Number</option>
+                        <option value="DATE" ${sf.type === 'DATE' ? 'selected' : ''}>Date</option>
+                        <option value="EMAIL" ${sf.type === 'EMAIL' ? 'selected' : ''}>Email</option>
+                        <option value="URL" ${sf.type === 'URL' ? 'selected' : ''}>URL</option>
+                        <option value="CHECKBOX" ${sf.type === 'CHECKBOX' ? 'selected' : ''}>Checkbox</option>
+                        <option value="LONG_TEXT" ${sf.type === 'LONG_TEXT' ? 'selected' : ''}>Long Text</option>
+                    </select>
+                    <button type="button" onclick="removeInitialSubfield(${idx})" class="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded" title="Remove">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+            `).join('');
         }
 
         function renderChangeFieldConfig(typeId) {
@@ -23401,6 +23516,35 @@
                 }
 
                 newField.config = { formula, format, decimals };
+            } else if (type === 'OBJECT') {
+                // Use EOObjectField to create the field with embedded set/view
+                const cardinalityRadio = document.querySelector('input[name="objectCardinality"]:checked');
+                const cardinality = cardinalityRadio?.value || 'one';
+
+                // Prepare initial subfields (filter out empty names)
+                const initialSubfields = (state.initialSubfields || [])
+                    .filter(sf => sf.name && sf.name.trim())
+                    .map((sf, idx) => ({
+                        id: `sf_${Date.now()}_${idx}`,
+                        name: sf.name.trim(),
+                        type: sf.type || 'TEXT',
+                        width: '150px'
+                    }));
+
+                const result = EOObjectField.createObjectField(state, set.id, name, {
+                    fieldId: fieldId,
+                    cardinality: cardinality,
+                    initialSubfields: initialSubfields
+                });
+
+                if (result) {
+                    // Add field to current view
+                    addFieldToCurrentView(result.fieldId);
+                    closeModal('addFieldModal');
+                    renderCurrentView();
+                    showToast('✓ Object field added');
+                }
+                return; // Exit early - createObjectField handles everything
             }
 
             // Handle KEY_DERIVED views differently - add to view.schema
