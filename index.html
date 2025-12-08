@@ -7958,19 +7958,6 @@
                 defaultValue: '',
                 icon: 'ph-calendar-blank'
             },
-            CONTACT: {
-                id: 'CONTACT',
-                name: 'Contact',
-                description: 'Contact information fields',
-                defaultValue: '',
-                icon: 'ph-address-book',
-                subtypes: {
-                    EMAIL: { id: 'EMAIL', name: 'Email', description: 'Email addresses with validation', icon: 'ph-envelope-simple' },
-                    URL: { id: 'URL', name: 'URL', description: 'Links to webpages, docs, or media', icon: 'ph-link-simple' },
-                    PHONE: { id: 'PHONE', name: 'Phone', description: 'Phone numbers for contacts', icon: 'ph-phone' }
-                },
-                defaultSubtype: 'EMAIL'
-            },
             LINK_RECORD: {
                 id: 'LINK_RECORD',
                 name: 'Link to Record',
@@ -10784,14 +10771,14 @@
                 { id: 'active', name: 'Active', type: 'CHECKBOX', width: '80px' }
             ];
 
-            // Schema for People - demonstrates TEXT, CONTACT (EMAIL, URL), CHECKBOX
+            // Schema for People - demonstrates TEXT, EMAIL, URL, CHECKBOX
             const peopleSet = state.sets.get(peopleId);
             peopleSet.schema = [
                 { id: 'name', name: 'Name', type: 'TEXT', width: '180px' },
                 { id: 'role', name: 'Role', type: 'SELECT', subtype: 'SINGLE', width: '150px', options: ['Technical Lead', 'Engineer', 'Researcher', 'Designer', 'Manager'] },
                 { id: 'expertise', name: 'Expertise', type: 'TEXT', width: '200px' },
-                { id: 'email', name: 'Email', type: 'CONTACT', subtype: 'EMAIL', width: '200px' },
-                { id: 'website', name: 'Website', type: 'CONTACT', subtype: 'URL', width: '180px' },
+                { id: 'email', name: 'Email', type: 'EMAIL', width: '200px' },
+                { id: 'website', name: 'Website', type: 'URL', width: '180px' },
                 { id: 'available', name: 'Available', type: 'CHECKBOX', width: '80px' }
             ];
 
@@ -10807,7 +10794,7 @@
                 { id: 'tags', name: 'Tags', type: 'SELECT', subtype: 'MULTIPLE', width: '150px', options: ['frontend', 'backend', 'design', 'research', 'urgent'] }
             ];
 
-            // Schema for Concepts - demonstrates TEXT, LONG_TEXT, DATE, CHECKBOX, CONTACT (URL)
+            // Schema for Concepts - demonstrates TEXT, LONG_TEXT, DATE, CHECKBOX, URL
             const conceptsSet = state.sets.get(conceptsId);
             conceptsSet.schema = [
                 { id: 'concept', name: 'Concept', type: 'TEXT', width: '200px' },
@@ -10815,7 +10802,7 @@
                 { id: 'definition', name: 'Definition', type: 'LONG_TEXT', width: '320px' },
                 { id: 'createdDate', name: 'Created', type: 'DATE', width: '140px' },
                 { id: 'validated', name: 'Validated', type: 'CHECKBOX', width: '80px' },
-                { id: 'reference', name: 'Reference URL', type: 'CONTACT', subtype: 'URL', width: '180px' }
+                { id: 'reference', name: 'Reference URL', type: 'URL', width: '180px' }
             ];
 
             // Add project records with all field types populated
@@ -10845,7 +10832,7 @@
                 active: false
             });
 
-            // Add people records with CONTACT and CHECKBOX fields
+            // Add people records with EMAIL, URL, and CHECKBOX fields
             peopleSet.records.clear();
             const person1 = addRecord(peopleId, {
                 name: 'Dr. Sarah Chen',
@@ -18547,9 +18534,6 @@
             if (field.type === 'LONG_TEXT') {
                 effectiveType = 'TEXT';
                 effectiveSubtype = 'STRING';
-            } else if (field.type === 'EMAIL' || field.type === 'URL' || field.type === 'PHONE') {
-                effectiveType = 'CONTACT';
-                effectiveSubtype = field.type;
             } else if (field.type === 'CURRENCY') {
                 effectiveType = 'NUMBER';
                 effectiveSubtype = 'CURRENCY';
@@ -18596,17 +18580,20 @@
                 }
             }
 
-            // Handle CONTACT with subtypes
-            if (effectiveType === 'CONTACT') {
-                const subtype = effectiveSubtype || 'EMAIL';
-                if (subtype === 'EMAIL' && value) {
+            // Handle EMAIL type
+            if (effectiveType === 'EMAIL') {
+                if (value) {
                     return `<a href="mailto:${value}" class="text-blue-600 hover:underline" onclick="event.stopPropagation()">${value}</a>`;
-                } else if (subtype === 'URL' && value) {
-                    return `<a href="${value}" target="_blank" class="text-blue-600 hover:underline" onclick="event.stopPropagation()">${value}</a>`;
-                } else if (subtype === 'PHONE' && value) {
-                    return `<a href="tel:${value}" class="text-blue-600 hover:underline" onclick="event.stopPropagation()">${value}</a>`;
                 }
-                return value || '';
+                return '';
+            }
+
+            // Handle URL type
+            if (effectiveType === 'URL') {
+                if (value) {
+                    return `<a href="${value}" target="_blank" class="text-blue-600 hover:underline" onclick="event.stopPropagation()">${value}</a>`;
+                }
+                return '';
             }
 
             switch(effectiveType) {
@@ -29357,9 +29344,6 @@
             if (field.type === 'LONG_TEXT') {
                 effectiveType = 'TEXT';
                 effectiveSubtype = 'LONG';
-            } else if (field.type === 'EMAIL' || field.type === 'URL' || field.type === 'PHONE') {
-                effectiveType = 'CONTACT';
-                effectiveSubtype = field.type;
             } else if (field.type === 'CURRENCY') {
                 effectiveType = 'NUMBER';
                 effectiveSubtype = 'CURRENCY';
@@ -29382,12 +29366,14 @@
                 return `<input type="number" value="${value || 0}" onchange="updateRecordField('${recordId}', '${field.id}', parseFloat(this.value))">`;
             }
 
-            // Handle CONTACT with subtypes
-            if (effectiveType === 'CONTACT') {
-                const subtype = effectiveSubtype || 'EMAIL';
-                const inputType = subtype === 'EMAIL' ? 'email' : subtype === 'URL' ? 'url' : 'tel';
-                const placeholder = subtype === 'EMAIL' ? 'email@example.com' : subtype === 'URL' ? 'https://example.com' : '+1234567890';
-                return `<input type="${inputType}" value="${value || ''}" placeholder="${placeholder}" onchange="updateRecordField('${recordId}', '${field.id}', this.value)">`;
+            // Handle EMAIL type
+            if (effectiveType === 'EMAIL') {
+                return `<input type="email" value="${value || ''}" placeholder="email@example.com" onchange="updateRecordField('${recordId}', '${field.id}', this.value)">`;
+            }
+
+            // Handle URL type
+            if (effectiveType === 'URL') {
+                return `<input type="url" value="${value || ''}" placeholder="https://example.com" onchange="updateRecordField('${recordId}', '${field.id}', this.value)">`;
             }
 
             switch(effectiveType) {

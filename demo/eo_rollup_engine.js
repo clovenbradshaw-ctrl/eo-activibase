@@ -716,7 +716,7 @@ const EOCRollupEngine = {
    */
   getApplicableAggregations(fieldType) {
     const numeric = ['NUMBER', 'FORMULA', 'CURRENCY', 'PERCENT'];
-    const text = ['TEXT', 'SELECT', 'MULTISELECT', 'CONTACT', 'EMAIL', 'URL'];
+    const text = ['TEXT', 'SELECT', 'MULTISELECT', 'EMAIL', 'URL'];
     const date = ['DATE', 'DATETIME'];
 
     const aggregations = [
