@@ -13,6 +13,28 @@
     'use strict';
 
     // ============================================================================
+    // ICON RENDERING HELPER
+    // ============================================================================
+
+    /**
+     * Render an icon token as HTML
+     * Handles both raw tokens (ph-map-pin) and HTML strings
+     */
+    function renderIconHtml(icon) {
+        // Use global renderIcon if available
+        if (typeof renderIcon === 'function') {
+            return renderIcon(icon);
+        }
+        // Fallback implementation
+        if (!icon) return '<i class="ph ph-squares-four"></i>';
+        const trimmed = icon.toString().trim();
+        if (trimmed.startsWith('<')) return trimmed;
+        if (trimmed.startsWith('ph ')) return `<i class="${trimmed}"></i>`;
+        if (trimmed.startsWith('ph-')) return `<i class="ph ${trimmed}"></i>`;
+        return `<i class="ph ph-squares-four"></i>`;
+    }
+
+    // ============================================================================
     // SET PROVENANCE
     // ============================================================================
 
@@ -240,7 +262,7 @@
                 <div class="modal large" onclick="event.stopPropagation()">
                     <div class="modal-header">
                         <div class="modal-title-group">
-                            <span class="set-icon">${set.icon || '<i class="ph ph-squares-four"></i>'}</span>
+                            <span class="set-icon">${renderIconHtml(set.icon)}</span>
                             <h2 id="setModalTitle">${escapeHtml(set.name)}</h2>
                         </div>
                         <button class="modal-close" onclick="SetManagement.closeModal()">×</button>
@@ -308,7 +330,7 @@
                 <div class="form-group">
                     <label>Icon</label>
                     <div class="icon-selector">
-                        <span class="current-icon">${set.icon || '<i class="ph ph-squares-four"></i>'}</span>
+                        <span class="current-icon">${renderIconHtml(set.icon)}</span>
                         <button class="btn-secondary btn-sm" onclick="SetManagement.openIconPicker('${setId}')">Change</button>
                     </div>
                 </div>

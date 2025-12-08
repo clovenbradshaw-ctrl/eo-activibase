@@ -15028,8 +15028,8 @@
                 if (state.editingCell) {
                     exitEditMode(true);
                 }
-                // Open the set in a tab (will use first view if available)
-                switchSet(set.id, null);
+                // Open the set overview page showing imports, relationships, status
+                openSetOverview(set.id);
             };
 
             setHeader.oncontextmenu = (e) => {
@@ -17443,6 +17443,12 @@
 
             if (state.currentSpecialView === 'outputReady') {
                 renderOutputReadyPage();
+                updateMobileChrome();
+                return;
+            }
+
+            if (state.currentSpecialView === 'setOverview') {
+                renderSetOverviewPage();
                 updateMobileChrome();
                 return;
             }
@@ -25138,6 +25144,306 @@
                     });
                 }
             });
+        }
+
+        /**
+         * Render the Set Overview page - comprehensive view of a set
+         * Shows imports, relationships, status, and quick actions
+         */
+        function renderSetOverviewPage() {
+            const container = document.getElementById('viewContainer');
+            const setId = state.setOverviewSetId;
+            const set = setId ? state.sets.get(setId) : null;
+
+            if (!set) {
+                container.innerHTML = '<div class="p-6 text-center text-gray-500">Set not found</div>';
+                return;
+            }
+
+            // Get sources info using SetManagement if available
+            const sourcesInfo = typeof SetManagement !== 'undefined'
+                ? SetManagement.getSetSources(state, setId)
+                : { sources: [], manualRecords: 0, totalSources: 0 };
+
+            // Get relationships
+            const relationships = typeof SetManagement !== 'undefined'
+                ? SetManagement.getSetRelationships(state, setId)
+                : { linkedSets: [], referencedBy: [] };
+
+            // Get data maturity if available
+            const maturity = typeof EODataMaturity !== 'undefined'
+                ? EODataMaturity.calculateSetMaturity(set, state.importManager?.getImportsForSet(setId) || [])
+                : { stage: 'unknown', label: 'Unknown', progress: 0 };
+
+            // Calculate stats
+            const recordCount = set.records.size;
+            const fieldCount = set.schema.length;
+            const viewCount = set.views?.size || 0;
+            const isOutputReady = maturity.stage === 'output' || maturity.stage === 'validated';
+            const isSandbox = maturity.stage === 'raw' || maturity.stage === 'sandbox';
+
+            // Determine status badge
+            const statusBadge = isOutputReady
+                ? '<span style="background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Output Ready</span>'
+                : isSandbox
+                    ? '<span style="background: #fef3c7; color: #92400e; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Sandbox</span>'
+                    : '<span style="background: #e5e7eb; color: #374151; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">In Progress</span>';
+
+            // Build sources HTML
+            const sourcesHtml = sourcesInfo.sources.length > 0 ? sourcesInfo.sources.map(source => {
+                const importObj = source.import || state.importManager?.getImport(source.importId);
+                const formatIcon = importObj?.source?.format === 'csv' ? 'ph-file-csv'
+                    : importObj?.source?.format === 'json' ? 'ph-brackets-curly'
+                    : importObj?.source?.format === 'xlsx' ? 'ph-file-xls'
+                    : 'ph-file';
+                return `
+                    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                        <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: white; border-radius: 8px; border: 1px solid #e5e7eb;">
+                            <i class="ph ${formatIcon}" style="font-size: 20px; color: #6b7280;"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #111827; font-size: 14px;">${source.importName || 'Unknown Import'}</div>
+                            <div style="font-size: 12px; color: #6b7280;">${source.recordCount || 0} records · Added ${source.addedAt ? new Date(source.addedAt).toLocaleDateString() : 'Unknown'}</div>
+                        </div>
+                        <button onclick="SetManagement.viewSourceRecords('${setId}', '${source.importId}')"
+                                class="btn btn-secondary btn-sm" title="View records from this import">
+                            <i class="ph ph-eye"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('') : '';
+
+            // Manual entries card
+            const manualHtml = sourcesInfo.manualRecords > 0 ? `
+                <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+                    <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: white; border-radius: 8px; border: 1px solid #bbf7d0;">
+                        <i class="ph ph-pencil-simple" style="font-size: 20px; color: #16a34a;"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #111827; font-size: 14px;">Manual Entries</div>
+                        <div style="font-size: 12px; color: #6b7280;">${sourcesInfo.manualRecords} records created directly</div>
+                    </div>
+                </div>
+            ` : '';
+
+            // Build relationships HTML
+            const linkedSetsHtml = relationships.linkedSets.length > 0 ? relationships.linkedSets.map(link => {
+                const targetSet = state.sets.get(link.targetSetId);
+                return `
+                    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f9fafb; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                        <i class="ph ph-arrow-right" style="color: #3b82f6;"></i>
+                        <span style="font-weight: 600; color: #111827;">${link.targetSetName}</span>
+                        <span style="font-size: 12px; color: #6b7280;">via ${link.fieldName}</span>
+                        <span style="margin-left: auto; font-size: 12px; color: #9ca3af; background: #e5e7eb; padding: 2px 8px; border-radius: 10px;">${link.linkCount} links</span>
+                    </div>
+                `;
+            }).join('') : '';
+
+            const referencedByHtml = relationships.referencedBy.length > 0 ? relationships.referencedBy.map(ref => {
+                return `
+                    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f9fafb; border-radius: 6px; border-left: 3px solid #10b981;">
+                        <i class="ph ph-arrow-left" style="color: #10b981;"></i>
+                        <span style="font-weight: 600; color: #111827;">${ref.setName}</span>
+                        <span style="font-size: 12px; color: #6b7280;">via ${ref.fieldName}</span>
+                        <span style="margin-left: auto; font-size: 12px; color: #9ca3af; background: #e5e7eb; padding: 2px 8px; border-radius: 10px;">${ref.linkCount} links</span>
+                    </div>
+                `;
+            }).join('') : '';
+
+            // Build views list HTML
+            const viewsHtml = set.views && set.views.size > 0 ? Array.from(set.views.entries()).map(([viewId, view]) => {
+                const viewIcon = view.icon || VIEW_TYPE_ICONS[view.type] || 'ph-table';
+                const viewMode = view.viewMode || 'live';
+                const modeBadge = viewMode === 'sandbox'
+                    ? '<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 8px;">SB</span>'
+                    : '';
+                return `
+                    <div onclick="switchSet('${setId}', '${viewId}')"
+                         style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f9fafb; border-radius: 6px; cursor: pointer; transition: all 0.15s;"
+                         onmouseover="this.style.background='#f3f4f6'; this.style.borderColor='#d1d5db';"
+                         onmouseout="this.style.background='#f9fafb';">
+                        <i class="ph ${viewIcon}" style="color: #6366f1; font-size: 16px;"></i>
+                        <span style="font-weight: 500; color: #111827;">${view.name}${modeBadge}</span>
+                        <span style="margin-left: auto; font-size: 12px; color: #9ca3af;">${view.type}</span>
+                    </div>
+                `;
+            }).join('') : '<div style="color: #6b7280; font-size: 14px; padding: 12px;">No views yet</div>';
+
+            container.innerHTML = `
+                <div style="padding: 24px; max-width: 900px; margin: 0 auto;">
+                    <!-- Header -->
+                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e5e7eb;">
+                        <div class="set-overview-icon-container" style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; background: #f3f4f6; border-radius: 12px; font-size: 32px; color: #6366f1;">
+                            ${renderIcon(set.icon || 'ph-squares-four')}
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+                                <h1 style="font-size: 24px; font-weight: 700; color: #111827; margin: 0;">${set.name}</h1>
+                                ${statusBadge}
+                            </div>
+                            <div style="font-size: 14px; color: #6b7280;">
+                                ${recordCount} records · ${fieldCount} fields · ${viewCount} views
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="SetManagement.openSetManagementModal('${setId}', 'details')" class="btn btn-secondary">
+                                <i class="ph ph-gear"></i>
+                                Manage
+                            </button>
+                            ${set.views && set.views.size > 0 ? `
+                                <button onclick="switchSet('${setId}', '${Array.from(set.views.keys())[0]}')" class="btn btn-primary">
+                                    <i class="ph ph-table"></i>
+                                    Open Data
+                                </button>
+                            ` : `
+                                <button onclick="createViewForSet('${setId}')" class="btn btn-primary">
+                                    <i class="ph ph-plus"></i>
+                                    Create View
+                                </button>
+                            `}
+                        </div>
+                    </div>
+
+                    <!-- Main content grid -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+
+                        <!-- Left column: Sources & Status -->
+                        <div style="display: flex; flex-direction: column; gap: 20px;">
+
+                            <!-- Data Sources Section -->
+                            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                                    <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0; display: flex; align-items: center; gap: 8px;">
+                                        <i class="ph ph-database" style="color: #6366f1;"></i>
+                                        Data Sources
+                                    </h3>
+                                    <button onclick="SetManagement.showAddImportModal('${setId}')" class="btn btn-secondary btn-sm">
+                                        <i class="ph ph-plus"></i>
+                                        Add Import
+                                    </button>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    ${sourcesHtml || manualHtml || '<div style="color: #6b7280; font-size: 14px; text-align: center; padding: 20px;">No data sources yet. Add an import or create records manually.</div>'}
+                                    ${sourcesHtml && manualHtml ? manualHtml : ''}
+                                </div>
+                            </div>
+
+                            <!-- Data Maturity Section -->
+                            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px;">
+                                <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                                    <i class="ph ph-chart-line-up" style="color: #6366f1;"></i>
+                                    Data Maturity
+                                </h3>
+                                <div style="margin-bottom: 12px;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                                        <span style="font-size: 14px; font-weight: 500; color: #374151;">${maturity.label || maturity.stage}</span>
+                                        <span style="font-size: 14px; color: #6b7280;">${Math.round(maturity.progress || 0)}%</span>
+                                    </div>
+                                    <div style="height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
+                                        <div style="height: 100%; width: ${maturity.progress || 0}%; background: ${isOutputReady ? '#22c55e' : isSandbox ? '#f59e0b' : '#3b82f6'}; border-radius: 4px; transition: width 0.3s;"></div>
+                                    </div>
+                                </div>
+                                <div style="font-size: 13px; color: #6b7280;">
+                                    ${maturity.summary || (isOutputReady ? 'Data has been validated and is ready for output.' : isSandbox ? 'Data is being worked on in sandbox mode.' : 'Data is being processed and enriched.')}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right column: Relationships & Views -->
+                        <div style="display: flex; flex-direction: column; gap: 20px;">
+
+                            <!-- Relationships Section -->
+                            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px;">
+                                <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                                    <i class="ph ph-link" style="color: #6366f1;"></i>
+                                    Relationships
+                                </h3>
+                                ${relationships.linkedSets.length === 0 && relationships.referencedBy.length === 0 ? `
+                                    <div style="color: #6b7280; font-size: 14px; text-align: center; padding: 20px;">
+                                        <i class="ph ph-link-simple-break" style="font-size: 32px; color: #d1d5db; display: block; margin-bottom: 8px;"></i>
+                                        No relationships to other sets
+                                    </div>
+                                ` : `
+                                    ${linkedSetsHtml ? `
+                                        <div style="margin-bottom: ${referencedByHtml ? '16px' : '0'};">
+                                            <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">Links To</div>
+                                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                                ${linkedSetsHtml}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    ${referencedByHtml ? `
+                                        <div>
+                                            <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">Referenced By</div>
+                                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                                ${referencedByHtml}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                `}
+                            </div>
+
+                            <!-- Views Section -->
+                            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                                    <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0; display: flex; align-items: center; gap: 8px;">
+                                        <i class="ph ph-eye" style="color: #6366f1;"></i>
+                                        Views
+                                    </h3>
+                                    <button onclick="openAddViewModal('${setId}')" class="btn btn-secondary btn-sm">
+                                        <i class="ph ph-plus"></i>
+                                        Add View
+                                    </button>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    ${viewsHtml}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                        <h3 style="font-size: 14px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">Quick Actions</h3>
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <button onclick="SetManagement.openSetManagementModal('${setId}', 'sources')" class="btn btn-secondary btn-sm">
+                                <i class="ph ph-database"></i>
+                                Manage Sources
+                            </button>
+                            <button onclick="SetManagement.openSetManagementModal('${setId}', 'provenance')" class="btn btn-secondary btn-sm">
+                                <i class="ph ph-clock-counter-clockwise"></i>
+                                View History
+                            </button>
+                            <button onclick="SetManagement.openSetManagementModal('${setId}', 'relationships')" class="btn btn-secondary btn-sm">
+                                <i class="ph ph-git-branch"></i>
+                                Edit Relationships
+                            </button>
+                            <button onclick="openCsvImportModal()" class="btn btn-secondary btn-sm">
+                                <i class="ph ph-file-csv"></i>
+                                Import CSV
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Style the icon in the header
+            const iconEl = container.querySelector('.set-overview-icon');
+            if (iconEl) {
+                iconEl.style.fontSize = '32px';
+                iconEl.style.color = '#6366f1';
+            }
+        }
+
+        /**
+         * Open the set overview page for a specific set
+         */
+        function openSetOverview(setId) {
+            state.setOverviewSetId = setId;
+            state.currentSpecialView = 'setOverview';
+            state.currentSetId = setId;
+            renderNav();
+            renderCurrentView();
         }
 
         function renderExplorePage() {
