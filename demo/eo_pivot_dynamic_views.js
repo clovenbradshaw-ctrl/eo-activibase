@@ -77,6 +77,10 @@
             columnOrder: [field.id, ...(set.schema || []).map(f => f.id).filter(id => id !== field.id)],
             columnWidths: {},
             columnWidthMode: 'auto',
+            // Auto-name the pivot column after the column it was pivoted from
+            columnDisplayNames: {
+                [field.id]: field.name
+            },
 
             // View logic - group by pivot key field
             filters: [],
@@ -346,6 +350,10 @@
             icon: DYNAMIC_VIEW_ICON,
             visibleFieldIds: [linkFieldId, ...(sourceSet.schema || []).map(f => f.id).filter(id => id !== linkFieldId && id !== field.id)],
             hiddenFields: [field.id], // Hide original field, show link instead
+            // Auto-name the link column after the column it was created from
+            columnDisplayNames: {
+                [linkFieldId]: field.name
+            },
             filters: [],
             sorts: [{ fieldId: linkFieldId, direction: 'asc' }],
             groups: [],
@@ -859,6 +867,13 @@
                 ...valueFields.map(vf => vf.fieldId)
             ],
             hiddenFields: [],
+            // Auto-name pivot columns after the columns they were pivoted from
+            columnDisplayNames: [...rowGroupFields, ...valueFields.map(vf => vf.fieldId)]
+                .reduce((acc, fieldId) => {
+                    const field = set.schema.find(f => f.id === fieldId);
+                    if (field) acc[fieldId] = field.name;
+                    return acc;
+                }, {}),
             filters: [],
             sorts: rowGroupFields.map(fid => ({ fieldId: fid, direction: sortDirection })),
             groups: rowGroupFields.map(fid => ({ fieldId: fid })),
