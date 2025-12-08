@@ -804,7 +804,8 @@ function popOutTab(state, paneId, setId, viewId, specialView = null) {
             relations: 'Relations',
             definitions: 'Definitions',
             views: 'Views',
-            explore: 'Explore'
+            explore: 'Explore',
+            eoql_testing: 'EOQL Testing'
         };
         title = specialViewLabels[specialView] || 'EO View';
     } else {

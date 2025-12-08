@@ -55,7 +55,12 @@
     <script defer src="demo/eo_select_field_settings.js"></script>
     <script defer src="demo/eo_inline_cell_editor.js"></script>
     <script defer src="demo/eo_pivot_dynamic_views.js"></script>
+    <script defer src="demo/eo_eoql_testing.js"></script>
+    <script defer src="foundation/eo_query_language.js"></script>
+    <script defer src="foundation/eo_query_parser.js"></script>
+    <script defer src="foundation/eo_query_compiler.js"></script>
     <link rel="stylesheet" href="demo/eo_custom_dropdown.css">
+    <link rel="stylesheet" href="demo/eo_eoql_testing.css">
     <link rel="stylesheet" href="demo/eo_pivot_dynamic_views.css">
     <link rel="stylesheet" href="demo/eo_select_field_settings.css">
     <link rel="stylesheet" href="demo/eo_linked_fields_modal.css">
@@ -5249,6 +5254,7 @@
                 </div>
                 <div id="actionsNavContent">
                     <div class="world-nav-children" style="padding: 0 1rem; margin-bottom: 1.5rem;">
+                        <div class="nav-item" onclick="openEOQLTestingTab()"><i class="ph ph-code" style="margin-right: 6px; opacity: 0.7;"></i>EOQL Testing</div>
                         <div class="nav-item" onclick="TossPileUI.openPanel()"><i class="ph ph-trash" style="margin-right: 6px; opacity: 0.7;"></i>Toss Pile</div>
                         <div class="nav-item" onclick="openImportsTableView()"><i class="ph ph-table" style="margin-right: 6px; opacity: 0.7;"></i>All Imports</div>
                         <div class="nav-item" onclick="openEditHistoryModal()"><i class="ph ph-clock-counter-clockwise" style="margin-right: 6px; opacity: 0.7;"></i>Edit History</div>
@@ -15419,7 +15425,8 @@
             relations: { icon: 'ph-tree-structure', label: 'Relations' },
             definitions: { icon: 'ph-book-open', label: 'Definitions' },
             views: { icon: 'ph-layout', label: 'Views' },
-            explore: { icon: 'ph-compass', label: 'Explore' }
+            explore: { icon: 'ph-compass', label: 'Explore' },
+            eoql_testing: { icon: 'ph-code', label: 'EOQL Testing' }
         };
 
         // Toggle World Details submenu visibility
@@ -17474,6 +17481,12 @@
 
             if (state.currentSpecialView === 'setOverview') {
                 renderSetOverviewPage();
+                updateMobileChrome();
+                return;
+            }
+
+            if (state.currentSpecialView === 'eoql_testing') {
+                renderEOQLTestingPage();
                 updateMobileChrome();
                 return;
             }
@@ -25496,6 +25509,27 @@
             state.currentSetId = setId;
             renderNav();
             renderCurrentView();
+        }
+
+        /**
+         * Render the EOQL Testing page
+         */
+        function renderEOQLTestingPage() {
+            const container = document.getElementById('viewContainer');
+            if (!container) return;
+
+            // Use the EOQL Testing tab component if available
+            if (typeof renderEOQLTestingTab === 'function') {
+                renderEOQLTestingTab(container);
+            } else {
+                container.innerHTML = `
+                    <div style="padding: 40px; text-align: center;">
+                        <i class="ph ph-code" style="font-size: 48px; color: #94a3b8; margin-bottom: 16px; display: block;"></i>
+                        <h2 style="margin: 0 0 8px 0; font-size: 20px; color: #334155;">EOQL Testing Lab</h2>
+                        <p style="color: #64748b; margin: 0;">Loading testing environment...</p>
+                    </div>
+                `;
+            }
         }
 
         function renderExplorePage() {
@@ -35901,6 +35935,31 @@
         function openImportsTableView() {
             AllImportsTab.toggle();
         }
+
+        /**
+         * Open the EOQL Testing tab as a special view
+         */
+        function openEOQLTestingTab() {
+            const layout = state.layout;
+            const mainPane = EOLayout.findPaneById(layout.root, 'pane-main') || layout.root;
+
+            // Check if tab already exists
+            const existingIndex = mainPane.tabs.findIndex(t => t.specialView === 'eoql_testing');
+            if (existingIndex !== -1) {
+                // Activate existing tab
+                EOLayout.activateTab(state, mainPane.id, existingIndex);
+            } else {
+                // Add new tab
+                mainPane.tabs.push({ specialView: 'eoql_testing' });
+                mainPane.activeTabIndex = mainPane.tabs.length - 1;
+                state.currentSpecialView = 'eoql_testing';
+                state.currentSetId = null;
+                state.currentViewId = null;
+            }
+
+            renderApp();
+        }
+        window.openEOQLTestingTab = openEOQLTestingTab;
 
         // Export import functions to global scope
         window.triggerFileImport = triggerFileImport;

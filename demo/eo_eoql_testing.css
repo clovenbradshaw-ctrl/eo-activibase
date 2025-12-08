@@ -1,0 +1,712 @@
+/**
+ * EO EOQL Testing Tab Styles
+ */
+
+/* Main container */
+.eoql-testing-tab {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #f8fafc;
+    overflow: hidden;
+}
+
+/* Header */
+.eoql-testing-header {
+    padding: 20px 24px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: white;
+    flex-shrink: 0;
+}
+
+.eoql-testing-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.eoql-testing-title i {
+    font-size: 28px;
+    color: #60a5fa;
+}
+
+.eoql-testing-title h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.eoql-testing-subtitle {
+    margin-top: 6px;
+    font-size: 14px;
+    color: #94a3b8;
+}
+
+/* Navigation */
+.eoql-testing-nav {
+    display: flex;
+    gap: 4px;
+    padding: 12px 24px;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.eoql-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.eoql-nav-btn:hover {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.eoql-nav-btn.active {
+    background: #1e293b;
+    color: white;
+}
+
+.eoql-nav-btn i {
+    font-size: 18px;
+}
+
+/* Content area */
+.eoql-testing-content {
+    flex: 1;
+    overflow: auto;
+    padding: 24px;
+}
+
+/* Sections */
+.eoql-section {
+    display: none;
+}
+
+.eoql-section.active {
+    display: block;
+}
+
+/* Section grid layout */
+.eoql-section-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.eoql-section-grid.three-col {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+/* Panels */
+.eoql-input-panel,
+.eoql-output-panel,
+.eoql-data-panel {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.panel-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.panel-header h3 i {
+    color: #64748b;
+}
+
+.panel-actions {
+    display: flex;
+    gap: 4px;
+}
+
+/* Code input/output */
+.code-input-wrapper,
+.code-output-wrapper {
+    flex: 1;
+    min-height: 200px;
+}
+
+.code-output-wrapper.small {
+    min-height: 100px;
+    max-height: 150px;
+}
+
+.code-input {
+    width: 100%;
+    height: 100%;
+    min-height: 200px;
+    padding: 16px;
+    border: none;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: none;
+    background: white;
+    color: #334155;
+}
+
+.code-input:focus {
+    outline: none;
+}
+
+.code-input::placeholder {
+    color: #94a3b8;
+}
+
+.code-output {
+    width: 100%;
+    height: 100%;
+    min-height: 200px;
+    max-height: 300px;
+    overflow: auto;
+    padding: 16px;
+    margin: 0;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    background: #1e293b;
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.code-output.error {
+    color: #f87171;
+}
+
+.ast-output,
+.pipeline-output {
+    max-height: 200px;
+}
+
+/* Dialect selector */
+.dialect-selector {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+}
+
+.dialect-selector label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.dialect-selector select {
+    padding: 6px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* Action buttons */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+}
+
+.btn-primary,
+.btn-secondary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-secondary {
+    background: white;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+}
+
+.btn-secondary:hover {
+    background: #f1f5f9;
+}
+
+.btn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+/* Formula section */
+.formula-examples {
+    padding: 12px 16px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.formula-examples label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+
+.example-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.chip {
+    padding: 4px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: white;
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.chip:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+/* Sample record display */
+.sample-record-display {
+    padding: 16px;
+    flex: 1;
+    overflow: auto;
+}
+
+.record-json {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.record-field {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.field-name {
+    font-family: monospace;
+    color: #7c3aed;
+    font-weight: 500;
+}
+
+.field-value {
+    color: #334155;
+}
+
+/* Formula result */
+.formula-result-display {
+    padding: 20px;
+    text-align: center;
+}
+
+.result-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #334155;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.result-value.error {
+    color: #dc2626;
+    font-size: 14px;
+}
+
+.result-type {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+/* Dependencies */
+.dependencies-list {
+    padding: 12px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.dep-chip {
+    display: inline-flex;
+    padding: 4px 10px;
+    background: #ede9fe;
+    color: #7c3aed;
+    border-radius: 12px;
+    font-size: 12px;
+    font-family: monospace;
+}
+
+.no-deps {
+    color: #94a3b8;
+    font-size: 13px;
+    font-style: italic;
+}
+
+/* Batch test */
+.formula-batch-test {
+    margin-top: 24px;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.batch-results-table {
+    max-height: 300px;
+    overflow: auto;
+}
+
+#formula-batch-results {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#formula-batch-results th,
+#formula-batch-results td {
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+#formula-batch-results th {
+    background: #f8fafc;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+#formula-batch-results td {
+    font-size: 13px;
+}
+
+#formula-batch-results td code {
+    font-size: 12px;
+    color: #64748b;
+}
+
+#formula-batch-results td.success {
+    color: #059669;
+    font-weight: 500;
+}
+
+#formula-batch-results td.error {
+    color: #dc2626;
+}
+
+/* Reference section */
+.reference-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+}
+
+.reference-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.reference-card h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 14px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.reference-card h3 i {
+    color: #3b82f6;
+}
+
+.reference-list {
+    padding: 12px;
+}
+
+.reference-list.scrollable {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.ref-item {
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+}
+
+.ref-item:hover {
+    background: #f8fafc;
+}
+
+.ref-item.operator {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    gap: 8px 12px;
+}
+
+.ref-item.operator .ref-name {
+    font-family: monospace;
+    font-weight: 700;
+    color: #dc2626;
+}
+
+.ref-item.operator .ref-desc {
+    color: #334155;
+    font-size: 13px;
+}
+
+.ref-item.operator .ref-sql {
+    grid-column: 2;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.ref-item.holon {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ref-item.holon .ref-name code {
+    font-size: 12px;
+    color: #7c3aed;
+}
+
+.ref-item.holon .ref-desc {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.ref-item.expr {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ref-item.expr .ref-cat {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.ref-item.expr .ref-ops code {
+    font-size: 12px;
+    color: #059669;
+}
+
+.ref-item.function-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ref-item.function-group .ref-cat {
+    font-size: 11px;
+    font-weight: 600;
+    color: #3b82f6;
+    text-transform: uppercase;
+}
+
+.ref-item.function-group .ref-fns code {
+    font-size: 11px;
+    padding: 2px 6px;
+    background: #f1f5f9;
+    border-radius: 4px;
+    color: #334155;
+}
+
+/* Sample data section */
+.sample-data-section {
+    margin-top: 24px;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.sample-data-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 14px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.sample-data-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.sample-tab {
+    padding: 6px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sample-tab:hover {
+    background: #f1f5f9;
+}
+
+.sample-tab.active {
+    background: #1e293b;
+    color: white;
+    border-color: #1e293b;
+}
+
+.sample-data-table {
+    max-height: 300px;
+    overflow: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 13px;
+}
+
+.data-table th {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #64748b;
+    position: sticky;
+    top: 0;
+}
+
+.data-table td {
+    color: #334155;
+}
+
+.data-table tr:hover td {
+    background: #f8fafc;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .eoql-section-grid.three-col {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 900px) {
+    .eoql-section-grid,
+    .eoql-section-grid.three-col {
+        grid-template-columns: 1fr;
+    }
+
+    .reference-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .eoql-testing-nav {
+        flex-wrap: wrap;
+    }
+
+    .eoql-nav-btn {
+        flex: 1;
+        justify-content: center;
+        min-width: 120px;
+    }
+}
