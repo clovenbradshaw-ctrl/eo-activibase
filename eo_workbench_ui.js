@@ -24,7 +24,7 @@ function getViewRelationshipInfo(state, view, allViews) {
         isLinked: false,       // This view is derived from another
         parentView: null,      // The view this one derives from
         dependentCount: 0,     // Number of views that depend on this one
-        isScratchpad: view.viewMode === 'scratchpad' || view.viewMode === 'sandbox', // Support both terms
+        isDerived: view.dataSource === 'derived' || view.isPivot || view.isReadOnly,
         derivationType: null   // 'filter', 'pivot', 'clone', etc.
     };
 
@@ -123,7 +123,7 @@ function renderViewManager(state, setId) {
         // Build CSS classes
         const tabClasses = ['view-tab'];
         if (isActive) tabClasses.push('active');
-        if (relationshipInfo.isScratchpad) tabClasses.push('scratchpad');
+        if (relationshipInfo.isDerived) tabClasses.push('derived-data');
         if (relationshipInfo.isLinked) tabClasses.push('linked');
         if (relationshipInfo.isSource) tabClasses.push('source');
 
@@ -138,16 +138,21 @@ function renderViewManager(state, setId) {
             }[relationshipInfo.derivationType] || 'Based on';
             tooltip += ` (${typeLabel}: ${relationshipInfo.parentView.name})`;
         }
-        if (relationshipInfo.isScratchpad) {
-            tooltip += ' [Scratchpad - exploratory workspace]';
+        if (relationshipInfo.isDerived) {
+            tooltip += ' [Derived data - not live source]';
         }
+
+        // Show scratch pad indicator for derived/computed data views
+        const scratchPadIndicator = relationshipInfo.isDerived
+            ? '<span class="scratch-pad-indicator" title="Scratch pad: derived/computed data">📊</span>'
+            : '';
 
         parts.push(`
             <div class="${tabClasses.join(' ')}" data-view-id="${view.id}" title="${escapeHtml(tooltip)}">
                 ${relationshipBadge}
                 <span class="view-icon">${view.icon || '📋'}</span>
                 <span class="view-name">${escapeHtml(view.name)}${isDirty}</span>
-                ${relationshipInfo.isScratchpad ? '<span class="scratchpad-indicator" title="Scratchpad: exploratory workspace">📝</span>' : ''}
+                ${scratchPadIndicator}
                 <button class="view-menu-btn" data-view-id="${view.id}" title="View options">⋮</button>
             </div>
         `);
@@ -270,13 +275,12 @@ function renderViewLineageBar(state, currentView, allViews) {
         parts.push('</div>');
     }
 
-    // Scratchpad mode indicator
-    if (relationshipInfo.isScratchpad) {
+    // Derived data indicator - clear visual that this is "scratch pad" data
+    if (relationshipInfo.isDerived) {
         parts.push(`
-            <div class="scratchpad-mode-bar">
-                <span class="scratchpad-icon">📝</span>
-                <span class="scratchpad-text">Scratchpad - Exploratory workspace for drafting data</span>
-                <button class="btn-promote-view" title="Promote to Live">Make Live</button>
+            <div class="derived-data-bar">
+                <span class="derived-icon">📊</span>
+                <span class="derived-text">Scratch Pad - This view shows derived/computed data, not live source</span>
             </div>
         `);
     }

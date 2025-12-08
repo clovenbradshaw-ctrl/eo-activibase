@@ -92,11 +92,10 @@ function createViewEntity(config) {
         isDirty: false, // tracks unsaved changes
         isTemporary: config.isTemporary || false, // ephemeral views not yet reified
 
-        // View mode: 'scratchpad' for exploratory workspace, 'live' for committed data
-        // Scratchpad: exploratory workspace for drafting data, distinct but not minimized
-        // Live: committed, dynamic data that's part of the set
-        // Note: 'sandbox' is legacy, mapped to 'scratchpad' in UI
-        viewMode: config.viewMode || 'live',
+        // Data source indicator: 'live' for source data, 'derived' for computed/aggregated data
+        // Derived data includes: pivot views, computed fields, aggregations
+        // This helps users understand at-a-glance what data is "scratch pad" vs source
+        dataSource: config.dataSource || (config.isPivot || config.isReadOnly ? 'derived' : 'live'),
 
         // Data mode: 'dynamic' for live editable data, 'static' for pivot snapshots
         // Dynamic: data updates in real-time, editable within the set
