@@ -54,7 +54,9 @@
     <script defer src="demo/eo_custom_dropdown.js"></script>
     <script defer src="demo/eo_select_field_settings.js"></script>
     <script defer src="demo/eo_inline_cell_editor.js"></script>
+    <script defer src="demo/eo_pivot_dynamic_views.js"></script>
     <link rel="stylesheet" href="demo/eo_custom_dropdown.css">
+    <link rel="stylesheet" href="demo/eo_pivot_dynamic_views.css">
     <link rel="stylesheet" href="demo/eo_select_field_settings.css">
     <link rel="stylesheet" href="demo/eo_linked_fields_modal.css">
     <link rel="stylesheet" href="demo/eo_link_column_modal.css">
@@ -14989,10 +14991,12 @@
             const isExpanded = state.expandedSets.has(set.id);
             const hasViews = set.views && set.views.size > 0;
             const isOutput = set.stage === 'output';
+            const isDynamicSet = set.isDynamicSet || set.origin === 'dynamic';
 
             // Create set header with chevron
             const setHeader = document.createElement('div');
             setHeader.className = 'nav-item';
+            if (isDynamicSet) setHeader.classList.add('dynamic-set');
             setHeader.style.display = 'flex';
             setHeader.style.alignItems = 'center';
             setHeader.style.justifyContent = 'space-between';
@@ -15002,9 +15006,14 @@
             setLabel.style.display = 'flex';
             setLabel.style.alignItems = 'center';
             setLabel.style.gap = '6px';
+
+            // Build dynamic set badge if applicable
+            const dynamicBadge = isDynamicSet ? '<span class="dynamic-set-badge" title="Dynamic table created from column values"><i class="ph ph-link-simple"></i></span>' : '';
+
             setLabel.innerHTML = `
-                <span style="color: ${isOutput ? '#22c55e' : '#a855f7'}; font-size: 12px;">${renderIcon(set.icon || 'ph-squares-four')}</span>
+                <span style="color: ${isDynamicSet ? '#3b82f6' : isOutput ? '#22c55e' : '#a855f7'}; font-size: 12px;">${renderIcon(set.icon || (isDynamicSet ? 'ph-stack' : 'ph-squares-four'))}</span>
                 <span>${escapeHtml(set.name)}</span>
+                ${dynamicBadge}
             `;
 
             const chevron = document.createElement('i');
@@ -18021,6 +18030,28 @@
             const viewModeBadge = renderViewModeBadge(viewMode);
             const tableShellClass = viewMode === 'sandbox' ? 'view-table-shell sandbox' : 'view-table-shell';
 
+            // Check if this is a pivot view (read-only)
+            const isPivotView = view.isPivot || view.isReadOnly;
+            const pivotBanner = isPivotView ? `
+                <div class="pivot-readonly-banner">
+                    <i class="ph ph-chart-pie-slice"></i>
+                    <span>Pivot View - Data is read-only</span>
+                    <button class="btn btn-sm btn-secondary" onclick="if(typeof EOPivotDynamicViews !== 'undefined') { EOPivotDynamicViews.convertToEditableView(state, '${view.id}'); renderCurrentView(); }">
+                        Make Editable
+                    </button>
+                </div>
+            ` : '';
+
+            // Check if this is a dynamic linked view
+            const isDynamicView = view.isLinkedView || view.pivotMetadata?.pivotType === 'dynamic_link';
+            const dynamicBanner = isDynamicView ? `
+                <div class="pivot-readonly-banner" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-color: #93c5fd; color: #1e40af;">
+                    <i class="ph ph-link-simple"></i>
+                    <span>Dynamic Linked View - Edit records through the linked "${view.pivotMetadata?.dynamicSetName || 'table'}"</span>
+                    ${view.pivotMetadata?.dynamicSetId ? `<button class="btn btn-sm btn-secondary" onclick="switchSet('${view.pivotMetadata.dynamicSetId}')" style="background: white; border-color: #93c5fd; color: #1e40af;">Go to ${view.pivotMetadata?.dynamicSetName || 'Linked Table'}</button>` : ''}
+                </div>
+            ` : '';
+
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
                 <div class="view-stage-header">
@@ -18028,12 +18059,13 @@
                     <div class="view-stage-title">
                         <span class="view-stage-pill">${set.name}</span>
                         <div class="min-w-0">
-                            <div class="view-stage-name">${view.name}${viewModeBadge}</div>
+                            <div class="view-stage-name">${view.name}${viewModeBadge}${isPivotView ? '<span class="view-badge pivot-badge" style="margin-left: 8px;"><i class="ph ph-chart-pie-slice"></i> Pivot</span>' : ''}${isDynamicView ? '<span class="view-badge dynamic-badge" style="margin-left: 8px;"><i class="ph ph-link-simple"></i> Linked</span>' : ''}</div>
                             <div class="view-stage-sub">Grid view · ${recordCount} ${recordLabel}</div>
                         </div>
                     </div>
                     ${renderViewActions()}
                 </div>
+                ${pivotBanner}${dynamicBanner}
                 <div class="view-stage-body">
                     <div class="${tableShellClass}">
                         <div class="table-scroll">
@@ -25986,6 +26018,18 @@
         }
 
         function enterEditMode(td, recordId, field) {
+            // Check if current view is a pivot view (read-only)
+            const currentView = getCurrentView();
+            if (currentView && (currentView.isPivot || currentView.isReadOnly)) {
+                // Show notification that editing is blocked
+                if (typeof EOPivotDynamicViews !== 'undefined') {
+                    EOPivotDynamicViews.showBlockedEditNotification('This is a pivot view. Data is read-only.');
+                } else {
+                    showToast('Pivot view - data is read-only');
+                }
+                return;
+            }
+
             exitEditMode(false);
 
             td.classList.remove('cell-selected');
@@ -31039,7 +31083,20 @@
                 }},
                 { label: 'Set Column Width…', icon: 'ph-text-columns', action: () => openSetColumnWidthDialog(field) },
                 { label: 'separator' },
-                { label: 'Create View from Column', action: () => createViewFromColumn(field) },
+                { label: 'Pivot Column', icon: 'ph-chart-pie-slice', action: () => {
+                    if (typeof EOPivotDynamicViews !== 'undefined' && set) {
+                        EOPivotDynamicViews.showPivotDynamicDialog(state, set.id, field);
+                    } else {
+                        createViewFromColumn(field);
+                    }
+                }},
+                { label: 'Make Dynamic View', icon: 'ph-link-simple', action: () => {
+                    if (typeof EOPivotDynamicViews !== 'undefined' && set) {
+                        EOPivotDynamicViews.showPivotDynamicDialog(state, set.id, field);
+                    } else {
+                        showToast('Dynamic views not available');
+                    }
+                }},
                 // Don't allow setting Record ID as the identifier field - it's static
                 !isRecordIdField ? { label: isIdentifier ? 'Clear Identifier' : 'Use as Identifier', action: () => setIdentifierField(isIdentifier ? null : field.id) } : null,
                 { label: 'Change Field Type…', action: () => openChangeFieldTypeModal(field) },
