@@ -35957,7 +35957,9 @@
                 state.currentViewId = null;
             }
 
-            renderApp();
+            closeMobileSidebar();
+            renderSidebar();
+            renderCurrentView();
         }
         window.openEOQLTestingTab = openEOQLTestingTab;
 
