@@ -11754,8 +11754,8 @@
             if (!set || !set.views) return;
 
             set.views.forEach((viewRef, viewId) => {
-                // Get the full view object
-                const view = typeof viewRef === 'object' && viewRef.id === viewId ? viewRef : set.views.get(viewId);
+                // Get the full view object from state.views
+                const view = resolveView(viewId, set);
                 if (!view) return;
 
                 // Initialize columnOrder if not present
@@ -15087,10 +15087,10 @@
         }
 
         function isViewDescendant(set, startId, potentialAncestorId) {
-            let currentParent = set.views.get(startId)?.parentId || null;
+            let currentParent = resolveView(startId, set)?.parentId || null;
             while (currentParent) {
                 if (currentParent === potentialAncestorId) return true;
-                currentParent = set.views.get(currentParent)?.parentId || null;
+                currentParent = resolveView(currentParent, set)?.parentId || null;
             }
             return false;
         }
@@ -15142,7 +15142,7 @@
 
             state.currentSetId = setId;
             if (viewId) {
-                const view = set.views.get(viewId);
+                const view = resolveView(viewId, set);
                 state.viewEditorContext = { setId, viewId };
                 if (titleEl) titleEl.textContent = 'Edit View';
                 if (saveBtn) saveBtn.textContent = 'Save';
@@ -17367,7 +17367,30 @@
         }
 
         function getCurrentSet() { return state.sets.get(state.currentSetId); }
-        function getCurrentView() { const set = getCurrentSet(); return set?.views.get(state.currentViewId); }
+        function getCurrentView() {
+            const set = getCurrentSet();
+            if (!set?.views) return null;
+            // set.views contains lightweight references { id }, resolve to full view from state.views
+            const viewRef = set.views.get(state.currentViewId);
+            if (!viewRef) return null;
+            return state.views?.get(viewRef.id || state.currentViewId) || viewRef;
+        }
+        // Resolve a view reference (lightweight or full) to the full view object
+        function resolveView(viewRefOrId, set) {
+            if (!viewRefOrId) return null;
+            const viewId = typeof viewRefOrId === 'string' ? viewRefOrId : (viewRefOrId.id || viewRefOrId);
+            // Try state.views first (contains full view objects)
+            const fullView = state.views?.get(viewId);
+            if (fullView) return fullView;
+            // Fall back to set.views (may contain lightweight refs)
+            if (set?.views) {
+                const viewRef = set.views.get(viewId);
+                if (viewRef && typeof viewRef === 'object' && Object.keys(viewRef).length > 1) {
+                    return viewRef; // It's already a full view object
+                }
+            }
+            return null;
+        }
         function getCurrentProfile() { const set = getCurrentSet(); return set?.profiles.get(state.currentProfileId); }
 
         // VIEW SWITCHING
@@ -20192,7 +20215,7 @@
 
             const viewRef = viewEntity.viewRef;
             const set = viewRef?.setId ? state.sets.get(viewRef.setId) : null;
-            const view = set && viewRef?.viewId ? set.views.get(viewRef.viewId) : null;
+            const view = set && viewRef?.viewId ? resolveView(viewRef.viewId, set) : null;
             const memberRefs = viewEntity.memberRefs || [];
             const lineageConnections = getConnectionView(c => c.operand?.id === viewEntityId);
             const definitions = getDefinitionView(d => d.entity?.type === 'ViewEntity' && d.entity?.id === viewEntityId);
@@ -20853,10 +20876,14 @@
                 const world = state.worlds.get(entityId);
                 return world?.name || 'World';
             } else if (entityType === 'View') {
-                // Try to find the view in sets from the current world
+                // Try to find the view in state.views first (full view objects)
+                const fullView = state.views?.get(entityId);
+                if (fullView?.name) return fullView.name;
+                // Fall back to searching in sets
                 for (const set of getSetsForWorld()) {
                     if (set.views.has(entityId)) {
-                        return set.views.get(entityId)?.name || 'View';
+                        const resolved = resolveView(entityId, set);
+                        return resolved?.name || 'View';
                     }
                 }
                 return 'View';
@@ -22942,7 +22969,7 @@
             const set = state.sets.get(setId);
             if (!set || !set.views) return;
 
-            const originalView = state.views?.get(viewId) || set.views.get(viewId);
+            const originalView = resolveView(viewId, set);
             if (!originalView) return;
 
             const newViewId = `view_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -24798,7 +24825,7 @@
             const set = state.sets.get(setId);
             if (!set) return;
 
-            const view = set.views.get(viewId);
+            const view = resolveView(viewId, set);
             if (!view) return;
 
             // Get and filter records
@@ -30358,11 +30385,13 @@
             if (!set) return null;
 
             if (preferredViewId && set.views.has(preferredViewId)) {
-                const preferredView = set.views.get(preferredViewId);
+                const preferredView = resolveView(preferredViewId, set);
                 if (preferredView?.identifierField) return preferredView.identifierField;
             }
 
-            for (const view of set.views.values()) {
+            // Iterate through view references and resolve each one
+            for (const viewRef of set.views.values()) {
+                const view = resolveView(viewRef?.id || viewRef, set);
                 if (view?.identifierField) return view.identifierField;
             }
 
@@ -33852,7 +33881,7 @@
 
                     // If the selected view has filters, pre-populate the record with filter values
                     // so it's immediately visible after creation
-                    const view = state.views?.get(viewId) || set.views.get(viewId);
+                    const view = resolveView(viewId, set);
                     if (view && view.filters && view.filters.length > 0) {
                         const firstGroup = view.filters[0];
                         const rules = firstGroup.filter(r => r.field);
@@ -33905,11 +33934,13 @@
                 }
 
                 if (state.viewEditorContext?.viewId) {
-                    const view = set.views.get(state.viewEditorContext.viewId);
+                    // Get the full view object from state.views for editing
+                    const view = resolveView(state.viewEditorContext.viewId, set);
                     if (view) {
                         view.name = name;
                         view.icon = icon;
                         view.parentId = parentId;
+                        view.isDirty = true;
                     }
                     closeModal('addViewModal');
                     state.viewEditorContext = null;
