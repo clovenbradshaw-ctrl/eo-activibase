@@ -585,6 +585,132 @@
 }
 
 /* ============================================================================
+   LOOKUP COLUMN STYLING - Cross-set data visualization
+   ============================================================================ */
+
+/* Lookup columns have a subtle visual treatment to show they pull data from another set */
+.column-header.lookup-field,
+th.lookup-field {
+    background: linear-gradient(135deg, #ecfeff 0%, #e0f2fe 100%) !important;
+    border-left: 3px solid #06b6d4 !important;
+    position: relative;
+}
+
+.column-header.lookup-field::before,
+th.lookup-field::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 12px 12px 0;
+    border-color: transparent #06b6d4 transparent transparent;
+    opacity: 0.6;
+}
+
+/* Lookup column header icon styling */
+.column-header.lookup-field .column-type-icon,
+th.lookup-field .column-type-icon {
+    color: #0891b2;
+}
+
+/* Lookup cell styling - subtle indication of cross-set data */
+td.lookup-cell {
+    background: linear-gradient(135deg, #f0fdfa 0%, #ecfeff 100%);
+    border-left: 2px solid rgba(6, 182, 212, 0.3);
+}
+
+td.lookup-cell:hover {
+    background: linear-gradient(135deg, #ccfbf1 0%, #cffafe 100%);
+}
+
+/* Link field (relationship) column styling */
+.column-header.link-field,
+th.link-field {
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%) !important;
+    border-left: 3px solid #8b5cf6 !important;
+}
+
+.column-header.link-field::before,
+th.link-field::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 12px 12px 0;
+    border-color: transparent #8b5cf6 transparent transparent;
+    opacity: 0.6;
+}
+
+td.link-cell {
+    background: linear-gradient(135deg, #faf5ff 0%, #f5f3ff 100%);
+    border-left: 2px solid rgba(139, 92, 246, 0.3);
+}
+
+td.link-cell:hover {
+    background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%);
+}
+
+/* Rollup column styling (aggregated data from linked records) */
+.column-header.rollup-field,
+th.rollup-field {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+    border-left: 3px solid #3b82f6 !important;
+}
+
+.column-header.rollup-field::before,
+th.rollup-field::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 12px 12px 0;
+    border-color: transparent #3b82f6 transparent transparent;
+    opacity: 0.6;
+}
+
+td.rollup-cell {
+    background: linear-gradient(135deg, #f0f9ff 0%, #eff6ff 100%);
+    border-left: 2px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Joined data indicator - badge shown in header for cross-set fields */
+.cross-set-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 6px;
+    background: rgba(6, 182, 212, 0.15);
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #0891b2;
+    margin-left: 6px;
+}
+
+.cross-set-indicator i {
+    font-size: 10px;
+}
+
+/* Source set name in lookup columns */
+.lookup-source-hint {
+    font-size: 10px;
+    color: #64748b;
+    font-style: italic;
+    display: block;
+    margin-top: 2px;
+}
+
+/* ============================================================================
    RESPONSIVE ADJUSTMENTS
    ============================================================================ */
 

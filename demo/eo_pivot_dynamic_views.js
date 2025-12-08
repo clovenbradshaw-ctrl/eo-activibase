@@ -1,16 +1,22 @@
 /**
  * EO Pivot and Dynamic Views
  *
- * This module provides advanced view creation features:
+ * This module provides advanced data organization features:
  *
- * 1. Pivot Column - Creates a non-editable pivot view from a column
- *    - The pivot view shows data organized around that column's values
- *    - Data in pivot views is read-only to preserve data integrity
+ * 1. Pivot - Creates a non-editable pivot from a column's key values
+ *    - Pivots show data organized around unique key values
+ *    - Data in pivots is static (snapshot) - read-only to preserve integrity
+ *    - Pivots are fundamentally key-based groupings of data
  *
- * 2. Make Dynamic View - Creates a new linked "table" (set) from column values
+ * 2. Dynamic Set - Creates a new linked "table" (set) from column values
  *    - Extracts unique values from the column into a new set
  *    - Creates a LINK_RECORD relationship back to the original set
- *    - The original view becomes a pivot table linked to the new dynamic set
+ *    - All data within a set is dynamic unless in a scratchpad
+ *
+ * Data Philosophy:
+ * - Within a set: All data is dynamic (live, editable) unless in a scratchpad
+ * - Pivots: Static snapshots organized by key values (read-only)
+ * - Across sets: Lookup fields join data from different datasets
  */
 
 (function(global) {
@@ -29,14 +35,15 @@
     // ============================================================================
 
     /**
-     * Create a pivot view from a column
-     * The pivot view is non-editable (read-only) and organized around the column's values
+     * Create a pivot from a column's key values
+     * Pivots are static snapshots - read-only and organized around key values
+     * Data in pivots is non-dynamic (frozen at creation time)
      *
      * @param {Object} state - Application state
      * @param {string} setId - Source set ID
-     * @param {Object} field - The field to pivot on
+     * @param {Object} field - The field to pivot on (the key field)
      * @param {Object} options - Additional options
-     * @returns {Object} The created pivot view
+     * @returns {Object} The created pivot
      */
     function createPivotView(state, setId, field, options = {}) {
         const set = state.sets.get(setId);
@@ -55,7 +62,8 @@
         // Get unique values for the pivot field
         const uniqueValues = getUniqueFieldValues(set, field.id);
 
-        // Build the pivot view configuration
+        // Build the pivot configuration
+        // Pivots are key-based static views - data is non-dynamic (snapshot)
         const pivotView = {
             id: viewId,
             name: viewName,
@@ -63,22 +71,23 @@
             type: 'grid',
             icon: PIVOT_VIEW_ICON,
 
-            // Data configuration - put pivot field first
+            // Data configuration - put pivot key field first
             visibleFieldIds: [field.id, ...(set.schema || []).map(f => f.id).filter(id => id !== field.id)],
             hiddenFields: [],
             columnOrder: [field.id, ...(set.schema || []).map(f => f.id).filter(id => id !== field.id)],
             columnWidths: {},
             columnWidthMode: 'auto',
 
-            // View logic - group by pivot field
+            // View logic - group by pivot key field
             filters: [],
             sorts: [{ fieldId: field.id, direction: 'asc' }],
             groups: [{ fieldId: field.id }],
 
             // Pivot-specific configuration
-            isPivot: true,           // Mark as pivot view
-            isReadOnly: true,        // Pivot views are read-only
-            pivotFieldId: field.id,  // The field being pivoted on
+            isPivot: true,           // Mark as pivot (key-based grouping)
+            isReadOnly: true,        // Pivots are read-only (static data)
+            pivotFieldId: field.id,  // The key field being pivoted on
+            dataMode: 'static',      // Data is non-dynamic (snapshot at creation)
 
             // Provenance
             provenance: {
@@ -96,13 +105,14 @@
                 sourceViewName: currentView?.name,
                 pivotField: field.id,
                 pivotFieldName: field.name,
-                pivotType: 'column_pivot',
+                pivotType: 'key_pivot',
                 uniqueValueCount: uniqueValues.length,
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                snapshotTimestamp: Date.now()  // When the static data was captured
             },
 
-            // View mode - sandbox for exploratory
-            viewMode: options.viewMode || 'sandbox',
+            // View mode - scratchpad for exploratory data, live for committed
+            viewMode: options.viewMode || 'scratchpad',
 
             // State tracking
             isDirty: false,
@@ -474,11 +484,11 @@
                                 <i class="ph ${PIVOT_VIEW_ICON}"></i>
                             </div>
                             <div class="option-content">
-                                <h3>Pivot Column</h3>
-                                <p>Create a read-only pivot view grouped by this column's values. Data cannot be edited in pivot views.</p>
+                                <h3>Create Pivot</h3>
+                                <p>Create a pivot organized by this column's key values. Data is static (snapshot) and cannot be edited.</p>
                                 <ul class="option-features">
-                                    <li><i class="ph ph-check"></i> Groups records by value</li>
-                                    <li><i class="ph ph-check"></i> Read-only view</li>
+                                    <li><i class="ph ph-check"></i> Groups by key values</li>
+                                    <li><i class="ph ph-check"></i> Static snapshot</li>
                                     <li><i class="ph ph-check"></i> Quick analysis</li>
                                 </ul>
                             </div>
@@ -493,12 +503,12 @@
                                 <i class="ph ${DYNAMIC_VIEW_ICON}"></i>
                             </div>
                             <div class="option-content">
-                                <h3>Make Dynamic View</h3>
-                                <p>Create a new linked table from this column's values. Records become linked entities you can manage separately.</p>
+                                <h3>Create Dynamic Set</h3>
+                                <p>Create a new linked set from unique values. Data stays dynamic and editable across sets via lookups.</p>
                                 <ul class="option-features">
-                                    <li><i class="ph ph-check"></i> Creates new table with ${uniqueValues.length} records</li>
+                                    <li><i class="ph ph-check"></i> Creates new set with ${uniqueValues.length} records</li>
                                     <li><i class="ph ph-check"></i> Bidirectional linking</li>
-                                    <li><i class="ph ph-check"></i> Full editing support</li>
+                                    <li><i class="ph ph-check"></i> Dynamic data via lookups</li>
                                 </ul>
                             </div>
                             <div class="option-select">
@@ -509,7 +519,7 @@
                     </div>
 
                     <div class="pivot-name-section">
-                        <label for="pivotName">View/Table Name</label>
+                        <label for="pivotName">Pivot/Set Name</label>
                         <input type="text" id="pivotName" value="${escapeHtml(field.name)}" placeholder="Enter name...">
                     </div>
                 </div>
@@ -561,7 +571,7 @@
     function executePivotColumnAction(state, setId, field, name) {
         const pivotView = createPivotView(state, setId, field, {
             name: `${name} Pivot`,
-            viewMode: 'sandbox'
+            viewMode: 'scratchpad'
         });
 
         if (pivotView) {
@@ -571,7 +581,7 @@
             if (typeof renderSidebar === 'function') renderSidebar();
             if (typeof switchSet === 'function') switchSet(setId, pivotView.id);
 
-            showPivotToast(`Pivot view created - data is read-only`, 'info');
+            showPivotToast(`Pivot created - static data snapshot`, 'info');
         }
     }
 
@@ -624,14 +634,14 @@
     }
 
     /**
-     * Render pivot view indicator badge
+     * Render pivot indicator badge
      */
     function renderPivotViewBadge(view) {
         if (!view) return '';
 
         if (view.isPivot || view.isReadOnly) {
             return `
-                <span class="view-badge pivot-badge" title="Pivot view - Read-only">
+                <span class="view-badge pivot-badge" title="Pivot - Static data snapshot">
                     <i class="ph ${PIVOT_VIEW_ICON}"></i>
                     <span>Pivot</span>
                 </span>
@@ -640,7 +650,7 @@
 
         if (view.isLinkedView || view.pivotMetadata?.pivotType === 'dynamic_link') {
             return `
-                <span class="view-badge dynamic-badge" title="Dynamic linked view">
+                <span class="view-badge dynamic-badge" title="Dynamic set - Data linked across sets">
                     <i class="ph ${DYNAMIC_VIEW_ICON}"></i>
                     <span>Linked</span>
                 </span>
@@ -651,22 +661,22 @@
     }
 
     /**
-     * Render read-only indicator overlay for pivot views
+     * Render read-only indicator overlay for pivots
      */
     function renderPivotReadOnlyOverlay() {
         return `
             <div class="pivot-readonly-banner">
                 <i class="ph ${PIVOT_VIEW_ICON}"></i>
-                <span>Pivot View - Data is read-only</span>
+                <span>Pivot - Static snapshot (data is non-dynamic)</span>
                 <button class="btn btn-sm btn-secondary" onclick="EOPivotDynamicViews.convertToEditableView()">
-                    Make Editable
+                    Make Dynamic
                 </button>
             </div>
         `;
     }
 
     /**
-     * Convert a pivot view to an editable view (removes read-only constraint)
+     * Convert a pivot to dynamic data (removes static/read-only constraint)
      */
     function convertToEditableView(state, viewId) {
         const view = state?.views?.get(viewId || state?.currentViewId);
@@ -674,11 +684,12 @@
 
         view.isPivot = false;
         view.isReadOnly = false;
-        view.provenance.notes = (view.provenance.notes || '') + ' - Converted to editable view';
+        view.dataMode = 'dynamic';  // Switch from static to dynamic
+        view.provenance.notes = (view.provenance.notes || '') + ' - Converted from static pivot to dynamic view';
         view.provenance.updatedAt = Date.now();
         view.isDirty = true;
 
-        showPivotToast('View is now editable', 'success');
+        showPivotToast('Data is now dynamic (editable)', 'success');
 
         // Re-render
         if (typeof renderCurrentView === 'function') {
@@ -691,18 +702,18 @@
     // ============================================================================
 
     /**
-     * Check if cell editing should be blocked for a pivot view
+     * Check if cell editing should be blocked for a pivot
      * Call this from inline cell editor before allowing edits
      */
     function shouldBlockCellEdit(state, viewId, recordId, fieldId) {
         const view = state?.views?.get(viewId);
         if (!view) return false;
 
-        // Block all edits in pivot views
-        if (view.isPivot || view.isReadOnly) {
+        // Block all edits in pivots (static data)
+        if (view.isPivot || view.isReadOnly || view.dataMode === 'static') {
             return {
                 blocked: true,
-                reason: 'This is a pivot view. Data is read-only.',
+                reason: 'This is a pivot with static data. Convert to dynamic to edit.',
                 icon: PIVOT_VIEW_ICON
             };
         }

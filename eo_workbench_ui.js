@@ -24,7 +24,7 @@ function getViewRelationshipInfo(state, view, allViews) {
         isLinked: false,       // This view is derived from another
         parentView: null,      // The view this one derives from
         dependentCount: 0,     // Number of views that depend on this one
-        isSandbox: view.viewMode === 'sandbox',
+        isScratchpad: view.viewMode === 'scratchpad' || view.viewMode === 'sandbox', // Support both terms
         derivationType: null   // 'filter', 'pivot', 'clone', etc.
     };
 
@@ -123,7 +123,7 @@ function renderViewManager(state, setId) {
         // Build CSS classes
         const tabClasses = ['view-tab'];
         if (isActive) tabClasses.push('active');
-        if (relationshipInfo.isSandbox) tabClasses.push('sandbox');
+        if (relationshipInfo.isScratchpad) tabClasses.push('scratchpad');
         if (relationshipInfo.isLinked) tabClasses.push('linked');
         if (relationshipInfo.isSource) tabClasses.push('source');
 
@@ -138,8 +138,8 @@ function renderViewManager(state, setId) {
             }[relationshipInfo.derivationType] || 'Based on';
             tooltip += ` (${typeLabel}: ${relationshipInfo.parentView.name})`;
         }
-        if (relationshipInfo.isSandbox) {
-            tooltip += ' [Sandbox - exploratory view]';
+        if (relationshipInfo.isScratchpad) {
+            tooltip += ' [Scratchpad - exploratory workspace]';
         }
 
         parts.push(`
@@ -147,7 +147,7 @@ function renderViewManager(state, setId) {
                 ${relationshipBadge}
                 <span class="view-icon">${view.icon || '📋'}</span>
                 <span class="view-name">${escapeHtml(view.name)}${isDirty}</span>
-                ${relationshipInfo.isSandbox ? '<span class="sandbox-indicator" title="Sandbox: exploratory view">⚗️</span>' : ''}
+                ${relationshipInfo.isScratchpad ? '<span class="scratchpad-indicator" title="Scratchpad: exploratory workspace">📝</span>' : ''}
                 <button class="view-menu-btn" data-view-id="${view.id}" title="View options">⋮</button>
             </div>
         `);
@@ -270,13 +270,13 @@ function renderViewLineageBar(state, currentView, allViews) {
         parts.push('</div>');
     }
 
-    // Sandbox mode indicator
-    if (relationshipInfo.isSandbox) {
+    // Scratchpad mode indicator
+    if (relationshipInfo.isScratchpad) {
         parts.push(`
-            <div class="sandbox-mode-bar">
-                <span class="sandbox-icon">⚗️</span>
-                <span class="sandbox-text">Sandbox Mode - Changes won't affect source data</span>
-                <button class="btn-promote-view" title="Promote to Live View">Make Live</button>
+            <div class="scratchpad-mode-bar">
+                <span class="scratchpad-icon">📝</span>
+                <span class="scratchpad-text">Scratchpad - Exploratory workspace for drafting data</span>
+                <button class="btn-promote-view" title="Promote to Live">Make Live</button>
             </div>
         `);
     }

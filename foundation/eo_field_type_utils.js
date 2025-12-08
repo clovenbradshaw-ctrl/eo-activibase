@@ -209,7 +209,9 @@
             'LONG_TEXT': 'Long Text',
             'URL': 'URL',
             'JSON': 'JSON',
-            'MULTI_FIELD': 'Multi-Field'
+            'MULTI_FIELD': 'Multi-Field',
+            'LOOKUP': 'Lookup (Cross-Set)',
+            'ROLLUP': 'Rollup (Aggregated)'
         };
 
         if (specialNames[type]) {
@@ -218,6 +220,92 @@
 
         // Default: capitalize first letter
         return type.charAt(0) + type.slice(1).toLowerCase();
+    }
+
+    /**
+     * Check if a field type represents cross-set data (lookup/link/rollup)
+     * These fields pull or reference data from other sets
+     * @param {string} fieldType - The field type
+     * @returns {boolean} True if field represents cross-set data
+     */
+    function isCrossSetField(fieldType) {
+        const type = (fieldType || '').toUpperCase();
+        return ['LOOKUP', 'LINK_RECORD', 'LINKED_RECORD', 'ROLLUP'].includes(type);
+    }
+
+    /**
+     * Get CSS class for column header based on field type
+     * Includes special styling for cross-set fields
+     * @param {string} fieldType - The field type
+     * @returns {string} CSS class name(s) for the column header
+     */
+    function getFieldTypeColumnClass(fieldType) {
+        const type = (fieldType || 'TEXT').toUpperCase();
+        const classMap = {
+            'LOOKUP': 'lookup-field',           // Cross-set reference
+            'ROLLUP': 'rollup-field',           // Cross-set aggregation
+            'LINK_RECORD': 'link-field',        // Cross-set relationship
+            'LINKED_RECORD': 'link-field'       // Cross-set relationship
+        };
+        return classMap[type] || '';
+    }
+
+    /**
+     * Get CSS class for cell based on field type
+     * Provides visual distinction for cross-set data cells
+     * @param {string} fieldType - The field type
+     * @returns {string} CSS class name for the cell
+     */
+    function getFieldTypeCellClass(fieldType) {
+        const type = (fieldType || 'TEXT').toUpperCase();
+        const classMap = {
+            'LOOKUP': 'lookup-cell',
+            'ROLLUP': 'rollup-cell',
+            'LINK_RECORD': 'link-cell',
+            'LINKED_RECORD': 'link-cell'
+        };
+        return classMap[type] || '';
+    }
+
+    /**
+     * Render a cross-set indicator badge for column headers
+     * @param {string} fieldType - The field type
+     * @param {Object} field - Optional field object with config for source set name
+     * @returns {string} HTML string for the indicator (empty if not cross-set)
+     */
+    function renderCrossSetIndicator(fieldType, field = null) {
+        const type = (fieldType || '').toUpperCase();
+
+        if (!isCrossSetField(type)) {
+            return '';
+        }
+
+        const labels = {
+            'LOOKUP': 'Lookup',
+            'ROLLUP': 'Rollup',
+            'LINK_RECORD': 'Link',
+            'LINKED_RECORD': 'Link'
+        };
+
+        const icons = {
+            'LOOKUP': 'ph-arrow-square-out',
+            'ROLLUP': 'ph-chart-bar',
+            'LINK_RECORD': 'ph-link-simple',
+            'LINKED_RECORD': 'ph-link-simple'
+        };
+
+        // Get source set name if available
+        const sourceHint = field?.config?.targetSetName
+            ? `<span class="lookup-source-hint">from ${field.config.targetSetName}</span>`
+            : '';
+
+        return `
+            <span class="cross-set-indicator" title="Data from another set">
+                <i class="ph ${icons[type]}"></i>
+                <span>${labels[type]}</span>
+            </span>
+            ${sourceHint}
+        `;
     }
 
     /**
@@ -335,7 +423,12 @@
         formatFieldTypeName,
         getAllFieldTypes,
         renderFieldTypeSelector,
-        attachFieldTypeSelectorEvents
+        attachFieldTypeSelectorEvents,
+        // Cross-set field utilities
+        isCrossSetField,
+        getFieldTypeColumnClass,
+        getFieldTypeCellClass,
+        renderCrossSetIndicator
     };
 
     // Export to global scope
