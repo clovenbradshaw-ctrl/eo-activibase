@@ -111,8 +111,8 @@
                 snapshotTimestamp: Date.now()  // When the static data was captured
             },
 
-            // View mode - scratchpad for exploratory data, live for committed
-            viewMode: options.viewMode || 'scratchpad',
+            // Data source indicator - derived for pivot views
+            dataSource: 'derived',
 
             // State tracking
             isDirty: false,
@@ -269,7 +269,7 @@
                 createdAt: Date.now(),
                 notes: `Default view for dynamic set created from "${field.name}"`
             },
-            viewMode: 'live',
+            dataSource: 'live',
             isDirty: false
         };
 
@@ -370,7 +370,7 @@
                 linkFieldId: linkFieldId,
                 createdAt: Date.now()
             },
-            viewMode: 'live',
+            dataSource: 'live',
             isDirty: false
         };
 
@@ -570,8 +570,7 @@
      */
     function executePivotColumnAction(state, setId, field, name) {
         const pivotView = createPivotView(state, setId, field, {
-            name: `${name} Pivot`,
-            viewMode: 'scratchpad'
+            name: `${name} Pivot`
         });
 
         if (pivotView) {
@@ -729,6 +728,493 @@
     }
 
     // ============================================================================
+    // ENHANCED PIVOT TABLE CONFIGURATION
+    // ============================================================================
+
+    /**
+     * Standard pivot table aggregation functions
+     */
+    const PIVOT_AGGREGATIONS = {
+        count: {
+            label: 'Count',
+            icon: 'ph-hash',
+            apply: (values) => values.length,
+            applicableTypes: ['*']
+        },
+        countUnique: {
+            label: 'Count Unique',
+            icon: 'ph-fingerprint',
+            apply: (values) => new Set(values.filter(v => v != null)).size,
+            applicableTypes: ['*']
+        },
+        sum: {
+            label: 'Sum',
+            icon: 'ph-plus',
+            apply: (values) => values.reduce((sum, v) => sum + (parseFloat(v) || 0), 0),
+            applicableTypes: ['NUMBER', 'FORMULA']
+        },
+        average: {
+            label: 'Average',
+            icon: 'ph-chart-line',
+            apply: (values) => {
+                const nums = values.map(v => parseFloat(v)).filter(n => !isNaN(n));
+                return nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
+            },
+            applicableTypes: ['NUMBER', 'FORMULA']
+        },
+        min: {
+            label: 'Min',
+            icon: 'ph-arrow-down',
+            apply: (values) => {
+                const nums = values.map(v => parseFloat(v)).filter(n => !isNaN(n));
+                return nums.length > 0 ? Math.min(...nums) : null;
+            },
+            applicableTypes: ['NUMBER', 'FORMULA', 'DATE']
+        },
+        max: {
+            label: 'Max',
+            icon: 'ph-arrow-up',
+            apply: (values) => {
+                const nums = values.map(v => parseFloat(v)).filter(n => !isNaN(n));
+                return nums.length > 0 ? Math.max(...nums) : null;
+            },
+            applicableTypes: ['NUMBER', 'FORMULA', 'DATE']
+        },
+        first: {
+            label: 'First',
+            icon: 'ph-arrow-line-left',
+            apply: (values) => values.length > 0 ? values[0] : null,
+            applicableTypes: ['*']
+        },
+        last: {
+            label: 'Last',
+            icon: 'ph-arrow-line-right',
+            apply: (values) => values.length > 0 ? values[values.length - 1] : null,
+            applicableTypes: ['*']
+        },
+        list: {
+            label: 'List All',
+            icon: 'ph-list',
+            apply: (values) => values.filter(v => v != null).join(', '),
+            applicableTypes: ['*']
+        }
+    };
+
+    /**
+     * Create an enhanced pivot table view with multiple groupings and aggregations
+     * @param {Object} state - Application state
+     * @param {string} setId - Source set ID
+     * @param {Object} config - Pivot configuration
+     * @returns {Object} The created pivot view
+     */
+    function createEnhancedPivotView(state, setId, config = {}) {
+        const set = state.sets.get(setId);
+        if (!set) {
+            console.error('Cannot create pivot view: set not found');
+            return null;
+        }
+
+        const {
+            name = 'Pivot Table',
+            rowGroupFields = [],      // Fields to group by in rows
+            columnGroupField = null,  // Field to pivot into columns
+            valueFields = [],         // Fields to aggregate with their aggregation type
+            showSubtotals = true,
+            showGrandTotal = true,
+            sortRowsBy = 'label',     // 'label' | 'value' | 'count'
+            sortDirection = 'asc'
+        } = config;
+
+        const currentViewId = state.currentViewId;
+        const currentView = currentViewId ? state.views?.get(currentViewId) : null;
+        const viewId = `view_pivot_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+        // Build pivot view configuration
+        const pivotView = {
+            id: viewId,
+            name: name,
+            setId: setId,
+            type: 'grid',
+            icon: PIVOT_VIEW_ICON,
+
+            // Pivot-specific configuration
+            isPivot: true,
+            isReadOnly: true,
+            pivotConfig: {
+                rowGroupFields: rowGroupFields,
+                columnGroupField: columnGroupField,
+                valueFields: valueFields.map(vf => ({
+                    fieldId: vf.fieldId,
+                    aggregation: vf.aggregation || 'count'
+                })),
+                showSubtotals: showSubtotals,
+                showGrandTotal: showGrandTotal,
+                sortRowsBy: sortRowsBy,
+                sortDirection: sortDirection
+            },
+
+            // Standard view config
+            visibleFieldIds: [
+                ...rowGroupFields,
+                ...valueFields.map(vf => vf.fieldId)
+            ],
+            hiddenFields: [],
+            filters: [],
+            sorts: rowGroupFields.map(fid => ({ fieldId: fid, direction: sortDirection })),
+            groups: rowGroupFields.map(fid => ({ fieldId: fid })),
+
+            // Provenance
+            provenance: {
+                createdBy: state.currentUser || 'user',
+                createdAt: Date.now(),
+                derivedFromViewIds: currentView ? [currentView.id] : [],
+                notes: `Enhanced pivot table with ${rowGroupFields.length} row group(s) and ${valueFields.length} value field(s)`
+            },
+
+            pivotMetadata: {
+                sourceViewId: currentViewId,
+                sourceViewName: currentView?.name,
+                pivotType: 'enhanced_pivot',
+                rowGroupCount: rowGroupFields.length,
+                valueFieldCount: valueFields.length,
+                hasColumnPivot: !!columnGroupField,
+                createdAt: Date.now()
+            },
+
+            dataSource: 'derived',
+            isDirty: false,
+            isTemporary: false
+        };
+
+        // Add to global views
+        if (!state.views) {
+            state.views = new Map();
+        }
+        state.views.set(viewId, pivotView);
+
+        // Add reference to set
+        if (!set.views) {
+            set.views = new Map();
+        }
+        set.views.set(viewId, { id: viewId });
+
+        return pivotView;
+    }
+
+    /**
+     * Calculate pivot table data from records
+     * @param {Object} set - The data set
+     * @param {Object} pivotConfig - Pivot configuration
+     * @returns {Object} Calculated pivot data
+     */
+    function calculatePivotData(set, pivotConfig) {
+        const {
+            rowGroupFields = [],
+            columnGroupField = null,
+            valueFields = [],
+            showSubtotals = true,
+            showGrandTotal = true
+        } = pivotConfig;
+
+        const records = Array.from(set.records?.values() || []);
+
+        // Group records by row keys
+        const rowGroups = new Map();
+        const columnValues = new Set();
+
+        records.forEach(record => {
+            // Build row key from group fields
+            const rowKey = rowGroupFields.map(fid => String(record[fid] || '')).join('|||');
+
+            // Track column value if pivoting by column
+            if (columnGroupField) {
+                const colValue = String(record[columnGroupField] || '');
+                columnValues.add(colValue);
+            }
+
+            // Initialize row group
+            if (!rowGroups.has(rowKey)) {
+                rowGroups.set(rowKey, {
+                    key: rowKey,
+                    labels: rowGroupFields.map(fid => record[fid] || ''),
+                    records: [],
+                    byColumn: new Map()
+                });
+            }
+
+            const rowGroup = rowGroups.get(rowKey);
+            rowGroup.records.push(record);
+
+            // Group by column if pivoting
+            if (columnGroupField) {
+                const colValue = String(record[columnGroupField] || '');
+                if (!rowGroup.byColumn.has(colValue)) {
+                    rowGroup.byColumn.set(colValue, []);
+                }
+                rowGroup.byColumn.get(colValue).push(record);
+            }
+        });
+
+        // Calculate aggregated values
+        const rows = [];
+        const sortedColumnValues = Array.from(columnValues).sort();
+
+        rowGroups.forEach((group, key) => {
+            const row = {
+                key: key,
+                labels: group.labels,
+                values: {},
+                columnValues: {}
+            };
+
+            // Calculate values for each value field
+            valueFields.forEach(vf => {
+                const { fieldId, aggregation = 'count' } = vf;
+                const aggFn = PIVOT_AGGREGATIONS[aggregation];
+
+                if (aggFn) {
+                    // Overall value for this row
+                    const allValues = group.records.map(r => r[fieldId]);
+                    row.values[fieldId] = aggFn.apply(allValues);
+
+                    // Values by column
+                    if (columnGroupField) {
+                        row.columnValues[fieldId] = {};
+                        sortedColumnValues.forEach(colVal => {
+                            const colRecords = group.byColumn.get(colVal) || [];
+                            const colValues = colRecords.map(r => r[fieldId]);
+                            row.columnValues[fieldId][colVal] = aggFn.apply(colValues);
+                        });
+                    }
+                }
+            });
+
+            rows.push(row);
+        });
+
+        // Calculate grand totals
+        let grandTotals = {};
+        if (showGrandTotal) {
+            valueFields.forEach(vf => {
+                const { fieldId, aggregation = 'count' } = vf;
+                const aggFn = PIVOT_AGGREGATIONS[aggregation];
+                if (aggFn) {
+                    const allValues = records.map(r => r[fieldId]);
+                    grandTotals[fieldId] = aggFn.apply(allValues);
+                }
+            });
+        }
+
+        return {
+            rows,
+            columns: sortedColumnValues,
+            grandTotals,
+            rowGroupFields,
+            valueFields,
+            recordCount: records.length
+        };
+    }
+
+    /**
+     * Show enhanced pivot table configuration dialog
+     */
+    function showEnhancedPivotDialog(state, setId) {
+        const set = state.sets.get(setId);
+        if (!set) return;
+
+        const schema = set.schema || [];
+        const numericFields = schema.filter(f =>
+            f.type === 'NUMBER' || f.type === 'FORMULA'
+        );
+
+        const dialog = document.createElement('div');
+        dialog.className = 'modal-overlay';
+        dialog.id = 'enhancedPivotModal';
+        dialog.innerHTML = `
+            <div class="modal enhanced-pivot-modal" style="max-width: 700px;">
+                <div class="modal-header">
+                    <h2>Configure Pivot Table</h2>
+                    <button class="modal-close" onclick="closeEnhancedPivotModal()">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                    <div class="pivot-config-section">
+                        <h3>Row Grouping</h3>
+                        <p class="config-help">Select fields to group rows by (drag to reorder)</p>
+                        <div class="field-select-list" id="rowGroupFields">
+                            ${schema.map(field => `
+                                <label class="field-select-item">
+                                    <input type="checkbox" name="rowGroup" value="${field.id}">
+                                    <span class="field-name">${escapeHtml(field.name)}</span>
+                                    <span class="field-type">${field.type}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="pivot-config-section">
+                        <h3>Column Pivot (Optional)</h3>
+                        <p class="config-help">Pivot a field's values into columns</p>
+                        <select id="columnPivotField" class="config-select">
+                            <option value="">None - single column layout</option>
+                            ${schema.map(field => `
+                                <option value="${field.id}">${escapeHtml(field.name)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+
+                    <div class="pivot-config-section">
+                        <h3>Values & Aggregations</h3>
+                        <p class="config-help">Select fields to aggregate and how</p>
+                        <div class="value-field-list" id="valueFieldList">
+                            ${schema.map(field => {
+                                const applicableAggs = Object.entries(PIVOT_AGGREGATIONS)
+                                    .filter(([key, agg]) =>
+                                        agg.applicableTypes.includes('*') ||
+                                        agg.applicableTypes.includes(field.type)
+                                    );
+                                return `
+                                    <div class="value-field-row">
+                                        <label class="value-field-check">
+                                            <input type="checkbox" name="valueField" value="${field.id}">
+                                            <span>${escapeHtml(field.name)}</span>
+                                        </label>
+                                        <select class="agg-select" data-field="${field.id}" disabled>
+                                            ${applicableAggs.map(([key, agg]) => `
+                                                <option value="${key}">${agg.label}</option>
+                                            `).join('')}
+                                        </select>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <div class="pivot-config-section">
+                        <h3>Options</h3>
+                        <div class="pivot-options-grid">
+                            <label class="option-check">
+                                <input type="checkbox" id="showSubtotals" checked>
+                                <span>Show Subtotals</span>
+                            </label>
+                            <label class="option-check">
+                                <input type="checkbox" id="showGrandTotal" checked>
+                                <span>Show Grand Total</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="pivot-config-section">
+                        <h3>Pivot Table Name</h3>
+                        <input type="text" id="pivotName" class="config-input"
+                               value="Pivot Table" placeholder="Enter name...">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeEnhancedPivotModal()">Cancel</button>
+                    <button class="btn btn-primary" id="btnCreateEnhancedPivot">
+                        <i class="ph ph-table"></i> Create Pivot Table
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(dialog);
+
+        // Enable aggregation selects when value field is checked
+        dialog.querySelectorAll('input[name="valueField"]').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const fieldId = e.target.value;
+                const select = dialog.querySelector(`.agg-select[data-field="${fieldId}"]`);
+                if (select) {
+                    select.disabled = !e.target.checked;
+                }
+            });
+        });
+
+        // Create button handler
+        dialog.querySelector('#btnCreateEnhancedPivot').onclick = () => {
+            const rowGroupFields = Array.from(dialog.querySelectorAll('input[name="rowGroup"]:checked'))
+                .map(cb => cb.value);
+
+            const columnGroupField = dialog.querySelector('#columnPivotField').value || null;
+
+            const valueFields = Array.from(dialog.querySelectorAll('input[name="valueField"]:checked'))
+                .map(cb => {
+                    const fieldId = cb.value;
+                    const aggSelect = dialog.querySelector(`.agg-select[data-field="${fieldId}"]`);
+                    return {
+                        fieldId,
+                        aggregation: aggSelect?.value || 'count'
+                    };
+                });
+
+            const showSubtotals = dialog.querySelector('#showSubtotals').checked;
+            const showGrandTotal = dialog.querySelector('#showGrandTotal').checked;
+            const name = dialog.querySelector('#pivotName').value.trim() || 'Pivot Table';
+
+            if (rowGroupFields.length === 0) {
+                alert('Please select at least one field to group by');
+                return;
+            }
+
+            if (valueFields.length === 0) {
+                // Default to count if no value fields selected
+                valueFields.push({ fieldId: rowGroupFields[0], aggregation: 'count' });
+            }
+
+            const pivotView = createEnhancedPivotView(state, setId, {
+                name,
+                rowGroupFields,
+                columnGroupField,
+                valueFields,
+                showSubtotals,
+                showGrandTotal
+            });
+
+            if (pivotView) {
+                state.currentViewId = pivotView.id;
+                dialog.remove();
+
+                if (typeof renderSidebar === 'function') renderSidebar();
+                if (typeof switchSet === 'function') switchSet(setId, pivotView.id);
+
+                showPivotToast(`Pivot table "${name}" created`, 'success');
+            }
+        };
+
+        // Click outside to close
+        dialog.onclick = (e) => {
+            if (e.target === dialog) dialog.remove();
+        };
+    }
+
+    /**
+     * Close enhanced pivot modal
+     */
+    function closeEnhancedPivotModal() {
+        const modal = document.getElementById('enhancedPivotModal');
+        if (modal) modal.remove();
+    }
+
+    /**
+     * Get applicable aggregations for a field type
+     */
+    function getApplicableAggregations(fieldType) {
+        return Object.entries(PIVOT_AGGREGATIONS)
+            .filter(([key, agg]) =>
+                agg.applicableTypes.includes('*') ||
+                agg.applicableTypes.includes(fieldType)
+            )
+            .map(([key, agg]) => ({
+                key,
+                label: agg.label,
+                icon: agg.icon
+            }));
+    }
+
+    // ============================================================================
     // UTILITIES
     // ============================================================================
 
@@ -749,6 +1235,14 @@
         createDynamicView,
         isPivotView,
         isViewEditable,
+
+        // Enhanced pivot functions
+        createEnhancedPivotView,
+        calculatePivotData,
+        showEnhancedPivotDialog,
+        closeEnhancedPivotModal,
+        PIVOT_AGGREGATIONS,
+        getApplicableAggregations,
 
         // UI functions
         showPivotDynamicDialog,
@@ -773,6 +1267,7 @@
     // Export to global namespace
     global.EOPivotDynamicViews = EOPivotDynamicViews;
     global.closePivotDynamicModal = closePivotDynamicModal;
+    global.closeEnhancedPivotModal = closeEnhancedPivotModal;
 
     // For CommonJS
     if (typeof module !== 'undefined' && module.exports) {

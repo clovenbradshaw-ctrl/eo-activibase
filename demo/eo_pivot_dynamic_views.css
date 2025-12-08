@@ -496,6 +496,296 @@
 }
 
 /* ============================================================================
+   ENHANCED PIVOT TABLE CONFIGURATION
+   ============================================================================ */
+
+.enhanced-pivot-modal {
+    max-width: 700px;
+}
+
+.pivot-config-section {
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.pivot-config-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.pivot-config-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 6px 0;
+}
+
+.pivot-config-section .config-help {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 0 0 12px 0;
+}
+
+/* Field select list */
+.field-select-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 4px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.field-select-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.field-select-item:hover {
+    background: #f3f4f6;
+}
+
+.field-select-item:has(input:checked) {
+    background: #dbeafe;
+}
+
+.field-select-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #3b82f6;
+}
+
+.field-select-item .field-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.field-select-item .field-type {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #9ca3af;
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+/* Config select */
+.config-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+}
+
+.config-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Value field list */
+.value-field-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 4px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.value-field-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+}
+
+.value-field-row:has(input:checked) {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.value-field-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    cursor: pointer;
+}
+
+.value-field-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #3b82f6;
+}
+
+.value-field-check span {
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.agg-select {
+    padding: 6px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 12px;
+    background: white;
+    min-width: 100px;
+}
+
+.agg-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.agg-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+/* Pivot options grid */
+.pivot-options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.option-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.option-check:hover {
+    background: #f3f4f6;
+}
+
+.option-check:has(input:checked) {
+    background: #ecfdf5;
+    border-color: #22c55e;
+}
+
+.option-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #22c55e;
+}
+
+.option-check span {
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+}
+
+/* Config input */
+.config-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.config-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* ============================================================================
+   PIVOT TABLE DISPLAY
+   ============================================================================ */
+
+.pivot-table-container {
+    overflow: auto;
+    max-width: 100%;
+}
+
+.pivot-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.pivot-table th,
+.pivot-table td {
+    padding: 8px 12px;
+    border: 1px solid #e5e7eb;
+    text-align: left;
+}
+
+.pivot-table th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.pivot-table .group-header {
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    font-weight: 600;
+}
+
+.pivot-table .subtotal-row {
+    background: #fef3c7;
+    font-weight: 500;
+}
+
+.pivot-table .grand-total-row {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    font-weight: 600;
+}
+
+.pivot-table .value-cell {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.pivot-table .empty-cell {
+    color: #9ca3af;
+    font-style: italic;
+}
+
+/* Column group headers */
+.pivot-table .column-group-header {
+    text-align: center;
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+}
+
+/* ============================================================================
    RESPONSIVE ADJUSTMENTS
    ============================================================================ */
 
@@ -522,5 +812,24 @@
 
     .option-features {
         justify-content: center;
+    }
+
+    .enhanced-pivot-modal {
+        max-width: 100%;
+        margin: 8px;
+    }
+
+    .pivot-options-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .value-field-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .agg-select {
+        width: 100%;
     }
 }
