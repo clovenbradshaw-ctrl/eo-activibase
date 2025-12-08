@@ -18137,7 +18137,21 @@
 
             const headerRow = document.getElementById('tableHeader');
 
-            // Checkbox column comes first (leftmost)
+            // Row numbers come first (leftmost)
+            if (view.showRowNumbers) {
+                const rowNumberHeader = document.createElement('th');
+                rowNumberHeader.className = 'column-header row-number-header';
+                rowNumberHeader.innerHTML = '#';
+                rowNumberHeader.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    showContextMenu(e, [
+                        { label: 'Hide Row Numbers', action: () => toggleRowNumbers(false) }
+                    ]);
+                };
+                headerRow.appendChild(rowNumberHeader);
+            }
+
+            // Checkbox column comes after row numbers
             const selectAllHeader = document.createElement('th');
             selectAllHeader.className = 'column-header selection-header';
             selectAllHeader.style.cursor = 'pointer';
@@ -18165,20 +18179,6 @@
                 toggleSelectAll();
             };
             headerRow.appendChild(selectAllHeader);
-
-            // Row numbers come after checkbox
-            if (view.showRowNumbers) {
-                const rowNumberHeader = document.createElement('th');
-                rowNumberHeader.className = 'column-header row-number-header';
-                rowNumberHeader.innerHTML = '#';
-                rowNumberHeader.oncontextmenu = (e) => {
-                    e.preventDefault();
-                    showContextMenu(e, [
-                        { label: 'Hide Row Numbers', action: () => toggleRowNumbers(false) }
-                    ]);
-                };
-                headerRow.appendChild(rowNumberHeader);
-            }
 
             tableSchema.forEach(field => {
                 const th = document.createElement('th');
@@ -18277,7 +18277,15 @@
                     showRecordContextMenu(event, record.id);
                 };
 
-                // Checkbox cell comes first (leftmost)
+                // Row number cell comes first (leftmost)
+                if (view.showRowNumbers) {
+                    const rowNumberTd = document.createElement('td');
+                    rowNumberTd.className = 'row-number-cell';
+                    rowNumberTd.textContent = index + 1;
+                    tr.appendChild(rowNumberTd);
+                }
+
+                // Checkbox cell comes after row numbers
                 const selectTd = document.createElement('td');
                 selectTd.className = 'row-select-cell';
                 const checkboxId = `select-${record.id}`;
@@ -18302,14 +18310,6 @@
                     handleRecordSelection(record.id, event.shiftKey, records);
                 };
                 tr.appendChild(selectTd);
-
-                // Row number cell comes after checkbox
-                if (view.showRowNumbers) {
-                    const rowNumberTd = document.createElement('td');
-                    rowNumberTd.className = 'row-number-cell';
-                    rowNumberTd.textContent = index + 1;
-                    tr.appendChild(rowNumberTd);
-                }
 
                 tableSchema.forEach(field => {
                     const td = document.createElement('td');
