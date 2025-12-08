@@ -4129,6 +4129,47 @@
             border: 1px dashed #f59e0b;
         }
 
+        .sandbox-mode-badge.scratchpad {
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            color: #3730a3;
+            border: 1px dashed #818cf8;
+        }
+
+        /* Scratch Pad view mode styling */
+        .view-mode-header-badge.scratchpad {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            margin-left: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            color: #3730a3;
+            border: 1px dashed #818cf8;
+            border-radius: 4px;
+        }
+
+        .view-table-shell.scratchpad {
+            border-style: dashed;
+            border-color: #818cf8;
+            background: linear-gradient(135deg, rgba(224, 231, 255, 0.1) 0%, rgba(199, 210, 254, 0.1) 100%);
+        }
+
+        .view-item.scratchpad {
+            border-left: 2px dashed #818cf8;
+            opacity: 0.85;
+        }
+        .view-item.scratchpad:hover { opacity: 1; }
+        .view-item.scratchpad .view-mode-badge {
+            font-size: 9px;
+            background: #4f46e5;
+            color: white;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-left: 4px;
+        }
+
         .selection-header {
             width: 36px; min-width: 36px; max-width: 36px;
             text-align: center; padding: 8px 6px;
@@ -10111,15 +10152,21 @@
         }
 
         /**
-         * Render the view mode badge (Sandbox vs Live)
+         * Render the view mode badge (Sandbox vs Live vs Scratch Pad)
          * Sandbox: exploratory, temporary, dashed styling
          * Live: curated, intentional, solid styling
+         * Scratch Pad: non-persistent exploration mode - changes don't affect underlying data
          */
         function renderViewModeBadge(viewMode) {
             if (viewMode === 'sandbox') {
                 return `<span class="view-mode-header-badge sandbox" title="Sandbox view - exploratory, not yet promoted to live data">
                     <i class="ph ph-flask"></i>
                     Sandbox
+                </span>`;
+            } else if (viewMode === 'scratchpad') {
+                return `<span class="view-mode-header-badge scratchpad" title="Scratch Pad - changes don't affect underlying data">
+                    <i class="ph ph-note-pencil"></i>
+                    Scratch Pad
                 </span>`;
             } else if (viewMode === 'live') {
                 // Live views don't need a badge - they're the default/expected state
@@ -10181,10 +10228,195 @@
             showToast('✓ View moved to sandbox');
         }
 
+        /**
+         * Create a Scratch Pad view from the current view
+         * Scratch Pad views allow exploration without affecting underlying data
+         * Changes are stored in a separate cache and can be committed or discarded
+         */
+        function createScratchPadView() {
+            const currentView = getCurrentView();
+            const set = getCurrentSet();
+            if (!currentView || !set) return;
+
+            // Clone the current view as a scratch pad
+            const scratchPadId = `view_sp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+            const scratchPadView = {
+                ...JSON.parse(JSON.stringify(currentView)), // Deep clone
+                id: scratchPadId,
+                name: `${currentView.name} (Scratch Pad)`,
+                viewMode: 'scratchpad',
+                parentId: currentView.id,
+                provenance: {
+                    createdBy: state.currentUser || 'user',
+                    createdAt: Date.now(),
+                    derivedFromViewIds: [currentView.id],
+                    notes: `Scratch pad created from "${currentView.name}"`
+                },
+                // Store original data snapshot for scratch pad
+                scratchPadData: {
+                    sourceViewId: currentView.id,
+                    sourceSetId: set.id,
+                    originalRecords: new Map(set.records), // Snapshot of records
+                    modifications: new Map(), // Track changes made in scratch pad
+                    createdAt: Date.now()
+                }
+            };
+
+            // Add to global views
+            state.views.set(scratchPadId, scratchPadView);
+
+            // Add reference to set
+            if (!set.views) set.views = new Map();
+            set.views.set(scratchPadId, { id: scratchPadId });
+
+            // Switch to the scratch pad view
+            state.currentViewId = scratchPadId;
+            renderCurrentView();
+            renderSidebar();
+
+            showToast('📝 Scratch Pad created - changes won\'t affect your data');
+        }
+
+        /**
+         * Convert current view to Scratch Pad mode
+         * Keeps the same view but changes its mode
+         */
+        function convertToScratchPad() {
+            const view = getCurrentView();
+            const set = getCurrentSet();
+            if (!view || !set) return;
+
+            if (view.viewMode === 'scratchpad') {
+                showToast('This view is already a Scratch Pad');
+                return;
+            }
+
+            // Store original mode for potential revert
+            view._previousViewMode = view.viewMode;
+            view.viewMode = 'scratchpad';
+
+            // Initialize scratch pad data cache
+            view.scratchPadData = {
+                sourceViewId: view.id,
+                sourceSetId: set.id,
+                originalRecords: new Map(set.records),
+                modifications: new Map(),
+                createdAt: Date.now()
+            };
+
+            if (state.views.has(view.id)) {
+                state.views.set(view.id, view);
+            }
+
+            renderCurrentView();
+            renderSidebar();
+
+            showToast('📝 View is now a Scratch Pad - changes won\'t affect your data');
+        }
+
+        /**
+         * Commit scratch pad changes to the underlying data
+         */
+        function commitScratchPadChanges() {
+            const view = getCurrentView();
+            const set = getCurrentSet();
+            if (!view || !set || view.viewMode !== 'scratchpad') return;
+
+            if (!view.scratchPadData?.modifications?.size) {
+                showToast('No changes to commit');
+                return;
+            }
+
+            // Apply modifications to actual records
+            view.scratchPadData.modifications.forEach((changes, recordId) => {
+                const record = set.records.get(recordId);
+                if (record) {
+                    Object.assign(record, changes);
+                }
+            });
+
+            // Convert back to live mode
+            view.viewMode = view._previousViewMode || 'live';
+            delete view.scratchPadData;
+            delete view._previousViewMode;
+
+            if (state.views.has(view.id)) {
+                state.views.set(view.id, view);
+            }
+
+            renderCurrentView();
+            renderSidebar();
+
+            showToast('✓ Changes committed to data');
+        }
+
+        /**
+         * Discard scratch pad changes and revert to original data
+         */
+        function discardScratchPadChanges() {
+            const view = getCurrentView();
+            if (!view || view.viewMode !== 'scratchpad') return;
+
+            // Revert to previous mode
+            view.viewMode = view._previousViewMode || 'live';
+            delete view.scratchPadData;
+            delete view._previousViewMode;
+
+            if (state.views.has(view.id)) {
+                state.views.set(view.id, view);
+            }
+
+            renderCurrentView();
+            renderSidebar();
+
+            showToast('↩ Changes discarded');
+        }
+
+        /**
+         * Check if current view is a scratch pad
+         */
+        function isScratchPadView(view) {
+            return view?.viewMode === 'scratchpad';
+        }
+
+        /**
+         * Get record data for display - uses scratch pad cache if in scratchpad mode
+         */
+        function getScratchPadRecord(view, recordId, actualRecord) {
+            if (!isScratchPadView(view) || !view.scratchPadData) {
+                return actualRecord;
+            }
+
+            // Check if this record has scratch pad modifications
+            const modifications = view.scratchPadData.modifications.get(recordId);
+            if (modifications) {
+                return { ...actualRecord, ...modifications };
+            }
+
+            return actualRecord;
+        }
+
+        /**
+         * Store a scratch pad modification (doesn't affect real data)
+         */
+        function setScratchPadValue(view, recordId, fieldId, value) {
+            if (!isScratchPadView(view) || !view.scratchPadData) {
+                return false;
+            }
+
+            if (!view.scratchPadData.modifications.has(recordId)) {
+                view.scratchPadData.modifications.set(recordId, {});
+            }
+
+            view.scratchPadData.modifications.get(recordId)[fieldId] = value;
+            return true;
+        }
+
         function renderViewActions(extraControls = '') {
             const view = getCurrentView();
             const isImportView = view && view.isTemporary && view.importMetadata;
             const isSandbox = view && view.viewMode === 'sandbox';
+            const isScratchPad = view && view.viewMode === 'scratchpad';
 
             // Add save/reify buttons for import views
             const saveViewButton = isImportView ? `
@@ -10199,6 +10431,26 @@
                 <button id="promoteToLiveBtn" class="btn btn-sm" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; border: none;" onclick="promoteViewToLive()">
                     <i class="ph ph-arrow-circle-up"></i>
                     Promote to Live
+                </button>
+            ` : '';
+
+            // Add scratch pad action buttons
+            const scratchPadButtons = isScratchPad ? `
+                <button class="btn btn-sm" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none;" onclick="commitScratchPadChanges()" title="Commit changes to actual data">
+                    <i class="ph ph-check-circle"></i>
+                    Commit
+                </button>
+                <button class="btn btn-sm" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none;" onclick="discardScratchPadChanges()" title="Discard all changes">
+                    <i class="ph ph-x-circle"></i>
+                    Discard
+                </button>
+            ` : '';
+
+            // Add "Make Scratch Pad" button for non-scratchpad views
+            const makeScratchPadButton = !isScratchPad && !isImportView ? `
+                <button class="btn btn-secondary btn-sm" onclick="convertToScratchPad()" title="Convert to Scratch Pad for safe exploration">
+                    <i class="ph ph-note-pencil"></i>
+                    Scratch Pad
                 </button>
             ` : '';
 
@@ -10217,8 +10469,10 @@
                                 </button>
                             </div>
                             <div class="view-stage-inline-actions">
+                                ${scratchPadButtons}
                                 ${promoteButton}
                                 ${saveViewButton}
+                                ${makeScratchPadButton}
                                 <button id="filterBtn" class="btn btn-secondary btn-sm">
                                     <i class="ph ph-funnel-simple"></i>
                                     Filter
@@ -14376,9 +14630,11 @@
 
                         viewsToShow.forEach(([viewId, view]) => {
                             const viewMode = view.viewMode || 'live';
-                            const viewModeClass = viewMode === 'sandbox' ? 'sandbox' : 'live';
+                            const viewModeClass = viewMode === 'sandbox' ? 'sandbox' : viewMode === 'scratchpad' ? 'scratchpad' : 'live';
                             const viewModeBadge = viewMode === 'sandbox'
                                 ? '<span class="view-mode-badge">SB</span>'
+                                : viewMode === 'scratchpad'
+                                ? '<span class="view-mode-badge">SP</span>'
                                 : '';
 
                             const viewItem = document.createElement('div');
@@ -15008,7 +15264,7 @@
             setLabel.style.gap = '6px';
 
             // Build dynamic set badge if applicable
-            const dynamicBadge = isDynamicSet ? '<span class="dynamic-set-badge" title="Dynamic table created from column values"><i class="ph ph-link-simple"></i></span>' : '';
+            const dynamicBadge = isDynamicSet ? '<span class="dynamic-set-badge" title="Dynamic table created from column values"><i class="ph ph-link"></i></span>' : '';
 
             setLabel.innerHTML = `
                 <span style="color: ${isDynamicSet ? '#3b82f6' : isOutput ? '#22c55e' : '#a855f7'}; font-size: 12px;">${renderIcon(set.icon || (isDynamicSet ? 'ph-stack' : 'ph-squares-four'))}</span>
@@ -15070,9 +15326,11 @@
 
             childViews.forEach(([viewId, view]) => {
                 const viewMode = view.viewMode || 'live';
-                const viewModeClass = viewMode === 'sandbox' ? 'sandbox' : 'live';
+                const viewModeClass = viewMode === 'sandbox' ? 'sandbox' : viewMode === 'scratchpad' ? 'scratchpad' : 'live';
                 const viewModeBadge = viewMode === 'sandbox'
                     ? '<span class="view-mode-badge">SB</span>'
+                    : viewMode === 'scratchpad'
+                    ? '<span class="view-mode-badge">SP</span>'
                     : '';
 
                 const viewItem = document.createElement('div');
@@ -18051,7 +18309,9 @@
 
             const viewMode = view.viewMode || 'live';
             const viewModeBadge = renderViewModeBadge(viewMode);
-            const tableShellClass = viewMode === 'sandbox' ? 'view-table-shell sandbox' : 'view-table-shell';
+            const tableShellClass = viewMode === 'sandbox' ? 'view-table-shell sandbox'
+                : viewMode === 'scratchpad' ? 'view-table-shell scratchpad'
+                : 'view-table-shell';
 
             // Check if this is a pivot view (read-only)
             const isPivotView = view.isPivot || view.isReadOnly;
@@ -18069,7 +18329,7 @@
             const isDynamicView = view.isLinkedView || view.pivotMetadata?.pivotType === 'dynamic_link';
             const dynamicBanner = isDynamicView ? `
                 <div class="pivot-readonly-banner" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-color: #93c5fd; color: #1e40af;">
-                    <i class="ph ph-link-simple"></i>
+                    <i class="ph ph-link"></i>
                     <span>Dynamic Linked View - Edit records through the linked "${view.pivotMetadata?.dynamicSetName || 'table'}"</span>
                     ${view.pivotMetadata?.dynamicSetId ? `<button class="btn btn-sm btn-secondary" onclick="switchSet('${view.pivotMetadata.dynamicSetId}')" style="background: white; border-color: #93c5fd; color: #1e40af;">Go to ${view.pivotMetadata?.dynamicSetName || 'Linked Table'}</button>` : ''}
                 </div>
@@ -18082,7 +18342,7 @@
                     <div class="view-stage-title">
                         <span class="view-stage-pill">${set.name}</span>
                         <div class="min-w-0">
-                            <div class="view-stage-name">${view.name}${viewModeBadge}${isPivotView ? '<span class="view-badge pivot-badge" style="margin-left: 8px;"><i class="ph ph-chart-pie-slice"></i> Pivot</span>' : ''}${isDynamicView ? '<span class="view-badge dynamic-badge" style="margin-left: 8px;"><i class="ph ph-link-simple"></i> Linked</span>' : ''}</div>
+                            <div class="view-stage-name">${view.name}${viewModeBadge}${isPivotView ? '<span class="view-badge pivot-badge" style="margin-left: 8px;"><i class="ph ph-chart-pie-slice"></i> Pivot</span>' : ''}${isDynamicView ? '<span class="view-badge dynamic-badge" style="margin-left: 8px;"><i class="ph ph-link"></i> Linked</span>' : ''}</div>
                             <div class="view-stage-sub">Grid view · ${recordCount} ${recordLabel}</div>
                         </div>
                     </div>
@@ -18373,7 +18633,9 @@
 
             const viewMode = view.viewMode || 'live';
             const viewModeBadge = renderViewModeBadge(viewMode);
-            const tableShellClass = viewMode === 'sandbox' ? 'view-table-shell sandbox' : 'view-table-shell';
+            const tableShellClass = viewMode === 'sandbox' ? 'view-table-shell sandbox'
+                : viewMode === 'scratchpad' ? 'view-table-shell scratchpad'
+                : 'view-table-shell';
 
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
@@ -28297,7 +28559,7 @@
                 'PHONE': 'ph-phone',
                 'USER': 'ph-user',
                 'ATTACHMENT': 'ph-paperclip',
-                'LINKED_RECORD': 'ph-link-simple',
+                'LINKED_RECORD': 'ph-link',
                 'LINKED_LOOKUP': 'ph-magnifying-glass',
                 'FORMULA': 'ph-function',
                 'AUTONUMBER': 'ph-number-circle-one',
@@ -31119,13 +31381,19 @@
                         createViewFromColumn(field);
                     }
                 }},
-                { label: 'Make Dynamic View', icon: 'ph-link-simple', action: () => {
+                { label: 'Make Dynamic View', icon: 'ph-link', action: () => {
                     if (typeof EOPivotDynamicViews !== 'undefined' && set) {
                         EOPivotDynamicViews.showPivotDynamicDialog(state, set.id, field);
                     } else {
                         showToast('Dynamic views not available');
                     }
                 }},
+                // Convert lookup field to dynamic (editable) field - copies data and breaks the link
+                (field.type === 'LOOKUP' || field.type === 'LINKED_LOOKUP' || field._linkedConfig) ? {
+                    label: 'Convert to Dynamic Field',
+                    icon: 'ph-link',
+                    action: () => convertLookupToDynamic(field)
+                } : null,
                 // Don't allow setting Record ID as the identifier field - it's static
                 !isRecordIdField ? { label: isIdentifier ? 'Clear Identifier' : 'Use as Identifier', action: () => setIdentifierField(isIdentifier ? null : field.id) } : null,
                 { label: 'Change Field Type…', action: () => openChangeFieldTypeModal(field) },
@@ -33047,6 +33315,138 @@
             }
 
             return normalizedRule;
+        }
+
+        /**
+         * Convert a lookup/linked field to a dynamic (editable) field
+         * This copies the current lookup values into actual field data and removes the lookup relationship
+         * After conversion, the field is editable and no longer synced to the source set
+         */
+        function convertLookupToDynamic(field) {
+            const set = getCurrentSet();
+            const view = getCurrentView();
+            if (!set || !view) return;
+
+            // Determine the target data type based on the lookup source
+            const lookupConfig = field._linkedConfig || field.config;
+            let targetType = 'TEXT'; // Default to TEXT
+
+            // If we have config info about the target field, use its type
+            if (lookupConfig?.targetFieldId) {
+                const targetSet = state.sets.get(lookupConfig.targetSetId);
+                if (targetSet) {
+                    const targetField = targetSet.schema.find(f => f.id === lookupConfig.targetFieldId);
+                    if (targetField && !['LINK_RECORD', 'LINKED_RECORD', 'LOOKUP', 'LINKED_LOOKUP'].includes(targetField.type)) {
+                        targetType = targetField.type;
+                    }
+                }
+            }
+
+            // Create a new field ID for the dynamic field
+            const newFieldId = `fld_dyn_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`;
+            const newFieldName = `${field.name} (Dynamic)`;
+
+            // Create the new dynamic field
+            const newField = {
+                id: newFieldId,
+                name: newFieldName,
+                type: targetType,
+                isDynamicCopy: true, // Mark as converted from lookup
+                sourceFieldId: field.id,
+                convertedAt: Date.now()
+            };
+
+            // Add the new field to the schema
+            set.schema.push(newField);
+
+            // Copy values from lookup to the new field for each record
+            set.records.forEach((record, recordId) => {
+                // Get the current lookup value
+                const lookupValue = record[field.id];
+
+                // For linked lookups, we need to resolve the value
+                if (field._linkedConfig) {
+                    const resolvedValue = resolveLookupValue(record, field, set, state);
+                    record[newFieldId] = resolvedValue;
+                } else {
+                    // Direct copy for simple lookups
+                    record[newFieldId] = lookupValue;
+                }
+            });
+
+            // Update view to show the new field and optionally hide the old one
+            if (Array.isArray(view.visibleFieldIds)) {
+                // Insert the new field right after the original
+                const originalIndex = view.visibleFieldIds.indexOf(field.id);
+                if (originalIndex !== -1) {
+                    view.visibleFieldIds.splice(originalIndex + 1, 0, newFieldId);
+                } else {
+                    view.visibleFieldIds.push(newFieldId);
+                }
+            }
+
+            if (Array.isArray(view.columnOrder)) {
+                const originalIndex = view.columnOrder.indexOf(field.id);
+                if (originalIndex !== -1) {
+                    view.columnOrder.splice(originalIndex + 1, 0, newFieldId);
+                } else {
+                    view.columnOrder.push(newFieldId);
+                }
+            }
+
+            // Add new field to all views of the set
+            if (typeof EOViewManagement !== 'undefined') {
+                EOViewManagement.addFieldToSetViews(state, set.id, newFieldId);
+            }
+
+            renderCurrentView();
+            renderSidebar();
+
+            showToast(`✓ Created dynamic field "${newFieldName}" - data is now editable`);
+        }
+
+        /**
+         * Helper to resolve lookup values for conversion
+         */
+        function resolveLookupValue(record, field, set, state) {
+            const config = field._linkedConfig;
+            if (!config) return record[field.id];
+
+            // Get the link field value (array of record IDs)
+            const linkFieldId = config.sourceFieldId;
+            const linkedRecordIds = record[linkFieldId];
+
+            if (!linkedRecordIds || !Array.isArray(linkedRecordIds) || linkedRecordIds.length === 0) {
+                return null;
+            }
+
+            // Get the target set
+            const targetSet = state.sets.get(config.targetSetId);
+            if (!targetSet) return null;
+
+            // Get values from linked records
+            const values = linkedRecordIds.map(linkedRecordId => {
+                const linkedRecord = targetSet.records.get(linkedRecordId);
+                if (!linkedRecord) return null;
+                return linkedRecord[config.targetFieldId];
+            }).filter(v => v !== null && v !== undefined);
+
+            // If there's a rollup formula, apply it
+            if (config.rollupFormula && values.length > 0) {
+                // Simple rollup implementations
+                switch (config.rollupFormula) {
+                    case 'SUM': return values.reduce((a, b) => Number(a) + Number(b), 0);
+                    case 'AVG': return values.reduce((a, b) => Number(a) + Number(b), 0) / values.length;
+                    case 'COUNT': return values.length;
+                    case 'MAX': return Math.max(...values.map(Number));
+                    case 'MIN': return Math.min(...values.map(Number));
+                    case 'CONCATENATE': return values.join(', ');
+                    default: return values.join(', ');
+                }
+            }
+
+            // Return single value or joined values
+            return values.length === 1 ? values[0] : values.join(', ');
         }
 
         function hideField(fieldId) {

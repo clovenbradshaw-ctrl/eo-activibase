@@ -37,9 +37,9 @@
             'LONG_TEXT': 'ph-article',
             'FORMULA': 'ph-function',
             'ROLLUP': 'ph-chart-bar',
-            'LOOKUP': 'ph-arrow-square-out',
-            'LINKED_RECORD': 'ph-link-simple',
-            'LINK_RECORD': 'ph-link-simple',
+            'LOOKUP': 'ph-link-simple',          // Read-only cross-set reference (U+E2E6)
+            'LINKED_RECORD': 'ph-link',           // Editable dynamic link (U+E2E2)
+            'LINK_RECORD': 'ph-link',             // Editable dynamic link (U+E2E2)
             'JSON': 'ph-brackets-curly',
             'MULTI_FIELD': 'ph-stack'
         };

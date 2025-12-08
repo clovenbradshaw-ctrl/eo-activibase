@@ -79,7 +79,7 @@ class EOLinkColumnModal {
             || '#8b5cf6';
         const linkIconClass = window.EOFieldTypeUtils?.getFieldTypeIcon('LINKED_RECORD')
             || window.EO_CONSTANTS?.FIELD_TYPE_ICONS?.['LINKED_RECORD']
-            || 'ph-link-simple';
+            || 'ph-link'; // Editable dynamic link (U+E2E2)
 
         const modalHTML = `
             <div class="eo-link-modal-overlay" id="eoLinkColumnModal">

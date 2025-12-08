@@ -92,10 +92,14 @@ function createViewEntity(config) {
         isDirty: false, // tracks unsaved changes
         isTemporary: config.isTemporary || false, // ephemeral views not yet reified
 
-        // View mode: 'sandbox' for exploratory/temporary views, 'live' for intentional/curated views
+        // View mode: 'sandbox' | 'live' | 'scratchpad'
         // Sandbox views: dashed borders, muted colors, quick pivots land here
         // Live views: solid borders, full colors, export-ready
+        // Scratchpad views: non-persistent exploration mode - changes don't affect underlying data
         viewMode: config.viewMode || 'live',
+
+        // Scratch pad data cache (only present when viewMode === 'scratchpad')
+        scratchPadData: config.scratchPadData || null,
 
         // Pivot metadata: tracks source of pivot views for lineage
         pivotMetadata: config.pivotMetadata || null

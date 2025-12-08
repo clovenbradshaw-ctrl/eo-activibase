@@ -21,7 +21,7 @@
     // ============================================================================
 
     const PIVOT_VIEW_ICON = 'ph-chart-pie-slice';
-    const DYNAMIC_VIEW_ICON = 'ph-link-simple';
+    const DYNAMIC_VIEW_ICON = 'ph-link'; // Editable dynamic link (U+E2E2)
     const DYNAMIC_SET_ICON = 'ph-stack';
 
     // ============================================================================
@@ -334,10 +334,14 @@
             setId: setId,
             type: 'grid',
             icon: DYNAMIC_VIEW_ICON,
-            visibleFieldIds: [linkFieldId, ...(sourceSet.schema || []).map(f => f.id).filter(id => id !== linkFieldId && id !== field.id)],
-            hiddenFields: [field.id], // Hide original field, show link instead
+            // Put the original field in column 1, then the rest of the data (pivoted)
+            // The link field is available but not primary - editing the original field edits underlying data
+            visibleFieldIds: [field.id, ...(sourceSet.schema || []).map(f => f.id).filter(id => id !== field.id && id !== linkFieldId), linkFieldId],
+            hiddenFields: [], // Don't hide the original field - it's column 1
+            // Column order: original field first, then other fields, link field last
+            columnOrder: [field.id, ...(sourceSet.schema || []).map(f => f.id).filter(id => id !== field.id && id !== linkFieldId), linkFieldId],
             filters: [],
-            sorts: [{ fieldId: linkFieldId, direction: 'asc' }],
+            sorts: [{ fieldId: field.id, direction: 'asc' }], // Sort by original field, not link
             groups: [],
             isPivot: false, // Not a pivot - editing allowed through link
             isLinkedView: true,
