@@ -6,10 +6,11 @@
  * (e.g., Address with street, city, state, zip, country).
  *
  * Features:
- * - Define sub-fields with names and types
+ * - Define sub-fields with names, types, and configurations
+ * - Sub-fields can be any of the standard field types (TEXT, NUMBER, EMAIL, URL, etc.)
  * - Set display concatenation format
  * - Configure parsing rules for text input (line-break or JSON)
- * - Preview the result
+ * - Preview the result including JSON paste format
  * - Preset templates (Address, Name, etc.)
  */
 
@@ -26,7 +27,19 @@ class EOMultiFieldModal {
         this.editingField = null; // For editing existing fields
     }
 
-    // Common multi-field presets
+    // Available sub-field types (subset of main field types that make sense for sub-fields)
+    static SUB_FIELD_TYPES = [
+        { id: 'TEXT', name: 'Text', icon: 'ph-text-aa', color: '#3b82f6' },
+        { id: 'NUMBER', name: 'Number', icon: 'ph-hash', color: '#10b981' },
+        { id: 'EMAIL', name: 'Email', icon: 'ph-envelope', color: '#6366f1' },
+        { id: 'URL', name: 'URL', icon: 'ph-link', color: '#8b5cf6' },
+        { id: 'DATE', name: 'Date', icon: 'ph-calendar', color: '#f97316' },
+        { id: 'CHECKBOX', name: 'Checkbox', icon: 'ph-check-square', color: '#14b8a6' },
+        { id: 'CURRENCY', name: 'Currency', icon: 'ph-currency-dollar', color: '#f59e0b' },
+        { id: 'LONG_TEXT', name: 'Long Text', icon: 'ph-article', color: '#0ea5e9' }
+    ];
+
+    // Common multi-field presets with typed sub-fields
     static PRESETS = [
         {
             id: 'address',
@@ -34,12 +47,12 @@ class EOMultiFieldModal {
             icon: 'ph-map-pin',
             description: 'Street, City, State, ZIP, Country',
             subFields: [
-                { id: 'street', name: 'Street', placeholder: '123 Main St' },
-                { id: 'unit', name: 'Unit/Apt', placeholder: 'Apt 4B', optional: true },
-                { id: 'city', name: 'City', placeholder: 'Springfield' },
-                { id: 'state', name: 'State/Province', placeholder: 'IL' },
-                { id: 'zip', name: 'ZIP/Postal Code', placeholder: '62701' },
-                { id: 'country', name: 'Country', placeholder: 'United States', optional: true }
+                { id: 'street', name: 'Street', type: 'TEXT', placeholder: '123 Main St' },
+                { id: 'unit', name: 'Unit/Apt', type: 'TEXT', placeholder: 'Apt 4B', optional: true },
+                { id: 'city', name: 'City', type: 'TEXT', placeholder: 'Springfield' },
+                { id: 'state', name: 'State/Province', type: 'TEXT', placeholder: 'IL' },
+                { id: 'zip', name: 'ZIP/Postal Code', type: 'TEXT', placeholder: '62701' },
+                { id: 'country', name: 'Country', type: 'TEXT', placeholder: 'United States', optional: true }
             ],
             displayFormat: 'concatenate',
             displaySeparator: ', ',
@@ -51,9 +64,9 @@ class EOMultiFieldModal {
             icon: 'ph-user',
             description: 'First, Middle, Last name',
             subFields: [
-                { id: 'first', name: 'First Name', placeholder: 'John' },
-                { id: 'middle', name: 'Middle Name', placeholder: 'Michael', optional: true },
-                { id: 'last', name: 'Last Name', placeholder: 'Doe' }
+                { id: 'first', name: 'First Name', type: 'TEXT', placeholder: 'John' },
+                { id: 'middle', name: 'Middle Name', type: 'TEXT', placeholder: 'Michael', optional: true },
+                { id: 'last', name: 'Last Name', type: 'TEXT', placeholder: 'Doe' }
             ],
             displayFormat: 'concatenate',
             displaySeparator: ' ',
@@ -65,10 +78,10 @@ class EOMultiFieldModal {
             icon: 'ph-phone',
             description: 'Country code, Area code, Number, Extension',
             subFields: [
-                { id: 'country_code', name: 'Country Code', placeholder: '+1', optional: true },
-                { id: 'area_code', name: 'Area Code', placeholder: '555' },
-                { id: 'number', name: 'Number', placeholder: '123-4567' },
-                { id: 'extension', name: 'Extension', placeholder: 'x123', optional: true }
+                { id: 'country_code', name: 'Country Code', type: 'TEXT', placeholder: '+1', optional: true },
+                { id: 'area_code', name: 'Area Code', type: 'TEXT', placeholder: '555' },
+                { id: 'number', name: 'Number', type: 'TEXT', placeholder: '123-4567' },
+                { id: 'extension', name: 'Extension', type: 'TEXT', placeholder: 'x123', optional: true }
             ],
             displayFormat: 'concatenate',
             displaySeparator: ' ',
@@ -80,13 +93,51 @@ class EOMultiFieldModal {
             icon: 'ph-share-network',
             description: 'Website, LinkedIn, Twitter, etc.',
             subFields: [
-                { id: 'website', name: 'Website', placeholder: 'https://example.com', optional: true },
-                { id: 'linkedin', name: 'LinkedIn', placeholder: 'linkedin.com/in/username', optional: true },
-                { id: 'twitter', name: 'Twitter/X', placeholder: '@username', optional: true },
-                { id: 'github', name: 'GitHub', placeholder: 'github.com/username', optional: true }
+                { id: 'website', name: 'Website', type: 'URL', placeholder: 'https://example.com', optional: true },
+                { id: 'linkedin', name: 'LinkedIn', type: 'URL', placeholder: 'https://linkedin.com/in/username', optional: true },
+                { id: 'twitter', name: 'Twitter/X', type: 'URL', placeholder: 'https://x.com/username', optional: true },
+                { id: 'github', name: 'GitHub', type: 'URL', placeholder: 'https://github.com/username', optional: true }
             ],
             displayFormat: 'first_non_empty',
             displaySeparator: ' | '
+        },
+        {
+            id: 'contact_info',
+            name: 'Contact Info',
+            icon: 'ph-address-book',
+            description: 'Email, Phone, Website with proper types',
+            subFields: [
+                { id: 'email', name: 'Email', type: 'EMAIL', placeholder: 'name@example.com' },
+                { id: 'phone', name: 'Phone', type: 'TEXT', placeholder: '+1 555-123-4567', optional: true },
+                { id: 'website', name: 'Website', type: 'URL', placeholder: 'https://example.com', optional: true }
+            ],
+            displayFormat: 'first_non_empty',
+            displaySeparator: ' | '
+        },
+        {
+            id: 'price_range',
+            name: 'Price Range',
+            icon: 'ph-currency-dollar',
+            description: 'Min and max price with currency',
+            subFields: [
+                { id: 'min', name: 'Min Price', type: 'CURRENCY', placeholder: '100' },
+                { id: 'max', name: 'Max Price', type: 'CURRENCY', placeholder: '500' },
+                { id: 'currency', name: 'Currency', type: 'TEXT', placeholder: 'USD', optional: true }
+            ],
+            displayFormat: 'concatenate',
+            displaySeparator: ' - '
+        },
+        {
+            id: 'date_range',
+            name: 'Date Range',
+            icon: 'ph-calendar',
+            description: 'Start and end dates',
+            subFields: [
+                { id: 'start', name: 'Start Date', type: 'DATE', placeholder: '2024-01-01' },
+                { id: 'end', name: 'End Date', type: 'DATE', placeholder: '2024-12-31' }
+            ],
+            displayFormat: 'concatenate',
+            displaySeparator: ' to '
         },
         {
             id: 'custom',
@@ -111,7 +162,7 @@ class EOMultiFieldModal {
         this.subFields = [];
         this.displayFormat = 'concatenate';
         this.displaySeparator = ', ';
-        this.parseMode = 'lines';
+        this.parseMode = 'json'; // Default to JSON for typed sub-fields
         this.editingField = null;
 
         this.render();
@@ -130,9 +181,13 @@ class EOMultiFieldModal {
         this.editingField = field;
         this.fieldName = field.name;
         this.subFields = JSON.parse(JSON.stringify(field.config?.subFields || []));
+        // Ensure all sub-fields have a type (default to TEXT for legacy fields)
+        this.subFields.forEach(sf => {
+            if (!sf.type) sf.type = 'TEXT';
+        });
         this.displayFormat = field.config?.displayFormat || 'concatenate';
         this.displaySeparator = field.config?.displaySeparator || ', ';
-        this.parseMode = field.config?.parseMode || 'lines';
+        this.parseMode = field.config?.parseMode || 'json';
 
         this.render();
         this.attachEventListeners();
@@ -162,7 +217,7 @@ class EOMultiFieldModal {
                                 ${isEditing ? 'Edit Multi-Field' : 'Create Multi-Field'}
                             </h2>
                             <p class="modal-subtitle">
-                                ${isEditing ? 'Modify the sub-fields and display settings' : 'A multi-field combines multiple values into one structured field'}
+                                ${isEditing ? 'Modify the sub-fields and display settings' : 'A multi-field combines multiple typed values into one structured field'}
                             </p>
                         </div>
                         <button class="eo-modal-close" id="eoMultiFieldModalClose">
@@ -204,7 +259,7 @@ class EOMultiFieldModal {
                                 <span class="step-title">Sub-fields</span>
                             </div>
                             <p class="step-description">
-                                Define the individual fields that make up this multi-field
+                                Define the individual fields that make up this multi-field. Each sub-field can have its own type.
                             </p>
                             <div class="sub-fields-container" id="subFieldsContainer">
                                 ${this.renderSubFields()}
@@ -255,38 +310,7 @@ class EOMultiFieldModal {
                             </div>
                         </div>
 
-                        <!-- Step 5: Parse Settings -->
-                        <div class="multi-field-step">
-                            <div class="step-header">
-                                <span class="step-number">5</span>
-                                <span class="step-title">Text Parsing</span>
-                            </div>
-                            <p class="step-description">
-                                When pasting text, how should it be split into sub-fields?
-                            </p>
-                            <div class="parse-settings">
-                                <div class="radio-options">
-                                    <label class="radio-option">
-                                        <input type="radio" name="parseMode" value="lines"
-                                               ${this.parseMode === 'lines' ? 'checked' : ''}>
-                                        <div class="option-content">
-                                            <span class="option-label">Line breaks</span>
-                                            <span class="option-desc">Each line becomes a sub-field value</span>
-                                        </div>
-                                    </label>
-                                    <label class="radio-option">
-                                        <input type="radio" name="parseMode" value="json"
-                                               ${this.parseMode === 'json' ? 'checked' : ''}>
-                                        <div class="option-content">
-                                            <span class="option-label">JSON</span>
-                                            <span class="option-desc">Parse as JSON object with matching keys</span>
-                                        </div>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Preview -->
+                        <!-- Preview & JSON Format -->
                         <div class="multi-field-preview" id="multiFieldPreview">
                             ${this.renderPreview()}
                         </div>
@@ -322,7 +346,7 @@ class EOMultiFieldModal {
     }
 
     /**
-     * Render the sub-fields list
+     * Render the sub-fields list with type selectors
      */
     renderSubFields() {
         if (this.subFields.length === 0) {
@@ -342,10 +366,19 @@ class EOMultiFieldModal {
                             <i class="ph ph-dots-six-vertical"></i>
                         </div>
                         <div class="sub-field-main">
-                            <input type="text" class="sub-field-name" value="${this.escapeHtml(sf.name)}"
-                                   placeholder="Field name" data-index="${idx}">
+                            <div class="sub-field-row-top">
+                                <input type="text" class="sub-field-name" value="${this.escapeHtml(sf.name)}"
+                                       placeholder="Field name" data-index="${idx}">
+                                <select class="sub-field-type-select" data-index="${idx}">
+                                    ${EOMultiFieldModal.SUB_FIELD_TYPES.map(type => `
+                                        <option value="${type.id}" ${sf.type === type.id ? 'selected' : ''}>
+                                            ${type.name}
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            </div>
                             <input type="text" class="sub-field-placeholder" value="${this.escapeHtml(sf.placeholder || '')}"
-                                   placeholder="Placeholder text" data-index="${idx}">
+                                   placeholder="Placeholder/example value" data-index="${idx}">
                         </div>
                         <div class="sub-field-options">
                             <label class="checkbox-small" title="Optional field">
@@ -363,17 +396,17 @@ class EOMultiFieldModal {
     }
 
     /**
-     * Render the preview section
+     * Render the preview section with JSON format display
      */
     renderPreview() {
         if (this.subFields.length === 0) {
             return '';
         }
 
-        // Generate sample values
+        // Generate sample values based on field types
         const sampleValues = {};
         this.subFields.forEach(sf => {
-            sampleValues[sf.id] = sf.placeholder || `Sample ${sf.name}`;
+            sampleValues[sf.id] = this.getSampleValue(sf);
         });
 
         // Format display based on settings
@@ -381,27 +414,25 @@ class EOMultiFieldModal {
         if (this.displayFormat === 'concatenate') {
             const parts = this.subFields
                 .filter(sf => !sf.optional || sampleValues[sf.id])
-                .map(sf => sampleValues[sf.id]);
+                .map(sf => this.formatValueForDisplay(sampleValues[sf.id], sf.type));
             displayText = parts.join(this.displaySeparator);
         } else if (this.displayFormat === 'first_line') {
             const first = this.subFields.find(sf => sampleValues[sf.id]);
-            displayText = first ? sampleValues[first.id] : '';
+            displayText = first ? this.formatValueForDisplay(sampleValues[first.id], first.type) : '';
         } else if (this.displayFormat === 'compact') {
             const filled = this.subFields.filter(sf => sampleValues[sf.id]).length;
             displayText = `${filled} of ${this.subFields.length} fields`;
         }
 
-        // Generate parse example
-        let parseExample = '';
-        if (this.parseMode === 'lines') {
-            parseExample = this.subFields.map(sf => sf.placeholder || `[${sf.name}]`).join('\n');
-        } else {
-            const jsonObj = {};
-            this.subFields.forEach(sf => {
-                jsonObj[sf.id] = sf.placeholder || `[${sf.name}]`;
-            });
-            parseExample = JSON.stringify(jsonObj, null, 2);
-        }
+        // Generate JSON example for pasting
+        const jsonObj = {};
+        this.subFields.forEach(sf => {
+            jsonObj[sf.id] = this.getExampleValueForType(sf);
+        });
+        const jsonExample = JSON.stringify(jsonObj, null, 2);
+
+        // Generate line-by-line example
+        const lineExample = this.subFields.map(sf => `${sf.placeholder || `[${sf.name}]`}`).join('\n');
 
         return `
             <div class="preview-section">
@@ -411,13 +442,114 @@ class EOMultiFieldModal {
                         <div class="preview-label">Cell Display:</div>
                         <div class="preview-value">${this.escapeHtml(displayText)}</div>
                     </div>
+
+                    <div class="preview-item json-format-section">
+                        <div class="preview-label">
+                            <i class="ph ph-code" style="margin-right: 4px;"></i>
+                            JSON Format for Pasting:
+                            <button class="btn-copy-json" id="btnCopyJson" title="Copy JSON to clipboard">
+                                <i class="ph ph-copy"></i> Copy
+                            </button>
+                        </div>
+                        <pre class="preview-code json-code" id="jsonFormatCode">${this.escapeHtml(jsonExample)}</pre>
+                        <p class="format-hint">Copy this JSON structure to paste values into this field</p>
+                    </div>
+
+                    <div class="preview-item line-format-section">
+                        <div class="preview-label">
+                            <i class="ph ph-list" style="margin-right: 4px;"></i>
+                            Line-by-Line Format:
+                        </div>
+                        <pre class="preview-code">${this.escapeHtml(lineExample)}</pre>
+                        <p class="format-hint">Each line corresponds to a sub-field in order</p>
+                    </div>
+
                     <div class="preview-item">
-                        <div class="preview-label">Paste Format (${this.parseMode === 'lines' ? 'Line breaks' : 'JSON'}):</div>
-                        <pre class="preview-code">${this.escapeHtml(parseExample)}</pre>
+                        <div class="preview-label">Sub-field Types:</div>
+                        <div class="sub-field-types-preview">
+                            ${this.subFields.map(sf => {
+                                const typeInfo = EOMultiFieldModal.SUB_FIELD_TYPES.find(t => t.id === sf.type) || EOMultiFieldModal.SUB_FIELD_TYPES[0];
+                                return `
+                                    <span class="type-badge" style="background-color: ${typeInfo.color}20; color: ${typeInfo.color};">
+                                        <i class="ph ${typeInfo.icon}"></i>
+                                        ${sf.name}: ${typeInfo.name}
+                                    </span>
+                                `;
+                            }).join('')}
+                        </div>
                     </div>
                 </div>
             </div>
         `;
+    }
+
+    /**
+     * Get sample value based on field type
+     */
+    getSampleValue(sf) {
+        if (sf.placeholder) return sf.placeholder;
+
+        switch (sf.type) {
+            case 'NUMBER':
+            case 'CURRENCY':
+                return '100';
+            case 'EMAIL':
+                return 'example@email.com';
+            case 'URL':
+                return 'https://example.com';
+            case 'DATE':
+                return '2024-01-15';
+            case 'CHECKBOX':
+                return 'true';
+            default:
+                return `Sample ${sf.name}`;
+        }
+    }
+
+    /**
+     * Get example value for JSON display based on type
+     */
+    getExampleValueForType(sf) {
+        if (sf.placeholder) return sf.placeholder;
+
+        switch (sf.type) {
+            case 'NUMBER':
+                return 0;
+            case 'CURRENCY':
+                return 0.00;
+            case 'EMAIL':
+                return 'email@example.com';
+            case 'URL':
+                return 'https://example.com';
+            case 'DATE':
+                return '2024-01-01';
+            case 'CHECKBOX':
+                return false;
+            default:
+                return '';
+        }
+    }
+
+    /**
+     * Format a value for display based on its type
+     */
+    formatValueForDisplay(value, type) {
+        if (value === null || value === undefined || value === '') return '';
+
+        switch (type) {
+            case 'CURRENCY':
+                return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+            case 'CHECKBOX':
+                return value === true || value === 'true' ? '✓' : '✗';
+            case 'DATE':
+                try {
+                    return new Date(value).toLocaleDateString();
+                } catch (e) {
+                    return value;
+                }
+            default:
+                return String(value);
+        }
     }
 
     /**
@@ -513,19 +645,32 @@ class EOMultiFieldModal {
             });
         }
 
-        // Parse mode radios
-        this.modal.querySelectorAll('input[name="parseMode"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                this.parseMode = e.target.value;
-                this.refreshPreview();
-            });
-        });
-
         // Create button
         document.getElementById('eoMultiFieldModalCreate')?.addEventListener('click', () => this.create());
 
         // Attach sub-field listeners
         this.attachSubFieldListeners();
+
+        // Copy JSON button
+        this.attachCopyJsonListener();
+    }
+
+    /**
+     * Attach copy JSON button listener
+     */
+    attachCopyJsonListener() {
+        document.getElementById('btnCopyJson')?.addEventListener('click', () => {
+            const jsonCode = document.getElementById('jsonFormatCode');
+            if (jsonCode) {
+                navigator.clipboard.writeText(jsonCode.textContent).then(() => {
+                    if (window.showToast) {
+                        window.showToast('JSON format copied to clipboard');
+                    }
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                });
+            }
+        });
     }
 
     /**
@@ -542,6 +687,17 @@ class EOMultiFieldModal {
                     if (!this.subFields[idx].id || this.subFields[idx].id.startsWith('field_')) {
                         this.subFields[idx].id = this.slugify(e.target.value) || `field_${idx}`;
                     }
+                    this.refreshPreview();
+                }
+            });
+        });
+
+        // Sub-field type selects
+        this.modal.querySelectorAll('.sub-field-type-select').forEach(select => {
+            select.addEventListener('change', (e) => {
+                const idx = parseInt(e.target.dataset.index);
+                if (this.subFields[idx]) {
+                    this.subFields[idx].type = e.target.value;
                     this.refreshPreview();
                 }
             });
@@ -615,6 +771,7 @@ class EOMultiFieldModal {
         const newField = {
             id: `field_${this.subFields.length}`,
             name: '',
+            type: 'TEXT', // Default type
             placeholder: '',
             optional: false
         };
@@ -659,6 +816,7 @@ class EOMultiFieldModal {
         const preview = document.getElementById('multiFieldPreview');
         if (preview) {
             preview.innerHTML = this.renderPreview();
+            this.attachCopyJsonListener();
         }
     }
 
@@ -685,10 +843,13 @@ class EOMultiFieldModal {
         // If editing, use existing ID; otherwise ensure unique
         const uniqueId = this.editingField ? this.editingField.id : this.ensureUniqueId(fieldId, existingIds);
 
-        // Ensure all sub-fields have valid IDs
+        // Ensure all sub-fields have valid IDs and types
         this.subFields.forEach((sf, idx) => {
             if (!sf.id) {
                 sf.id = this.slugify(sf.name) || `field_${idx}`;
+            }
+            if (!sf.type) {
+                sf.type = 'TEXT';
             }
         });
 

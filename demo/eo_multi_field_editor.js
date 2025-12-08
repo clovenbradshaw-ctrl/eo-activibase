@@ -3,12 +3,14 @@
  *
  * Modal for editing MULTI_FIELD values.
  * Allows users to:
- * - Input values field-by-field
+ * - Input values field-by-field with type-appropriate inputs
  * - Paste text and have it auto-parsed into sub-fields
  * - View and edit existing multi-field data
+ * - Copy JSON format for data entry
  *
- * The editor supports two input modes:
- * - Field-by-field: Individual inputs for each sub-field
+ * The editor supports typed sub-fields (TEXT, NUMBER, EMAIL, URL, DATE, etc.)
+ * and two input modes:
+ * - Field-by-field: Individual typed inputs for each sub-field
  * - Paste mode: Paste text that gets parsed based on field config
  */
 
@@ -21,6 +23,18 @@ class EOMultiFieldEditor {
         this.onSave = null;
         this.inputMode = 'fields'; // 'fields' or 'paste'
     }
+
+    // Sub-field type info for rendering
+    static SUB_FIELD_TYPES = {
+        'TEXT': { inputType: 'text', placeholder: 'Enter text...', icon: 'ph-text-aa', color: '#3b82f6' },
+        'NUMBER': { inputType: 'number', placeholder: '0', icon: 'ph-hash', color: '#10b981' },
+        'EMAIL': { inputType: 'email', placeholder: 'email@example.com', icon: 'ph-envelope', color: '#6366f1' },
+        'URL': { inputType: 'url', placeholder: 'https://example.com', icon: 'ph-link', color: '#8b5cf6' },
+        'DATE': { inputType: 'date', placeholder: 'YYYY-MM-DD', icon: 'ph-calendar', color: '#f97316' },
+        'CHECKBOX': { inputType: 'checkbox', placeholder: '', icon: 'ph-check-square', color: '#14b8a6' },
+        'CURRENCY': { inputType: 'number', placeholder: '0.00', icon: 'ph-currency-dollar', color: '#f59e0b', step: '0.01' },
+        'LONG_TEXT': { inputType: 'textarea', placeholder: 'Enter text...', icon: 'ph-article', color: '#0ea5e9' }
+    };
 
     /**
      * Show the editor for a multi-field value
@@ -52,7 +66,14 @@ class EOMultiFieldEditor {
      * Get the parse mode
      */
     getParseMode() {
-        return this.fieldSchema?.config?.parseMode || 'lines';
+        return this.fieldSchema?.config?.parseMode || 'json';
+    }
+
+    /**
+     * Get sub-field type info
+     */
+    getTypeInfo(type) {
+        return EOMultiFieldEditor.SUB_FIELD_TYPES[type] || EOMultiFieldEditor.SUB_FIELD_TYPES['TEXT'];
     }
 
     /**
@@ -97,19 +118,7 @@ class EOMultiFieldEditor {
                         <!-- Field-by-field mode -->
                         <div class="editor-mode-content" id="fieldsMode" ${this.inputMode !== 'fields' ? 'style="display:none"' : ''}>
                             <div class="sub-field-inputs">
-                                ${subFields.map(sf => `
-                                    <div class="sub-field-input-row">
-                                        <label class="sub-field-label">
-                                            ${this.escapeHtml(sf.name)}
-                                            ${sf.optional ? '<span class="optional-badge">optional</span>' : ''}
-                                        </label>
-                                        <input type="text"
-                                               class="sub-field-input eo-input"
-                                               data-field-id="${sf.id}"
-                                               placeholder="${this.escapeHtml(sf.placeholder || '')}"
-                                               value="${this.escapeHtml(this.currentValue[sf.id] || '')}">
-                                    </div>
-                                `).join('')}
+                                ${subFields.map(sf => this.renderSubFieldInput(sf)).join('')}
                             </div>
                         </div>
 
@@ -126,6 +135,18 @@ class EOMultiFieldEditor {
                             <button class="btn btn-secondary" id="btnParseText">
                                 <i class="ph ph-magic-wand"></i> Parse & Fill Fields
                             </button>
+                        </div>
+
+                        <!-- JSON Format Section (Always visible) -->
+                        <div class="json-format-panel">
+                            <div class="json-format-header">
+                                <span><i class="ph ph-code" style="margin-right: 6px;"></i>JSON Format</span>
+                                <button class="btn-copy-json" id="btnCopyJsonFormat" title="Copy JSON format to clipboard">
+                                    <i class="ph ph-copy"></i> Copy Format
+                                </button>
+                            </div>
+                            <pre class="json-format-code" id="jsonFormatDisplay">${this.escapeHtml(this.getJsonFormatExample())}</pre>
+                            <p class="json-format-hint">Use this JSON structure when pasting data into this field</p>
                         </div>
                     </div>
 
@@ -145,6 +166,112 @@ class EOMultiFieldEditor {
     }
 
     /**
+     * Render a single sub-field input based on its type
+     */
+    renderSubFieldInput(sf) {
+        const typeInfo = this.getTypeInfo(sf.type);
+        const currentVal = this.currentValue[sf.id];
+        const displayVal = currentVal !== undefined && currentVal !== null ? currentVal : '';
+
+        // Handle checkbox specially
+        if (sf.type === 'CHECKBOX') {
+            const isChecked = currentVal === true || currentVal === 'true';
+            return `
+                <div class="sub-field-input-row checkbox-row">
+                    <label class="sub-field-label">
+                        <span class="type-indicator" style="color: ${typeInfo.color};">
+                            <i class="ph ${typeInfo.icon}"></i>
+                        </span>
+                        ${this.escapeHtml(sf.name)}
+                        ${sf.optional ? '<span class="optional-badge">optional</span>' : ''}
+                    </label>
+                    <input type="checkbox"
+                           class="sub-field-checkbox"
+                           data-field-id="${sf.id}"
+                           ${isChecked ? 'checked' : ''}>
+                </div>
+            `;
+        }
+
+        // Handle textarea for LONG_TEXT
+        if (sf.type === 'LONG_TEXT') {
+            return `
+                <div class="sub-field-input-row">
+                    <label class="sub-field-label">
+                        <span class="type-indicator" style="color: ${typeInfo.color};">
+                            <i class="ph ${typeInfo.icon}"></i>
+                        </span>
+                        ${this.escapeHtml(sf.name)}
+                        ${sf.optional ? '<span class="optional-badge">optional</span>' : ''}
+                    </label>
+                    <textarea class="sub-field-input sub-field-textarea eo-input"
+                           data-field-id="${sf.id}"
+                           data-field-type="${sf.type}"
+                           placeholder="${this.escapeHtml(sf.placeholder || typeInfo.placeholder)}"
+                           rows="3">${this.escapeHtml(String(displayVal))}</textarea>
+                </div>
+            `;
+        }
+
+        // Standard input for other types
+        const stepAttr = typeInfo.step ? `step="${typeInfo.step}"` : '';
+        return `
+            <div class="sub-field-input-row">
+                <label class="sub-field-label">
+                    <span class="type-indicator" style="color: ${typeInfo.color};">
+                        <i class="ph ${typeInfo.icon}"></i>
+                    </span>
+                    ${this.escapeHtml(sf.name)}
+                    ${sf.optional ? '<span class="optional-badge">optional</span>' : ''}
+                </label>
+                <input type="${typeInfo.inputType}"
+                       class="sub-field-input eo-input"
+                       data-field-id="${sf.id}"
+                       data-field-type="${sf.type}"
+                       placeholder="${this.escapeHtml(sf.placeholder || typeInfo.placeholder)}"
+                       ${stepAttr}
+                       value="${this.escapeHtml(String(displayVal))}">
+            </div>
+        `;
+    }
+
+    /**
+     * Get JSON format example for display
+     */
+    getJsonFormatExample() {
+        const subFields = this.getSubFields();
+        const exampleObj = {};
+
+        subFields.forEach(sf => {
+            const typeInfo = this.getTypeInfo(sf.type);
+            switch (sf.type) {
+                case 'NUMBER':
+                    exampleObj[sf.id] = 0;
+                    break;
+                case 'CURRENCY':
+                    exampleObj[sf.id] = 0.00;
+                    break;
+                case 'CHECKBOX':
+                    exampleObj[sf.id] = false;
+                    break;
+                case 'DATE':
+                    exampleObj[sf.id] = "2024-01-01";
+                    break;
+                case 'EMAIL':
+                    exampleObj[sf.id] = "email@example.com";
+                    break;
+                case 'URL':
+                    exampleObj[sf.id] = "https://example.com";
+                    break;
+                default:
+                    exampleObj[sf.id] = sf.placeholder || "";
+            }
+        });
+
+        return JSON.stringify(exampleObj, null, 2);
+    }
+
+    /**
      * Render the parse hint based on sub-fields
      */
     renderParseHint() {
@@ -161,7 +288,7 @@ class EOMultiFieldEditor {
         } else {
             const exampleObj = {};
             subFields.forEach(sf => {
-                exampleObj[sf.id] = sf.placeholder || `[${sf.name}]`;
+                exampleObj[sf.id] = sf.placeholder || this.getExampleValueForType(sf.type);
             });
             return `
                 <div class="parse-hint">
@@ -169,6 +296,21 @@ class EOMultiFieldEditor {
                     <pre class="hint-example">${JSON.stringify(exampleObj, null, 2)}</pre>
                 </div>
             `;
+        }
+    }
+
+    /**
+     * Get example value for a field type
+     */
+    getExampleValueForType(type) {
+        switch (type) {
+            case 'NUMBER': return 0;
+            case 'CURRENCY': return 0.00;
+            case 'CHECKBOX': return false;
+            case 'DATE': return '2024-01-01';
+            case 'EMAIL': return 'email@example.com';
+            case 'URL': return 'https://example.com';
+            default: return '';
         }
     }
 
@@ -217,11 +359,20 @@ class EOMultiFieldEditor {
             });
         });
 
-        // Field inputs
+        // Field inputs (text, number, email, url, date, etc.)
         this.modal.querySelectorAll('.sub-field-input').forEach(input => {
             input.addEventListener('input', (e) => {
                 const fieldId = e.target.dataset.fieldId;
-                this.currentValue[fieldId] = e.target.value;
+                const fieldType = e.target.dataset.fieldType;
+                this.currentValue[fieldId] = this.parseInputValue(e.target.value, fieldType);
+            });
+        });
+
+        // Checkbox inputs
+        this.modal.querySelectorAll('.sub-field-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const fieldId = e.target.dataset.fieldId;
+                this.currentValue[fieldId] = e.target.checked;
             });
         });
 
@@ -240,11 +391,48 @@ class EOMultiFieldEditor {
             this.save();
         });
 
+        // Copy JSON format button
+        document.getElementById('btnCopyJsonFormat')?.addEventListener('click', () => {
+            this.copyJsonFormat();
+        });
+
         // Focus first input
         setTimeout(() => {
-            const firstInput = this.modal.querySelector('.sub-field-input');
+            const firstInput = this.modal.querySelector('.sub-field-input, .sub-field-checkbox');
             if (firstInput) firstInput.focus();
         }, 100);
+    }
+
+    /**
+     * Parse input value based on type
+     */
+    parseInputValue(value, type) {
+        if (value === '' || value === null || value === undefined) return null;
+
+        switch (type) {
+            case 'NUMBER':
+                const num = parseFloat(value);
+                return isNaN(num) ? null : num;
+            case 'CURRENCY':
+                const currency = parseFloat(value);
+                return isNaN(currency) ? null : Math.round(currency * 100) / 100;
+            default:
+                return value;
+        }
+    }
+
+    /**
+     * Copy JSON format to clipboard
+     */
+    copyJsonFormat() {
+        const jsonFormat = this.getJsonFormatExample();
+        navigator.clipboard.writeText(jsonFormat).then(() => {
+            if (window.showToast) {
+                window.showToast('JSON format copied to clipboard');
+            }
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+        });
     }
 
     /**
@@ -270,7 +458,7 @@ class EOMultiFieldEditor {
             const textarea = document.getElementById('pasteTextarea');
             if (textarea) textarea.focus();
         } else {
-            const firstInput = this.modal.querySelector('.sub-field-input');
+            const firstInput = this.modal.querySelector('.sub-field-input, .sub-field-checkbox');
             if (firstInput) firstInput.focus();
         }
     }
@@ -295,7 +483,7 @@ class EOMultiFieldEditor {
                 const lines = text.split('\n').map(l => l.trim());
                 subFields.forEach((sf, idx) => {
                     if (idx < lines.length) {
-                        parsedValues[sf.id] = lines[idx];
+                        parsedValues[sf.id] = this.convertValueForType(lines[idx], sf.type);
                     }
                 });
             } else {
@@ -303,10 +491,10 @@ class EOMultiFieldEditor {
                 const jsonObj = JSON.parse(text);
                 subFields.forEach(sf => {
                     if (jsonObj[sf.id] !== undefined) {
-                        parsedValues[sf.id] = String(jsonObj[sf.id]);
+                        parsedValues[sf.id] = this.convertValueForType(jsonObj[sf.id], sf.type);
                     } else if (jsonObj[sf.name] !== undefined) {
                         // Also try matching by name
-                        parsedValues[sf.id] = String(jsonObj[sf.name]);
+                        parsedValues[sf.id] = this.convertValueForType(jsonObj[sf.name], sf.type);
                     }
                 });
             }
@@ -320,7 +508,7 @@ class EOMultiFieldEditor {
 
             // Show toast
             if (window.showToast) {
-                const filledCount = Object.values(parsedValues).filter(v => v).length;
+                const filledCount = Object.values(parsedValues).filter(v => v !== null && v !== undefined && v !== '').length;
                 window.showToast(`Parsed ${filledCount} field${filledCount !== 1 ? 's' : ''}`);
             }
         } catch (error) {
@@ -334,12 +522,47 @@ class EOMultiFieldEditor {
     }
 
     /**
+     * Convert a value to the appropriate type
+     */
+    convertValueForType(value, type) {
+        if (value === null || value === undefined || value === '') return null;
+
+        switch (type) {
+            case 'NUMBER':
+                const num = parseFloat(value);
+                return isNaN(num) ? null : num;
+            case 'CURRENCY':
+                const currency = parseFloat(value);
+                return isNaN(currency) ? null : Math.round(currency * 100) / 100;
+            case 'CHECKBOX':
+                if (typeof value === 'boolean') return value;
+                return value === 'true' || value === '1' || value === 'yes';
+            case 'DATE':
+                // Validate date format
+                const date = new Date(value);
+                if (isNaN(date.getTime())) return String(value);
+                return value;
+            default:
+                return String(value);
+        }
+    }
+
+    /**
      * Update field input values from currentValue
      */
     updateFieldInputs() {
+        // Update text/number/etc inputs
         this.modal.querySelectorAll('.sub-field-input').forEach(input => {
             const fieldId = input.dataset.fieldId;
-            input.value = this.currentValue[fieldId] || '';
+            const value = this.currentValue[fieldId];
+            input.value = value !== null && value !== undefined ? value : '';
+        });
+
+        // Update checkboxes
+        this.modal.querySelectorAll('.sub-field-checkbox').forEach(checkbox => {
+            const fieldId = checkbox.dataset.fieldId;
+            const value = this.currentValue[fieldId];
+            checkbox.checked = value === true || value === 'true';
         });
     }
 
@@ -358,15 +581,19 @@ class EOMultiFieldEditor {
      * Save the current value
      */
     save() {
-        // Clean up empty values
+        // Clean up empty values and format based on type
         const cleanValue = {};
         let hasValue = false;
 
         this.getSubFields().forEach(sf => {
             const val = this.currentValue[sf.id];
             if (val !== undefined && val !== null && val !== '') {
+                // Store the properly typed value
                 cleanValue[sf.id] = val;
                 hasValue = true;
+            } else if (sf.type === 'CHECKBOX') {
+                // Checkbox defaults to false if not set
+                cleanValue[sf.id] = false;
             }
         });
 
@@ -427,7 +654,7 @@ const EOMultiFieldUtils = {
             for (const sf of subFields) {
                 const val = value[sf.id];
                 if (val !== undefined && val !== null && val !== '') {
-                    return String(val);
+                    return this.formatSingleValue(val, sf.type);
                 }
             }
             return '';
@@ -447,10 +674,38 @@ const EOMultiFieldUtils = {
         for (const sf of subFields) {
             const val = value[sf.id];
             if (val !== undefined && val !== null && val !== '') {
-                parts.push(String(val));
+                parts.push(this.formatSingleValue(val, sf.type));
             }
         }
         return parts.join(separator);
+    },
+
+    /**
+     * Format a single value based on its type
+     */
+    formatSingleValue(value, type) {
+        if (value === null || value === undefined || value === '') return '';
+
+        switch (type) {
+            case 'CURRENCY':
+                return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+            case 'NUMBER':
+                return Number(value).toLocaleString();
+            case 'CHECKBOX':
+                return value === true || value === 'true' ? '✓' : '✗';
+            case 'DATE':
+                try {
+                    return new Date(value).toLocaleDateString();
+                } catch (e) {
+                    return String(value);
+                }
+            case 'EMAIL':
+                return String(value);
+            case 'URL':
+                return String(value);
+            default:
+                return String(value);
+        }
     },
 
     /**
@@ -463,7 +718,7 @@ const EOMultiFieldUtils = {
         if (!text) return null;
 
         const subFields = fieldConfig?.subFields || [];
-        const parseMode = fieldConfig?.parseMode || 'lines';
+        const parseMode = fieldConfig?.parseMode || 'json';
         const result = {};
 
         try {
@@ -471,9 +726,9 @@ const EOMultiFieldUtils = {
                 const jsonObj = JSON.parse(text);
                 subFields.forEach(sf => {
                     if (jsonObj[sf.id] !== undefined) {
-                        result[sf.id] = String(jsonObj[sf.id]);
+                        result[sf.id] = this.convertValue(jsonObj[sf.id], sf.type);
                     } else if (jsonObj[sf.name] !== undefined) {
-                        result[sf.id] = String(jsonObj[sf.name]);
+                        result[sf.id] = this.convertValue(jsonObj[sf.name], sf.type);
                     }
                 });
             } else {
@@ -481,7 +736,7 @@ const EOMultiFieldUtils = {
                 const lines = text.split('\n').map(l => l.trim());
                 subFields.forEach((sf, idx) => {
                     if (idx < lines.length && lines[idx]) {
-                        result[sf.id] = lines[idx];
+                        result[sf.id] = this.convertValue(lines[idx], sf.type);
                     }
                 });
             }
@@ -496,6 +751,27 @@ const EOMultiFieldUtils = {
     },
 
     /**
+     * Convert a value to the appropriate type
+     */
+    convertValue(value, type) {
+        if (value === null || value === undefined) return null;
+
+        switch (type) {
+            case 'NUMBER':
+                const num = parseFloat(value);
+                return isNaN(num) ? null : num;
+            case 'CURRENCY':
+                const currency = parseFloat(value);
+                return isNaN(currency) ? null : Math.round(currency * 100) / 100;
+            case 'CHECKBOX':
+                if (typeof value === 'boolean') return value;
+                return value === 'true' || value === '1' || value === 'yes';
+            default:
+                return String(value);
+        }
+    },
+
+    /**
      * Convert multi-field value to string for export/copy
      * @param {Object} value - The multi-field value
      * @param {Object} fieldConfig - The field configuration
@@ -506,7 +782,7 @@ const EOMultiFieldUtils = {
         if (!value || typeof value !== 'object') return '';
 
         if (format === 'json') {
-            return JSON.stringify(value);
+            return JSON.stringify(value, null, 2);
         }
 
         if (format === 'lines') {
@@ -516,6 +792,43 @@ const EOMultiFieldUtils = {
 
         // Default: display format
         return this.formatForDisplay(value, fieldConfig);
+    },
+
+    /**
+     * Get JSON template for a multi-field
+     * @param {Object} fieldConfig - The field configuration
+     * @returns {string} JSON template string
+     */
+    getJsonTemplate(fieldConfig) {
+        const subFields = fieldConfig?.subFields || [];
+        const template = {};
+
+        subFields.forEach(sf => {
+            switch (sf.type) {
+                case 'NUMBER':
+                    template[sf.id] = 0;
+                    break;
+                case 'CURRENCY':
+                    template[sf.id] = 0.00;
+                    break;
+                case 'CHECKBOX':
+                    template[sf.id] = false;
+                    break;
+                case 'DATE':
+                    template[sf.id] = '2024-01-01';
+                    break;
+                case 'EMAIL':
+                    template[sf.id] = 'email@example.com';
+                    break;
+                case 'URL':
+                    template[sf.id] = 'https://example.com';
+                    break;
+                default:
+                    template[sf.id] = sf.placeholder || '';
+            }
+        });
+
+        return JSON.stringify(template, null, 2);
     },
 
     /**
