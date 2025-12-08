@@ -13308,7 +13308,10 @@
                 }
             }
 
-            state.csvImportState.rows.forEach(row => {
+            const importTimestamp = Date.now();
+            const importFileName = state.csvImportState.filename || 'import.csv';
+
+            state.csvImportState.rows.forEach((row, rowIndex) => {
                 const recordData = {};
                 finalizedMappings.forEach(([header, fieldId]) => {
                     const field = set.schema.find(f => f.id === fieldId);
@@ -13320,9 +13323,20 @@
                     recordData[fieldId] = value;
                 });
 
+                // Add provenance metadata for import tracking
+                recordData._provenance = {
+                    importId: importTemplateId,
+                    importName: importFileName,
+                    sourceRow: rowIndex,
+                    importedAt: new Date(importTimestamp).toISOString()
+                };
+
                 // Use lean record creation if available
                 if (state.leanContext && importTemplateId) {
                     const leanRecord = state.leanContext.createLeanRecord(set.id, recordData, importTemplateId);
+
+                    // Copy provenance to lean record
+                    leanRecord._provenance = recordData._provenance;
 
                     // Apply field-level definition overrides if available
                     if (state.csvImportState.fieldDefinitions) {
@@ -13363,7 +13377,6 @@
             });
 
             // Create batch import event (compact)
-            const importTimestamp = Date.now();
             if (state.leanContext && importTemplateId) {
                 createEvent(
                     'Batch Import',
@@ -13379,7 +13392,6 @@
             }
 
             // Auto-create a temporary view for this import
-            const importFileName = state.csvImportState.filename || 'import.csv';
             const baseViewName = importFileName.replace(/\.[^/.]+$/, ''); // Remove extension
             const viewName = `Import: ${baseViewName}`;
 
@@ -13387,11 +13399,11 @@
                 type: 'grid',
                 icon: '📥',
                 isTemporary: true,
-                filters: [{
+                filters: [[{
                     field: '_provenance.importId',
                     value: importTemplateId,
                     operator: 'equals'
-                }],
+                }]],
                 importMetadata: {
                     filename: importFileName,
                     timestamp: importTimestamp,
@@ -13910,7 +13922,10 @@
                 importTemplateId = state.leanContext.registerContextTemplate(templateContext);
             }
 
-            state.jsonImportState.rows.forEach(row => {
+            const importTimestamp = Date.now();
+            const importFileName = state.jsonImportState.filename || 'import.json';
+
+            state.jsonImportState.rows.forEach((row, rowIndex) => {
                 const recordData = {};
                 finalizedMappings.forEach(([key, fieldId]) => {
                     const field = set.schema.find(f => f.id === fieldId);
@@ -13922,9 +13937,21 @@
                     recordData[fieldId] = value;
                 });
 
+                // Add provenance metadata for import tracking
+                recordData._provenance = {
+                    importId: importTemplateId,
+                    importName: importFileName,
+                    sourceRow: rowIndex,
+                    importedAt: new Date(importTimestamp).toISOString()
+                };
+
                 // Use lean record creation if available
                 if (state.leanContext && importTemplateId) {
                     const leanRecord = state.leanContext.createLeanRecord(set.id, recordData, importTemplateId);
+
+                    // Copy provenance to lean record
+                    leanRecord._provenance = recordData._provenance;
+
                     set.records.set(leanRecord.id, leanRecord);
                     createEvent(
                         'Create Record',
@@ -13938,7 +13965,6 @@
             });
 
             // Create batch import event (compact)
-            const importTimestamp = Date.now();
             if (state.leanContext && importTemplateId) {
                 createEvent(
                     'Batch Import',
@@ -13954,7 +13980,6 @@
             }
 
             // Auto-create a temporary view for this import
-            const importFileName = state.jsonImportState.filename || 'import.json';
             const baseViewName = importFileName.replace(/\.[^/.]+$/, ''); // Remove extension
             const viewName = `Import: ${baseViewName}`;
 
@@ -13962,11 +13987,11 @@
                 type: 'grid',
                 icon: '📥',
                 isTemporary: true,
-                filters: [{
+                filters: [[{
                     field: '_provenance.importId',
                     value: importTemplateId,
                     operator: 'equals'
-                }],
+                }]],
                 importMetadata: {
                     filename: importFileName,
                     timestamp: importTimestamp,
@@ -28210,13 +28235,50 @@
             return value;
         }
 
+        // Evaluate a single filter rule against a record value
+        function evaluateFilterRule(record, rule) {
+            const value = getNestedValue(record, rule.field);
+            const filterValue = rule.value;
+            const operator = rule.operator || 'equals';
+
+            switch (operator) {
+                case 'equals':
+                    return value === filterValue;
+                case 'notEquals':
+                    return value !== filterValue;
+                case 'contains':
+                    return String(value || '').toLowerCase().includes(String(filterValue || '').toLowerCase());
+                case 'notContains':
+                    return !String(value || '').toLowerCase().includes(String(filterValue || '').toLowerCase());
+                case 'startsWith':
+                    return String(value || '').toLowerCase().startsWith(String(filterValue || '').toLowerCase());
+                case 'endsWith':
+                    return String(value || '').toLowerCase().endsWith(String(filterValue || '').toLowerCase());
+                case 'isEmpty':
+                    return value === null || value === undefined || value === '';
+                case 'notEmpty':
+                    return value !== null && value !== undefined && value !== '';
+                case 'greaterThan':
+                    return Number(value) > Number(filterValue);
+                case 'lessThan':
+                    return Number(value) < Number(filterValue);
+                case 'greaterThanOrEqual':
+                    return Number(value) >= Number(filterValue);
+                case 'lessThanOrEqual':
+                    return Number(value) <= Number(filterValue);
+                default:
+                    // Fallback to strict equality
+                    return value === filterValue;
+            }
+        }
+
         function applyFilterGroups(records, filterGroups, schema) {
             return records.filter(record => {
                 return filterGroups.some(group => {
-                    const operator = group.operator || 'AND';
+                    const groupOperator = group.operator || 'AND';
                     const rules = group.filter(r => r.field);
-                    if (operator === 'AND') return rules.every(rule => getNestedValue(record, rule.field) === rule.value);
-                    else return rules.some(rule => getNestedValue(record, rule.field) === rule.value);
+                    if (groupOperator === 'AND') return rules.every(rule => evaluateFilterRule(record, rule));
+                    else return rules.some(rule => evaluateFilterRule(record, rule));
                 });
             });
         }
@@ -34043,7 +34105,7 @@
                             schema: detection.schema,
                             relationships: detection.relationships,
                             rollups: detection.rollups,
-                            filters: [{ field: fieldId, operator: 'notEmpty' }]
+                            filters: [[{ field: fieldId, operator: 'notEmpty' }]]
                         });
                         createEvent(
                             'View Schema Update',
