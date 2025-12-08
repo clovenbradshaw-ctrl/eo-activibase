@@ -211,20 +211,29 @@
     font-size: 12px;
 }
 
+/* Pivot badge - static data snapshot */
 .pivot-badge {
-    background: var(--warning-bg, #fef3c7);
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
     color: var(--warning-text, #92400e);
-    border: 1px solid var(--warning-border, #fcd34d);
+    border: 1px solid var(--warning-border, #f59e0b);
 }
 
+/* Dynamic/Linked badge - cross-set data */
 .dynamic-badge {
-    background: var(--info-bg, #dbeafe);
-    color: var(--info-text, #1e40af);
-    border: 1px solid var(--info-border, #93c5fd);
+    background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
+    color: #0e7490;
+    border: 1px solid #06b6d4;
+}
+
+/* Scratchpad badge - exploratory workspace */
+.scratchpad-badge {
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    color: #6d28d9;
+    border: 1px solid #8b5cf6;
 }
 
 /* ============================================================================
-   READ-ONLY BANNER
+   STATIC DATA BANNER (Pivots)
    ============================================================================ */
 
 .pivot-readonly-banner {
@@ -232,11 +241,12 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    padding: 8px 16px;
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    border-bottom: 1px solid #fcd34d;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border-bottom: 1px solid #f59e0b;
     font-size: 13px;
     color: #92400e;
+    font-weight: 500;
 }
 
 .pivot-readonly-banner i {

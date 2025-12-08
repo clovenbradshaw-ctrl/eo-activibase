@@ -1549,37 +1549,43 @@
     padding-left: 9px;
 }
 
-/* Sandbox view tab styling - exploratory/temporary */
+/* Scratchpad view tab styling - exploratory workspace (not minimizing) */
+.view-tab.scratchpad {
+    border-left: 3px solid #8b5cf6 !important;
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%) !important;
+    border-color: #c4b5fd !important;
+}
+
+.view-tab.scratchpad:hover {
+    background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%) !important;
+    border-color: #a78bfa !important;
+}
+
+.view-tab.scratchpad.active {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+    border-color: #7c3aed !important;
+    color: white !important;
+}
+
+.view-tab.scratchpad.active .view-name,
+.view-tab.scratchpad.active .view-icon {
+    color: white !important;
+}
+
+.scratchpad-indicator {
+    font-size: 12px;
+    margin-left: 2px;
+}
+
+/* Legacy sandbox support - maps to scratchpad */
 .view-tab.sandbox {
-    border-style: dashed !important;
-    border-width: 1px !important;
-    border-color: #9ca3af !important;
-    background: repeating-linear-gradient(
-        -45deg,
-        #f9fafb,
-        #f9fafb 5px,
-        #f3f4f6 5px,
-        #f3f4f6 10px
-    ) !important;
-    opacity: 0.85;
-}
-
-.view-tab.sandbox:hover {
-    opacity: 1;
-    border-color: #6b7280 !important;
-}
-
-.view-tab.sandbox.active {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
-    border-color: #f59e0b !important;
-    border-style: dashed !important;
-    opacity: 1;
+    border-left: 3px solid #8b5cf6 !important;
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%) !important;
 }
 
 .sandbox-indicator {
     font-size: 12px;
     margin-left: 2px;
-    opacity: 0.7;
 }
 
 /* ============================================================================
@@ -1698,43 +1704,66 @@
     font-style: italic;
 }
 
-/* Sandbox mode bar */
+/* Scratchpad mode bar - more prominent than sandbox, not off-putting */
+.scratchpad-mode-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    border: 1px solid #c4b5fd;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.scratchpad-icon {
+    font-size: 18px;
+}
+
+.scratchpad-text {
+    flex: 1;
+    color: #5b21b6;
+    font-weight: 500;
+}
+
+/* Legacy sandbox support */
 .sandbox-mode-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    border: 1px dashed #f59e0b;
-    border-radius: 6px;
-    font-size: 12px;
+    gap: 10px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    border: 1px solid #c4b5fd;
+    border-radius: 8px;
+    font-size: 13px;
 }
 
 .sandbox-icon {
-    font-size: 16px;
+    font-size: 18px;
 }
 
 .sandbox-text {
     flex: 1;
-    color: #92400e;
+    color: #5b21b6;
     font-weight: 500;
 }
 
 .btn-promote-view {
-    padding: 4px 10px;
+    padding: 5px 12px;
     background: white;
-    border: 1px solid #f59e0b;
-    border-radius: 4px;
-    font-size: 11px;
+    border: 1px solid #a78bfa;
+    border-radius: 6px;
+    font-size: 12px;
     font-weight: 600;
-    color: #92400e;
+    color: #6d28d9;
     cursor: pointer;
     transition: all 0.15s ease;
 }
 
 .btn-promote-view:hover {
-    background: #fef3c7;
-    border-color: #d97706;
+    background: #f5f3ff;
+    border-color: #8b5cf6;
+    color: #5b21b6;
 }
 
 /* ============================================================================
