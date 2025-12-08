@@ -17123,6 +17123,9 @@
                 const targetPaneId = state.layout.activePaneId || 'pane-main';
                 const pane = EOLayout.findPaneById(state.layout.root, targetPaneId);
                 if (pane) {
+                    // Ensure activePaneId is set (fixes viewContainer ID mismatch)
+                    state.layout.activePaneId = targetPaneId;
+
                     // Check if view is already in this pane
                     const existingIdx = pane.tabs.findIndex(
                         t => t.setId === state.currentSetId && t.viewId === state.currentViewId
@@ -17157,6 +17160,9 @@
                 const targetPaneId = state.layout.activePaneId || 'pane-main';
                 const pane = EOLayout.findPaneById(state.layout.root, targetPaneId);
                 if (pane) {
+                    // Ensure activePaneId is set (fixes viewContainer ID mismatch)
+                    state.layout.activePaneId = targetPaneId;
+
                     // Check if special view is already in this pane
                     const existingIdx = pane.tabs.findIndex(t => t.specialView === specialView);
                     if (existingIdx !== -1) {
