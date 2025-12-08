@@ -713,6 +713,12 @@
             // IN
             if (this._match('IN')) {
                 this._expect('(');
+                // Check for subquery
+                if (this._peek().value === 'SELECT') {
+                    const subquery = this._parseSelect();
+                    this._expect(')');
+                    return { type: 'in_subquery', field: left, subquery };
+                }
                 const values = this._parseExpressionList();
                 this._expect(')');
                 return { type: 'in', field: left, values };
@@ -722,6 +728,12 @@
             if (this._match('NOT')) {
                 if (this._match('IN')) {
                     this._expect('(');
+                    // Check for subquery
+                    if (this._peek().value === 'SELECT') {
+                        const subquery = this._parseSelect();
+                        this._expect(')');
+                        return { type: 'not_in_subquery', field: left, subquery };
+                    }
                     const values = this._parseExpressionList();
                     this._expect(')');
                     return { type: 'not_in', field: left, values };
@@ -1038,13 +1050,20 @@
         }
 
         /**
-         * Parse identifier list
+         * Parse identifier list (supports qualified identifiers like table.column)
          */
         _parseIdentifierList() {
             const identifiers = [];
 
             do {
-                identifiers.push(this._parseIdentifier());
+                let ident = this._parseIdentifier();
+                // Handle qualified identifiers (table.column)
+                while (this._peek().value === '.') {
+                    this._advance(); // consume '.'
+                    const next = this._parseIdentifier();
+                    ident = `${ident}.${next}`;
+                }
+                identifiers.push(ident);
             } while (this._match(','));
 
             return identifiers;
@@ -1101,7 +1120,9 @@
 
         _match(value) {
             const token = this._peek();
-            if ((token.type === TokenTypes.KEYWORD || token.type === TokenTypes.PUNCTUATION) &&
+            if ((token.type === TokenTypes.KEYWORD ||
+                 token.type === TokenTypes.PUNCTUATION ||
+                 token.type === TokenTypes.OPERATOR) &&
                 token.value === value) {
                 this._advance();
                 return true;

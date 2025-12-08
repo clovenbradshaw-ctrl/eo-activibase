@@ -203,7 +203,14 @@
          */
         _processINS(params, ctx) {
             if (params.source) {
-                ctx.from = params.source;
+                // Handle table with alias (object form)
+                if (typeof params.source === 'object' && params.source.table) {
+                    ctx.from = params.source.alias
+                        ? `${params.source.table} ${params.source.alias}`
+                        : params.source.table;
+                } else {
+                    ctx.from = params.source;
+                }
             }
         }
 
@@ -215,13 +222,18 @@
                 ctx.select = params.columns.map(c => {
                     if (typeof c === 'string') return c;
                     if (typeof c === 'object') {
+                        // Check if it's an expression with a type field
+                        if (c.type) {
+                            return this._formatExpr(c);
+                        }
+                        // Check if it's an alias mapping { alias: expr }
                         const entries = Object.entries(c);
                         if (entries.length === 1) {
                             const [alias, expr] = entries[0];
                             return `${this._formatExpr(expr)} AS ${this._quoteIdentifier(alias)}`;
                         }
                     }
-                    return c;
+                    return String(c);
                 });
             }
         }
@@ -279,7 +291,17 @@
                 'cross': 'CROSS JOIN'
             }[type] || 'INNER JOIN';
 
-            let joinSQL = `${joinType} ${target}`;
+            // Handle table with alias (object form)
+            let targetStr;
+            if (typeof target === 'object' && target.table) {
+                targetStr = target.alias
+                    ? `${target.table} ${target.alias}`
+                    : target.table;
+            } else {
+                targetStr = target;
+            }
+
+            let joinSQL = `${joinType} ${targetStr}`;
 
             if (on) {
                 joinSQL += ` ON ${this._formatCondition(on)}`;
@@ -572,6 +594,10 @@
                     return `${this._formatExpr(expr.field)} IN (${expr.values.map(v => this._formatValue(v)).join(', ')})`;
                 case 'not_in':
                     return `${this._formatExpr(expr.field)} NOT IN (${expr.values.map(v => this._formatValue(v)).join(', ')})`;
+                case 'in_subquery':
+                    return `${this._formatExpr(expr.field)} IN (${this.compile(expr.subquery)})`;
+                case 'not_in_subquery':
+                    return `${this._formatExpr(expr.field)} NOT IN (${this.compile(expr.subquery)})`;
 
                 case 'between':
                     return `${this._formatExpr(expr.field)} BETWEEN ${this._formatValue(expr.low)} AND ${this._formatValue(expr.high)}`;

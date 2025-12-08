@@ -228,13 +228,13 @@
         // Literal value
         literal: (value) => ({ type: ExpressionTypes.LITERAL, value }),
 
-        // Comparisons
-        eq: (left, right) => ({ type: ExpressionTypes.EQ, left: normalize(left), right: normalize(right) }),
-        ne: (left, right) => ({ type: ExpressionTypes.NE, left: normalize(left), right: normalize(right) }),
-        gt: (left, right) => ({ type: ExpressionTypes.GT, left: normalize(left), right: normalize(right) }),
-        gte: (left, right) => ({ type: ExpressionTypes.GTE, left: normalize(left), right: normalize(right) }),
-        lt: (left, right) => ({ type: ExpressionTypes.LT, left: normalize(left), right: normalize(right) }),
-        lte: (left, right) => ({ type: ExpressionTypes.LTE, left: normalize(left), right: normalize(right) }),
+        // Comparisons (left side = field, right side = literal by default)
+        eq: (left, right) => ({ type: ExpressionTypes.EQ, left: normalizeLeft(left), right: normalizeRight(right) }),
+        ne: (left, right) => ({ type: ExpressionTypes.NE, left: normalizeLeft(left), right: normalizeRight(right) }),
+        gt: (left, right) => ({ type: ExpressionTypes.GT, left: normalizeLeft(left), right: normalizeRight(right) }),
+        gte: (left, right) => ({ type: ExpressionTypes.GTE, left: normalizeLeft(left), right: normalizeRight(right) }),
+        lt: (left, right) => ({ type: ExpressionTypes.LT, left: normalizeLeft(left), right: normalizeRight(right) }),
+        lte: (left, right) => ({ type: ExpressionTypes.LTE, left: normalizeLeft(left), right: normalizeRight(right) }),
         like: (field, pattern) => ({ type: ExpressionTypes.LIKE, field: normalize(field), pattern }),
         ilike: (field, pattern) => ({ type: ExpressionTypes.ILIKE, field: normalize(field), pattern }),
         in: (field, values) => ({ type: ExpressionTypes.IN, field: normalize(field), values }),
@@ -271,6 +271,25 @@
      */
     function normalize(expr) {
         if (typeof expr === 'string') return Expr.field(expr);
+        if (typeof expr === 'number' || typeof expr === 'boolean') return Expr.literal(expr);
+        return expr;
+    }
+
+    /**
+     * Normalize for left-hand side of comparison (field reference)
+     */
+    function normalizeLeft(expr) {
+        if (typeof expr === 'string') return Expr.field(expr);
+        if (typeof expr === 'number' || typeof expr === 'boolean') return Expr.literal(expr);
+        return expr;
+    }
+
+    /**
+     * Normalize for right-hand side of comparison (literal value by default)
+     * Use Expr.field() explicitly to compare two fields
+     */
+    function normalizeRight(expr) {
+        if (typeof expr === 'string') return Expr.literal(expr);
         if (typeof expr === 'number' || typeof expr === 'boolean') return Expr.literal(expr);
         return expr;
     }
