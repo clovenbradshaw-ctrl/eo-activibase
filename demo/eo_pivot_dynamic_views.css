@@ -1,0 +1,516 @@
+/**
+ * EO Pivot and Dynamic Views - Styles
+ */
+
+/* ============================================================================
+   MODAL STYLES
+   ============================================================================ */
+
+.pivot-dynamic-modal {
+    max-width: 600px;
+    width: 95%;
+}
+
+.pivot-dynamic-modal .modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.pivot-info {
+    display: flex;
+    gap: 24px;
+    padding: 16px;
+    background: var(--bg-secondary, #f8fafc);
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.info-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: var(--text-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary, #1e293b);
+}
+
+/* ============================================================================
+   OPTION CARDS
+   ============================================================================ */
+
+.pivot-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.option-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+    border: 2px solid var(--border, #e2e8f0);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.option-card:hover {
+    border-color: var(--accent-light, #93c5fd);
+    background: var(--bg-hover, #f1f5f9);
+}
+
+.option-card:has(input:checked) {
+    border-color: var(--accent, #3b82f6);
+    background: var(--accent-bg, #eff6ff);
+}
+
+.option-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary, #f1f5f9);
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.option-icon i {
+    font-size: 24px;
+    color: var(--accent, #3b82f6);
+}
+
+.option-card:has(input:checked) .option-icon {
+    background: var(--accent, #3b82f6);
+}
+
+.option-card:has(input:checked) .option-icon i {
+    color: white;
+}
+
+.option-content {
+    flex: 1;
+}
+
+.option-content h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 6px 0;
+    color: var(--text-primary, #1e293b);
+}
+
+.option-content p {
+    font-size: 13px;
+    color: var(--text-muted, #64748b);
+    margin: 0 0 10px 0;
+    line-height: 1.4;
+}
+
+.option-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.option-features li {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-secondary, #475569);
+    background: var(--bg-secondary, #f1f5f9);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.option-features li i {
+    color: var(--success, #22c55e);
+    font-size: 14px;
+}
+
+.option-select {
+    display: flex;
+    align-items: flex-start;
+    padding-top: 4px;
+}
+
+.option-select input[type="radio"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent, #3b82f6);
+    cursor: pointer;
+}
+
+.option-select label {
+    display: none;
+}
+
+/* ============================================================================
+   NAME INPUT SECTION
+   ============================================================================ */
+
+.pivot-name-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pivot-name-section label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary, #475569);
+}
+
+.pivot-name-section input {
+    padding: 10px 12px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.pivot-name-section input:focus {
+    outline: none;
+    border-color: var(--accent, #3b82f6);
+    box-shadow: 0 0 0 3px var(--accent-bg, #eff6ff);
+}
+
+/* ============================================================================
+   VIEW BADGES
+   ============================================================================ */
+
+.view-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.view-badge i {
+    font-size: 12px;
+}
+
+.pivot-badge {
+    background: var(--warning-bg, #fef3c7);
+    color: var(--warning-text, #92400e);
+    border: 1px solid var(--warning-border, #fcd34d);
+}
+
+.dynamic-badge {
+    background: var(--info-bg, #dbeafe);
+    color: var(--info-text, #1e40af);
+    border: 1px solid var(--info-border, #93c5fd);
+}
+
+/* ============================================================================
+   READ-ONLY BANNER
+   ============================================================================ */
+
+.pivot-readonly-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-bottom: 1px solid #fcd34d;
+    font-size: 13px;
+    color: #92400e;
+}
+
+.pivot-readonly-banner i {
+    font-size: 16px;
+}
+
+.pivot-readonly-banner .btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    background: white;
+    border: 1px solid #fcd34d;
+    color: #92400e;
+}
+
+.pivot-readonly-banner .btn:hover {
+    background: #fef3c7;
+}
+
+/* ============================================================================
+   VIEW TAB INDICATORS
+   ============================================================================ */
+
+.view-tab.pivot-view {
+    border-left: 3px solid var(--warning, #f59e0b);
+}
+
+.view-tab.dynamic-view {
+    border-left: 3px solid var(--info, #3b82f6);
+}
+
+.view-tab .pivot-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-left: 4px;
+    background: var(--warning-bg, #fef3c7);
+    border-radius: 4px;
+}
+
+.view-tab .pivot-indicator i {
+    font-size: 10px;
+    color: var(--warning-text, #92400e);
+}
+
+.view-tab .dynamic-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-left: 4px;
+    background: var(--info-bg, #dbeafe);
+    border-radius: 4px;
+}
+
+.view-tab .dynamic-indicator i {
+    font-size: 10px;
+    color: var(--info-text, #1e40af);
+}
+
+/* ============================================================================
+   CELL EDITING BLOCKED STATE
+   ============================================================================ */
+
+.cell-edit-blocked {
+    cursor: not-allowed !important;
+    opacity: 0.85;
+}
+
+.cell-edit-blocked:hover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 4px,
+        rgba(245, 158, 11, 0.1) 4px,
+        rgba(245, 158, 11, 0.1) 8px
+    );
+    pointer-events: none;
+}
+
+/* Tooltip for blocked edit */
+.blocked-edit-tooltip {
+    position: fixed;
+    z-index: 10000;
+    padding: 8px 12px;
+    background: #1e293b;
+    color: white;
+    border-radius: 6px;
+    font-size: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: tooltipFade 0.2s ease;
+}
+
+.blocked-edit-tooltip i {
+    font-size: 16px;
+    color: #fcd34d;
+}
+
+@keyframes tooltipFade {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================================================
+   TOAST NOTIFICATIONS (EXTENDED)
+   ============================================================================ */
+
+.toast-notification.toast-info {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+}
+
+.toast-notification.toast-success {
+    background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+}
+
+.toast-notification.toast-error {
+    background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+}
+
+.toast-notification .toast-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toast-notification .toast-content i {
+    font-size: 18px;
+}
+
+/* ============================================================================
+   DYNAMIC SET INDICATOR IN SIDEBAR
+   ============================================================================ */
+
+.set-item.dynamic-set {
+    position: relative;
+}
+
+.set-item.dynamic-set::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--info, #3b82f6);
+    border-radius: 0 2px 2px 0;
+}
+
+.set-item .dynamic-set-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 6px;
+    background: var(--info-bg, #dbeafe);
+    color: var(--info-text, #1e40af);
+    font-size: 10px;
+    border-radius: 3px;
+    margin-left: 6px;
+}
+
+.set-item .dynamic-set-badge i {
+    font-size: 10px;
+}
+
+/* ============================================================================
+   CONTEXT MENU ENHANCEMENTS
+   ============================================================================ */
+
+.context-menu-item.pivot-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.context-menu-item.pivot-option i {
+    color: var(--warning, #f59e0b);
+}
+
+.context-menu-item.dynamic-option i {
+    color: var(--info, #3b82f6);
+}
+
+.context-menu-submenu-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 12px 4px;
+    background: transparent;
+}
+
+/* ============================================================================
+   DARK MODE OVERRIDES
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+    .pivot-info {
+        background: var(--bg-secondary, #1e293b);
+    }
+
+    .option-card {
+        border-color: var(--border, #334155);
+    }
+
+    .option-card:hover {
+        background: var(--bg-hover, #334155);
+    }
+
+    .option-card:has(input:checked) {
+        background: rgba(59, 130, 246, 0.1);
+    }
+
+    .option-icon {
+        background: var(--bg-secondary, #334155);
+    }
+
+    .option-features li {
+        background: var(--bg-tertiary, #475569);
+    }
+
+    .pivot-readonly-banner {
+        background: linear-gradient(135deg, #422006 0%, #713f12 100%);
+        border-color: #a16207;
+        color: #fef3c7;
+    }
+
+    .pivot-readonly-banner .btn {
+        background: #1e293b;
+        border-color: #a16207;
+        color: #fef3c7;
+    }
+}
+
+/* ============================================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================================ */
+
+@media (max-width: 640px) {
+    .pivot-dynamic-modal {
+        max-width: 100%;
+        margin: 16px;
+    }
+
+    .pivot-info {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .option-card {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .option-select {
+        align-self: center;
+        padding-top: 12px;
+    }
+
+    .option-features {
+        justify-content: center;
+    }
+}
