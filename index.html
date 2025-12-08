@@ -31808,9 +31808,6 @@
                 return { redundantFields, suggestedSorts, suggestedGroups, suggestedColumnRules };
             }
 
-            // Always hide the pivot field itself since all values are identical
-            redundantFields.push(pivotFieldId);
-
             // Analyze each field
             let bestDateField = null;
             let bestGroupField = null;
