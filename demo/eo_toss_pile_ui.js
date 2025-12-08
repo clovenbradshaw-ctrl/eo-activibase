@@ -248,19 +248,19 @@
             tr.dataset.ghostRecordId = recordId;
             tr.dataset.actionId = data.action?.id;
 
-            // Checkbox cell
-            const selectTd = document.createElement('td');
-            selectTd.className = 'row-select-cell ghost-cell';
-            selectTd.innerHTML = '<span class="ghost-indicator">◌</span>';
-            tr.appendChild(selectTd);
-
-            // Row number cell
+            // Row number cell comes first (leftmost)
             if (view.showRowNumbers) {
                 const rowNumberTd = document.createElement('td');
                 rowNumberTd.className = 'row-number-cell ghost-cell';
                 rowNumberTd.innerHTML = '<span class="ghost-dash">-</span>';
                 tr.appendChild(rowNumberTd);
             }
+
+            // Checkbox cell comes after row numbers
+            const selectTd = document.createElement('td');
+            selectTd.className = 'row-select-cell ghost-cell';
+            selectTd.innerHTML = '<span class="ghost-indicator">◌</span>';
+            tr.appendChild(selectTd);
 
             // Field cells
             tableSchema.forEach(field => {
