@@ -1558,6 +1558,27 @@
             position: relative;
             z-index: 1;
         }
+        .cell-drag-selected {
+            background: #dbeafe !important;
+            outline: 1px solid #93c5fd;
+            outline-offset: -1px;
+        }
+        .cell-drag-selecting {
+            user-select: none;
+        }
+        .column-header-copyable:hover .column-title {
+            cursor: pointer;
+        }
+        .column-header .copy-hint {
+            opacity: 0;
+            font-size: 10px;
+            color: #94a3b8;
+            margin-left: 4px;
+            transition: opacity 0.15s ease;
+        }
+        .column-header:hover .copy-hint {
+            opacity: 1;
+        }
         .cell-editing {
             outline: 2px solid #3b82f6 !important;
             outline-offset: -2px;
@@ -7908,6 +7929,16 @@
             draggingKey: null,
             dropKey: null,
             dropPosition: null
+        };
+
+        // Cell drag selection state for copy functionality
+        const cellDragState = {
+            isDragging: false,
+            startCell: null,      // {recordId, fieldId, element}
+            endCell: null,        // {recordId, fieldId, element}
+            selectedCells: [],    // Array of {recordId, fieldId, element}
+            startX: 0,
+            startY: 0
         };
 
         const COLUMN_WIDTH_MIN = 50;
@@ -18056,10 +18087,14 @@
                     </span>
                 `;
                 th.innerHTML = `${headerTitle}<span class="${indicatorClass}"><span class="direction-icon">${directionIcon}</span>${orderBadge}</span>`;
-                th.title = isNameField ? 'This is the Name field (right-click for options)' : 'Click to sort, right-click to set as Name or for more options';
+                th.title = isNameField ? 'This is the Name field (double-click to copy, right-click for options)' : 'Click to sort, double-click to copy name, right-click for options';
                 th.onclick = () => {
                     if (columnDragState.preventClick) return;
                     toggleColumnSort(field.id);
+                };
+                th.ondblclick = (e) => {
+                    e.stopPropagation();
+                    copyColumnName(field);
                 };
                 addColumnResizer(th, field);
                 setupColumnDragInteractions(th, field);
@@ -18247,6 +18282,7 @@
 
             wireViewStageActions();
             setupToolbarMenu();
+            setupCellDragSelection();
         }
 
         function renderKeyDerivedView() {
@@ -30058,6 +30094,8 @@
             const hasCustomDisplayName = currentView?.columnDisplayNames?.[field.id];
 
             showContextMenu(e, [
+                { label: 'Copy Column Name', icon: 'ph-clipboard-text', action: () => copyColumnName(field) },
+                { label: 'separator' },
                 { label: 'Edit Display Name…', action: () => editColumnDisplayName(field) },
                 hasCustomDisplayName ? { label: 'Reset Display Name', action: () => resetColumnDisplayName(field.id) } : null,
                 { label: 'separator' },
@@ -30351,6 +30389,292 @@
                 console.error('Failed to copy:', err);
                 showToast('Failed to copy');
             });
+        }
+
+        /**
+         * Copy column name to clipboard
+         */
+        function copyColumnName(field) {
+            const name = field.name || '';
+            navigator.clipboard.writeText(name).then(() => {
+                showToast(`Copied "${name}"`);
+            }).catch(err => {
+                console.error('Failed to copy column name:', err);
+                showToast('Failed to copy');
+            });
+        }
+
+        /**
+         * Initialize cell drag selection on the table
+         */
+        function setupCellDragSelection() {
+            const table = document.getElementById('dataTable');
+            if (!table) return;
+
+            // Cleanup any existing handlers
+            table.removeEventListener('mousedown', handleCellDragStart);
+            document.removeEventListener('mousemove', handleCellDragMove);
+            document.removeEventListener('mouseup', handleCellDragEnd);
+
+            table.addEventListener('mousedown', handleCellDragStart);
+            document.addEventListener('mousemove', handleCellDragMove);
+            document.addEventListener('mouseup', handleCellDragEnd);
+        }
+
+        function handleCellDragStart(e) {
+            // Only handle left mouse button on editable cells
+            if (e.button !== 0) return;
+            const cell = e.target.closest('td.cell-editable');
+            if (!cell) return;
+
+            // Don't start drag if clicking on an interactive element
+            if (e.target.closest('input, button, a, .context-menu')) return;
+
+            const recordId = cell.dataset.recordId;
+            const fieldId = cell.dataset.fieldId;
+            if (!recordId || !fieldId) return;
+
+            cellDragState.isDragging = true;
+            cellDragState.startX = e.clientX;
+            cellDragState.startY = e.clientY;
+            cellDragState.startCell = { recordId, fieldId, element: cell };
+            cellDragState.endCell = { recordId, fieldId, element: cell };
+            cellDragState.selectedCells = [];
+
+            // Clear previous drag selection
+            clearCellDragSelection();
+        }
+
+        function handleCellDragMove(e) {
+            if (!cellDragState.isDragging || !cellDragState.startCell) return;
+
+            // Only start visual selection after moving a few pixels (to distinguish from click)
+            const dx = Math.abs(e.clientX - cellDragState.startX);
+            const dy = Math.abs(e.clientY - cellDragState.startY);
+            if (dx < 5 && dy < 5) return;
+
+            const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('td.cell-editable');
+            if (!cell) return;
+
+            const recordId = cell.dataset.recordId;
+            const fieldId = cell.dataset.fieldId;
+            if (!recordId || !fieldId) return;
+
+            cellDragState.endCell = { recordId, fieldId, element: cell };
+
+            // Update visual selection
+            updateCellDragSelection();
+
+            // Prevent text selection while dragging
+            e.preventDefault();
+        }
+
+        function handleCellDragEnd(e) {
+            if (!cellDragState.isDragging) return;
+
+            const hadSelection = cellDragState.selectedCells.length > 0;
+
+            cellDragState.isDragging = false;
+
+            // If we have selected cells from drag, keep them highlighted
+            // The selection can be cleared by clicking elsewhere or pressing Escape
+            if (!hadSelection && cellDragState.startCell) {
+                // No drag occurred, let normal click handling proceed
+                cellDragState.startCell = null;
+                cellDragState.endCell = null;
+            }
+        }
+
+        function updateCellDragSelection() {
+            if (!cellDragState.startCell || !cellDragState.endCell) return;
+
+            const tbody = document.getElementById('tableBody');
+            if (!tbody) return;
+
+            // Clear previous selection
+            clearCellDragSelection();
+
+            // Get all rows and cells
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const headerRow = document.getElementById('tableHeader');
+            const columns = Array.from(headerRow.querySelectorAll('th[data-field-id]')).map(th => th.dataset.fieldId);
+
+            // Find row indices
+            const startRowIndex = rows.findIndex(r => r.dataset.recordId === cellDragState.startCell.recordId);
+            const endRowIndex = rows.findIndex(r => r.dataset.recordId === cellDragState.endCell.recordId);
+            const minRow = Math.min(startRowIndex, endRowIndex);
+            const maxRow = Math.max(startRowIndex, endRowIndex);
+
+            // Find column indices
+            const startColIndex = columns.indexOf(cellDragState.startCell.fieldId);
+            const endColIndex = columns.indexOf(cellDragState.endCell.fieldId);
+            const minCol = Math.min(startColIndex, endColIndex);
+            const maxCol = Math.max(startColIndex, endColIndex);
+
+            if (minRow < 0 || minCol < 0) return;
+
+            // Select all cells in the rectangle
+            cellDragState.selectedCells = [];
+            for (let r = minRow; r <= maxRow; r++) {
+                const row = rows[r];
+                if (!row) continue;
+                for (let c = minCol; c <= maxCol; c++) {
+                    const fieldId = columns[c];
+                    const cell = row.querySelector(`td[data-field-id="${fieldId}"]`);
+                    if (cell) {
+                        cell.classList.add('cell-drag-selected');
+                        cellDragState.selectedCells.push({
+                            recordId: row.dataset.recordId,
+                            fieldId: fieldId,
+                            element: cell
+                        });
+                    }
+                }
+            }
+        }
+
+        function clearCellDragSelection() {
+            document.querySelectorAll('.cell-drag-selected').forEach(cell => {
+                cell.classList.remove('cell-drag-selected');
+            });
+            cellDragState.selectedCells = [];
+        }
+
+        /**
+         * Copy all selected cells to clipboard (tab-separated for paste into spreadsheets)
+         */
+        function copySelectedCells() {
+            const set = getCurrentSet();
+            if (!set) return;
+
+            // If we have drag-selected cells, copy those
+            if (cellDragState.selectedCells.length > 0) {
+                const cells = cellDragState.selectedCells;
+
+                // Group cells by row
+                const rowMap = new Map();
+                cells.forEach(cell => {
+                    if (!rowMap.has(cell.recordId)) {
+                        rowMap.set(cell.recordId, []);
+                    }
+                    rowMap.get(cell.recordId).push(cell);
+                });
+
+                // Get column order from header
+                const headerRow = document.getElementById('tableHeader');
+                const columns = Array.from(headerRow.querySelectorAll('th[data-field-id]')).map(th => th.dataset.fieldId);
+
+                // Build tab-separated values
+                const lines = [];
+                rowMap.forEach((rowCells, recordId) => {
+                    const record = set.records.get(recordId);
+                    if (!record) return;
+
+                    // Sort cells by column order
+                    rowCells.sort((a, b) => columns.indexOf(a.fieldId) - columns.indexOf(b.fieldId));
+
+                    const values = rowCells.map(cell => {
+                        const schema = set.schema.find(f => f.id === cell.fieldId);
+                        return formatCellValueForCopy(record[cell.fieldId], schema, record);
+                    });
+                    lines.push(values.join('\t'));
+                });
+
+                const copyText = lines.join('\n');
+                navigator.clipboard.writeText(copyText).then(() => {
+                    const count = cellDragState.selectedCells.length;
+                    showToast(`Copied ${count} cell${count === 1 ? '' : 's'}`);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    showToast('Failed to copy');
+                });
+                return;
+            }
+
+            // Fall back to single selected cell
+            if (state.selectedCell) {
+                const { recordId, fieldId } = state.selectedCell;
+                const schema = set.schema.find(f => f.id === fieldId);
+                if (schema) {
+                    copyCellValue(recordId, schema);
+                }
+            }
+        }
+
+        /**
+         * Format cell value for copy (reusable version of copyCellValue logic)
+         */
+        function formatCellValueForCopy(value, field, record) {
+            if (!field) return value != null ? String(value) : '';
+
+            switch (field.type) {
+                case 'LINK_RECORD': {
+                    if (!value) return '';
+                    const linkedRecordIds = Array.isArray(value) ? value : [value];
+                    const names = linkedRecordIds.map(id => {
+                        const name = getRecordDisplayName(id) || 'Record';
+                        return name.includes(',') || name.includes('"') || name.includes('\t')
+                            ? `"${name.replace(/"/g, '""')}"` : name;
+                    });
+                    return names.join(', ');
+                }
+                case 'LINKED_LOOKUP': {
+                    if (!field._linkedConfig) return '';
+                    const lookupValues = evaluateLinkedLookup(field._linkedConfig, record, state);
+                    if (!lookupValues || lookupValues.length === 0) return '';
+                    const formattedValues = lookupValues.map(val => {
+                        const str = String(val);
+                        return str.includes(',') || str.includes('"') || str.includes('\t')
+                            ? `"${str.replace(/"/g, '""')}"` : str;
+                    });
+                    return formattedValues.join(', ');
+                }
+                case 'SELECT':
+                case 'MULTI_SELECT': {
+                    if (Array.isArray(value)) {
+                        const formattedValues = value.map(val => {
+                            const str = String(val);
+                            return str.includes(',') || str.includes('"') || str.includes('\t')
+                                ? `"${str.replace(/"/g, '""')}"` : str;
+                        });
+                        return formattedValues.join(', ');
+                    }
+                    return value || '';
+                }
+                case 'CHECKBOX':
+                    return value ? 'true' : 'false';
+                case 'DATE':
+                    return value ? new Date(value).toLocaleDateString() : '';
+                case 'NUMBER':
+                case 'CURRENCY':
+                    return value != null ? String(value) : '';
+                default:
+                    return value != null ? String(value) : '';
+            }
+        }
+
+        /**
+         * Handle keyboard shortcuts for cell operations
+         */
+        function handleCellKeyboardShortcuts(e) {
+            // Ctrl+C or Cmd+C to copy
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                // Don't override if user is editing text
+                if (state.editingCell) return;
+
+                // Check if we have cells to copy
+                if (cellDragState.selectedCells.length > 0 || state.selectedCell) {
+                    e.preventDefault();
+                    copySelectedCells();
+                }
+            }
+
+            // Escape to clear drag selection
+            if (e.key === 'Escape') {
+                if (cellDragState.selectedCells.length > 0) {
+                    clearCellDragSelection();
+                }
+            }
         }
 
         function showContextMenu(e, items) {
@@ -33183,6 +33507,9 @@
 
         function setupKeyboardShortcuts() {
             document.addEventListener('keydown', (e) => {
+                // Handle cell keyboard shortcuts (Ctrl+C to copy, Escape to clear selection)
+                handleCellKeyboardShortcuts(e);
+
                 if (e.key === 'Escape') {
                     if (state.editingCell) {
                         exitEditMode(false);
