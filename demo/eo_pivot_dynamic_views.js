@@ -268,6 +268,10 @@
             filters: [],
             sorts: [],
             groups: [],
+            // Set column display name for the primary field to match the original field name
+            columnDisplayNames: {
+                'name': field.name
+            },
             provenance: {
                 createdBy: state.currentUser || 'user',
                 createdAt: Date.now(),
