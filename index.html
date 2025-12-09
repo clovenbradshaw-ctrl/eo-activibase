@@ -17971,27 +17971,13 @@
 
             syncSelectionState(records);
 
-            // Check if this is a pivot view (read-only)
+            // Check if this is a pivot view (read-only) or dynamic linked view
             const isPivotView = view.isPivot || view.isReadOnly;
-            const pivotBanner = isPivotView ? `
-                <div class="pivot-readonly-banner">
-                    <i class="ph ph-chart-pie-slice"></i>
-                    <span>Pivot View - Data is read-only</span>
-                    <button class="btn btn-sm btn-secondary" onclick="if(typeof EOPivotDynamicViews !== 'undefined') { EOPivotDynamicViews.convertToEditableView(state, '${view.id}'); renderCurrentView(); }">
-                        Make Editable
-                    </button>
-                </div>
-            ` : '';
-
-            // Check if this is a dynamic linked view
             const isDynamicView = view.isLinkedView || view.pivotMetadata?.pivotType === 'dynamic_link';
-            const dynamicBanner = isDynamicView ? `
-                <div class="pivot-readonly-banner" style="background: linear-gradient(135deg, rgba(219, 234, 254, 0.95) 0%, rgba(191, 219, 254, 0.95) 100%); border-color: #93c5fd; color: #1e40af;">
-                    <i class="ph ph-link-simple"></i>
-                    <span>Dynamic Linked View - Edit records through the linked "${view.pivotMetadata?.dynamicSetName || 'table'}"</span>
-                    ${view.pivotMetadata?.dynamicSetId ? `<button class="btn btn-sm btn-secondary" onclick="switchSet('${view.pivotMetadata.dynamicSetId}')" style="background: white; border-color: #93c5fd; color: #1e40af;">Go to ${view.pivotMetadata?.dynamicSetName || 'Linked Table'}</button>` : ''}
-                </div>
-            ` : '';
+
+            // Determine view type class for subtle visual indicator
+            const viewTypeClass = isPivotView ? 'derived-view derived-view--pivot' :
+                                  isDynamicView ? 'derived-view derived-view--linked' : '';
 
             const container = document.getElementById('viewContainer');
             container.innerHTML = `
@@ -18006,8 +17992,7 @@
                     </div>
                     ${renderViewActions()}
                 </div>
-                <div class="view-stage-body">
-                    ${pivotBanner}${dynamicBanner}
+                <div class="view-stage-body ${viewTypeClass}">
                     <div class="view-table-shell">
                         <div class="table-scroll">
                             <table id="dataTable" class="border-collapse">

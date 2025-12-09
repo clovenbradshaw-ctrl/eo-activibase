@@ -233,43 +233,35 @@
 }
 
 /* ============================================================================
-   STATIC DATA BANNER (Pivots)
+   DERIVED VIEW INDICATORS (Subtle)
    ============================================================================ */
 
-.pivot-readonly-banner {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 6px 14px;
-    background: linear-gradient(135deg, rgba(255, 251, 235, 0.95) 0%, rgba(254, 243, 199, 0.95) 100%);
-    border: 1px solid #f59e0b;
-    border-radius: 6px;
-    font-size: 12px;
-    color: #92400e;
-    font-weight: 500;
+/* Base derived view styling - subtle top accent line */
+.derived-view {
+    position: relative;
+}
+
+.derived-view::before {
+    content: '';
     position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    z-index: 1;
 }
 
-.pivot-readonly-banner i {
-    font-size: 16px;
+/* Pivot view - subtle amber accent */
+.derived-view--pivot::before {
+    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #f59e0b 100%);
+    opacity: 0.7;
 }
 
-.pivot-readonly-banner .btn {
-    padding: 4px 12px;
-    font-size: 12px;
-    background: white;
-    border: 1px solid #fcd34d;
-    color: #92400e;
-}
-
-.pivot-readonly-banner .btn:hover {
-    background: #fef3c7;
+/* Linked view - subtle blue accent */
+.derived-view--linked::before {
+    background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 50%, #3b82f6 100%);
+    opacity: 0.7;
 }
 
 /* ============================================================================
@@ -489,17 +481,15 @@
         background: var(--bg-tertiary, #475569);
     }
 
-    .pivot-readonly-banner {
-        background: linear-gradient(135deg, rgba(66, 32, 6, 0.95) 0%, rgba(113, 63, 18, 0.95) 100%);
-        border-color: #a16207;
-        color: #fef3c7;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    /* Derived view indicators in dark mode */
+    .derived-view--pivot::before {
+        background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #d97706 100%);
+        opacity: 0.8;
     }
 
-    .pivot-readonly-banner .btn {
-        background: #1e293b;
-        border-color: #a16207;
-        color: #fef3c7;
+    .derived-view--linked::before {
+        background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #2563eb 100%);
+        opacity: 0.8;
     }
 }
 

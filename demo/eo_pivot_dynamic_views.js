@@ -668,18 +668,21 @@
     }
 
     /**
-     * Render read-only indicator overlay for pivots
+     * Get CSS class for derived view type indicator
+     * Returns class names for subtle visual styling of pivot/linked views
      */
-    function renderPivotReadOnlyOverlay() {
-        return `
-            <div class="pivot-readonly-banner">
-                <i class="ph ${PIVOT_VIEW_ICON}"></i>
-                <span>Pivot - Static snapshot (data is non-dynamic)</span>
-                <button class="btn btn-sm btn-secondary" onclick="EOPivotDynamicViews.convertToEditableView()">
-                    Make Dynamic
-                </button>
-            </div>
-        `;
+    function getDerivedViewClass(view) {
+        if (!view) return '';
+
+        if (view.isPivot || view.isReadOnly) {
+            return 'derived-view derived-view--pivot';
+        }
+
+        if (view.isLinkedView || view.pivotMetadata?.pivotType === 'dynamic_link') {
+            return 'derived-view derived-view--linked';
+        }
+
+        return '';
     }
 
     /**
@@ -1263,7 +1266,7 @@
         showPivotDynamicDialog,
         closePivotDynamicModal,
         renderPivotViewBadge,
-        renderPivotReadOnlyOverlay,
+        getDerivedViewClass,
         convertToEditableView,
 
         // Cell editing integration
