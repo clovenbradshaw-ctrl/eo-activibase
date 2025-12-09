@@ -27997,7 +27997,7 @@
                 recordId,
                 fieldId: schemaField.id,
                 fieldName: schemaField.name || schemaField.id,
-                recordName: record?.name || keyValue || recordId || 'Item',
+                recordName: getRecordDisplayName(recordId) || keyValue || 'Item',
                 entries,
                 index: entries.length > 0 ? entries.length - 1 : 0,
                 selectedValueSource: 'new',
