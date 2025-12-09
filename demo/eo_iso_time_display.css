@@ -1,0 +1,360 @@
+/**
+ * EO ISO Time Display Styles
+ *
+ * Styles for displaying ISO timestamps as formatted date/time
+ * with a clickable popover showing full details.
+ */
+
+/* ============================================================================
+   INLINE DISPLAY
+   ============================================================================ */
+
+.eo-iso-time-display {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-variant-numeric: tabular-nums;
+}
+
+.eo-iso-time-clickable {
+    cursor: pointer;
+    padding: 2px 6px;
+    margin: -2px -6px;
+    border-radius: 4px;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.eo-iso-time-clickable:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+.eo-iso-time-clickable:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.eo-iso-time-clickable:active {
+    background-color: rgba(59, 130, 246, 0.15);
+}
+
+.eo-iso-time-formatted {
+    color: inherit;
+}
+
+.eo-iso-time-relative {
+    color: #6b7280;
+    font-size: 0.875em;
+    font-style: italic;
+}
+
+.eo-iso-time-invalid {
+    color: #dc2626;
+    font-style: italic;
+}
+
+/* ============================================================================
+   POPOVER
+   ============================================================================ */
+
+.eo-iso-time-popover {
+    position: fixed;
+    z-index: 10000;
+    min-width: 320px;
+    max-width: 420px;
+    background: white;
+    border-radius: 12px;
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06),
+        0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    animation: eo-iso-popover-in 0.15s ease-out;
+}
+
+@keyframes eo-iso-popover-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.eo-iso-time-popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.eo-iso-time-popover-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.eo-iso-time-popover-title::before {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+.eo-iso-time-popover-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    font-size: 20px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.eo-iso-time-popover-close:hover {
+    background-color: #e5e7eb;
+    color: #111827;
+}
+
+.eo-iso-time-popover-content {
+    padding: 12px 16px 16px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* ============================================================================
+   POPOVER ROWS
+   ============================================================================ */
+
+.eo-iso-time-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.eo-iso-time-row:last-child {
+    border-bottom: none;
+}
+
+.eo-iso-time-row-highlight {
+    background: linear-gradient(135deg, #eff6ff 0%, #faf5ff 100%);
+    margin: 0 -16px;
+    padding: 12px 16px;
+    border-radius: 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.eo-iso-time-row-highlight .eo-iso-time-value {
+    font-weight: 600;
+    color: #1d4ed8;
+    font-size: 15px;
+}
+
+.eo-iso-time-row-mono .eo-iso-time-value {
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+    font-size: 12px;
+    background: #f3f4f6;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.eo-iso-time-label {
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    min-width: 80px;
+}
+
+.eo-iso-time-value {
+    color: #111827;
+    font-size: 13px;
+    text-align: right;
+    word-break: break-word;
+}
+
+/* ============================================================================
+   POPOVER SECTIONS
+   ============================================================================ */
+
+.eo-iso-time-section {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.eo-iso-time-section:first-child {
+    margin-top: 8px;
+    padding-top: 0;
+    border-top: none;
+}
+
+.eo-iso-time-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+}
+
+/* ============================================================================
+   COPY FUNCTIONALITY
+   ============================================================================ */
+
+.eo-iso-time-copyable {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.15s ease;
+}
+
+.eo-iso-time-copyable:hover {
+    background: #e0e7ff !important;
+}
+
+.eo-iso-time-copy-icon {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    color: #6b7280;
+    display: inline-flex;
+    align-items: center;
+}
+
+.eo-iso-time-copyable:hover .eo-iso-time-copy-icon {
+    opacity: 1;
+}
+
+/* ============================================================================
+   DARK MODE SUPPORT
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+    .eo-iso-time-popover {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .eo-iso-time-popover-header {
+        background: #111827;
+        border-color: #374151;
+    }
+
+    .eo-iso-time-popover-title {
+        color: #f9fafb;
+    }
+
+    .eo-iso-time-popover-title::before {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    }
+
+    .eo-iso-time-popover-close {
+        color: #9ca3af;
+    }
+
+    .eo-iso-time-popover-close:hover {
+        background-color: #374151;
+        color: #f9fafb;
+    }
+
+    .eo-iso-time-row {
+        border-color: #374151;
+    }
+
+    .eo-iso-time-row-highlight {
+        background: linear-gradient(135deg, #1e3a5f 0%, #312e81 100%);
+        border-color: #374151;
+    }
+
+    .eo-iso-time-row-highlight .eo-iso-time-value {
+        color: #60a5fa;
+    }
+
+    .eo-iso-time-row-mono .eo-iso-time-value {
+        background: #374151;
+        color: #e5e7eb;
+    }
+
+    .eo-iso-time-label {
+        color: #9ca3af;
+    }
+
+    .eo-iso-time-value {
+        color: #f9fafb;
+    }
+
+    .eo-iso-time-section {
+        border-color: #374151;
+    }
+
+    .eo-iso-time-section-title {
+        color: #6b7280;
+    }
+
+    .eo-iso-time-copyable:hover {
+        background: #312e81 !important;
+    }
+
+    .eo-iso-time-copy-icon {
+        color: #9ca3af;
+    }
+
+    .eo-iso-time-clickable:hover {
+        background-color: rgba(59, 130, 246, 0.2);
+    }
+
+    .eo-iso-time-clickable:focus {
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+    }
+
+    .eo-iso-time-relative {
+        color: #9ca3af;
+    }
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .eo-iso-time-popover {
+        min-width: 280px;
+        max-width: calc(100vw - 32px);
+    }
+
+    .eo-iso-time-row {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .eo-iso-time-value {
+        text-align: left;
+    }
+
+    .eo-iso-time-row-mono .eo-iso-time-value {
+        font-size: 11px;
+        word-break: break-all;
+    }
+}
