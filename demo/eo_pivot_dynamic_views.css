@@ -240,13 +240,20 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    padding: 10px 16px;
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-    border-bottom: 1px solid #f59e0b;
-    font-size: 13px;
+    gap: 8px;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, rgba(255, 251, 235, 0.95) 0%, rgba(254, 243, 199, 0.95) 100%);
+    border: 1px solid #f59e0b;
+    border-radius: 6px;
+    font-size: 12px;
     color: #92400e;
     font-weight: 500;
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .pivot-readonly-banner i {
@@ -483,9 +490,10 @@
     }
 
     .pivot-readonly-banner {
-        background: linear-gradient(135deg, #422006 0%, #713f12 100%);
+        background: linear-gradient(135deg, rgba(66, 32, 6, 0.95) 0%, rgba(113, 63, 18, 0.95) 100%);
         border-color: #a16207;
         color: #fef3c7;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
 
     .pivot-readonly-banner .btn {

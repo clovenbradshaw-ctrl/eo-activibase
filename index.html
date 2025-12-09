@@ -3997,7 +3997,7 @@
         .toss-selected-btn.hidden { display: none; }
         .toss-selected-btn i { color: #dc2626; }
 
-        .view-stage-body { padding: 14px 16px 18px; background: #ffffff; flex: 1; }
+        .view-stage-body { padding: 14px 16px 18px; background: #ffffff; flex: 1; position: relative; }
 
         .view-table-shell {
             border: 1px solid #e2e8f0;
@@ -17955,7 +17955,7 @@
             // Check if this is a dynamic linked view
             const isDynamicView = view.isLinkedView || view.pivotMetadata?.pivotType === 'dynamic_link';
             const dynamicBanner = isDynamicView ? `
-                <div class="pivot-readonly-banner" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-color: #93c5fd; color: #1e40af;">
+                <div class="pivot-readonly-banner" style="background: linear-gradient(135deg, rgba(219, 234, 254, 0.95) 0%, rgba(191, 219, 254, 0.95) 100%); border-color: #93c5fd; color: #1e40af;">
                     <i class="ph ph-link-simple"></i>
                     <span>Dynamic Linked View - Edit records through the linked "${view.pivotMetadata?.dynamicSetName || 'table'}"</span>
                     ${view.pivotMetadata?.dynamicSetId ? `<button class="btn btn-sm btn-secondary" onclick="switchSet('${view.pivotMetadata.dynamicSetId}')" style="background: white; border-color: #93c5fd; color: #1e40af;">Go to ${view.pivotMetadata?.dynamicSetName || 'Linked Table'}</button>` : ''}
@@ -17975,8 +17975,8 @@
                     </div>
                     ${renderViewActions()}
                 </div>
-                ${pivotBanner}${dynamicBanner}
                 <div class="view-stage-body">
+                    ${pivotBanner}${dynamicBanner}
                     <div class="view-table-shell">
                         <div class="table-scroll">
                             <table id="dataTable" class="border-collapse">
