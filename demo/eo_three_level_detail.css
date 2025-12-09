@@ -192,6 +192,33 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
+.eo-record-modal-title-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.eo-record-modal-back {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  font-size: 18px;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.eo-record-modal-back:hover {
+  background: #f3f4f6;
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
 .eo-record-modal-title {
   display: flex;
   flex-direction: column;
@@ -555,6 +582,187 @@
   padding: 40px 20px;
   color: #9ca3af;
   font-style: italic;
+}
+
+/* ==============================================
+   FIELD PIVOT STYLING (clickable field names)
+   ============================================== */
+
+.eo-field-pivot {
+  cursor: pointer;
+  border-bottom: 1px dotted currentColor;
+  transition: all 0.15s ease;
+}
+
+.eo-field-pivot:hover {
+  color: #3b82f6;
+  border-bottom-style: solid;
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
+
+/* ==============================================
+   CELL HISTORY VIEW
+   ============================================== */
+
+.eo-cell-history-view {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.eo-cell-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.eo-cell-current-value {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eo-cell-value-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.eo-cell-value-display {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.eo-cell-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eo-cell-history-section h4 {
+  font-size: 14px;
+  text-transform: uppercase;
+  color: #6b7280;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  letter-spacing: 0.5px;
+}
+
+/* Timeline styling */
+.eo-cell-history-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.eo-cell-history-entry {
+  display: flex;
+  gap: 16px;
+  padding: 0;
+}
+
+.eo-cell-history-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.eo-cell-history-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #d1d5db;
+  border: 2px solid white;
+  box-shadow: 0 0 0 2px #e5e7eb;
+  flex-shrink: 0;
+}
+
+.eo-cell-history-dot.active {
+  background: #3b82f6;
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+.eo-cell-history-line {
+  width: 2px;
+  flex: 1;
+  background: #e5e7eb;
+  min-height: 20px;
+}
+
+.eo-cell-history-content {
+  flex: 1;
+  padding-bottom: 24px;
+}
+
+.eo-cell-history-entry:last-child .eo-cell-history-content {
+  padding-bottom: 0;
+}
+
+.eo-cell-history-time {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.eo-cell-history-change {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+
+.eo-cell-history-operator {
+  font-size: 12px;
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+.eo-cell-history-agent {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.eo-cell-history-method {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 4px;
+}
+
+.eo-history-created {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.eo-null {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.eo-sup-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+  margin-left: 8px;
 }
 
 /* ==============================================
