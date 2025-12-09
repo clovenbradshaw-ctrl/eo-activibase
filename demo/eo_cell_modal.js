@@ -1,164 +1,372 @@
 /**
- * EO Cell Modal Component
- * Interactive modal for viewing cell values, context, history, and superposition
+ * EOCellModal
  *
- * Features:
- * - Tab 1: Value & Context
- * - Tab 2: History
- * - Tab 3: Superposition (if applicable)
- * - Tab 4: Context Diff
+ * Level 3: Cell Modal
+ * Opens when clicking a cell or field label.
+ * Shows full cell details with tabs:
+ * - Value
+ * - Relationships
+ * - Provenance
+ * - History
+ * - Context
  *
- * Usage:
- *   const modal = new EOCellModal();
- *   modal.show(cell, contextEngine, supDetector);
+ * Mirrors the structure and styling of EORecordModal for consistency.
+ * Each cell is treated as a first-class entity with its own story.
  */
-
 class EOCellModal {
   constructor() {
     this.modal = null;
-    this.currentCell = null;
-    this.contextEngine = null;
-    this.supDetector = null;
+    this.currentCellId = null;
+    this.currentRecordId = null;
+    this.currentFieldName = null;
     this.currentTab = 'value';
+    this.config = {};
   }
 
   /**
-   * Show the cell modal
+   * Initialize the modal with configuration
+   * @param {Object} config - Configuration object
    */
-  show(cell, contextEngine, supDetector) {
-    this.currentCell = cell;
-    this.contextEngine = contextEngine;
-    this.supDetector = supDetector;
-    this.currentTab = 'value';
-
-    this.render();
-    this.attachEventListeners();
+  initialize(config = {}) {
+    this.config = {
+      onRelationClick: config.onRelationClick || (() => {}),
+      getCell: config.getCell || (() => ({})),
+      getFieldSchema: config.getFieldSchema || (() => ({})),
+      getRelationships: config.getRelationships || (() => []),
+      getProvenance: config.getProvenance || (() => ({})),
+      getHistory: config.getHistory || (() => []),
+      getContext: config.getContext || (() => ({})),
+      ...config
+    };
   }
 
   /**
-   * Hide the cell modal
+   * Show the modal for a specific cell
+   * @param {string} recordId - The parent record ID
+   * @param {string} fieldName - The field name
+   */
+  show(recordId, fieldName) {
+    this.currentRecordId = recordId;
+    this.currentFieldName = fieldName;
+    this.currentCellId = `${recordId}:${fieldName}`;
+    this.currentTab = 'value';
+
+    if (!this.modal) {
+      this.createModal();
+    }
+
+    this.updateContent();
+    this.modal.style.display = 'flex';
+
+    // Prevent body scroll
+    document.body.style.overflow = 'hidden';
+
+    // Add ESC key handler
+    this.escHandler = (e) => {
+      if (e.key === 'Escape') {
+        this.hide();
+      }
+    };
+    document.addEventListener('keydown', this.escHandler);
+  }
+
+  /**
+   * Hide the modal
    */
   hide() {
     if (this.modal) {
-      this.modal.remove();
-      this.modal = null;
+      this.modal.style.display = 'none';
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', this.escHandler);
     }
   }
 
   /**
-   * Render the modal
+   * Create the modal structure
    */
-  render() {
-    // Remove existing modal if any
-    this.hide();
+  createModal() {
+    const overlay = document.createElement('div');
+    overlay.className = 'eo-cell-modal-overlay';
 
-    const hasSUP = this.supDetector.detectSuperposition(this.currentCell);
-    const dominantValue = this.supDetector.getStrongestValue(
-      this.currentCell,
-      this.contextEngine.getViewContext()
-    );
-
-    const modalHTML = `
-      <div class="eo-cell-modal-overlay" id="eoCellModal">
-        <div class="eo-cell-modal">
-          <div class="eo-cell-modal-header">
-            <div class="eo-cell-modal-title">
-              <h2>${this.currentCell.field_name}${hasSUP ? ` (${this.currentCell.values.length} perspectives)` : ''}</h2>
-            </div>
-            <button class="eo-cell-modal-close" id="eoCellModalClose">
-              <i class="ph ph-x"></i>
-            </button>
+    overlay.innerHTML = `
+      <div class="eo-cell-modal">
+        <div class="eo-cell-modal-header">
+          <div class="eo-cell-modal-title">
+            <h2 class="eo-cell-modal-name"></h2>
+            <div class="eo-cell-modal-id"></div>
           </div>
+          <button class="eo-cell-modal-close" aria-label="Close">×</button>
+        </div>
 
-          <div class="eo-cell-modal-tabs">
-            <button class="eo-cell-modal-tab active" data-tab="value">Value & Context</button>
-            <button class="eo-cell-modal-tab" data-tab="history">History</button>
-            ${hasSUP ? '<button class="eo-cell-modal-tab" data-tab="superposition">Perspectives</button>' : ''}
-            ${hasSUP ? '<button class="eo-cell-modal-tab" data-tab="diff">Why Different?</button>' : ''}
-          </div>
+        <div class="eo-cell-modal-tabs">
+          <button class="eo-cell-tab active" data-tab="value">Value</button>
+          <button class="eo-cell-tab" data-tab="relationships">Relationships</button>
+          <button class="eo-cell-tab" data-tab="provenance">Provenance</button>
+          <button class="eo-cell-tab" data-tab="history">History</button>
+          <button class="eo-cell-tab" data-tab="context">Context</button>
+        </div>
 
-          <div class="eo-cell-modal-content">
-            <div class="eo-cell-modal-tab-content active" data-tab-content="value">
-              ${this.renderValueTab(dominantValue)}
-            </div>
-            <div class="eo-cell-modal-tab-content" data-tab-content="history">
-              ${this.renderHistoryTab()}
-            </div>
-            ${hasSUP ? `<div class="eo-cell-modal-tab-content" data-tab-content="superposition">
-              ${this.renderSuperpositionTab()}
-            </div>` : ''}
-            ${hasSUP ? `<div class="eo-cell-modal-tab-content" data-tab-content="diff">
-              ${this.renderDiffTab()}
-            </div>` : ''}
-          </div>
+        <div class="eo-cell-modal-content">
+          <!-- Content will be dynamically populated -->
         </div>
       </div>
     `;
 
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-    this.modal = document.getElementById('eoCellModal');
+    document.body.appendChild(overlay);
+    this.modal = overlay;
+
+    // Add event listeners
+    this.attachEventListeners();
   }
 
   /**
-   * Render Value & Context tab
+   * Attach event listeners to modal elements
    */
-  renderValueTab(observation) {
-    if (!observation) {
-      return '<p class="eo-empty">No value available</p>';
+  attachEventListeners() {
+    // Close button
+    const closeBtn = this.modal.querySelector('.eo-cell-modal-close');
+    closeBtn.addEventListener('click', () => this.hide());
+
+    // Click outside to close
+    this.modal.addEventListener('click', (e) => {
+      if (e.target === this.modal) {
+        this.hide();
+      }
+    });
+
+    // Tab switching
+    const tabs = this.modal.querySelectorAll('.eo-cell-tab');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = tab.dataset.tab;
+        this.switchTab(tabName);
+      });
+    });
+  }
+
+  /**
+   * Switch to a different tab
+   */
+  switchTab(tabName) {
+    this.currentTab = tabName;
+
+    // Update tab buttons
+    const tabs = this.modal.querySelectorAll('.eo-cell-tab');
+    tabs.forEach(tab => {
+      if (tab.dataset.tab === tabName) {
+        tab.classList.add('active');
+      } else {
+        tab.classList.remove('active');
+      }
+    });
+
+    // Update content
+    this.updateContent();
+  }
+
+  /**
+   * Update modal content based on current cell and tab
+   */
+  updateContent() {
+    const cell = this.config.getCell(this.currentRecordId, this.currentFieldName);
+    if (!cell) return;
+
+    const fieldSchema = this.config.getFieldSchema(this.currentFieldName);
+
+    // Update header
+    const nameEl = this.modal.querySelector('.eo-cell-modal-name');
+    const idEl = this.modal.querySelector('.eo-cell-modal-id');
+
+    nameEl.textContent = this.currentFieldName;
+    idEl.textContent = this.currentCellId;
+
+    // Update content area
+    const contentEl = this.modal.querySelector('.eo-cell-modal-content');
+
+    switch (this.currentTab) {
+      case 'value':
+        contentEl.innerHTML = this.renderValueTab(cell, fieldSchema);
+        break;
+      case 'relationships':
+        contentEl.innerHTML = this.renderRelationshipsTab(cell);
+        this.attachRelationshipClickListeners();
+        break;
+      case 'provenance':
+        contentEl.innerHTML = this.renderProvenanceTab(cell);
+        break;
+      case 'history':
+        contentEl.innerHTML = this.renderHistoryTab(cell);
+        break;
+      case 'context':
+        contentEl.innerHTML = this.renderContextTab(cell);
+        break;
+    }
+  }
+
+  /**
+   * Render Value tab
+   */
+  renderValueTab(cell, fieldSchema) {
+    const values = cell.values || [];
+    const primaryValue = values[0];
+    const hasSuperposition = values.length > 1;
+
+    // Format the primary value
+    let displayValue = '';
+    if (primaryValue) {
+      displayValue = this.formatValue(primaryValue.value);
+    } else if (cell.value !== undefined) {
+      displayValue = this.formatValue(cell.value);
+    } else {
+      displayValue = '<span class="eo-cell-empty">No value</span>';
     }
 
-    const ctx = observation.context_schema;
-    const formattedValue = this.formatValue(observation.value);
-    const timestamp = new Date(observation.timestamp).toLocaleString();
+    return `
+      <div class="eo-cell-value-section">
+        <div class="eo-cell-value-display">
+          <span class="eo-cell-value-main">${displayValue}</span>
+          ${hasSuperposition ? `
+            <span class="eo-sup-indicator" title="${values.length} observations">
+              ●${values.length}
+            </span>
+          ` : ''}
+        </div>
+
+        <div class="eo-cell-field-info">
+          <div class="eo-cell-info-row">
+            <span class="eo-cell-info-label">Field Type</span>
+            <span class="eo-cell-info-value">
+              <span class="eo-field-type-badge">${fieldSchema.type || 'TEXT'}</span>
+            </span>
+          </div>
+          <div class="eo-cell-info-row">
+            <span class="eo-cell-info-label">Record</span>
+            <span class="eo-cell-info-value">${this.currentRecordId}</span>
+          </div>
+          ${fieldSchema.formula ? `
+            <div class="eo-cell-info-row">
+              <span class="eo-cell-info-label">Formula</span>
+              <span class="eo-cell-info-value eo-monospace">${fieldSchema.formula}</span>
+            </div>
+          ` : ''}
+        </div>
+
+        ${hasSuperposition ? `
+          <div class="eo-cell-superposition-summary">
+            <h4>Multiple Observations</h4>
+            <p class="eo-cell-sup-intro">
+              This cell has ${values.length} valid observations from different contexts or methods.
+            </p>
+            <div class="eo-cell-observations-list">
+              ${values.map((obs, idx) => `
+                <div class="eo-cell-observation ${idx === 0 ? 'primary' : ''}">
+                  <div class="eo-cell-obs-value">${this.formatValue(obs.value)}</div>
+                  <div class="eo-cell-obs-meta">
+                    ${obs.context_schema?.method ? `
+                      <span class="eo-badge eo-badge-${obs.context_schema.method}">${obs.context_schema.method}</span>
+                    ` : ''}
+                    ${obs.context_schema?.scale ? `
+                      <span class="eo-badge eo-badge-${obs.context_schema.scale}">${obs.context_schema.scale}</span>
+                    ` : ''}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * Render Relationships tab
+   */
+  renderRelationshipsTab(cell) {
+    const relationships = this.config.getRelationships(this.currentRecordId, this.currentFieldName);
+
+    if (!relationships || relationships.length === 0) {
+      return '<div class="eo-cell-empty">No relationships found</div>';
+    }
+
+    const relationshipRows = relationships.map(rel => `
+      <div class="eo-relationship-row">
+        <div class="eo-relationship-type">${rel.type}</div>
+        <div class="eo-relationship-target">
+          <span class="eo-relationship-arrow">→</span>
+          <a href="#" class="eo-relationship-link" data-record="${rel.targetRecordId}" data-field="${rel.targetFieldName}">
+            ${rel.targetFieldName} @ ${rel.targetRecordName || rel.targetRecordId}
+          </a>
+        </div>
+        ${rel.description ? `<div class="eo-relationship-desc">${rel.description}</div>` : ''}
+      </div>
+    `).join('');
+
+    return `<div class="eo-relationship-list">${relationshipRows}</div>`;
+  }
+
+  /**
+   * Render Provenance tab
+   */
+  renderProvenanceTab(cell) {
+    const provenance = this.config.getProvenance(this.currentRecordId, this.currentFieldName);
+    const primaryValue = cell.values?.[0];
+    const context = primaryValue?.context_schema || {};
 
     return `
-      <div class="eo-value-display">
-        <div class="eo-value-main">
-          <span class="eo-value-label">Value:</span>
-          <span class="eo-value-text">${formattedValue}</span>
+      <div class="eo-provenance-section">
+        <h4>Cell Origin</h4>
+        <div class="eo-provenance-item">
+          <span class="eo-provenance-label">Created:</span>
+          <span class="eo-provenance-value">${this.formatTimestamp(provenance.created_at || cell.created_at)}</span>
         </div>
-
-        <div class="eo-context-grid">
-          <div class="eo-context-item">
-            <span class="eo-context-label">Source</span>
-            <span class="eo-context-value">${this.humanize(ctx.source?.system)} ${ctx.source?.file ? `(${ctx.source.file})` : ''}</span>
-          </div>
-
-          <div class="eo-context-item">
-            <span class="eo-context-label">Subject</span>
-            <span class="eo-context-value">${this.formatSubject(ctx.subject)}</span>
-          </div>
-
-          <div class="eo-context-item">
-            <span class="eo-context-label">Method</span>
-            <span class="eo-context-value eo-badge eo-badge-${ctx.method}">${ctx.method}</span>
-          </div>
-
-          <div class="eo-context-item">
-            <span class="eo-context-label">Definition</span>
-            <span class="eo-context-value">${ctx.definition || 'Unknown'}</span>
-          </div>
-
-          <div class="eo-context-item">
-            <span class="eo-context-label">Scale</span>
-            <span class="eo-context-value eo-badge eo-badge-${ctx.scale}">${ctx.scale}</span>
-          </div>
-
-          <div class="eo-context-item">
-            <span class="eo-context-label">Timeframe</span>
-            <span class="eo-context-value">${this.formatTimeframe(ctx.timeframe)}</span>
-          </div>
-
-          <div class="eo-context-item">
-            <span class="eo-context-label">Agent</span>
-            <span class="eo-context-value">${ctx.agent?.name || ctx.agent?.type || 'system'}</span>
-          </div>
-
-          <div class="eo-context-item">
-            <span class="eo-context-label">Timestamp</span>
-            <span class="eo-context-value">${timestamp}</span>
-          </div>
+        <div class="eo-provenance-item">
+          <span class="eo-provenance-label">Last Modified:</span>
+          <span class="eo-provenance-value">${this.formatTimestamp(provenance.updated_at || cell.updated_at)}</span>
         </div>
+        <div class="eo-provenance-item">
+          <span class="eo-provenance-label">Source:</span>
+          <span class="eo-provenance-value">${this.humanize(context.source?.system) || provenance.source || 'Unknown'}</span>
+        </div>
+        ${context.source?.file ? `
+          <div class="eo-provenance-item">
+            <span class="eo-provenance-label">Source File:</span>
+            <span class="eo-provenance-value eo-monospace">${context.source.file}</span>
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="eo-provenance-section">
+        <h4>Method & Agent</h4>
+        <div class="eo-provenance-item">
+          <span class="eo-provenance-label">Method:</span>
+          <span class="eo-provenance-value">
+            <span class="eo-badge eo-badge-${context.method || 'unknown'}">${context.method || 'unknown'}</span>
+          </span>
+        </div>
+        <div class="eo-provenance-item">
+          <span class="eo-provenance-label">Agent:</span>
+          <span class="eo-provenance-value">${context.agent?.name || context.agent?.type || provenance.agent || 'system'}</span>
+        </div>
+        ${context.definition ? `
+          <div class="eo-provenance-item">
+            <span class="eo-provenance-label">Definition:</span>
+            <span class="eo-provenance-value">${context.definition}</span>
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="eo-provenance-section">
+        <h4>Transformations</h4>
+        ${provenance.operations && provenance.operations.length > 0
+          ? provenance.operations.map(op => `
+              <div class="eo-operation-item">
+                <span class="eo-operation-type">${op.type}</span>
+                <span class="eo-operation-desc">${op.description}</span>
+                <span class="eo-operation-time">${this.formatTimestamp(op.timestamp)}</span>
+              </div>
+            `).join('')
+          : '<div class="eo-cell-empty">No transformations applied</div>'
+        }
       </div>
     `;
   }
@@ -166,186 +374,168 @@ class EOCellModal {
   /**
    * Render History tab
    */
-  renderHistoryTab() {
-    // For now, show a placeholder - would integrate with actual history
-    const history = [
-      {
-        timestamp: this.currentCell.created_at,
-        description: 'Created',
-        operator: 'INS'
-      },
-      ...(this.currentCell.values || []).map(v => ({
-        timestamp: v.timestamp,
-        description: this.getHistoryDescription(v),
-        operator: 'ALT'
-      }))
-    ];
+  renderHistoryTab(cell) {
+    const history = this.config.getHistory(this.currentRecordId, this.currentFieldName);
 
-    if (history.length === 0) {
-      return '<p class="eo-empty">No history available</p>';
+    if (!history || history.length === 0) {
+      return '<div class="eo-cell-empty">No edit history</div>';
     }
 
-    return `
-      <div class="eo-history-list">
-        ${history.map(entry => `
-          <div class="eo-history-item">
-            <div class="eo-history-icon">
-              ${this.getOperatorIcon(entry.operator)}
-            </div>
-            <div class="eo-history-content">
-              <div class="eo-history-description">${entry.description}</div>
-              <div class="eo-history-timestamp">${new Date(entry.timestamp).toLocaleString()}</div>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-  }
-
-  /**
-   * Render Superposition tab
-   */
-  renderSuperpositionTab() {
-    const summary = this.supDetector.getSummary(this.currentCell);
-    if (!summary) {
-      return '<p class="eo-empty">No superposition detected</p>';
-    }
-
-    return `
-      <div class="eo-superposition-list">
-        <p class="eo-superposition-intro">
-          This cell has ${summary.count} valid perspectives. Each represents the same information
-          under different contexts or measurement methods.
-        </p>
-
-        ${summary.perspectives.map((p, idx) => `
-          <div class="eo-perspective-card">
-            <div class="eo-perspective-header">
-              <span class="eo-perspective-number">Perspective ${idx + 1}</span>
-              <span class="eo-perspective-value">${this.formatValue(p.value)}</span>
-            </div>
-            <div class="eo-perspective-details">
-              <div class="eo-perspective-item">
-                <span class="eo-label">Method:</span>
-                <span class="eo-badge eo-badge-${p.method}">${p.method}</span>
-              </div>
-              <div class="eo-perspective-item">
-                <span class="eo-label">Scale:</span>
-                <span class="eo-badge eo-badge-${p.scale}">${p.scale}</span>
-              </div>
-              <div class="eo-perspective-item">
-                <span class="eo-label">Definition:</span>
-                <span>${p.definition}</span>
-              </div>
-              <div class="eo-perspective-item">
-                <span class="eo-label">Source:</span>
-                <span>${p.source}</span>
-              </div>
-              <div class="eo-perspective-item">
-                <span class="eo-label">Agent:</span>
-                <span>${p.agent}</span>
-              </div>
-              <div class="eo-perspective-item">
-                <span class="eo-label">Recorded:</span>
-                <span>${new Date(p.timestamp).toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-  }
-
-  /**
-   * Render Context Diff tab
-   */
-  renderDiffTab() {
-    const explanation = this.supDetector.generateExplanation(this.currentCell);
-    const diff = this.supDetector.generateContextDiff(this.currentCell);
-
-    if (!diff) {
-      return '<p class="eo-empty">No differences to show</p>';
-    }
-
-    return `
-      <div class="eo-diff-container">
-        <div class="eo-diff-explanation">
-          <h3>Why are these values different?</h3>
-          <pre class="eo-diff-text">${explanation}</pre>
+    const historyItems = history.map(item => `
+      <div class="eo-history-item">
+        <div class="eo-history-header">
+          <span class="eo-history-field">${item.operator || 'ALT'}</span>
+          <span class="eo-history-time">${this.formatTimestamp(item.timestamp)}</span>
         </div>
-
-        <div class="eo-diff-details">
-          <h4>Detailed Comparison</h4>
-          ${diff.differences.map((d, idx) => `
-            <div class="eo-diff-comparison">
-              <div class="eo-diff-values">
-                <div class="eo-diff-value">
-                  <span class="eo-diff-label">Value A:</span>
-                  <span class="eo-diff-value-text">${this.formatValue(d.value1)}</span>
-                </div>
-                <div class="eo-diff-arrow">⟷</div>
-                <div class="eo-diff-value">
-                  <span class="eo-diff-label">Value B:</span>
-                  <span class="eo-diff-value-text">${this.formatValue(d.value2)}</span>
-                </div>
-              </div>
-              <div class="eo-diff-dimensions">
-                ${d.differences.map(dim => `
-                  <div class="eo-diff-dimension">
-                    <i class="ph ph-arrow-right"></i>
-                    <span>${dim.description}</span>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          `).join('')}
+        <div class="eo-history-change">
+          <span class="eo-history-old">${this.formatValue(item.old_value)}</span>
+          <span class="eo-history-arrow">→</span>
+          <span class="eo-history-new">${this.formatValue(item.new_value)}</span>
         </div>
+        ${item.agent ? `<div class="eo-history-operator">by ${item.agent}</div>` : ''}
+      </div>
+    `).join('');
+
+    return `<div class="eo-history-list">${historyItems}</div>`;
+  }
+
+  /**
+   * Render Context tab
+   */
+  renderContextTab(cell) {
+    const context = this.config.getContext(this.currentRecordId, this.currentFieldName);
+    const primaryValue = cell.values?.[0];
+    const valueContext = primaryValue?.context_schema || {};
+
+    return `
+      <div class="eo-context-section">
+        <h4>Temporal Context</h4>
+        <div class="eo-context-item">
+          <span class="eo-context-label">Granularity:</span>
+          <span class="eo-context-value">${valueContext.timeframe?.granularity || context.temporal?.granularity || 'N/A'}</span>
+        </div>
+        ${valueContext.timeframe?.start || context.temporal?.start
+          ? `<div class="eo-context-item">
+              <span class="eo-context-label">Start:</span>
+              <span class="eo-context-value">${this.formatTimestamp(valueContext.timeframe?.start || context.temporal?.start)}</span>
+            </div>`
+          : ''
+        }
+        ${valueContext.timeframe?.end || context.temporal?.end
+          ? `<div class="eo-context-item">
+              <span class="eo-context-label">End:</span>
+              <span class="eo-context-value">${this.formatTimestamp(valueContext.timeframe?.end || context.temporal?.end)}</span>
+            </div>`
+          : ''
+        }
+      </div>
+
+      <div class="eo-context-section">
+        <h4>Subject Context</h4>
+        <div class="eo-context-item">
+          <span class="eo-context-label">Subject:</span>
+          <span class="eo-context-value">${this.formatSubject(valueContext.subject) || context.subject || 'N/A'}</span>
+        </div>
+        <div class="eo-context-item">
+          <span class="eo-context-label">Scale:</span>
+          <span class="eo-context-value">
+            ${valueContext.scale || context.spatial?.scale
+              ? `<span class="eo-badge eo-badge-${valueContext.scale || context.spatial?.scale}">${valueContext.scale || context.spatial?.scale}</span>`
+              : 'N/A'
+            }
+          </span>
+        </div>
+        ${context.spatial?.location
+          ? `<div class="eo-context-item">
+              <span class="eo-context-label">Location:</span>
+              <span class="eo-context-value">${context.spatial.location}</span>
+            </div>`
+          : ''
+        }
+      </div>
+
+      <div class="eo-context-section">
+        <h4>Measurement Context</h4>
+        <div class="eo-context-item">
+          <span class="eo-context-label">Method:</span>
+          <span class="eo-context-value">
+            ${valueContext.method || context.method
+              ? `<span class="eo-badge eo-badge-${valueContext.method || context.method}">${valueContext.method || context.method}</span>`
+              : 'N/A'
+            }
+          </span>
+        </div>
+        <div class="eo-context-item">
+          <span class="eo-context-label">Observer:</span>
+          <span class="eo-context-value">${valueContext.agent?.name || context.agent?.name || 'N/A'}</span>
+        </div>
+        ${valueContext.definition || context.definition
+          ? `<div class="eo-context-item">
+              <span class="eo-context-label">Definition:</span>
+              <span class="eo-context-value">${valueContext.definition || context.definition}</span>
+            </div>`
+          : ''
+        }
       </div>
     `;
   }
 
   /**
-   * Get history description from value observation
+   * Attach click listeners to relationship links
    */
-  getHistoryDescription(observation) {
-    const ctx = observation.context_schema;
-    const source = this.humanize(ctx.source?.system);
-    const agent = ctx.agent?.name || ctx.agent?.type;
-
-    if (ctx.method === 'measured' && source.includes('Import')) {
-      return `Created via ${source}`;
-    } else if (ctx.method === 'declared' && agent !== 'system') {
-      return `Updated by ${agent}`;
-    } else if (ctx.method === 'derived') {
-      return `Calculated via formula`;
-    } else {
-      return `Value updated`;
-    }
+  attachRelationshipClickListeners() {
+    const links = this.modal.querySelectorAll('.eo-relationship-link');
+    links.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetRecordId = link.dataset.record;
+        const targetFieldName = link.dataset.field;
+        this.config.onRelationClick(targetRecordId, targetFieldName);
+      });
+    });
   }
 
   /**
-   * Get icon for operator
+   * Format timestamp for display
    */
-  getOperatorIcon(operator) {
-    const icons = {
-      'INS': '<i class="ph ph-plus-circle"></i>',
-      'DES': '<i class="ph ph-pencil"></i>',
-      'SEG': '<i class="ph ph-split-horizontal"></i>',
-      'CON': '<i class="ph ph-link"></i>',
-      'SYN': '<i class="ph ph-git-merge"></i>',
-      'REC': '<i class="ph ph-gear"></i>',
-      'ALT': '<i class="ph ph-arrow-counter-clockwise"></i>',
-      'SUP': '<i class="ph ph-copy"></i>'
-    };
+  formatTimestamp(timestamp) {
+    if (!timestamp) return 'Unknown';
 
-    return icons[operator] || '<i class="ph ph-circle"></i>';
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return 'Unknown';
+
+    const now = new Date();
+    const diff = now - date;
+
+    // Less than 1 minute
+    if (diff < 60000) {
+      return 'Just now';
+    }
+    // Less than 1 hour
+    if (diff < 3600000) {
+      const minutes = Math.floor(diff / 60000);
+      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    }
+    // Less than 24 hours
+    if (diff < 86400000) {
+      const hours = Math.floor(diff / 3600000);
+      return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    }
+    // Less than 7 days
+    if (diff < 604800000) {
+      const days = Math.floor(diff / 86400000);
+      return `${days} day${days > 1 ? 's' : ''} ago`;
+    }
+
+    // Full date
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   }
 
   /**
    * Format value for display
    */
   formatValue(value) {
-    if (value == null) return '<span class="eo-null">null</span>';
+    if (value === null || value === undefined) return '<span class="eo-null">empty</span>';
     if (typeof value === 'number') {
       return new Intl.NumberFormat().format(value);
     }
@@ -355,122 +545,62 @@ class EOCellModal {
     if (typeof value === 'boolean') {
       return value ? '<span class="eo-bool-true">true</span>' : '<span class="eo-bool-false">false</span>';
     }
+    if (typeof value === 'string' && value.length > 100) {
+      return value.substring(0, 100) + '...';
+    }
     return String(value);
   }
 
   /**
-   * Format timeframe for display
-   */
-  formatTimeframe(timeframe) {
-    if (!timeframe) return 'Unknown';
-
-    const { granularity, start, end } = timeframe;
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-
-    if (granularity === 'instant') {
-      return startDate.toLocaleDateString();
-    }
-
-    if (granularity === 'quarter') {
-      const quarter = Math.floor(startDate.getMonth() / 3) + 1;
-      return `Q${quarter} ${startDate.getFullYear()}`;
-    }
-
-    if (granularity === 'year') {
-      return startDate.getFullYear().toString();
-    }
-
-    return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
-  }
-
-  /**
-   * Format subject information
+   * Format subject for display
    */
   formatSubject(subject) {
-    if (!subject) return 'Unknown subject';
+    if (!subject) return null;
     const parts = [];
     if (subject.label) parts.push(subject.label);
     if (subject.id) parts.push(`(${subject.id})`);
-    return parts.join(' ') || 'Unknown subject';
+    return parts.join(' ') || null;
   }
 
   /**
    * Humanize technical terms
    */
   humanize(str) {
-    if (!str) return 'Unknown';
-
+    if (!str) return null;
     return str
       .replace(/_/g, ' ')
-      .replace(/\b\w/g, l => l.toUpperCase())
-      .replace(/\bauto\b/i, '(auto-detected)');
+      .replace(/\b\w/g, l => l.toUpperCase());
   }
 
   /**
-   * Attach event listeners
+   * Destroy and cleanup all resources
    */
-  attachEventListeners() {
-    if (!this.modal) return;
-
-    // Close button
-    const closeBtn = this.modal.querySelector('#eoCellModalClose');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.hide());
+  destroy() {
+    // Remove escape key handler if present
+    if (this.escHandler) {
+      document.removeEventListener('keydown', this.escHandler);
+      this.escHandler = null;
     }
 
-    // Close on overlay click
-    this.modal.addEventListener('click', (e) => {
-      if (e.target === this.modal) {
-        this.hide();
-      }
-    });
-
-    // Tab switching
-    const tabs = this.modal.querySelectorAll('.eo-cell-modal-tab');
-    tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        const tabName = tab.dataset.tab;
-        this.switchTab(tabName);
-      });
-    });
-
-    // Escape key to close
-    document.addEventListener('keydown', this.handleEscape);
-  }
-
-  /**
-   * Handle escape key
-   */
-  handleEscape = (e) => {
-    if (e.key === 'Escape' && this.modal) {
-      this.hide();
-      document.removeEventListener('keydown', this.handleEscape);
+    // Remove modal from DOM
+    if (this.modal) {
+      this.modal.remove();
+      this.modal = null;
     }
-  }
 
-  /**
-   * Switch to a different tab
-   */
-  switchTab(tabName) {
-    if (!this.modal) return;
+    // Restore body scroll
+    document.body.style.overflow = '';
 
-    // Update tab buttons
-    this.modal.querySelectorAll('.eo-cell-modal-tab').forEach(tab => {
-      tab.classList.toggle('active', tab.dataset.tab === tabName);
-    });
-
-    // Update tab content
-    this.modal.querySelectorAll('.eo-cell-modal-tab-content').forEach(content => {
-      content.classList.toggle('active', content.dataset.tabContent === tabName);
-    });
-
-    this.currentTab = tabName;
+    // Clear references
+    this.currentCellId = null;
+    this.currentRecordId = null;
+    this.currentFieldName = null;
+    this.config = {};
   }
 }
 
-// Export for both Node.js and browser
-if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+// Export for use in other modules
+if (typeof module !== 'undefined' && module.exports) {
   module.exports = EOCellModal;
 }
 
