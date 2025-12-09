@@ -734,13 +734,13 @@ class EOImportManager {
           leftover = '';
         } else {
           // Keep leftover for next chunk (from last safe break point)
-          if (inQuotes) {
-            // We're in the middle of a quoted field - keep everything from field start
-            leftover = text.substring(lastSafeBreak);
-          } else {
-            leftover = text.substring(lastSafeBreak) + currentField;
-            currentField = '';
-          }
+          // text.substring(lastSafeBreak) already includes all characters from the last
+          // complete record to the end, including any partial field in currentField.
+          // We must NOT add currentField again as that would duplicate characters.
+          leftover = text.substring(lastSafeBreak);
+          // Reset currentRecord and currentField since they'll be re-parsed from leftover
+          currentRecord = [];
+          currentField = '';
         }
       };
 
