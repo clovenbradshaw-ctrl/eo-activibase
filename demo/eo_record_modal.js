@@ -18,6 +18,9 @@ class EORecordModal {
     this.currentRecordId = null;
     this.currentTab = 'fields';
     this.config = {};
+
+    // View stack for pivot navigation: [{type: 'record'|'cell', recordId, fieldName?, tab?}]
+    this.viewStack = [];
   }
 
   /**
@@ -32,6 +35,7 @@ class EORecordModal {
       getRelationships: config.getRelationships || (() => []),
       getProvenance: config.getProvenance || (() => ({})),
       getHistory: config.getHistory || (() => []),
+      getCellHistory: config.getCellHistory || ((recordId, fieldName) => []),
       getContext: config.getContext || (() => ({})),
       ...config
     };
@@ -44,6 +48,9 @@ class EORecordModal {
   show(recordId) {
     this.currentRecordId = recordId;
     this.currentTab = 'fields';
+
+    // Initialize view stack with record view
+    this.viewStack = [{ type: 'record', recordId, tab: 'fields' }];
 
     if (!this.modal) {
       this.createModal();
@@ -58,10 +65,62 @@ class EORecordModal {
     // Add ESC key handler
     this.escHandler = (e) => {
       if (e.key === 'Escape') {
-        this.hide();
+        this.handleEscapeKey();
       }
     };
     document.addEventListener('keydown', this.escHandler);
+  }
+
+  /**
+   * Handle escape key - go back or close
+   */
+  handleEscapeKey() {
+    if (this.viewStack.length > 1) {
+      this.goBack();
+    } else {
+      this.hide();
+    }
+  }
+
+  /**
+   * Pivot to cell history view
+   * @param {string} recordId - The record ID
+   * @param {string} fieldName - The field name to show history for
+   */
+  pivotToCell(recordId, fieldName) {
+    // Save current tab before pivoting
+    const currentView = this.viewStack[this.viewStack.length - 1];
+    if (currentView) {
+      currentView.tab = this.currentTab;
+    }
+
+    // Push cell view onto stack
+    this.viewStack.push({ type: 'cell', recordId, fieldName, tab: 'history' });
+    this.currentTab = 'history';
+
+    this.updateContent();
+  }
+
+  /**
+   * Go back to previous view
+   */
+  goBack() {
+    if (this.viewStack.length > 1) {
+      this.viewStack.pop();
+      const previousView = this.viewStack[this.viewStack.length - 1];
+
+      this.currentRecordId = previousView.recordId;
+      this.currentTab = previousView.tab || 'fields';
+
+      this.updateContent();
+    }
+  }
+
+  /**
+   * Get current view from stack
+   */
+  getCurrentView() {
+    return this.viewStack[this.viewStack.length - 1] || { type: 'record', recordId: this.currentRecordId };
   }
 
   /**
@@ -85,9 +144,12 @@ class EORecordModal {
     overlay.innerHTML = `
       <div class="eo-record-modal">
         <div class="eo-record-modal-header">
-          <div class="eo-record-modal-title">
-            <h2 class="eo-record-modal-name"></h2>
-            <div class="eo-record-modal-id"></div>
+          <div class="eo-record-modal-title-area">
+            <button class="eo-record-modal-back" aria-label="Go back" style="display: none;">←</button>
+            <div class="eo-record-modal-title">
+              <h2 class="eo-record-modal-name"></h2>
+              <div class="eo-record-modal-id"></div>
+            </div>
           </div>
           <button class="eo-record-modal-close" aria-label="Close">×</button>
         </div>
@@ -120,6 +182,10 @@ class EORecordModal {
     // Close button
     const closeBtn = this.modal.querySelector('.eo-record-modal-close');
     closeBtn.addEventListener('click', () => this.hide());
+
+    // Back button
+    const backBtn = this.modal.querySelector('.eo-record-modal-back');
+    backBtn.addEventListener('click', () => this.goBack());
 
     // Click outside to close
     this.modal.addEventListener('click', (e) => {
@@ -159,39 +225,71 @@ class EORecordModal {
   }
 
   /**
-   * Update modal content based on current record and tab
+   * Update modal content based on current view and tab
    */
   updateContent() {
-    const record = this.config.getRecord(this.currentRecordId);
+    const currentView = this.getCurrentView();
+    const record = this.config.getRecord(currentView.recordId);
     if (!record) return;
 
-    // Update header
+    // Update header based on view type
     const nameEl = this.modal.querySelector('.eo-record-modal-name');
     const idEl = this.modal.querySelector('.eo-record-modal-id');
+    const backBtn = this.modal.querySelector('.eo-record-modal-back');
+    const tabsEl = this.modal.querySelector('.eo-record-modal-tabs');
 
-    nameEl.textContent = record.name || 'Record';
-    idEl.textContent = this.currentRecordId;
+    // Show/hide back button
+    backBtn.style.display = this.viewStack.length > 1 ? 'flex' : 'none';
+
+    if (currentView.type === 'cell') {
+      // Cell history view
+      nameEl.textContent = currentView.fieldName;
+      idEl.textContent = `${currentView.recordId} : ${currentView.fieldName}`;
+      tabsEl.style.display = 'none'; // Hide tabs in cell view - it's focused on history
+    } else {
+      // Record view
+      nameEl.textContent = record.name || 'Record';
+      idEl.textContent = currentView.recordId;
+      tabsEl.style.display = 'flex';
+    }
+
+    // Update tab buttons
+    const tabs = this.modal.querySelectorAll('.eo-record-tab');
+    tabs.forEach(tab => {
+      if (tab.dataset.tab === this.currentTab) {
+        tab.classList.add('active');
+      } else {
+        tab.classList.remove('active');
+      }
+    });
 
     // Update content area
     const contentEl = this.modal.querySelector('.eo-record-modal-content');
 
-    switch (this.currentTab) {
-      case 'fields':
-        contentEl.innerHTML = this.renderFieldsTab(record);
-        this.attachFieldClickListeners();
-        break;
-      case 'relationships':
-        contentEl.innerHTML = this.renderRelationshipsTab(record);
-        break;
-      case 'provenance':
-        contentEl.innerHTML = this.renderProvenanceTab(record);
-        break;
-      case 'history':
-        contentEl.innerHTML = this.renderHistoryTab(record);
-        break;
-      case 'context':
-        contentEl.innerHTML = this.renderContextTab(record);
-        break;
+    if (currentView.type === 'cell') {
+      // Render cell history view
+      contentEl.innerHTML = this.renderCellHistoryView(currentView.recordId, currentView.fieldName, record);
+    } else {
+      // Render record view based on tab
+      switch (this.currentTab) {
+        case 'fields':
+          contentEl.innerHTML = this.renderFieldsTab(record);
+          this.attachFieldClickListeners();
+          break;
+        case 'relationships':
+          contentEl.innerHTML = this.renderRelationshipsTab(record);
+          break;
+        case 'provenance':
+          contentEl.innerHTML = this.renderProvenanceTab(record);
+          break;
+        case 'history':
+          contentEl.innerHTML = this.renderHistoryTab(record);
+          this.attachHistoryFieldClickListeners();
+          break;
+        case 'context':
+          contentEl.innerHTML = this.renderContextTab(record);
+          break;
+      }
     }
   }
 
@@ -370,7 +468,7 @@ class EORecordModal {
     const historyItems = history.map(item => `
       <div class="eo-history-item">
         <div class="eo-history-header">
-          <span class="eo-history-field">${item.field_name}</span>
+          <span class="eo-history-field eo-field-pivot" data-field="${item.field_name}" title="Click to see full history for ${item.field_name}">${item.field_name}</span>
           <span class="eo-history-time">${this.formatTimestamp(item.timestamp)}</span>
         </div>
         <div class="eo-history-change">
@@ -441,16 +539,137 @@ class EORecordModal {
   }
 
   /**
-   * Attach click listeners to field labels
+   * Attach click listeners to field labels in Fields tab
+   * Clicking a field name pivots to cell history
    */
   attachFieldClickListeners() {
     const fieldLabels = this.modal.querySelectorAll('.eo-field-label');
     fieldLabels.forEach(label => {
       label.addEventListener('click', () => {
         const fieldName = label.dataset.field;
-        this.config.onFieldClick(this.currentRecordId, fieldName);
+        // Pivot to cell history view
+        this.pivotToCell(this.currentRecordId, fieldName);
       });
     });
+  }
+
+  /**
+   * Attach click listeners to field names in History tab
+   */
+  attachHistoryFieldClickListeners() {
+    const fieldPivots = this.modal.querySelectorAll('.eo-history-field.eo-field-pivot');
+    fieldPivots.forEach(pivot => {
+      pivot.addEventListener('click', () => {
+        const fieldName = pivot.dataset.field;
+        this.pivotToCell(this.currentRecordId, fieldName);
+      });
+    });
+  }
+
+  /**
+   * Render Cell History View
+   * Shows the complete history for a specific cell
+   * @param {string} recordId - The record ID
+   * @param {string} fieldName - The field name
+   * @param {Object} record - The record object
+   */
+  renderCellHistoryView(recordId, fieldName, record) {
+    // Get cell-specific history from config
+    const cellHistory = this.config.getCellHistory(recordId, fieldName);
+
+    // Get the current cell value
+    const cell = record.cells?.find(c => c.field_name === fieldName);
+    const currentValue = cell?.values?.[0]?.value ?? record.fields?.[fieldName] ?? '';
+    const valueCount = cell?.values?.length || 1;
+
+    // Get field schema for type info
+    const schema = this.config.getFieldSchema(fieldName);
+
+    let html = `
+      <div class="eo-cell-history-view">
+        <div class="eo-cell-history-header">
+          <div class="eo-cell-current-value">
+            <span class="eo-cell-value-label">Current Value</span>
+            <span class="eo-cell-value-display">${this.formatValue(currentValue)}</span>
+            ${valueCount > 1 ? `<span class="eo-sup-indicator" title="${valueCount} observations">SUP ${valueCount}</span>` : ''}
+          </div>
+          <div class="eo-cell-meta">
+            <span class="eo-field-type-badge">${schema.type || 'TEXT'}</span>
+          </div>
+        </div>
+
+        <div class="eo-cell-history-section">
+          <h4>Change History</h4>
+    `;
+
+    if (!cellHistory || cellHistory.length === 0) {
+      html += '<div class="eo-record-empty">No changes recorded for this cell</div>';
+    } else {
+      html += '<div class="eo-cell-history-timeline">';
+
+      cellHistory.forEach((item, index) => {
+        const isFirst = index === 0;
+        html += `
+          <div class="eo-cell-history-entry ${isFirst ? 'current' : ''}">
+            <div class="eo-cell-history-marker">
+              <div class="eo-cell-history-dot ${isFirst ? 'active' : ''}"></div>
+              ${index < cellHistory.length - 1 ? '<div class="eo-cell-history-line"></div>' : ''}
+            </div>
+            <div class="eo-cell-history-content">
+              <div class="eo-cell-history-time">${this.formatTimestamp(item.timestamp)}</div>
+              <div class="eo-cell-history-change">
+                ${item.old_value !== undefined && item.old_value !== null
+                  ? `<span class="eo-history-old">${this.formatValue(item.old_value)}</span>
+                     <span class="eo-history-arrow">→</span>`
+                  : '<span class="eo-history-created">Created:</span>'
+                }
+                <span class="eo-history-new">${this.formatValue(item.new_value)}</span>
+              </div>
+              ${item.operator ? `<div class="eo-cell-history-operator">${this.formatOperator(item.operator)}</div>` : ''}
+              ${item.agent ? `<div class="eo-cell-history-agent">by ${item.agent}</div>` : ''}
+              ${item.context?.method ? `<div class="eo-cell-history-method">Method: ${item.context.method}</div>` : ''}
+            </div>
+          </div>
+        `;
+      });
+
+      html += '</div>';
+    }
+
+    html += `
+        </div>
+      </div>
+    `;
+
+    return html;
+  }
+
+  /**
+   * Format a value for display
+   */
+  formatValue(value) {
+    if (value === null || value === undefined) return '<span class="eo-null">empty</span>';
+    if (typeof value === 'number') return new Intl.NumberFormat().format(value);
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    if (typeof value === 'string' && value.length > 100) return value.substring(0, 100) + '...';
+    return String(value);
+  }
+
+  /**
+   * Format operator code to human-readable text
+   */
+  formatOperator(operator) {
+    const operators = {
+      'INS': 'Inserted',
+      'DES': 'Destructured',
+      'SEG': 'Segmented',
+      'CON': 'Consolidated',
+      'SYN': 'Synced',
+      'REC': 'Reconciled',
+      'ALT': 'Altered',
+      'SUP': 'Superposed'
+    };
+    return operators[operator] || operator;
   }
 
   /**

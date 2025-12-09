@@ -61,6 +61,9 @@ class EOThreeLevelIntegration {
       getHistory: (recordId) => {
         return this.getHistory(recordId);
       },
+      getCellHistory: (recordId, fieldName) => {
+        return this.getCellHistory(recordId, fieldName);
+      },
       getContext: (recordId) => {
         return this.getContext(recordId);
       }
@@ -300,6 +303,80 @@ class EOThreeLevelIntegration {
     }
 
     return record.edit_history;
+  }
+
+  /**
+   * Get cell-specific history for a field in a record
+   * This simply filters the existing edit_history by field name - no new data structures
+   * @param {string} recordId - The record ID
+   * @param {string} fieldName - The field name
+   * @returns {Array} History entries for this specific cell
+   */
+  getCellHistory(recordId, fieldName) {
+    const record = this.getRecord(recordId);
+    if (!record) return [];
+
+    const history = [];
+
+    // Source 1: Filter edit_history by field name
+    if (record.edit_history) {
+      record.edit_history
+        .filter(h => h.field_name === fieldName)
+        .forEach(h => {
+          history.push({
+            timestamp: h.timestamp,
+            operator: h.operator,
+            old_value: h.old_value,
+            new_value: h.new_value,
+            agent: h.agent?.name || h.operator,
+            context: h.context_schema || null
+          });
+        });
+    }
+
+    // Source 2: Also include value history if present
+    if (record.value_history) {
+      record.value_history
+        .filter(h => h.field_name === fieldName)
+        .forEach(h => {
+          // Avoid duplicates - check if timestamp already exists
+          if (!history.some(existing => existing.timestamp === h.timestamp)) {
+            history.push({
+              timestamp: h.timestamp,
+              operator: h.operator || 'ALT',
+              old_value: h.old_value,
+              new_value: h.new_value,
+              agent: h.agent?.name || h.operator,
+              context: h.context_schema || null
+            });
+          }
+        });
+    }
+
+    // Source 3: Derive history from cell values timeline (implicit history)
+    if (record.cells) {
+      const cell = record.cells.find(c => c.field_name === fieldName);
+      if (cell && cell.values && cell.values.length > 0) {
+        cell.values.forEach((v, idx) => {
+          // Avoid duplicates
+          if (!history.some(existing => existing.timestamp === v.timestamp)) {
+            history.push({
+              timestamp: v.timestamp,
+              operator: idx === 0 ? 'INS' : 'ALT',
+              old_value: idx > 0 ? cell.values[idx - 1].value : null,
+              new_value: v.value,
+              agent: v.context_schema?.agent?.name || 'system',
+              context: v.context_schema || null
+            });
+          }
+        });
+      }
+    }
+
+    // Sort by timestamp (newest first)
+    history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    return history;
   }
 
   /**
