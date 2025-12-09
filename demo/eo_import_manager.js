@@ -118,8 +118,12 @@ class EOImportManager {
 
   /**
    * Create an import from a file
+   * @param {File} file - The file to import
+   * @param {Object} options - Import options
+   * @param {string[]} options.headerOverride - Override headers (use for recovery of malformed CSVs)
+   *   Example: "UniqueId,Subject,Detail,CreatedAt,LastModified,Date,Creator,Updater,Import,MatterId,Matter".split(',')
    */
-  async createImportFromFile(file) {
+  async createImportFromFile(file, options = {}) {
     const importId = this.generateImportId();
     const startTime = Date.now();
 
@@ -127,7 +131,7 @@ class EOImportManager {
     const fileMetadata = this.extractFileMetadata(file);
 
     // Parse file content based on type
-    const parseResult = await this.parseFile(file);
+    const parseResult = await this.parseFile(file, options);
     if (!parseResult.success) {
       return { success: false, error: parseResult.error };
     }
@@ -222,6 +226,59 @@ class EOImportManager {
     this.notifyListeners('import_created', importObj);
 
     return { success: true, import: importObj };
+  }
+
+  /**
+   * Re-import a file with header override for recovering malformed CSVs
+   * Use this when a CSV was imported incorrectly (e.g., each cell got its own row)
+   *
+   * @param {File} file - The original file to re-import
+   * @param {string} headerString - Comma-separated header names, e.g., "UniqueId,Subject,Detail,CreatedAt"
+   * @returns {Promise<Object>} - Import result
+   *
+   * @example
+   * // Re-import with recovered headers
+   * const result = await importManager.reimportWithHeaders(
+   *   file,
+   *   "UniqueId,Subject,Detail,CreatedAt,LastModified,Date,Creator,Updater,Import,MatterId,Matter"
+   * );
+   */
+  async reimportWithHeaders(file, headerString) {
+    const headers = headerString.split(',').map(h => h.trim());
+    return this.createImportFromFile(file, { headerOverride: headers });
+  }
+
+  /**
+   * Detect if a parsed CSV might have multi-line field issues
+   * Returns true if the parsing looks suspicious (too many rows with few columns)
+   */
+  detectMalformedParsing(parseResult) {
+    if (!parseResult.success || !parseResult.rows || parseResult.rows.length < 10) {
+      return { suspicious: false };
+    }
+
+    const headers = parseResult.headers || [];
+    const rows = parseResult.rows;
+
+    // Check if most rows have only 1-2 columns when we expect more
+    const singleColumnRows = rows.filter(row => {
+      const nonEmptyFields = Object.values(row).filter(v => v && v.toString().trim()).length;
+      return nonEmptyFields <= 2;
+    }).length;
+
+    const ratio = singleColumnRows / rows.length;
+
+    // If more than 70% of rows have only 1-2 values, parsing is likely broken
+    if (ratio > 0.7 && headers.length <= 3) {
+      return {
+        suspicious: true,
+        reason: 'Most rows have only 1-2 values, suggesting multi-line fields were split incorrectly',
+        suggestion: 'Try re-importing with the correct header string using reimportWithHeaders()',
+        singleColumnRatio: ratio
+      };
+    }
+
+    return { suspicious: false };
   }
 
   /**
@@ -385,15 +442,18 @@ class EOImportManager {
 
   /**
    * Parse file based on format
+   * @param {File} file - The file to parse
+   * @param {Object} options - Parsing options
+   * @param {string[]} options.headerOverride - Override headers if file has none/malformed headers
    */
-  async parseFile(file) {
+  async parseFile(file, options = {}) {
     const format = this.getFileFormat(file.name);
 
     try {
       switch (format) {
         case 'csv':
         case 'tsv':
-          return await this.parseCsv(file, format === 'tsv' ? '\t' : ',');
+          return await this.parseCsv(file, format === 'tsv' ? '\t' : ',', options);
         case 'json':
           return await this.parseJson(file);
         case 'xlsx':
@@ -408,29 +468,52 @@ class EOImportManager {
   }
 
   /**
-   * Parse CSV/TSV file
+   * Parse CSV/TSV file with proper multi-line quoted field support
+   * @param {File} file - The file to parse
+   * @param {string} delimiter - Field delimiter (comma or tab)
+   * @param {Object} options - Parsing options
+   * @param {string[]} options.headerOverride - Override headers if file has none/malformed headers
+   * @param {Function} options.onProgress - Progress callback for large files (percentage, recordCount)
    */
-  async parseCsv(file, delimiter = ',') {
+  async parseCsv(file, delimiter = ',', options = {}) {
+    // Use chunked parsing for large files (> 10MB)
+    const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024;
+    if (file.size > LARGE_FILE_THRESHOLD) {
+      console.log(`Large file detected (${(file.size / 1024 / 1024).toFixed(1)}MB), using chunked parsing`);
+      return this.parseCsvChunked(file, delimiter, options, options.onProgress);
+    }
+
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
           const text = e.target.result;
-          const lines = text.split(/\r?\n/).filter(line => line.trim());
 
-          if (lines.length === 0) {
+          // Parse records handling multi-line quoted fields properly
+          const records = this.parseCsvText(text, delimiter);
+
+          if (records.length === 0) {
             resolve({ success: false, error: 'Empty file' });
             return;
           }
 
-          // Parse headers
-          const headers = this.parseCsvLine(lines[0], delimiter);
+          // Use override headers or first record as headers
+          let headers;
+          let dataStartIndex;
+
+          if (options.headerOverride && options.headerOverride.length > 0) {
+            headers = options.headerOverride;
+            dataStartIndex = 0; // All records are data
+          } else {
+            headers = records[0];
+            dataStartIndex = 1;
+          }
 
           // Parse rows
           const rows = [];
-          for (let i = 1; i < lines.length; i++) {
-            const values = this.parseCsvLine(lines[i], delimiter);
-            if (values.length > 0) {
+          for (let i = dataStartIndex; i < records.length; i++) {
+            const values = records[i];
+            if (values.length > 0 && values.some(v => v.trim() !== '')) {
               const row = {};
               headers.forEach((header, idx) => {
                 row[header] = values[idx] !== undefined ? values[idx] : '';
@@ -447,8 +530,8 @@ class EOImportManager {
             format: 'csv',
             delimiter,
             encoding: 'utf-8',
-            lineCount: lines.length,
-            hasHeaderRow: true
+            lineCount: records.length,
+            hasHeaderRow: !options.headerOverride
           });
         } catch (err) {
           resolve({ success: false, error: err.message });
@@ -460,40 +543,257 @@ class EOImportManager {
   }
 
   /**
-   * Parse a single CSV line handling quotes
+   * Parse CSV text into array of records, properly handling multi-line quoted fields
+   * This is RFC 4180 compliant CSV parsing
    */
-  parseCsvLine(line, delimiter = ',') {
-    const values = [];
-    let current = '';
+  parseCsvText(text, delimiter = ',') {
+    const records = [];
+    let currentRecord = [];
+    let currentField = '';
     let inQuotes = false;
+    let i = 0;
 
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      const nextChar = line[i + 1];
+    while (i < text.length) {
+      const char = text[i];
+      const nextChar = text[i + 1];
 
       if (inQuotes) {
-        if (char === '"' && nextChar === '"') {
-          current += '"';
-          i++; // Skip next quote
-        } else if (char === '"') {
-          inQuotes = false;
+        if (char === '"') {
+          if (nextChar === '"') {
+            // Escaped quote ("") -> add single quote to field
+            currentField += '"';
+            i += 2;
+          } else {
+            // End of quoted field
+            inQuotes = false;
+            i++;
+          }
         } else {
-          current += char;
+          // Regular character inside quotes (including newlines)
+          currentField += char;
+          i++;
         }
       } else {
         if (char === '"') {
+          // Start of quoted field
           inQuotes = true;
+          i++;
         } else if (char === delimiter) {
-          values.push(current.trim());
-          current = '';
+          // End of field
+          currentRecord.push(currentField.trim());
+          currentField = '';
+          i++;
+        } else if (char === '\r' && nextChar === '\n') {
+          // CRLF line ending - end of record
+          currentRecord.push(currentField.trim());
+          if (currentRecord.length > 0) {
+            records.push(currentRecord);
+          }
+          currentRecord = [];
+          currentField = '';
+          i += 2;
+        } else if (char === '\n' || char === '\r') {
+          // LF or CR line ending - end of record
+          currentRecord.push(currentField.trim());
+          if (currentRecord.length > 0) {
+            records.push(currentRecord);
+          }
+          currentRecord = [];
+          currentField = '';
+          i++;
         } else {
-          current += char;
+          // Regular character
+          currentField += char;
+          i++;
         }
       }
     }
-    values.push(current.trim());
 
-    return values;
+    // Don't forget the last field/record
+    if (currentField || currentRecord.length > 0) {
+      currentRecord.push(currentField.trim());
+      if (currentRecord.some(f => f !== '')) {
+        records.push(currentRecord);
+      }
+    }
+
+    return records;
+  }
+
+  /**
+   * Parse a single CSV line handling quotes (kept for backwards compatibility)
+   */
+  parseCsvLine(line, delimiter = ',') {
+    const records = this.parseCsvText(line, delimiter);
+    return records.length > 0 ? records[0] : [];
+  }
+
+  /**
+   * Parse large CSV file in chunks for better memory management
+   * Processes data in batches and yields to UI thread to prevent freezing
+   * @param {File} file - The file to parse
+   * @param {string} delimiter - Field delimiter
+   * @param {Object} options - Parsing options
+   * @param {Function} onProgress - Progress callback (percentage, recordCount)
+   */
+  async parseCsvChunked(file, delimiter = ',', options = {}, onProgress = null) {
+    const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+    const BATCH_YIELD_SIZE = 1000; // Yield to UI every N records
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      let records = [];
+      let headers = null;
+      let offset = 0;
+      let leftover = '';
+      let inQuotes = false;
+      let totalBytes = file.size;
+
+      const processChunk = async (chunk, isFinal = false) => {
+        const text = leftover + chunk;
+        let currentRecord = [];
+        let currentField = '';
+        let i = 0;
+        let lastSafeBreak = 0;
+
+        while (i < text.length) {
+          const char = text[i];
+          const nextChar = text[i + 1];
+
+          if (inQuotes) {
+            if (char === '"') {
+              if (nextChar === '"') {
+                currentField += '"';
+                i += 2;
+              } else {
+                inQuotes = false;
+                i++;
+              }
+            } else {
+              currentField += char;
+              i++;
+            }
+          } else {
+            if (char === '"') {
+              inQuotes = true;
+              i++;
+            } else if (char === delimiter) {
+              currentRecord.push(currentField.trim());
+              currentField = '';
+              i++;
+            } else if (char === '\r' && nextChar === '\n') {
+              currentRecord.push(currentField.trim());
+              if (currentRecord.length > 0) {
+                if (!headers) {
+                  headers = options.headerOverride || currentRecord;
+                  if (!options.headerOverride) currentRecord = null;
+                }
+                if (currentRecord) {
+                  records.push(currentRecord);
+                }
+              }
+              currentRecord = [];
+              currentField = '';
+              i += 2;
+              lastSafeBreak = i;
+            } else if (char === '\n' || char === '\r') {
+              currentRecord.push(currentField.trim());
+              if (currentRecord.length > 0) {
+                if (!headers) {
+                  headers = options.headerOverride || currentRecord;
+                  if (!options.headerOverride) currentRecord = null;
+                }
+                if (currentRecord) {
+                  records.push(currentRecord);
+                }
+              }
+              currentRecord = [];
+              currentField = '';
+              i++;
+              lastSafeBreak = i;
+            } else {
+              currentField += char;
+              i++;
+            }
+          }
+
+          // Yield to UI periodically
+          if (records.length > 0 && records.length % BATCH_YIELD_SIZE === 0) {
+            await new Promise(r => setTimeout(r, 0));
+          }
+        }
+
+        if (isFinal) {
+          // Process any remaining content
+          if (currentField || currentRecord.length > 0) {
+            currentRecord.push(currentField.trim());
+            if (currentRecord.some(f => f !== '')) {
+              records.push(currentRecord);
+            }
+          }
+          leftover = '';
+        } else {
+          // Keep leftover for next chunk (from last safe break point)
+          if (inQuotes) {
+            // We're in the middle of a quoted field - keep everything from field start
+            leftover = text.substring(lastSafeBreak);
+          } else {
+            leftover = text.substring(lastSafeBreak) + currentField;
+            currentField = '';
+          }
+        }
+      };
+
+      const readNextChunk = () => {
+        if (offset >= totalBytes) {
+          // Final processing
+          processChunk('', true).then(() => {
+            // Convert records to rows
+            const rows = records.map((values, idx) => {
+              const row = {};
+              (headers || []).forEach((header, i) => {
+                row[header] = values[i] !== undefined ? values[i] : '';
+              });
+              row._sourceRow = idx + 1;
+              return row;
+            });
+
+            resolve({
+              success: true,
+              headers: headers || [],
+              rows,
+              format: 'csv',
+              delimiter,
+              encoding: 'utf-8',
+              lineCount: records.length + 1,
+              hasHeaderRow: !options.headerOverride,
+              chunkedParse: true
+            });
+          });
+          return;
+        }
+
+        const slice = file.slice(offset, Math.min(offset + CHUNK_SIZE, totalBytes));
+        const chunkReader = new FileReader();
+
+        chunkReader.onload = async (e) => {
+          await processChunk(e.target.result, false);
+          offset += CHUNK_SIZE;
+
+          if (onProgress) {
+            onProgress(Math.min(100, Math.round((offset / totalBytes) * 100)), records.length);
+          }
+
+          // Continue reading
+          readNextChunk();
+        };
+
+        chunkReader.onerror = () => reject(new Error('Failed to read file chunk'));
+        chunkReader.readAsText(slice);
+      };
+
+      readNextChunk();
+    });
   }
 
   /**
