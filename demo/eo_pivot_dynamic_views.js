@@ -350,6 +350,8 @@
             icon: DYNAMIC_VIEW_ICON,
             visibleFieldIds: [linkFieldId, ...(sourceSet.schema || []).map(f => f.id).filter(id => id !== linkFieldId && id !== field.id)],
             hiddenFields: [field.id], // Hide original field, show link instead
+            // Put link column first in column order
+            columnOrder: [linkFieldId, ...(sourceSet.schema || []).map(f => f.id).filter(id => id !== linkFieldId && id !== field.id)],
             // Auto-name the link column after the column it was created from
             columnDisplayNames: {
                 [linkFieldId]: field.name
@@ -867,6 +869,11 @@
                 ...valueFields.map(vf => vf.fieldId)
             ],
             hiddenFields: [],
+            // Put row group fields first, then value fields in column order
+            columnOrder: [
+                ...rowGroupFields,
+                ...valueFields.map(vf => vf.fieldId)
+            ],
             // Auto-name pivot columns after the columns they were pivoted from
             columnDisplayNames: [...rowGroupFields, ...valueFields.map(vf => vf.fieldId)]
                 .reduce((acc, fieldId) => {
