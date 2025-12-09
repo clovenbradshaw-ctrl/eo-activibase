@@ -946,6 +946,27 @@
         if (Array.isArray(value)) return value.join(', ');
         if (typeof value === 'object') return JSON.stringify(value);
         if (fieldType === 'CHECKBOX') return value ? '☑' : '☐';
+
+        // Check for ISO timestamp (DATETIME fields)
+        if ((fieldType === 'DATETIME' || fieldType === 'DATE') && typeof value === 'string') {
+            if (typeof EOISOTimeDisplay !== 'undefined' && EOISOTimeDisplay.isISOTimestamp(value)) {
+                return EOISOTimeDisplay.formatISOTimeHTML(value, {
+                    timezone: null, // Use local timezone
+                    showTimezone: true,
+                    clickable: true
+                });
+            }
+        }
+
+        // Auto-detect ISO timestamps even without explicit field type
+        if (typeof value === 'string' && typeof EOISOTimeDisplay !== 'undefined' && EOISOTimeDisplay.isISOTimestamp(value)) {
+            return EOISOTimeDisplay.formatISOTimeHTML(value, {
+                timezone: null,
+                showTimezone: false,
+                clickable: true
+            });
+        }
+
         return String(value);
     }
 

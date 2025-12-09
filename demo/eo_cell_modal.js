@@ -545,6 +545,14 @@ class EOCellModal {
     if (typeof value === 'boolean') {
       return value ? '<span class="eo-bool-true">true</span>' : '<span class="eo-bool-false">false</span>';
     }
+    // Check for ISO timestamp strings
+    if (typeof value === 'string' && typeof EOISOTimeDisplay !== 'undefined' && EOISOTimeDisplay.isISOTimestamp(value)) {
+      return EOISOTimeDisplay.formatISOTimeHTML(value, {
+        timezone: null,
+        showTimezone: true,
+        clickable: true
+      });
+    }
     if (typeof value === 'string' && value.length > 100) {
       return value.substring(0, 100) + '...';
     }

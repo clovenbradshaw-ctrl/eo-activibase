@@ -268,11 +268,13 @@
 
     <!-- Load Three-Level Detail System -->
     <script src="eo_datetime_field.js"></script>
+    <script src="eo_iso_time_display.js"></script>
     <script src="eo_inline_cell_editor.js"></script>
     <script src="eo_record_modal.js"></script>
     <script src="eo_field_lens_panel.js"></script>
     <script src="eo_three_level_integration.js"></script>
     <link rel="stylesheet" href="eo_datetime_field.css">
+    <link rel="stylesheet" href="eo_iso_time_display.css">
 
     <!-- Load Formula Engine -->
     <script src="../formula_engine.js"></script>
@@ -514,7 +516,7 @@
                                 ${subject}
                             </td>
                             <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Observed At">
-                                ${new Date(observedAt).toLocaleString()}
+                                ${EOISOTimeDisplay.formatISOTimeHTML(observedAt, { timezone: 'America/New_York', showTimezone: true })}
                             </td>
                             <td data-eo-cell data-record-id="${record.record_id}" data-field-name="Air Temp (°C)">
                                 ${airTemp}°C
@@ -546,6 +548,9 @@
                 const table = document.getElementById('demoTable');
                 this.threeLevelSystem.attachToGrid(table);
                 this.eo.schema = this.schema; // Ensure schema is available
+
+                // Initialize ISO time display click handlers
+                EOISOTimeDisplay.initializeISOTimeElements(table);
             }
 
             refreshStats() {
