@@ -360,7 +360,8 @@ class EOTypeDetector {
       'zł': 'PLN'
     };
 
-    const currencyPattern = /^[\$€£¥₹₽₩₪₱฿₫]?\s?-?[0-9]{1,3}(?:[,.\s]?[0-9]{3})*(?:[.,][0-9]{1,2})?\s?(?:USD|EUR|GBP|JPY|INR|CHF|CAD|AUD)?$/i;
+    // Pattern for currency format (numeric part only - requires explicit currency indicator)
+    const currencyNumericPattern = /^-?[0-9]{1,3}(?:[,.\s]?[0-9]{3})*(?:[.,][0-9]{1,2})?$/;
 
     let matches = 0;
     let detectedCurrency = null;
@@ -370,12 +371,17 @@ class EOTypeDetector {
 
     values.forEach(v => {
       const trimmed = v.trim();
+      let hasPrefix = false;
+      let hasPostfix = false;
+      let valueWithoutCurrency = trimmed;
 
       // Check for currency symbol prefix
       for (const [symbol, code] of Object.entries(currencySymbols)) {
         if (trimmed.startsWith(symbol)) {
           detectedCurrency = code;
           prefixCount++;
+          hasPrefix = true;
+          valueWithoutCurrency = trimmed.slice(symbol.length).trim();
           break;
         }
       }
@@ -385,26 +391,27 @@ class EOTypeDetector {
       if (postfixMatch) {
         detectedCurrency = postfixMatch[1].toUpperCase();
         postfixCount++;
+        hasPostfix = true;
+        valueWithoutCurrency = trimmed.slice(0, -postfixMatch[0].length).trim();
       }
 
-      // Check if it's a valid currency format
-      if (currencyPattern.test(trimmed) || this.looksLikeCurrency(trimmed)) {
-        matches++;
+      // IMPORTANT: Only count as currency if it has an explicit currency indicator
+      // This prevents plain numbers and dates from being detected as currency
+      if (hasPrefix || hasPostfix) {
+        // Value has currency indicator - check if numeric part is valid
+        if (currencyNumericPattern.test(valueWithoutCurrency) || this.looksLikeCurrency(valueWithoutCurrency)) {
+          matches++;
 
-        // Detect decimal places
-        const decMatch = trimmed.match(/[.,](\d+)$/);
-        if (decMatch) {
-          decimalPlaces.add(decMatch[1].length);
+          // Detect decimal places
+          const decMatch = valueWithoutCurrency.match(/[.,](\d+)$/);
+          if (decMatch) {
+            decimalPlaces.add(decMatch[1].length);
+          }
         }
       }
     });
 
     const confidence = values.length > 0 ? matches / values.length : 0;
-
-    // Infer currency if not detected but high confidence
-    if (!detectedCurrency && confidence > 0.8) {
-      detectedCurrency = 'USD'; // Default assumption
-    }
 
     return {
       type: 'CURRENCY',
@@ -418,9 +425,19 @@ class EOTypeDetector {
   }
 
   /**
-   * Helper: check if value looks like currency
+   * Helper: check if value looks like currency (numeric portion after symbol/code removed)
    */
   looksLikeCurrency(value) {
+    // Reject values that look like dates (contain / or multiple . or -)
+    // Date patterns: 01/02/2024, 01.02.2024, 2024-01-02
+    if (/^\d{1,4}[\/\-]\d{1,2}[\/\-]\d{1,4}$/.test(value)) {
+      return false;
+    }
+    // European date format: 01.02.2024 (has two dots)
+    if ((value.match(/\./g) || []).length >= 2) {
+      return false;
+    }
+
     // Remove currency symbols and check if numeric
     const cleaned = value.replace(/[\$€£¥₹₽₩₪₱฿₫\s]/g, '');
     const numericPart = cleaned.replace(/[,.\s]/g, '');
