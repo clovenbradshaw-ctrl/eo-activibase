@@ -17052,9 +17052,9 @@
                 state.lastUsedSetId = state.currentSetId;
                 state.lastUsedViewId = state.currentViewId;
             }
-            if (state.currentViewId) ensureOpenTab(state.currentSetId, state.currentViewId);
 
-            // Sync with layout system if available
+            // Sync with layout system BEFORE ensureOpenTab to ensure tab is in pane.tabs
+            // when renderViewTabs() is called (fixes data not showing after import)
             if (state.layout && typeof EOLayout !== 'undefined') {
                 const targetPaneId = state.layout.activePaneId || 'pane-main';
                 const pane = EOLayout.findPaneById(state.layout.root, targetPaneId);
@@ -17075,6 +17075,8 @@
                     }
                 }
             }
+
+            if (state.currentViewId) ensureOpenTab(state.currentSetId, state.currentViewId);
 
             closeMobileSidebar();
             renderSidebar();
