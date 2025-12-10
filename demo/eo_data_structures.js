@@ -221,7 +221,8 @@ class EODataStructures {
     description = '',
     agent = null,
     old_value = null,
-    new_value = null
+    new_value = null,
+    field_name = null
   }) {
     return {
       timestamp: timestamp || new Date().toISOString(),
@@ -229,7 +230,8 @@ class EODataStructures {
       description,
       agent: agent || { type: 'system' },
       old_value,
-      new_value
+      new_value,
+      field_name
     };
   }
 

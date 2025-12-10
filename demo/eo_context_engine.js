@@ -455,6 +455,7 @@ class EOContextEngine {
     oldValue,
     newValue,
     context,
+    fieldName = null,
     additionalInfo = {}
   }) {
     const descriptions = {
@@ -476,7 +477,8 @@ class EOContextEngine {
       description: getDescription(),
       agent: context?.agent || { type: 'system' },
       old_value: oldValue,
-      new_value: newValue
+      new_value: newValue,
+      field_name: fieldName
     });
   }
 

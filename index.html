@@ -9603,6 +9603,9 @@
         async function initializeApp() {
             state.operatorSet = EO_OPERATOR_SET;
 
+            // Load persisted event stream (cell change history)
+            loadEventStreamFromStorage();
+
             // Initialize lean context system
             if (typeof EOLeanContext !== 'undefined') {
                 state.leanContext = new EOLeanContext();
@@ -32467,6 +32470,7 @@
                     state.eventStream = state.eventStream.slice(0, 5000);
                 }
 
+                saveEventStreamToStorage();
                 return interpretedEvent;
             }
 
@@ -32485,7 +32489,41 @@
 
             const interpretedEvent = applyInterpretationRules(event);
             state.eventStream.unshift(interpretedEvent);
+            saveEventStreamToStorage();
             return interpretedEvent;
+        }
+
+        function saveEventStreamToStorage() {
+            try {
+                // Only save SEG events (cell changes) to keep storage small
+                const eventsToSave = state.eventStream.filter(e => e.op === 'SEG').slice(0, 1000);
+                localStorage.setItem('eo_event_stream', JSON.stringify(eventsToSave));
+            } catch (e) {
+                // Ignore storage errors (e.g., quota exceeded)
+                console.warn('Failed to save event stream:', e);
+            }
+        }
+
+        function loadEventStreamFromStorage() {
+            try {
+                const stored = localStorage.getItem('eo_event_stream');
+                if (stored) {
+                    const events = JSON.parse(stored);
+                    if (Array.isArray(events)) {
+                        // Merge with existing events, avoiding duplicates
+                        const existingIds = new Set(state.eventStream.map(e => e.id));
+                        events.forEach(e => {
+                            if (!existingIds.has(e.id)) {
+                                state.eventStream.push(e);
+                            }
+                        });
+                        // Sort by published date (newest first)
+                        state.eventStream.sort((a, b) => new Date(b.published) - new Date(a.published));
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to load event stream:', e);
+            }
         }
 
         function getTimeAgo(timestamp) {
