@@ -33,6 +33,9 @@ class EOThreeLevelIntegration {
       onViewDetails: (recordId, fieldName) => {
         this.showRecordModal(recordId);
       },
+      onViewRecord: (recordId) => {
+        this.showRecordModal(recordId);
+      },
       getFieldType: (fieldName) => {
         return this.getFieldType(fieldName);
       },
@@ -104,11 +107,16 @@ class EOThreeLevelIntegration {
   /**
    * Attach to a grid container
    * @param {HTMLElement} container - The grid container element
+   *
+   * Interaction pattern:
+   * - Single-click on any cell → opens record modal (row expand)
+   * - Double-click on any cell → enters inline edit mode
+   * - Click on row label → also opens record modal (alternative)
    */
   attachToGrid(container) {
     this.cellEditor.attachToGrid(container, this.cellEditor.config);
 
-    // Also attach row label click handlers for opening record modal
+    // Also attach row label click handlers for opening record modal (alternative to cell click)
     this.attachRowLabelHandlers(container);
   }
 

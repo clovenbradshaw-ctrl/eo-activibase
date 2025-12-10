@@ -9,8 +9,8 @@
  * - relationship-driven values → open modal
  *
  * INTERACTION PATTERN:
- * - Single-click on any editable cell → enters edit mode directly
- * - Click into linked record field → opens linked record editor
+ * - Single-click on any cell → opens record modal (row expand)
+ * - Double-click on any editable cell → enters edit mode directly
  * - Click on linked record pill → opens that record's modal view
  * - Right-click on any cell → shows cell profile card (field info/provenance)
  */
@@ -100,10 +100,10 @@ class EOInlineCellEditor {
       cell.addEventListener('mouseleave', (e) => this.handleCellLeave(e, cell));
       cell.addEventListener('mousemove', (e) => this.handleCellMove(e, cell));
 
-      // Click events
+      // Single-click opens record modal (row expand)
       cell.addEventListener('click', (e) => this.handleCellClick(e, cell));
 
-      // Double-click for direct edit
+      // Double-click for inline editing
       cell.addEventListener('dblclick', (e) => this.handleCellDoubleClick(e, cell));
 
       // Right-click for cell profile card
@@ -212,8 +212,8 @@ class EOInlineCellEditor {
   }
 
   /**
-   * Handle cell click - enter edit mode for editable fields
-   * Single-click is the primary interaction for editing cells
+   * Handle cell click - open record modal for the row
+   * Single-click opens the record modal; use double-click for inline editing
    */
   handleCellClick(event, cell) {
     // Don't interfere with SUP indicator clicks
@@ -223,10 +223,8 @@ class EOInlineCellEditor {
 
     const recordId = cell.dataset.recordId;
     const fieldName = cell.dataset.fieldName;
-    const fieldType = this.config.getFieldType(fieldName);
-    const metadata = this.config.getFieldMetadata(recordId, fieldName);
 
-    // Check if clicking on a linked record pill - open that record
+    // Check if clicking on a linked record pill - open that linked record
     const linkedPill = event.target.closest('.linked-record-pill, .eo-linked-pill');
     if (linkedPill) {
       // Get the linked record ID from the pill
@@ -238,37 +236,10 @@ class EOInlineCellEditor {
       }
     }
 
-    // If it's a multi-field, open the multi-field editor
-    if (fieldType.toUpperCase() === 'MULTI_FIELD') {
+    // Single-click opens the record modal for this row
+    if (recordId) {
       event.stopPropagation();
-      this.openMultiFieldEditor(cell, recordId, fieldName);
-      return;
-    }
-
-    // If it's a linked record field and we have the editor, open the linked record editor
-    if (metadata.isLinked && this.linkedRecordEditor) {
-      event.stopPropagation();
-      this.linkedRecordEditor.show(cell, recordId, fieldName);
-      return;
-    }
-
-    // If it's a non-editable relationship field, view details
-    if (metadata.isLinked && !metadata.isEditable) {
-      this.config.onViewDetails(recordId, fieldName);
-      return;
-    }
-
-    // For non-editable derived/rollup fields, show view options
-    if ((metadata.isDerived || metadata.isRollup) && !metadata.isEditable) {
-      this.showCellMenu(cell, recordId, fieldName);
-      return;
-    }
-
-    // For all other editable fields, enter edit mode directly on single-click
-    if (metadata.isEditable !== false) {
-      event.preventDefault();
-      event.stopPropagation();
-      this.enterEditMode(cell, recordId, fieldName);
+      this.config.onViewRecord(recordId);
     }
   }
 
@@ -301,8 +272,8 @@ class EOInlineCellEditor {
   }
 
   /**
-   * Handle cell double-click - alternative way to enter edit mode
-   * (Single-click is the primary method; double-click is kept for user familiarity)
+   * Handle cell double-click - enter edit mode for editable fields
+   * Double-click is the primary method for inline editing
    */
   handleCellDoubleClick(event, cell) {
     event.preventDefault();
@@ -315,9 +286,34 @@ class EOInlineCellEditor {
 
     const recordId = cell.dataset.recordId;
     const fieldName = cell.dataset.fieldName;
+    const fieldType = this.config.getFieldType(fieldName);
     const metadata = this.config.getFieldMetadata(recordId, fieldName);
 
-    // Only allow editing if field is editable
+    // If it's a multi-field, open the multi-field editor
+    if (fieldType.toUpperCase() === 'MULTI_FIELD') {
+      this.openMultiFieldEditor(cell, recordId, fieldName);
+      return;
+    }
+
+    // If it's a linked record field and we have the editor, open the linked record editor
+    if (metadata.isLinked && this.linkedRecordEditor) {
+      this.linkedRecordEditor.show(cell, recordId, fieldName);
+      return;
+    }
+
+    // If it's a non-editable relationship field, view details
+    if (metadata.isLinked && !metadata.isEditable) {
+      this.config.onViewDetails(recordId, fieldName);
+      return;
+    }
+
+    // For non-editable derived/rollup fields, show view options
+    if ((metadata.isDerived || metadata.isRollup) && !metadata.isEditable) {
+      this.showCellMenu(cell, recordId, fieldName);
+      return;
+    }
+
+    // For all editable fields, enter edit mode on double-click
     if (metadata.isEditable !== false) {
       this.enterEditMode(cell, recordId, fieldName);
     }
