@@ -8,25 +8,84 @@
  * The NUL operator handles the concept of "nothing" or "absence" in data.
  * This module provides utilities for detecting, handling, and representing
  * missing values in a consistent, EO-aligned manner.
+ *
+ * === E.F. Codd NULL Theory Support ===
+ *
+ * This module implements Codd's formal NULL semantics:
+ *
+ * 1. Four-Valued Logic (Codd 1986-1990):
+ *    - A-mark (Applicable): Value exists but is unknown ("I don't know")
+ *    - I-mark (Inapplicable): Value doesn't apply ("The question doesn't make sense")
+ *
+ * 2. Three-Valued Logic for Comparisons:
+ *    - TRUE, FALSE, UNKNOWN
+ *    - NULL = NULL → UNKNOWN (not TRUE)
+ *    - NULL in expressions → UNKNOWN propagation
+ *
+ * 3. NULL Propagation:
+ *    - Arithmetic with NULL yields NULL (NULL + 5 = NULL)
+ *    - Comparisons with NULL yield UNKNOWN
+ *
+ * References:
+ * - Codd, E.F. "Missing Information (Applicable and Inapplicable) in Relational Databases"
+ * - Codd, E.F. "The Relational Model for Database Management: Version 2" (1990)
  */
 
 (function(global) {
     'use strict';
 
     /**
-     * Absence types
-     * @typedef {'null'|'undefined'|'empty'|'missing'|'unknown'|'not_applicable'} AbsenceType
+     * Absence types - Extended with Codd's formal marks
+     * @typedef {'null'|'undefined'|'empty'|'missing'|'unknown'|'not_applicable'|'a_mark'|'i_mark'} AbsenceType
+     */
+
+    /**
+     * Codd Mark Types
+     * @typedef {'a_mark'|'i_mark'} CoddMarkType
+     */
+
+    /**
+     * Three-valued logic result
+     * @typedef {true|false|'UNKNOWN'} ThreeValuedResult
      */
 
     /**
      * Absence handling strategy
-     * @typedef {'keep'|'remove'|'default'|'throw'|'mark'} AbsenceStrategy
+     * @typedef {'keep'|'remove'|'default'|'throw'|'mark'|'propagate'} AbsenceStrategy
      */
 
     /**
+     * UNKNOWN constant for three-valued logic
+     * This is a sentinel value representing Codd's UNKNOWN truth value
+     */
+    const UNKNOWN = Object.freeze({
+        __eo_unknown: true,
+        toString: () => 'UNKNOWN',
+        valueOf: () => NaN  // UNKNOWN in boolean context should be falsy but distinct
+    });
+
+    /**
      * EOAbsence - Missing data detection and handling framework
+     * Extended with E.F. Codd's formal NULL semantics
      */
     const EOAbsence = {
+        // ============================================================================
+        // CODD CONSTANTS
+        // ============================================================================
+
+        /**
+         * UNKNOWN - Three-valued logic unknown result
+         * Use for comparisons involving NULL: NULL = NULL → UNKNOWN
+         */
+        UNKNOWN: UNKNOWN,
+
+        /**
+         * Codd Mark Types
+         */
+        CODD_MARKS: Object.freeze({
+            A_MARK: 'a_mark',    // Applicable but unknown - value exists, we don't know it
+            I_MARK: 'i_mark'    // Inapplicable - the attribute doesn't apply to this entity
+        }),
         // ============================================================================
         // DETECTION
         // ============================================================================
@@ -84,7 +143,87 @@
             if (value === '?' || value === 'unknown' || value === 'Unknown') return 'unknown';
             if (Array.isArray(value) && value.length === 0) return 'empty';
             if (typeof value === 'object' && value !== null && Object.keys(value).length === 0) return 'empty';
+            // Check for Codd marks
+            if (this.isAMark(value)) return 'a_mark';
+            if (this.isIMark(value)) return 'i_mark';
             return null;
+        },
+
+        // ============================================================================
+        // CODD MARK DETECTION (A-marks and I-marks)
+        // ============================================================================
+
+        /**
+         * Check if value is the UNKNOWN sentinel (three-valued logic)
+         * @param {*} value - Value to check
+         * @returns {boolean}
+         */
+        isUnknown(value) {
+            return value === UNKNOWN || (value && value.__eo_unknown === true);
+        },
+
+        /**
+         * Check if value is an A-mark (Applicable but unknown)
+         * Per Codd: "The value exists but we don't know what it is"
+         * Example: A person's birthdate that wasn't recorded
+         * @param {*} value - Value to check
+         * @returns {boolean}
+         */
+        isAMark(value) {
+            if (!value || typeof value !== 'object') return false;
+            return value.__eo_absent === true && value.coddMark === 'a_mark';
+        },
+
+        /**
+         * Check if value is an I-mark (Inapplicable)
+         * Per Codd: "The attribute doesn't apply to this entity"
+         * Example: "Spouse name" for an unmarried person
+         * @param {*} value - Value to check
+         * @returns {boolean}
+         */
+        isIMark(value) {
+            if (!value || typeof value !== 'object') return false;
+            return value.__eo_absent === true && value.coddMark === 'i_mark';
+        },
+
+        /**
+         * Check if value is any Codd mark (A-mark or I-mark)
+         * @param {*} value - Value to check
+         * @returns {boolean}
+         */
+        isCoddMark(value) {
+            return this.isAMark(value) || this.isIMark(value);
+        },
+
+        /**
+         * Determine the appropriate Codd mark type for a NULL value
+         * @param {*} value - Value to analyze
+         * @param {Object} fieldSchema - Optional field schema with nullability info
+         * @returns {CoddMarkType|null}
+         */
+        inferCoddMark(value, fieldSchema = null) {
+            if (!this.isAbsent(value)) return null;
+
+            // If field schema specifies the null type, use it
+            if (fieldSchema && fieldSchema.nullType) {
+                return fieldSchema.nullType;
+            }
+
+            // Heuristics for inferring Codd mark type
+            const absenceType = this.classifyAbsence(value);
+
+            // 'not_applicable', 'N/A' → I-mark
+            if (absenceType === 'not_applicable') {
+                return 'i_mark';
+            }
+
+            // 'unknown', '?' → A-mark (value exists but unknown)
+            if (absenceType === 'unknown') {
+                return 'a_mark';
+            }
+
+            // Default: assume A-mark (value could exist)
+            return 'a_mark';
         },
 
         /**
@@ -369,6 +508,185 @@
         },
 
         // ============================================================================
+        // THREE-VALUED LOGIC (Codd's 3VL)
+        // ============================================================================
+
+        /**
+         * Three-valued AND operation
+         * Truth table:
+         *   T AND T = T    T AND F = F    T AND U = U
+         *   F AND T = F    F AND F = F    F AND U = F
+         *   U AND T = U    U AND F = F    U AND U = U
+         * @param {*} a - First operand
+         * @param {*} b - Second operand
+         * @returns {ThreeValuedResult}
+         */
+        threeValuedAnd(a, b) {
+            const aUnknown = this.isAbsent(a) || this.isUnknown(a);
+            const bUnknown = this.isAbsent(b) || this.isUnknown(b);
+
+            // If either is definitely FALSE, result is FALSE
+            if (a === false || b === false) return false;
+
+            // If either is UNKNOWN and neither is FALSE, result is UNKNOWN
+            if (aUnknown || bUnknown) return UNKNOWN;
+
+            // Both are TRUE
+            return true;
+        },
+
+        /**
+         * Three-valued OR operation
+         * Truth table:
+         *   T OR T = T    T OR F = T    T OR U = T
+         *   F OR T = T    F OR F = F    F OR U = U
+         *   U OR T = T    U OR F = U    U OR U = U
+         * @param {*} a - First operand
+         * @param {*} b - Second operand
+         * @returns {ThreeValuedResult}
+         */
+        threeValuedOr(a, b) {
+            const aUnknown = this.isAbsent(a) || this.isUnknown(a);
+            const bUnknown = this.isAbsent(b) || this.isUnknown(b);
+
+            // If either is definitely TRUE, result is TRUE
+            if (a === true || b === true) return true;
+
+            // If either is UNKNOWN and neither is TRUE, result is UNKNOWN
+            if (aUnknown || bUnknown) return UNKNOWN;
+
+            // Both are FALSE
+            return false;
+        },
+
+        /**
+         * Three-valued NOT operation
+         * Truth table: NOT T = F, NOT F = T, NOT U = U
+         * @param {*} a - Operand
+         * @returns {ThreeValuedResult}
+         */
+        threeValuedNot(a) {
+            if (this.isAbsent(a) || this.isUnknown(a)) return UNKNOWN;
+            return !a;
+        },
+
+        /**
+         * Three-valued equality comparison (Codd semantics)
+         * NULL = NULL → UNKNOWN (not TRUE!)
+         * @param {*} a - First operand
+         * @param {*} b - Second operand
+         * @returns {ThreeValuedResult}
+         */
+        threeValuedEquals(a, b) {
+            const aAbsent = this.isAbsent(a) || this.isUnknown(a);
+            const bAbsent = this.isAbsent(b) || this.isUnknown(b);
+
+            // If either operand is NULL/absent, result is UNKNOWN
+            if (aAbsent || bAbsent) return UNKNOWN;
+
+            return a === b;
+        },
+
+        /**
+         * IS DISTINCT FROM comparison (SQL:1999)
+         * Unlike =, this treats NULLs as equal values for comparison
+         * NULL IS DISTINCT FROM NULL → FALSE
+         * NULL IS DISTINCT FROM 5 → TRUE
+         * 5 IS DISTINCT FROM 5 → FALSE
+         * @param {*} a - First operand
+         * @param {*} b - Second operand
+         * @returns {boolean} Always returns boolean (never UNKNOWN)
+         */
+        isDistinctFrom(a, b) {
+            const aAbsent = this.isAbsent(a);
+            const bAbsent = this.isAbsent(b);
+
+            // Both NULL = not distinct
+            if (aAbsent && bAbsent) return false;
+
+            // One NULL, one not = distinct
+            if (aAbsent || bAbsent) return true;
+
+            // Neither NULL = compare values
+            return a !== b;
+        },
+
+        /**
+         * IS NOT DISTINCT FROM comparison (SQL:1999)
+         * The negation of IS DISTINCT FROM
+         * NULL IS NOT DISTINCT FROM NULL → TRUE
+         * @param {*} a - First operand
+         * @param {*} b - Second operand
+         * @returns {boolean}
+         */
+        isNotDistinctFrom(a, b) {
+            return !this.isDistinctFrom(a, b);
+        },
+
+        /**
+         * NULLIF function (SQL standard)
+         * Returns NULL if the two arguments are equal, otherwise returns the first argument
+         * @param {*} a - First operand
+         * @param {*} b - Second operand
+         * @returns {*}
+         */
+        nullIf(a, b) {
+            if (this.isAbsent(a) || this.isAbsent(b)) return a;
+            return a === b ? null : a;
+        },
+
+        // ============================================================================
+        // CODD-COMPLIANT ARITHMETIC (NULL Propagation)
+        // ============================================================================
+
+        /**
+         * Add with NULL propagation (Codd semantics)
+         * NULL + 5 = NULL (we don't know what NULL represents)
+         * @param {*} a - First operand
+         * @param {*} b - Second operand
+         * @returns {number|null}
+         */
+        add(a, b) {
+            if (this.isAbsent(a) || this.isAbsent(b)) return null;
+            return Number(a) + Number(b);
+        },
+
+        /**
+         * Subtract with NULL propagation
+         * @param {*} a - First operand
+         * @param {*} b - Second operand
+         * @returns {number|null}
+         */
+        subtract(a, b) {
+            if (this.isAbsent(a) || this.isAbsent(b)) return null;
+            return Number(a) - Number(b);
+        },
+
+        /**
+         * Multiply with NULL propagation
+         * @param {*} a - First operand
+         * @param {*} b - Second operand
+         * @returns {number|null}
+         */
+        multiply(a, b) {
+            if (this.isAbsent(a) || this.isAbsent(b)) return null;
+            return Number(a) * Number(b);
+        },
+
+        /**
+         * Divide with NULL propagation
+         * @param {*} a - Dividend
+         * @param {*} b - Divisor
+         * @returns {number|null}
+         */
+        divide(a, b) {
+            if (this.isAbsent(a) || this.isAbsent(b)) return null;
+            const divisor = Number(b);
+            if (divisor === 0) return null;  // Division by zero → NULL
+            return Number(a) / divisor;
+        },
+
+        // ============================================================================
         // UTILITIES
         // ============================================================================
 
@@ -388,6 +706,42 @@
         },
 
         /**
+         * Create a Codd A-mark (Applicable but unknown)
+         * Use when the value should exist but is not known
+         * @param {string} reason - Why the value is unknown
+         * @param {Object} metadata - Additional metadata
+         * @returns {Object}
+         */
+        createAMark(reason = null, metadata = {}) {
+            return {
+                __eo_absent: true,
+                type: 'a_mark',
+                coddMark: 'a_mark',
+                reason: reason || 'Value exists but is unknown',
+                createdAt: new Date().toISOString(),
+                ...metadata
+            };
+        },
+
+        /**
+         * Create a Codd I-mark (Inapplicable)
+         * Use when the attribute doesn't apply to this entity
+         * @param {string} reason - Why the attribute doesn't apply
+         * @param {Object} metadata - Additional metadata
+         * @returns {Object}
+         */
+        createIMark(reason = null, metadata = {}) {
+            return {
+                __eo_absent: true,
+                type: 'i_mark',
+                coddMark: 'i_mark',
+                reason: reason || 'Attribute does not apply to this entity',
+                createdAt: new Date().toISOString(),
+                ...metadata
+            };
+        },
+
+        /**
          * Check if a value is an absence marker
          * @param {*} value - Value to check
          * @returns {boolean}
@@ -403,9 +757,29 @@
          * @returns {string}
          */
         toDisplayString(value, options = {}) {
-            const { nullString = '—', undefinedString = '—', emptyString = '(empty)', markerString = null } = options;
+            const {
+                nullString = '—',
+                undefinedString = '—',
+                emptyString = '(empty)',
+                aMarkString = '?',        // Codd A-mark: unknown but applicable
+                iMarkString = 'N/A',      // Codd I-mark: not applicable
+                unknownString = 'UNKNOWN', // Three-valued logic UNKNOWN
+                markerString = null
+            } = options;
+
+            // Handle UNKNOWN sentinel (three-valued logic)
+            if (this.isUnknown(value)) {
+                return unknownString;
+            }
 
             if (this.isMarker(value)) {
+                // Handle Codd marks specifically
+                if (value.coddMark === 'a_mark') {
+                    return markerString || aMarkString;
+                }
+                if (value.coddMark === 'i_mark') {
+                    return markerString || iMarkString;
+                }
                 return markerString || `[${value.type}]`;
             }
 
@@ -418,12 +792,135 @@
                 case 'empty':
                     return emptyString;
                 case 'not_applicable':
-                    return 'N/A';
+                    return iMarkString;
                 case 'unknown':
-                    return '?';
+                    return aMarkString;
+                case 'a_mark':
+                    return aMarkString;
+                case 'i_mark':
+                    return iMarkString;
                 default:
                     return String(value);
             }
+        },
+
+        // ============================================================================
+        // CODD-COMPLIANT AGGREGATES
+        // ============================================================================
+
+        /**
+         * Codd-compliant SUM with NULL tracking
+         * NULLs are excluded from sum but tracked
+         * @param {Array} values - Values to sum
+         * @returns {Object} Result with value and metadata
+         */
+        sumWithNullTracking(values) {
+            if (!Array.isArray(values)) {
+                return { value: null, nullCount: 0, presentCount: 0, certainty: 0 };
+            }
+
+            const present = [];
+            let nullCount = 0;
+            let iMarkCount = 0;
+
+            for (const v of values) {
+                if (this.isIMark(v)) {
+                    iMarkCount++;
+                } else if (this.isAbsent(v)) {
+                    nullCount++;
+                } else if (typeof v === 'number' && !isNaN(v)) {
+                    present.push(v);
+                }
+            }
+
+            const sum = present.reduce((a, b) => a + b, 0);
+            const totalApplicable = present.length + nullCount;  // I-marks don't count
+
+            return {
+                value: present.length > 0 ? sum : null,
+                nullCount,
+                iMarkCount,
+                presentCount: present.length,
+                totalApplicable,
+                certainty: totalApplicable > 0 ? present.length / totalApplicable : 0
+            };
+        },
+
+        /**
+         * Codd-compliant AVG with NULL tracking
+         * NULLs excluded from both sum and count, I-marks excluded entirely
+         * @param {Array} values - Values to average
+         * @returns {Object} Result with value and metadata
+         */
+        avgWithNullTracking(values) {
+            const sumResult = this.sumWithNullTracking(values);
+
+            if (sumResult.presentCount === 0) {
+                return {
+                    value: null,
+                    ...sumResult
+                };
+            }
+
+            return {
+                value: sumResult.value / sumResult.presentCount,
+                ...sumResult
+            };
+        },
+
+        /**
+         * Codd-compliant COUNT variations
+         * @param {Array} values - Values to count
+         * @param {string} mode - 'all' (COUNT(*)), 'present' (COUNT(column)), 'null' (null only)
+         * @returns {Object} Count result with breakdown
+         */
+        countWithNullTracking(values, mode = 'present') {
+            if (!Array.isArray(values)) {
+                return { value: 0, total: 0, nullCount: 0, presentCount: 0 };
+            }
+
+            let nullCount = 0;
+            let iMarkCount = 0;
+            let presentCount = 0;
+
+            for (const v of values) {
+                if (this.isIMark(v)) {
+                    iMarkCount++;
+                } else if (this.isAbsent(v)) {
+                    nullCount++;
+                } else {
+                    presentCount++;
+                }
+            }
+
+            const total = values.length;
+            let value;
+
+            switch (mode) {
+                case 'all':       // COUNT(*) - all rows
+                    value = total;
+                    break;
+                case 'present':   // COUNT(column) - non-null values
+                    value = presentCount;
+                    break;
+                case 'null':      // Count nulls only
+                    value = nullCount;
+                    break;
+                case 'applicable': // Exclude I-marks
+                    value = presentCount + nullCount;
+                    break;
+                default:
+                    value = presentCount;
+            }
+
+            return {
+                value,
+                total,
+                nullCount,
+                iMarkCount,
+                presentCount,
+                applicableCount: presentCount + nullCount
+            };
         }
     };
 

@@ -10,6 +10,28 @@
  * - Text: UPPER, LOWER, TRIM, LEN, LEFT, RIGHT, MID
  * - Date: TODAY, NOW, YEAR, MONTH, DAY, DATEDIFF
  * - Field references: {FieldName}
+ *
+ * === E.F. Codd NULL Semantics ===
+ *
+ * This engine implements Codd's formal NULL handling:
+ *
+ * 1. NULL Propagation in Arithmetic:
+ *    - NULL + 5 = NULL (strict mode)
+ *    - Operations with NULL yield NULL
+ *
+ * 2. Three-Valued Logic in Comparisons:
+ *    - NULL = NULL → UNKNOWN (via EOAbsence)
+ *    - NULL in boolean expressions yields UNKNOWN
+ *
+ * 3. Codd-Compliant Functions:
+ *    - ISNULL, ISNOTNULL - proper NULL testing
+ *    - IS_DISTINCT_FROM - NULL-safe equality
+ *    - NULLIF - conditional NULL
+ *    - Aggregates track NULL counts
+ *
+ * Configuration:
+ *   Set `coddMode: true` for strict NULL propagation
+ *   Default mode maintains backward compatibility
  */
 
 // LRU Cache for formula parsing (1000 entries max)
@@ -50,10 +72,39 @@ class FormulaLRUCache {
 }
 
 class EOFormulaEngine {
-  constructor() {
+  /**
+   * @param {Object} options - Configuration options
+   * @param {boolean} options.coddMode - Enable strict Codd NULL semantics (default: false)
+   */
+  constructor(options = {}) {
+    this.coddMode = options.coddMode || false;
     this.functions = this.initializeFunctions();
     // LRU cache for parsed formulas (max 1000 entries)
     this._parseCache = new FormulaLRUCache(1000);
+  }
+
+  /**
+   * Check if a value is absent (null, undefined, empty string)
+   * Uses EOAbsence if available, otherwise fallback
+   * @param {*} value - Value to check
+   * @returns {boolean}
+   */
+  isAbsent(value) {
+    if (typeof EOAbsence !== 'undefined') {
+      return EOAbsence.isAbsent(value);
+    }
+    return value === null || value === undefined || value === '';
+  }
+
+  /**
+   * Get the UNKNOWN constant for three-valued logic
+   * @returns {*}
+   */
+  getUnknown() {
+    if (typeof EOAbsence !== 'undefined') {
+      return EOAbsence.UNKNOWN;
+    }
+    return null;  // Fallback
   }
 
   /**
@@ -163,6 +214,262 @@ class EOFormulaEngine {
       VALUE: (text) => this.toNumber(text),
       TEXT: (val) => String(val ?? ''),
       BLANK: () => null,
+
+      // ========================================================================
+      // CODD-COMPLIANT NULL FUNCTIONS
+      // ========================================================================
+
+      /**
+       * ISNULL - Check if value is NULL (Codd semantics)
+       * Unlike ISBLANK, this specifically tests for NULL/undefined
+       * @param {*} val - Value to test
+       * @returns {boolean}
+       */
+      ISNULL: (val) => val === null || val === undefined,
+
+      /**
+       * ISNOTNULL - Check if value is not NULL
+       * @param {*} val - Value to test
+       * @returns {boolean}
+       */
+      ISNOTNULL: (val) => val !== null && val !== undefined,
+
+      /**
+       * IS_A_MARK - Check if value is a Codd A-mark (applicable but unknown)
+       * @param {*} val - Value to test
+       * @returns {boolean}
+       */
+      IS_A_MARK: (val) => {
+        if (typeof EOAbsence !== 'undefined') {
+          return EOAbsence.isAMark(val);
+        }
+        return false;
+      },
+
+      /**
+       * IS_I_MARK - Check if value is a Codd I-mark (inapplicable)
+       * @param {*} val - Value to test
+       * @returns {boolean}
+       */
+      IS_I_MARK: (val) => {
+        if (typeof EOAbsence !== 'undefined') {
+          return EOAbsence.isIMark(val);
+        }
+        return false;
+      },
+
+      /**
+       * IS_DISTINCT_FROM - NULL-safe inequality comparison (SQL:1999)
+       * NULL IS DISTINCT FROM NULL → FALSE
+       * NULL IS DISTINCT FROM 5 → TRUE
+       * 5 IS DISTINCT FROM 5 → FALSE
+       * @param {*} a - First value
+       * @param {*} b - Second value
+       * @returns {boolean} Always returns boolean, never UNKNOWN
+       */
+      IS_DISTINCT_FROM: (a, b) => {
+        if (typeof EOAbsence !== 'undefined') {
+          return EOAbsence.isDistinctFrom(a, b);
+        }
+        const aNull = a === null || a === undefined;
+        const bNull = b === null || b === undefined;
+        if (aNull && bNull) return false;
+        if (aNull || bNull) return true;
+        return a !== b;
+      },
+
+      /**
+       * IS_NOT_DISTINCT_FROM - NULL-safe equality comparison
+       * NULL IS NOT DISTINCT FROM NULL → TRUE
+       * @param {*} a - First value
+       * @param {*} b - Second value
+       * @returns {boolean}
+       */
+      IS_NOT_DISTINCT_FROM: (a, b) => {
+        if (typeof EOAbsence !== 'undefined') {
+          return EOAbsence.isNotDistinctFrom(a, b);
+        }
+        const aNull = a === null || a === undefined;
+        const bNull = b === null || b === undefined;
+        if (aNull && bNull) return true;
+        if (aNull || bNull) return false;
+        return a === b;
+      },
+
+      /**
+       * NULLIF - Returns NULL if both arguments are equal
+       * @param {*} a - First value
+       * @param {*} b - Second value
+       * @returns {*} NULL if a equals b, otherwise a
+       */
+      NULLIF: (a, b) => {
+        if (typeof EOAbsence !== 'undefined') {
+          return EOAbsence.nullIf(a, b);
+        }
+        if (a === null || a === undefined || b === null || b === undefined) return a;
+        return a === b ? null : a;
+      },
+
+      /**
+       * A_MARK - Create a Codd A-mark (applicable but unknown)
+       * @param {string} reason - Optional reason
+       * @returns {Object} A-mark object
+       */
+      A_MARK: (reason) => {
+        if (typeof EOAbsence !== 'undefined') {
+          return EOAbsence.createAMark(reason);
+        }
+        return null;
+      },
+
+      /**
+       * I_MARK - Create a Codd I-mark (inapplicable)
+       * @param {string} reason - Optional reason
+       * @returns {Object} I-mark object
+       */
+      I_MARK: (reason) => {
+        if (typeof EOAbsence !== 'undefined') {
+          return EOAbsence.createIMark(reason);
+        }
+        return null;
+      },
+
+      // ========================================================================
+      // THREE-VALUED LOGIC FUNCTIONS (Codd's 3VL)
+      // ========================================================================
+
+      /**
+       * AND3 - Three-valued AND (Codd semantics)
+       * Returns UNKNOWN if any operand is NULL and no operand is FALSE
+       * @param {...*} args - Operands
+       * @returns {boolean|UNKNOWN}
+       */
+      AND3: (...args) => {
+        if (typeof EOAbsence !== 'undefined') {
+          let result = true;
+          for (const arg of args) {
+            result = EOAbsence.threeValuedAnd(result, arg);
+            if (result === false) return false;  // Short-circuit
+          }
+          return result;
+        }
+        return args.every(v => !!v);
+      },
+
+      /**
+       * OR3 - Three-valued OR (Codd semantics)
+       * Returns UNKNOWN if any operand is NULL and no operand is TRUE
+       * @param {...*} args - Operands
+       * @returns {boolean|UNKNOWN}
+       */
+      OR3: (...args) => {
+        if (typeof EOAbsence !== 'undefined') {
+          let result = false;
+          for (const arg of args) {
+            result = EOAbsence.threeValuedOr(result, arg);
+            if (result === true) return true;  // Short-circuit
+          }
+          return result;
+        }
+        return args.some(v => !!v);
+      },
+
+      /**
+       * NOT3 - Three-valued NOT (Codd semantics)
+       * NOT NULL → UNKNOWN
+       * @param {*} val - Operand
+       * @returns {boolean|UNKNOWN}
+       */
+      NOT3: (val) => {
+        if (typeof EOAbsence !== 'undefined') {
+          return EOAbsence.threeValuedNot(val);
+        }
+        return !val;
+      },
+
+      /**
+       * EQ3 - Three-valued equality (Codd semantics)
+       * NULL = NULL → UNKNOWN
+       * @param {*} a - First operand
+       * @param {*} b - Second operand
+       * @returns {boolean|UNKNOWN}
+       */
+      EQ3: (a, b) => {
+        if (typeof EOAbsence !== 'undefined') {
+          return EOAbsence.threeValuedEquals(a, b);
+        }
+        if (a === null || a === undefined || b === null || b === undefined) {
+          return null;  // Fallback for UNKNOWN
+        }
+        return a === b;
+      },
+
+      // ========================================================================
+      // CODD-COMPLIANT AGGREGATES WITH NULL TRACKING
+      // ========================================================================
+
+      /**
+       * SUM_CODD - Sum with NULL tracking (Codd semantics)
+       * Returns object with value and NULL statistics
+       * @param {...*} args - Values to sum
+       * @returns {Object} { value, nullCount, presentCount, certainty }
+       */
+      SUM_CODD: (...args) => {
+        if (typeof EOAbsence !== 'undefined') {
+          return EOAbsence.sumWithNullTracking(args);
+        }
+        const present = args.filter(v => v !== null && v !== undefined && typeof v === 'number');
+        return {
+          value: present.reduce((a, b) => a + b, 0),
+          nullCount: args.length - present.length,
+          presentCount: present.length,
+          certainty: present.length / args.length
+        };
+      },
+
+      /**
+       * AVG_CODD - Average with NULL tracking (Codd semantics)
+       * NULLs excluded from both numerator and denominator
+       * @param {...*} args - Values to average
+       * @returns {Object} { value, nullCount, presentCount, certainty }
+       */
+      AVG_CODD: (...args) => {
+        if (typeof EOAbsence !== 'undefined') {
+          return EOAbsence.avgWithNullTracking(args);
+        }
+        const present = args.filter(v => v !== null && v !== undefined && typeof v === 'number');
+        return {
+          value: present.length > 0 ? present.reduce((a, b) => a + b, 0) / present.length : null,
+          nullCount: args.length - present.length,
+          presentCount: present.length,
+          certainty: present.length / args.length
+        };
+      },
+
+      /**
+       * COUNT_ALL - COUNT(*) - counts all rows including NULLs
+       * @param {...*} args - Values to count
+       * @returns {number}
+       */
+      COUNT_ALL: (...args) => args.length,
+
+      /**
+       * COUNT_CODD - Count with full NULL tracking
+       * @param {...*} args - Values to count
+       * @returns {Object} { value, total, nullCount, presentCount }
+       */
+      COUNT_CODD: (...args) => {
+        if (typeof EOAbsence !== 'undefined') {
+          return EOAbsence.countWithNullTracking(args, 'present');
+        }
+        const nullCount = args.filter(v => v === null || v === undefined).length;
+        return {
+          value: args.length - nullCount,
+          total: args.length,
+          nullCount,
+          presentCount: args.length - nullCount
+        };
+      },
     };
   }
 
@@ -349,13 +656,36 @@ class EOFormulaEngine {
     const leftVal = this.evaluateNode(left, record);
     const rightVal = this.evaluateNode(right, record);
 
+    // In Codd mode, arithmetic with NULL propagates NULL
+    if (this.coddMode) {
+      const leftAbsent = this.isAbsent(leftVal);
+      const rightAbsent = this.isAbsent(rightVal);
+
+      // Arithmetic operators: NULL propagation
+      if (['+', '-', '*', '/', '^', '%'].includes(operator)) {
+        if (leftAbsent || rightAbsent) {
+          return null;  // Codd: NULL + 5 = NULL
+        }
+      }
+
+      // Comparison operators: three-valued logic
+      if (['=', '!=', '<', '>', '<=', '>='].includes(operator)) {
+        if (leftAbsent || rightAbsent) {
+          return this.getUnknown();  // Codd: NULL = NULL → UNKNOWN
+        }
+      }
+    }
+
     switch (operator) {
       case '+': return this.toNumber(leftVal) + this.toNumber(rightVal);
       case '-': return this.toNumber(leftVal) - this.toNumber(rightVal);
       case '*': return this.toNumber(leftVal) * this.toNumber(rightVal);
       case '/':
-        if (this.toNumber(rightVal) === 0) throw new Error('Division by zero');
-        return this.toNumber(leftVal) / this.toNumber(rightVal);
+        const divisor = this.toNumber(rightVal);
+        if (divisor === 0) {
+          return this.coddMode ? null : (() => { throw new Error('Division by zero'); })();
+        }
+        return this.toNumber(leftVal) / divisor;
       case '^': return Math.pow(this.toNumber(leftVal), this.toNumber(rightVal));
       case '%': return this.toNumber(leftVal) % this.toNumber(rightVal);
       case '=': return leftVal === rightVal;
@@ -660,14 +990,44 @@ class EOFormulaEngine {
     return /[a-zA-Z0-9_]/.test(char);
   }
 
+  /**
+   * Convert value to number
+   * In Codd mode: NULL → NULL (propagation)
+   * In legacy mode: NULL → 0 (backward compatible)
+   * @param {*} value - Value to convert
+   * @returns {number|null}
+   */
   toNumber(value) {
+    // Codd mode: propagate NULL
+    if (this.coddMode && this.isAbsent(value)) {
+      return null;
+    }
+
     if (typeof value === 'number') return value;
     if (typeof value === 'boolean') return value ? 1 : 0;
     if (value instanceof Date) return value.getTime();
 
     const num = parseFloat(value);
-    if (isNaN(num)) return 0;
+    // Legacy mode returns 0 for NaN, Codd mode returns null
+    if (isNaN(num)) {
+      return this.coddMode ? null : 0;
+    }
     return num;
+  }
+
+  /**
+   * Strict Codd-compliant number conversion
+   * Always propagates NULL regardless of mode
+   * @param {*} value - Value to convert
+   * @returns {number|null}
+   */
+  toNumberStrict(value) {
+    if (this.isAbsent(value)) return null;
+    if (typeof value === 'number') return value;
+    if (typeof value === 'boolean') return value ? 1 : 0;
+    if (value instanceof Date) return value.getTime();
+    const num = parseFloat(value);
+    return isNaN(num) ? null : num;
   }
 
   toDate(value) {

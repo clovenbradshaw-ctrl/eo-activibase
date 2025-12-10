@@ -7,6 +7,14 @@
  * - SUP-enabled cells
  * - Value observations
  * - Stability metadata
+ * - Field schemas with Codd-compliant nullability
+ *
+ * === E.F. Codd NULL Semantics ===
+ *
+ * Field schemas support explicit nullability declaration per Codd's Rule 3:
+ * - nullable: whether NULL is a valid value
+ * - nullType: 'a_mark' (applicable unknown) or 'i_mark' (inapplicable)
+ * - nullReason: default reason when NULL is set
  */
 
 class EODataStructures {
@@ -370,6 +378,304 @@ class EODataStructures {
    */
   static generateRecordId() {
     return 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  // ========================================================================
+  // CODD-COMPLIANT FIELD SCHEMAS
+  // ========================================================================
+
+  /**
+   * Create a field schema with explicit nullability (Codd Rule 3)
+   * @param {Object} options - Field schema options
+   * @param {string} options.name - Field name
+   * @param {string} options.type - Field type (TEXT, NUMBER, DATE, etc.)
+   * @param {boolean} options.nullable - Whether NULL is valid (default: true)
+   * @param {string} options.nullType - Codd mark type: 'a_mark' or 'i_mark'
+   * @param {string} options.nullReason - Default reason when NULL is set
+   * @param {*} options.defaultValue - Default value when creating new records
+   * @param {boolean} options.required - Whether field must have a value (not NULL)
+   * @returns {Object} Field schema
+   */
+  static createFieldSchema({
+    name,
+    type = 'TEXT',
+    nullable = true,
+    nullType = 'a_mark',
+    nullReason = null,
+    defaultValue = null,
+    required = false,
+    description = null,
+    validation = null
+  }) {
+    // Validate nullType
+    if (!['a_mark', 'i_mark'].includes(nullType)) {
+      console.warn(`Invalid nullType "${nullType}", defaulting to "a_mark"`);
+      nullType = 'a_mark';
+    }
+
+    // Required fields are not nullable
+    if (required) {
+      nullable = false;
+    }
+
+    return {
+      name,
+      type,
+      nullable,
+      nullType,       // Codd: A-mark (unknown) vs I-mark (inapplicable)
+      nullReason,     // Why NULL is valid for this field
+      defaultValue,
+      required,
+      description,
+      validation,
+      createdAt: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Create field schema for a spouse name field (example of I-mark usage)
+   * This demonstrates when I-mark (inapplicable) is appropriate:
+   * If person is unmarried, spouse name doesn't apply (not "unknown")
+   */
+  static createSpouseFieldSchema() {
+    return this.createFieldSchema({
+      name: 'spouse_name',
+      type: 'TEXT',
+      nullable: true,
+      nullType: 'i_mark',  // Inapplicable for unmarried people
+      nullReason: 'Person is not married',
+      description: 'Name of spouse, if married'
+    });
+  }
+
+  /**
+   * Create field schema for a birthdate field (example of A-mark usage)
+   * This demonstrates when A-mark (applicable unknown) is appropriate:
+   * The person has a birthdate, we just don't know what it is
+   */
+  static createBirthdateFieldSchema() {
+    return this.createFieldSchema({
+      name: 'birthdate',
+      type: 'DATE',
+      nullable: true,
+      nullType: 'a_mark',  // Value exists but is unknown
+      nullReason: 'Birthdate not recorded',
+      description: 'Date of birth'
+    });
+  }
+
+  /**
+   * Validate a value against a field schema
+   * Returns validation result with Codd mark if NULL
+   * @param {*} value - Value to validate
+   * @param {Object} schema - Field schema
+   * @returns {Object} Validation result
+   */
+  static validateFieldValue(value, schema) {
+    const isNull = value === null || value === undefined || value === '';
+    const result = {
+      valid: true,
+      value: value,
+      coddMark: null,
+      errors: []
+    };
+
+    // Check nullability
+    if (isNull) {
+      if (!schema.nullable) {
+        result.valid = false;
+        result.errors.push(`Field "${schema.name}" cannot be null`);
+      } else {
+        // Apply Codd mark
+        result.coddMark = schema.nullType;
+        result.coddReason = schema.nullReason;
+
+        // Convert to proper Codd mark object if EOAbsence is available
+        if (typeof EOAbsence !== 'undefined') {
+          if (schema.nullType === 'a_mark') {
+            result.value = EOAbsence.createAMark(schema.nullReason);
+          } else if (schema.nullType === 'i_mark') {
+            result.value = EOAbsence.createIMark(schema.nullReason);
+          }
+        }
+      }
+      return result;
+    }
+
+    // Type validation
+    if (schema.type === 'NUMBER' && typeof value !== 'number') {
+      const num = parseFloat(value);
+      if (isNaN(num)) {
+        result.valid = false;
+        result.errors.push(`Field "${schema.name}" must be a number`);
+      } else {
+        result.value = num;
+      }
+    }
+
+    if (schema.type === 'DATE' && !(value instanceof Date)) {
+      const date = new Date(value);
+      if (isNaN(date.getTime())) {
+        result.valid = false;
+        result.errors.push(`Field "${schema.name}" must be a valid date`);
+      } else {
+        result.value = date;
+      }
+    }
+
+    // Custom validation function
+    if (schema.validation && typeof schema.validation === 'function') {
+      const customResult = schema.validation(value);
+      if (customResult !== true) {
+        result.valid = false;
+        result.errors.push(customResult || `Field "${schema.name}" failed validation`);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Create a table schema (collection of field schemas)
+   * @param {string} name - Table name
+   * @param {Array} fields - Array of field schema configs
+   * @returns {Object} Table schema
+   */
+  static createTableSchema(name, fields = []) {
+    const fieldSchemas = fields.map(f => {
+      if (f.name && f.type) {
+        return this.createFieldSchema(f);
+      }
+      return f;  // Already a field schema
+    });
+
+    return {
+      name,
+      fields: fieldSchemas,
+      fieldsByName: Object.fromEntries(fieldSchemas.map(f => [f.name, f])),
+      createdAt: new Date().toISOString(),
+
+      /**
+       * Get a field schema by name
+       */
+      getField(fieldName) {
+        return this.fieldsByName[fieldName] || null;
+      },
+
+      /**
+       * Check if a field is nullable
+       */
+      isNullable(fieldName) {
+        const field = this.getField(fieldName);
+        return field ? field.nullable : true;
+      },
+
+      /**
+       * Get the Codd null type for a field
+       */
+      getNullType(fieldName) {
+        const field = this.getField(fieldName);
+        return field ? field.nullType : 'a_mark';
+      },
+
+      /**
+       * Validate a record against this schema
+       */
+      validateRecord(record) {
+        const results = {};
+        const errors = [];
+
+        for (const field of this.fields) {
+          const value = record[field.name];
+          const validation = EODataStructures.validateFieldValue(value, field);
+          results[field.name] = validation;
+          if (!validation.valid) {
+            errors.push(...validation.errors);
+          }
+        }
+
+        return {
+          valid: errors.length === 0,
+          fieldResults: results,
+          errors
+        };
+      }
+    };
+  }
+
+  /**
+   * Analyze NULL patterns in a dataset (Codd-style NULL statistics)
+   * @param {Array} records - Array of records
+   * @param {Object} tableSchema - Table schema (optional)
+   * @returns {Object} NULL analysis
+   */
+  static analyzeNullPatterns(records, tableSchema = null) {
+    if (!Array.isArray(records) || records.length === 0) {
+      return { totalRecords: 0, fields: {} };
+    }
+
+    const fieldNames = tableSchema
+      ? tableSchema.fields.map(f => f.name)
+      : Object.keys(records[0]);
+
+    const analysis = {
+      totalRecords: records.length,
+      fields: {},
+      coddMarkDistribution: {
+        a_marks: 0,
+        i_marks: 0,
+        plain_nulls: 0
+      }
+    };
+
+    for (const fieldName of fieldNames) {
+      const fieldSchema = tableSchema?.getField?.(fieldName);
+      const values = records.map(r => r[fieldName]);
+
+      let nullCount = 0;
+      let aMarkCount = 0;
+      let iMarkCount = 0;
+      let presentCount = 0;
+
+      for (const value of values) {
+        if (typeof EOAbsence !== 'undefined') {
+          if (EOAbsence.isAMark(value)) {
+            aMarkCount++;
+            analysis.coddMarkDistribution.a_marks++;
+          } else if (EOAbsence.isIMark(value)) {
+            iMarkCount++;
+            analysis.coddMarkDistribution.i_marks++;
+          } else if (EOAbsence.isAbsent(value)) {
+            nullCount++;
+            analysis.coddMarkDistribution.plain_nulls++;
+          } else {
+            presentCount++;
+          }
+        } else {
+          if (value === null || value === undefined || value === '') {
+            nullCount++;
+            analysis.coddMarkDistribution.plain_nulls++;
+          } else {
+            presentCount++;
+          }
+        }
+      }
+
+      const total = values.length;
+      analysis.fields[fieldName] = {
+        nullCount,
+        aMarkCount,
+        iMarkCount,
+        presentCount,
+        total,
+        nullPercentage: ((nullCount + aMarkCount + iMarkCount) / total * 100).toFixed(2) + '%',
+        completeness: (presentCount / total * 100).toFixed(2) + '%',
+        expectedNullType: fieldSchema?.nullType || 'a_mark',
+        nullable: fieldSchema?.nullable ?? true
+      };
+    }
+
+    return analysis;
   }
 }
 
