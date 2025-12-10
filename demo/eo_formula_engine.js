@@ -678,7 +678,13 @@ class EOFormulaEngine {
   }
 }
 
-// Export for use in other modules
+// Export for use in browser and other modules
+if (typeof window !== 'undefined') {
+  window.EOFormulaEngine = EOFormulaEngine;
+}
+if (typeof global !== 'undefined') {
+  global.EOFormulaEngine = EOFormulaEngine;
+}
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = EOFormulaEngine;
 }
