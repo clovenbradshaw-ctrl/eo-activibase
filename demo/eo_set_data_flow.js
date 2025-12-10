@@ -123,13 +123,28 @@
             });
         }
 
-        // Count manual entries
+        // Count manual entries and sample data separately
         let manualCount = 0;
+        let sampleCount = 0;
         set.records.forEach(record => {
             if (!record.sourceImportId) {
-                manualCount++;
+                if (record._sampleData) {
+                    sampleCount++;
+                } else {
+                    manualCount++;
+                }
             }
         });
+
+        if (sampleCount > 0) {
+            sources.push({
+                type: 'sample',
+                id: 'sample',
+                name: 'Sample Data (Hardcoded)',
+                recordCount: sampleCount,
+                format: 'sample'
+            });
+        }
 
         if (manualCount > 0) {
             sources.push({
@@ -225,12 +240,26 @@
             'json': 'ph-brackets-curly',
             'xlsx': 'ph-file-xls',
             'manual': 'ph-pencil-simple',
+            'sample': 'ph-flask',
             'file': 'ph-file'
         };
         const icon = iconMap[source.format] || iconMap.file;
-        const bgColor = source.type === 'manual' ? '#ecfdf5' : '#f0f9ff';
-        const borderColor = source.type === 'manual' ? '#a7f3d0' : '#bae6fd';
-        const iconColor = source.type === 'manual' ? '#059669' : '#0284c7';
+
+        // Color scheme based on source type
+        let bgColor, borderColor, iconColor;
+        if (source.type === 'sample') {
+            bgColor = '#fef3c7';      // Yellow/amber tint
+            borderColor = '#fcd34d';
+            iconColor = '#d97706';
+        } else if (source.type === 'manual') {
+            bgColor = '#ecfdf5';
+            borderColor = '#a7f3d0';
+            iconColor = '#059669';
+        } else {
+            bgColor = '#f0f9ff';
+            borderColor = '#bae6fd';
+            iconColor = '#0284c7';
+        }
 
         return `
             <div class="flow-node source-node"
