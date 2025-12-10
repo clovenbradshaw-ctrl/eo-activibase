@@ -10364,9 +10364,9 @@
             locationsSet.records.clear();
             if (!locationsSet.views) locationsSet.views = new Map();
             locationsSet.views.clear();
-            const ridgeId = addRecord(locationsId, { name: 'Summit Ridge', area: 'Highlands', notes: 'Windy lookout with clean sight lines.' });
-            const marshId = addRecord(locationsId, { name: 'Quiet Marsh', area: 'Wetlands', notes: 'Shallow water and dense reeds.' });
-            const groveId = addRecord(locationsId, { name: 'North Grove', area: 'Forest Edge', notes: 'Shaded trail with frequent wildlife activity.' });
+            const ridgeId = addRecord(locationsId, { name: 'Summit Ridge', area: 'Highlands', notes: 'Windy lookout with clean sight lines.', _sampleData: true });
+            const marshId = addRecord(locationsId, { name: 'Quiet Marsh', area: 'Wetlands', notes: 'Shallow water and dense reeds.', _sampleData: true });
+            const groveId = addRecord(locationsId, { name: 'North Grove', area: 'Forest Edge', notes: 'Shaded trail with frequent wildlife activity.', _sampleData: true });
 
             createView(locationsId, 'Locations', { type: 'grid', sorts: [{ fieldId: 'name', direction: 'asc' }] });
             createView(locationsId, 'By Area', {
@@ -10397,10 +10397,10 @@
             observationsSet.records.clear();
             if (!observationsSet.views) observationsSet.views = new Map();
             observationsSet.views.clear();
-            const obs1Id = addRecord(observationsId, { date: '2024-04-12', location: 'Summit Ridge', observer: 'M. Ellis', observation: 'Found fresh tracks along the ridge path.' });
-            const obs2Id = addRecord(observationsId, { date: '2024-04-13', location: 'Quiet Marsh', observer: 'S. Kaur', observation: 'Low mist over the marsh; water depth at 0.4m.' });
-            const obs3Id = addRecord(observationsId, { date: '2024-04-14', location: 'North Grove', observer: 'J. Rivera', observation: 'Pair of hawks circling above the grove at noon.' });
-            const obs4Id = addRecord(observationsId, { date: '2024-04-15', location: 'Summit Ridge', observer: 'M. Ellis', observation: 'Clear skies; ridge visibility extends 10km.' });
+            const obs1Id = addRecord(observationsId, { date: '2024-04-12', location: 'Summit Ridge', observer: 'M. Ellis', observation: 'Found fresh tracks along the ridge path.', _sampleData: true });
+            const obs2Id = addRecord(observationsId, { date: '2024-04-13', location: 'Quiet Marsh', observer: 'S. Kaur', observation: 'Low mist over the marsh; water depth at 0.4m.', _sampleData: true });
+            const obs3Id = addRecord(observationsId, { date: '2024-04-14', location: 'North Grove', observer: 'J. Rivera', observation: 'Pair of hawks circling above the grove at noon.', _sampleData: true });
+            const obs4Id = addRecord(observationsId, { date: '2024-04-15', location: 'Summit Ridge', observer: 'M. Ellis', observation: 'Clear skies; ridge visibility extends 10km.', _sampleData: true });
 
             createView(observationsId, 'Observations', {
                 type: 'grid',
@@ -24289,6 +24289,169 @@
         }
 
         /**
+         * Render data preview for a set (used in Set Overview)
+         * Shows data as JSON or Table with source indicators
+         */
+        function renderDataPreview(setId, set) {
+            const records = Array.from(set.records.values());
+            const schema = set.schema || [];
+
+            // Analyze data sources
+            let sampleCount = 0;
+            let importedCount = 0;
+            let manualCount = 0;
+
+            records.forEach(record => {
+                if (record._sampleData) {
+                    sampleCount++;
+                } else if (record.sourceImportId) {
+                    importedCount++;
+                } else {
+                    manualCount++;
+                }
+            });
+
+            // Build source summary
+            const sourceParts = [];
+            if (sampleCount > 0) sourceParts.push(`<span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">SAMPLE DATA: ${sampleCount}</span>`);
+            if (importedCount > 0) sourceParts.push(`<span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">IMPORTED: ${importedCount}</span>`);
+            if (manualCount > 0) sourceParts.push(`<span style="background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">MANUAL: ${manualCount}</span>`);
+
+            const sourceSummary = sourceParts.length > 0 ? sourceParts.join(' ') : '<span style="color: #6b7280;">No records</span>';
+
+            // Prepare data for JSON (exclude internal fields for display)
+            const cleanRecords = records.map(record => {
+                const cleaned = {};
+                schema.forEach(field => {
+                    if (record[field.id] !== undefined) {
+                        cleaned[field.name || field.id] = record[field.id];
+                    }
+                });
+                return cleaned;
+            });
+
+            const jsonData = JSON.stringify(cleanRecords, null, 2);
+
+            // Build table HTML
+            const tableHeaders = schema.map(field => `<th style="padding: 8px 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; background: #f9fafb; font-size: 12px; text-transform: uppercase;">${field.name || field.id}</th>`).join('');
+
+            const tableRows = records.map(record => {
+                const sourceClass = record._sampleData ? 'sample-row' : (record.sourceImportId ? 'imported-row' : 'manual-row');
+                const sourceIndicator = record._sampleData
+                    ? '<span title="Sample data" style="color: #d97706; margin-right: 4px;">●</span>'
+                    : (record.sourceImportId
+                        ? '<span title="Imported" style="color: #2563eb; margin-right: 4px;">●</span>'
+                        : '<span title="Manual entry" style="color: #16a34a; margin-right: 4px;">●</span>');
+
+                const cells = schema.map((field, idx) => {
+                    let value = record[field.id];
+                    if (value === null || value === undefined) value = '';
+                    if (typeof value === 'object') value = JSON.stringify(value);
+                    // Truncate long values
+                    const displayValue = String(value).length > 50 ? String(value).substring(0, 50) + '...' : String(value);
+                    const indicator = idx === 0 ? sourceIndicator : '';
+                    return `<td style="padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #374151;">${indicator}${escapeHtml(displayValue)}</td>`;
+                }).join('');
+                return `<tr class="${sourceClass}" style="transition: background 0.15s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">${cells}</tr>`;
+            }).join('');
+
+            return `
+                <div id="data-preview-section" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 24px; overflow: hidden;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e5e7eb; background: #f9fafb;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0; display: flex; align-items: center; gap: 8px;">
+                                <i class="ph ph-eye" style="color: #6366f1;"></i>
+                                Data Preview
+                            </h3>
+                            <div style="display: flex; gap: 6px;">${sourceSummary}</div>
+                        </div>
+                        <div style="display: flex; gap: 4px; background: #e5e7eb; border-radius: 6px; padding: 2px;">
+                            <button id="preview-table-btn" onclick="setDataPreviewMode('table', '${setId}')"
+                                    style="padding: 6px 12px; border: none; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 4px; background: white; color: #374151; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                <i class="ph ph-table"></i> Table
+                            </button>
+                            <button id="preview-json-btn" onclick="setDataPreviewMode('json', '${setId}')"
+                                    style="padding: 6px 12px; border: none; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 4px; background: transparent; color: #6b7280;">
+                                <i class="ph ph-brackets-curly"></i> JSON
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Table View -->
+                    <div id="preview-table-view" style="overflow-x: auto; max-height: 400px; overflow-y: auto;">
+                        ${records.length > 0 ? `
+                            <table style="width: 100%; border-collapse: collapse; min-width: 500px;">
+                                <thead style="position: sticky; top: 0; z-index: 1;">
+                                    <tr>${tableHeaders}</tr>
+                                </thead>
+                                <tbody>
+                                    ${tableRows}
+                                </tbody>
+                            </table>
+                        ` : '<div style="padding: 40px; text-align: center; color: #6b7280;">No records in this set</div>'}
+                    </div>
+
+                    <!-- JSON View (hidden by default) -->
+                    <div id="preview-json-view" style="display: none; max-height: 400px; overflow: auto;">
+                        <pre style="margin: 0; padding: 16px; background: #1e293b; color: #e2e8f0; font-size: 12px; font-family: 'Monaco', 'Menlo', monospace; white-space: pre-wrap; word-break: break-word;"><code>${escapeHtml(jsonData)}</code></pre>
+                    </div>
+
+                    <!-- Legend -->
+                    <div style="padding: 12px 20px; border-top: 1px solid #e5e7eb; background: #f9fafb; display: flex; gap: 16px; font-size: 11px; color: #6b7280;">
+                        <span><span style="color: #d97706;">●</span> Sample/Hardcoded</span>
+                        <span><span style="color: #2563eb;">●</span> Imported</span>
+                        <span><span style="color: #16a34a;">●</span> Manual Entry</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * Scroll to data preview section with highlight effect
+         */
+        function scrollToDataPreview() {
+            const previewSection = document.getElementById('data-preview-section');
+            if (previewSection) {
+                previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Add a brief highlight effect
+                previewSection.style.boxShadow = '0 0 0 3px #6366f1';
+                setTimeout(() => {
+                    previewSection.style.boxShadow = 'none';
+                }, 1500);
+            }
+        }
+
+        /**
+         * Toggle data preview mode between table and JSON
+         */
+        function setDataPreviewMode(mode, setId) {
+            const tableView = document.getElementById('preview-table-view');
+            const jsonView = document.getElementById('preview-json-view');
+            const tableBtn = document.getElementById('preview-table-btn');
+            const jsonBtn = document.getElementById('preview-json-btn');
+
+            if (mode === 'json') {
+                tableView.style.display = 'none';
+                jsonView.style.display = 'block';
+                tableBtn.style.background = 'transparent';
+                tableBtn.style.color = '#6b7280';
+                tableBtn.style.boxShadow = 'none';
+                jsonBtn.style.background = 'white';
+                jsonBtn.style.color = '#374151';
+                jsonBtn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+            } else {
+                tableView.style.display = 'block';
+                jsonView.style.display = 'none';
+                jsonBtn.style.background = 'transparent';
+                jsonBtn.style.color = '#6b7280';
+                jsonBtn.style.boxShadow = 'none';
+                tableBtn.style.background = 'white';
+                tableBtn.style.color = '#374151';
+                tableBtn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+            }
+        }
+
+        /**
          * Render the Set Overview page - comprehensive view of a set
          * Shows imports, relationships, status, and quick actions
          */
@@ -24306,6 +24469,19 @@
             const sourcesInfo = typeof SetManagement !== 'undefined'
                 ? SetManagement.getSetSources(state, setId)
                 : { sources: [], manualRecords: 0, totalSources: 0 };
+
+            // Count sample data vs actual manual entries
+            let sampleRecordCount = 0;
+            let actualManualCount = 0;
+            set.records.forEach(record => {
+                if (!record.sourceImportId) {
+                    if (record._sampleData) {
+                        sampleRecordCount++;
+                    } else {
+                        actualManualCount++;
+                    }
+                }
+            });
 
             // Get relationships
             const relationships = typeof SetManagement !== 'undefined'
@@ -24351,15 +24527,35 @@
                 `;
             }).join('') : '';
 
-            // Manual entries card
-            const manualHtml = sourcesInfo.manualRecords > 0 ? `
-                <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+            // Sample data card (hardcoded demo data)
+            const sampleHtml = sampleRecordCount > 0 ? `
+                <div onclick="scrollToDataPreview()" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #fef3c7; border-radius: 8px; border: 1px solid #fcd34d; cursor: pointer; transition: all 0.15s;"
+                     onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)';"
+                     onmouseout="this.style.transform='none'; this.style.boxShadow='none';"
+                     title="Click to view data">
+                    <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: white; border-radius: 8px; border: 1px solid #fcd34d;">
+                        <i class="ph ph-flask" style="font-size: 20px; color: #d97706;"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #111827; font-size: 14px;">Sample Data (Hardcoded)</div>
+                        <div style="font-size: 12px; color: #92400e;">${sampleRecordCount} demo records for testing</div>
+                    </div>
+                    <span style="background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;">DEMO</span>
+                </div>
+            ` : '';
+
+            // Manual entries card (actual user-created entries)
+            const manualHtml = actualManualCount > 0 ? `
+                <div onclick="scrollToDataPreview()" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0; cursor: pointer; transition: all 0.15s;"
+                     onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)';"
+                     onmouseout="this.style.transform='none'; this.style.boxShadow='none';"
+                     title="Click to view data">
                     <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: white; border-radius: 8px; border: 1px solid #bbf7d0;">
                         <i class="ph ph-pencil-simple" style="font-size: 20px; color: #16a34a;"></i>
                     </div>
                     <div style="flex: 1;">
                         <div style="font-weight: 600; color: #111827; font-size: 14px;">Manual Entries</div>
-                        <div style="font-size: 12px; color: #6b7280;">${sourcesInfo.manualRecords} records created directly</div>
+                        <div style="font-size: 12px; color: #6b7280;">${actualManualCount} records created directly</div>
                     </div>
                 </div>
             ` : '';
@@ -24442,6 +24638,9 @@
                         </div>
                     </div>
 
+                    <!-- Data Preview Section -->
+                    ${renderDataPreview(setId, set)}
+
                     <!-- Data Flow Diagram -->
                     ${typeof EOSetDataFlow !== 'undefined' ? EOSetDataFlow.renderSetDataFlow(setId, state) : ''}
 
@@ -24464,8 +24663,10 @@
                                     </button>
                                 </div>
                                 <div style="display: flex; flex-direction: column; gap: 10px;">
-                                    ${sourcesHtml || manualHtml || '<div style="color: #6b7280; font-size: 14px; text-align: center; padding: 20px;">No data sources yet. Add an import or create records manually.</div>'}
-                                    ${sourcesHtml && manualHtml ? manualHtml : ''}
+                                    ${!sourcesHtml && !sampleHtml && !manualHtml ? '<div style="color: #6b7280; font-size: 14px; text-align: center; padding: 20px;">No data sources yet. Add an import or create records manually.</div>' : ''}
+                                    ${sourcesHtml}
+                                    ${sampleHtml}
+                                    ${manualHtml}
                                 </div>
                             </div>
 
