@@ -204,7 +204,8 @@ class EOIntegration {
       operator,
       oldValue,
       newValue,
-      context
+      context,
+      fieldName
     });
 
     record.edit_history = record.edit_history || [];
