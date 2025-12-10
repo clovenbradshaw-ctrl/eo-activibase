@@ -41,6 +41,22 @@ class EOThreeLevelIntegration {
       },
       getFieldMetadata: (recordId, fieldName) => {
         return this.getFieldMetadata(recordId, fieldName);
+      },
+      // Cell-specific callbacks for EOCellProfileCard
+      getCellData: (recordId, fieldName) => {
+        return this.getCellData(recordId, fieldName);
+      },
+      getCellProvenance: (recordId, fieldName) => {
+        return this.getCellProvenance(recordId, fieldName);
+      },
+      getCellHistory: (recordId, fieldName) => {
+        return this.getCellHistory(recordId, fieldName);
+      },
+      getCellRelations: (recordId, fieldName) => {
+        return this.getCellRelations(recordId, fieldName);
+      },
+      getFieldSchema: (fieldName) => {
+        return this.getFieldSchema(fieldName);
       }
     };
 
@@ -385,6 +401,82 @@ class EOThreeLevelIntegration {
     history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     return history;
+  }
+
+  /**
+   * Get cell data for a specific field in a record
+   * @param {string} recordId - The record ID
+   * @param {string} fieldName - The field name
+   * @returns {Object} Cell data including values array
+   */
+  getCellData(recordId, fieldName) {
+    const record = this.getRecord(recordId);
+    if (!record) return {};
+
+    if (record.cells) {
+      const cell = record.cells.find(c => c.field_name === fieldName);
+      if (cell) {
+        return cell;
+      }
+    }
+
+    // Return a minimal cell object if no cell exists
+    return {
+      field_name: fieldName,
+      record_id: recordId,
+      values: record.fields && record.fields[fieldName] !== undefined
+        ? [{ value: record.fields[fieldName], timestamp: record.created_at }]
+        : []
+    };
+  }
+
+  /**
+   * Get provenance information for a specific cell
+   * @param {string} recordId - The record ID
+   * @param {string} fieldName - The field name
+   * @returns {Object} Provenance information
+   */
+  getCellProvenance(recordId, fieldName) {
+    const record = this.getRecord(recordId);
+    if (!record) return {};
+
+    const cell = record.cells?.find(c => c.field_name === fieldName);
+    const context = cell?.values?.[0]?.context_schema || {};
+
+    return {
+      created_at: cell?.created_at || record.created_at,
+      updated_at: cell?.updated_at || record.updated_at,
+      origin: context.source?.system || 'unknown',
+      agent: context.agent?.name || context.agent?.type || 'system',
+      operations: []
+    };
+  }
+
+  /**
+   * Get relations for a specific cell
+   * @param {string} recordId - The record ID
+   * @param {string} fieldName - The field name
+   * @returns {Array} Array of relation objects
+   */
+  getCellRelations(recordId, fieldName) {
+    const relations = [];
+
+    // Check if this field is referenced by any formula fields
+    if (this.eo && this.eo.schema) {
+      this.eo.schema.forEach(field => {
+        if (field.type === 'FORMULA' && field.formula && field.formula.includes(`{${fieldName}}`)) {
+          relations.push({
+            type: 'referenced_by',
+            targetRecordId: recordId,
+            targetFieldName: field.name,
+            targetRecordName: 'This record',
+            description: `Used in formula: ${field.name}`
+          });
+        }
+      });
+    }
+
+    return relations;
   }
 
   /**

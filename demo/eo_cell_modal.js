@@ -35,6 +35,7 @@ class EOCellModal {
       getRelationships: config.getRelationships || (() => []),
       getProvenance: config.getProvenance || (() => ({})),
       getHistory: config.getHistory || (() => []),
+      getCellHistory: config.getCellHistory || ((recordId, fieldName) => []),
       getContext: config.getContext || (() => ({})),
       ...config
     };
@@ -375,10 +376,11 @@ class EOCellModal {
    * Render History tab
    */
   renderHistoryTab(cell) {
-    const history = this.config.getHistory(this.currentRecordId, this.currentFieldName);
+    // Use getCellHistory to get field-specific history
+    const history = this.config.getCellHistory(this.currentRecordId, this.currentFieldName);
 
     if (!history || history.length === 0) {
-      return '<div class="eo-cell-empty">No edit history</div>';
+      return '<div class="eo-cell-empty">No changes yet</div>';
     }
 
     const historyItems = history.map(item => `
