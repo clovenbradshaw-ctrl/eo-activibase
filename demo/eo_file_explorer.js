@@ -32,6 +32,14 @@ class EOFileExplorer {
     this.onImportToSet = options.onImportToSet || (() => {});
     this.onCreateSet = options.onCreateSet || (() => {});
     this.onCreateView = options.onCreateView || (() => {});
+
+    // Import review modal for required cell assignment review
+    this.reviewModal = null;
+    if (typeof EOImportReviewModal !== 'undefined') {
+      this.reviewModal = new EOImportReviewModal({
+        importManager: this.importManager
+      });
+    }
   }
 
   /**
@@ -605,7 +613,8 @@ class EOFileExplorer {
         if (this.dragState?.type === 'import') {
           const importId = this.dragState.id;
           const setId = item.dataset.id;
-          this.onImportToSet(importId, setId);
+          // Show review modal before adding to set
+          this.showImportReviewAndAdd(importId, setId, null);
         }
       });
     });
@@ -682,8 +691,9 @@ class EOFileExplorer {
 
     if (result.success) {
       this.render();
-      // Show preview modal for dragged data (same prompting as imported data)
-      this.showImportPreview(result.import.id);
+      // Show the review modal immediately - user must review cell assignments
+      // before data can be added to a workspace
+      this.showImportReviewAndAdd(result.import.id, null, null);
     } else {
       console.error('Import failed:', result.error);
       if (dropZone) {
@@ -926,10 +936,11 @@ class EOFileExplorer {
       });
     });
 
-    // Add to set button
+    // Add to set button - now shows review modal first
     modal.querySelector('[data-action="add-to-set"]')?.addEventListener('click', () => {
       modal.remove();
-      this.showAddToSetDialog(importId);
+      // Show cell assignment review modal with option to create new or select existing
+      this.showImportReviewAndAdd(importId, null, null);
     });
 
     // Close on overlay click
@@ -1000,7 +1011,7 @@ class EOFileExplorer {
       });
     });
 
-    // Confirm button
+    // Confirm button - now shows review modal
     modal.querySelector('#confirmAddToSet').addEventListener('click', () => {
       const isNew = modal.querySelector('input[name="target"]:checked').value === 'new';
       const setId = isNew ? null : modal.querySelector('#existingSetId')?.value;
@@ -1018,13 +1029,168 @@ class EOFileExplorer {
       }
 
       modal.remove();
-      this.onImportToSet(importId, setId, setName);
+      // Show cell assignment review modal before actually adding data
+      this.showImportReviewAndAdd(importId, setId, setName);
     });
 
     // Close on overlay click
     modal.addEventListener('click', (e) => {
       if (e.target === modal) modal.remove();
     });
+  }
+
+  /**
+   * Show import review modal and add data after user confirms cell assignments
+   * This is a REQUIRED step before any data is displayed in a workspace.
+   *
+   * @param {string} importId - The import to add
+   * @param {string|null} setId - Target set ID (if adding to existing)
+   * @param {string|null} setName - Name for new set (if creating new)
+   */
+  async showImportReviewAndAdd(importId, setId, setName) {
+    const imp = this.importManager?.getImport(importId);
+    if (!imp) {
+      console.error('Import not found:', importId);
+      return;
+    }
+
+    // If no setId and no setName, show the target selection dialog first
+    if (!setId && !setName) {
+      this.showAddToSetDialogWithReview(importId);
+      return;
+    }
+
+    // If we have a review modal, use it (required step)
+    if (this.reviewModal) {
+      try {
+        const result = await this.reviewModal.show(importId, setId, setName);
+
+        if (result.confirmed) {
+          // Apply field type overrides before importing
+          if (result.fieldOverrides && Object.keys(result.fieldOverrides).length > 0) {
+            this.applyFieldTypeOverrides(imp, result.fieldOverrides);
+          }
+
+          // Now actually add the data to the workspace
+          this.onImportToSet(importId, setId, setName);
+        }
+      } catch (err) {
+        // User cancelled - do nothing
+        console.log('Import review cancelled:', err.message);
+      }
+    } else {
+      // Fallback: no review modal available, add directly
+      // This shouldn't happen in normal use, but provides backwards compatibility
+      console.warn('Review modal not available, adding data directly');
+      this.onImportToSet(importId, setId, setName);
+    }
+  }
+
+  /**
+   * Show dialog to select target workspace, then show review modal
+   * @param {string} importId - The import to add
+   */
+  showAddToSetDialogWithReview(importId) {
+    const imp = this.importManager?.getImport(importId);
+    if (!imp || !this.state) return;
+
+    const sets = Array.from(this.state.sets.values());
+
+    const modal = document.createElement('div');
+    modal.className = 'eo-modal-overlay';
+    modal.innerHTML = `
+      <div class="eo-add-to-set-modal">
+        <div class="eo-modal-header">
+          <div class="eo-modal-title">Select Workspace for "${imp.name}"</div>
+          <button class="eo-modal-close" onclick="this.closest('.eo-modal-overlay').remove()">
+            <i class="ph-bold ph-x"></i>
+          </button>
+        </div>
+        <div class="eo-modal-body">
+          <p style="color: #64748b; font-size: 14px; margin: 0 0 16px 0;">
+            Choose where to add your data. You'll review field assignments in the next step.
+          </p>
+          <div class="eo-option-group">
+            <label class="eo-option">
+              <input type="radio" name="target" value="new" checked>
+              <span>Create new workspace</span>
+            </label>
+            <input type="text" class="eo-input" id="newSetName" value="${imp.fileMetadata.filenameAnalysis.baseName}" placeholder="Workspace name">
+          </div>
+
+          ${sets.length > 0 ? `
+            <div class="eo-option-group">
+              <label class="eo-option">
+                <input type="radio" name="target" value="existing">
+                <span>Add to existing workspace</span>
+              </label>
+              <select class="eo-select" id="existingSetId" disabled>
+                ${sets.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+              </select>
+            </div>
+          ` : ''}
+        </div>
+        <div class="eo-modal-footer">
+          <button class="eo-btn eo-btn-secondary" onclick="this.closest('.eo-modal-overlay').remove()">Cancel</button>
+          <button class="eo-btn eo-btn-primary" id="continueToReview">
+            <i class="ph-bold ph-arrow-right"></i>
+            Continue to Review
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Radio toggle
+    modal.querySelectorAll('input[name="target"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const isNew = modal.querySelector('input[name="target"]:checked').value === 'new';
+        modal.querySelector('#newSetName').disabled = !isNew;
+        const existingSelect = modal.querySelector('#existingSetId');
+        if (existingSelect) existingSelect.disabled = isNew;
+      });
+    });
+
+    // Continue to review button
+    modal.querySelector('#continueToReview').addEventListener('click', () => {
+      const isNew = modal.querySelector('input[name="target"]:checked').value === 'new';
+      const setId = isNew ? null : modal.querySelector('#existingSetId')?.value;
+      const setName = isNew ? modal.querySelector('#newSetName').value : null;
+
+      // Validate inputs
+      if (isNew && !setName?.trim()) {
+        alert('Please enter a name for the new workspace');
+        return;
+      }
+
+      if (!isNew && !setId) {
+        alert('Please select an existing workspace');
+        return;
+      }
+
+      modal.remove();
+      // Now show the review modal with the target info
+      this.showImportReviewAndAdd(importId, setId, setName);
+    });
+
+    // Close on overlay click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+  }
+
+  /**
+   * Apply field type overrides from the review modal to the import
+   * @param {Object} imp - The import object
+   * @param {Object} overrides - Field name to new type mapping
+   */
+  applyFieldTypeOverrides(imp, overrides) {
+    for (const [fieldName, newType] of Object.entries(overrides)) {
+      if (imp.schema && imp.schema.inferredTypes) {
+        imp.schema.inferredTypes[fieldName] = newType;
+      }
+    }
   }
 
   /**
