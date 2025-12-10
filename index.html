@@ -25851,6 +25851,18 @@
           }
 
           record[fieldId] = newValue;
+
+          // Add to edit_history for change tracking
+          record.edit_history = record.edit_history || [];
+          record.edit_history.push({
+              timestamp: new Date().toISOString(),
+              operator: 'ALT',
+              old_value: oldValue,
+              new_value: newValue,
+              field_name: fieldId,
+              agent: { type: 'user', name: 'User' }
+          });
+
             createEvent(
                 'Update Cell',
                 'SEG',
@@ -32643,6 +32655,7 @@
                 compactEvent.published = new Date(compactEvent.t).toISOString();
                 compactEvent.actor = { type: state.currentUser.type, id: state.currentUser.id };
                 compactEvent.verb = verb; // Keep full verb for compatibility
+                compactEvent.object = object; // Keep object for history filtering
                 compactEvent.data = eventData; // Keep full data for compatibility
 
                 const interpretedEvent = applyInterpretationRules(compactEvent);
