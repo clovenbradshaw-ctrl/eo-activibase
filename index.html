@@ -14956,7 +14956,9 @@
             chevron.style.opacity = '0.7';
             chevron.style.transition = 'transform 0.15s';
 
-            if (set.id === state.currentSetId && !state.currentSpecialView && !state.currentViewId) {
+            // Highlight the set when its info tab is active OR when viewing a set with no view selected
+            const isSetInfoActive = state.currentSpecialView === 'setOverview' && state.setOverviewSetId === set.id;
+            if ((set.id === state.currentSetId && !state.currentSpecialView && !state.currentViewId) || isSetInfoActive) {
                 setHeader.classList.add('active');
             }
 
@@ -15344,7 +15346,8 @@
             });
         }
 
-        function getTabKey(setId, viewId, specialView = null) {
+        function getTabKey(setId, viewId, specialView = null, setInfo = null) {
+            if (setInfo) return `setInfo::${setInfo}`;
             if (specialView) return `special::${specialView}`;
             return `${setId || ''}::${viewId || ''}`;
         }
@@ -15387,28 +15390,43 @@
         function ensureOpenSpecialTab(specialView) {
             if (!SPECIAL_VIEW_CONFIG[specialView]) return;
             const key = getTabKey(null, null, specialView);
-            const exists = state.openTabs.some(tab => getTabKey(tab.setId, tab.viewId, tab.specialView) === key);
+            const exists = state.openTabs.some(tab => getTabKey(tab.setId, tab.viewId, tab.specialView, tab.setInfo) === key);
             if (!exists) {
                 state.openTabs.push({ specialView });
             }
             renderViewTabs();
         }
 
-        function closeViewTab(setId, viewId, specialView = null) {
-            const key = getTabKey(setId, viewId, specialView);
-            const index = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId, tab.specialView) === key);
+        function ensureOpenSetInfoTab(setId) {
+            const set = state.sets.get(setId);
+            if (!set) return;
+            const key = getTabKey(null, null, null, setId);
+            const exists = state.openTabs.some(tab => getTabKey(tab.setId, tab.viewId, tab.specialView, tab.setInfo) === key);
+            if (!exists) {
+                state.openTabs.push({ setInfo: setId });
+            }
+            renderViewTabs();
+        }
+
+        function closeViewTab(setId, viewId, specialView = null, setInfo = null) {
+            const key = getTabKey(setId, viewId, specialView, setInfo);
+            const index = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId, tab.specialView, tab.setInfo) === key);
             if (index === -1) return;
 
-            const closingActive = specialView
-                ? state.currentSpecialView === specialView
-                : (state.currentSetId === setId && state.currentViewId === viewId);
+            const closingActive = setInfo
+                ? (state.currentSpecialView === 'setOverview' && state.setOverviewSetId === setInfo)
+                : specialView
+                    ? state.currentSpecialView === specialView
+                    : (state.currentSetId === setId && state.currentViewId === viewId);
             const fallback = closingActive ? (state.openTabs[index + 1] || state.openTabs[index - 1]) : null;
             state.openTabs.splice(index, 1);
             renderViewTabs();
 
             if (closingActive) {
                 if (fallback) {
-                    if (fallback.specialView) {
+                    if (fallback.setInfo) {
+                        openSetOverview(fallback.setInfo);
+                    } else if (fallback.specialView) {
                         switchToSpecialTab(fallback.specialView);
                     } else {
                         switchSet(fallback.setId, fallback.viewId);
@@ -15417,6 +15435,7 @@
                     state.currentSetId = null;
                     state.currentViewId = null;
                     state.currentSpecialView = null;
+                    state.setOverviewSetId = null;
                     renderSidebar();
                     renderCurrentView();
                     updateMobileChrome();
@@ -15605,8 +15624,8 @@
         }
 
         function reorderOpenTabs(dragKey, targetKey, position) {
-            const fromIndex = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId, tab.specialView) === dragKey);
-            const targetIndex = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId, tab.specialView) === targetKey);
+            const fromIndex = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId, tab.specialView, tab.setInfo) === dragKey);
+            const targetIndex = state.openTabs.findIndex(tab => getTabKey(tab.setId, tab.viewId, tab.specialView, tab.setInfo) === targetKey);
             if (fromIndex === -1 || targetIndex === -1 || dragKey === targetKey) return;
 
             const [dragged] = state.openTabs.splice(fromIndex, 1);
@@ -15623,7 +15642,7 @@
         }
 
         function handleTabDragStart(event, tab) {
-            const key = getTabKey(tab.setId, tab.viewId, tab.specialView);
+            const key = getTabKey(tab.setId, tab.viewId, tab.specialView, tab.setInfo);
             tabDragState.draggingKey = key;
             tabDragState.dropKey = null;
             tabDragState.dropPosition = null;
@@ -15636,7 +15655,7 @@
             if (!tabDragState.draggingKey) return;
             event.preventDefault();
 
-            const targetKey = getTabKey(targetTab.setId, targetTab.viewId, targetTab.specialView);
+            const targetKey = getTabKey(targetTab.setId, targetTab.viewId, targetTab.specialView, targetTab.setInfo);
             if (targetKey === tabDragState.draggingKey) return;
 
             const rect = event.currentTarget.getBoundingClientRect();
@@ -15657,7 +15676,7 @@
         function handleTabDrop(event, targetTab) {
             if (!tabDragState.draggingKey) return;
             event.preventDefault();
-            const targetKey = getTabKey(targetTab.setId, targetTab.viewId, targetTab.specialView);
+            const targetKey = getTabKey(targetTab.setId, targetTab.viewId, targetTab.specialView, targetTab.setInfo);
             const position = tabDragState.dropPosition || 'after';
             reorderOpenTabs(tabDragState.draggingKey, targetKey, position);
             finalizeTabDrag();
@@ -16929,11 +16948,50 @@
             container.innerHTML = '';
 
             state.openTabs.forEach((tab, index) => {
-                const tabKey = getTabKey(tab.setId, tab.viewId, tab.specialView);
+                const tabKey = getTabKey(tab.setId, tab.viewId, tab.specialView, tab.setInfo);
                 const tabEl = document.createElement('div');
 
-                // Handle special view tabs
-                if (tab.specialView) {
+                // Handle set info tabs
+                if (tab.setInfo) {
+                    const set = state.sets.get(tab.setInfo);
+                    if (!set) return;
+                    const isActive = state.currentSpecialView === 'setOverview' && state.setOverviewSetId === tab.setInfo;
+
+                    tabEl.className = `view-tab set-info-tab ${isActive ? 'active' : ''}`;
+                    tabEl.dataset.tabKey = tabKey;
+                    tabEl.draggable = true;
+                    tabEl.onclick = () => openSetOverview(tab.setInfo);
+                    tabEl.oncontextmenu = (e) => { e.preventDefault(); showSetInfoTabContextMenu(e, tab.setInfo); };
+                    tabEl.ondragstart = (e) => handleTabDragStart(e, tab);
+                    tabEl.ondragover = (e) => handleTabDragOver(e, tab);
+                    tabEl.ondragleave = () => clearTabDropIndicators();
+                    tabEl.ondrop = (e) => handleTabDrop(e, tab);
+                    tabEl.ondragend = finalizeTabDrag;
+
+                    const iconSpan = document.createElement('span');
+                    iconSpan.className = 'view-tab-icon';
+                    iconSpan.innerHTML = renderIcon(set.icon || 'ph-squares-four');
+
+                    const textWrap = document.createElement('div');
+                    textWrap.className = 'view-tab-text';
+                    textWrap.innerHTML = `
+                        <span class="view-tab-name">${escapeHtml(set.name)}</span>
+                        <span class="view-tab-meta">Set Info</span>
+                    `;
+
+                    const actions = document.createElement('div');
+                    actions.className = 'view-tab-actions';
+                    const closeBtn = document.createElement('button');
+                    closeBtn.className = 'view-tab-btn';
+                    closeBtn.innerHTML = '<i class="ph ph-x"></i>';
+                    closeBtn.onclick = (e) => { e.stopPropagation(); closeViewTab(null, null, null, tab.setInfo); };
+                    actions.appendChild(closeBtn);
+
+                    tabEl.appendChild(iconSpan);
+                    tabEl.appendChild(textWrap);
+                    tabEl.appendChild(actions);
+                } else if (tab.specialView) {
+                    // Handle special view tabs
                     const config = SPECIAL_VIEW_CONFIG[tab.specialView];
                     const isActive = state.currentSpecialView === tab.specialView;
 
@@ -17181,6 +17239,72 @@
             }, 0);
         }
 
+        function showSetInfoTabContextMenu(event, setId) {
+            const set = state.sets.get(setId);
+            if (!set) return;
+
+            // Remove any existing context menu
+            document.querySelectorAll('.view-tab-context-menu').forEach(menu => menu.remove());
+
+            // Check if this set info tab is already a shortcut
+            const shortcuts = getTabShortcuts();
+            const isShortcut = shortcuts.some(s => s.setInfo === setId);
+
+            const menu = document.createElement('div');
+            menu.className = 'context-menu view-tab-context-menu';
+            menu.innerHTML = `
+                <div class="menu-item" data-action="manage">
+                    <span class="icon"><i class="ph ph-gear"></i></span> Manage Set
+                </div>
+                <div class="menu-separator"></div>
+                <div class="menu-item" data-action="shortcut">
+                    <span class="icon"><i class="ph ${isShortcut ? 'ph-bookmark-simple-fill' : 'ph-bookmark-simple'}"></i></span>
+                    ${isShortcut ? 'Remove Shortcut' : 'Save as Shortcut'}
+                </div>
+                <div class="menu-separator"></div>
+                <div class="menu-item" data-action="close">
+                    <span class="icon"><i class="ph ph-x"></i></span> Close Tab
+                </div>
+            `;
+
+            menu.style.position = 'fixed';
+            menu.style.top = `${event.clientY}px`;
+            menu.style.left = `${event.clientX}px`;
+            menu.style.zIndex = '10000';
+
+            document.body.appendChild(menu);
+
+            menu.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const action = item.dataset.action;
+                    menu.remove();
+                    if (action === 'manage') {
+                        if (typeof SetManagement !== 'undefined') {
+                            SetManagement.openSetManagementModal(setId, 'details');
+                        }
+                    } else if (action === 'shortcut') {
+                        if (isShortcut) {
+                            const existingShortcut = shortcuts.find(s => s.setInfo === setId);
+                            if (existingShortcut) removeTabShortcut(existingShortcut.id);
+                        } else {
+                            addTabShortcut({ setInfo: setId });
+                        }
+                    } else if (action === 'close') {
+                        closeViewTab(null, null, null, setId);
+                    }
+                });
+            });
+
+            setTimeout(() => {
+                document.addEventListener('click', function closeMenu(e) {
+                    if (!menu.contains(e.target)) {
+                        menu.remove();
+                        document.removeEventListener('click', closeMenu);
+                    }
+                });
+            }, 0);
+        }
+
         // ============================================================================
         // TAB SHORTCUTS (Browser-like bookmarks for quick tab access)
         // ============================================================================
@@ -17205,13 +17329,16 @@
 
         /**
          * Add a tab as a shortcut
-         * @param {Object} tab - { setId, viewId } or { specialView }
+         * @param {Object} tab - { setId, viewId } or { specialView } or { setInfo }
          */
         function addTabShortcut(tab) {
             const shortcuts = getTabShortcuts();
 
             // Check if shortcut already exists
             const exists = shortcuts.some(s => {
+                if (tab.setInfo) {
+                    return s.setInfo === tab.setInfo;
+                }
                 if (tab.specialView) {
                     return s.specialView === tab.specialView;
                 }
@@ -17225,7 +17352,19 @@
 
             // Get display info for the shortcut
             let shortcut;
-            if (tab.specialView) {
+            if (tab.setInfo) {
+                const set = state.sets.get(tab.setInfo);
+                if (!set) {
+                    showToast('Could not save shortcut: set not found');
+                    return false;
+                }
+                shortcut = {
+                    id: `shortcut_${Date.now()}`,
+                    setInfo: tab.setInfo,
+                    label: set.name,
+                    icon: set.icon || 'ph-squares-four'
+                };
+            } else if (tab.specialView) {
                 const config = SPECIAL_VIEW_CONFIG[tab.specialView];
                 shortcut = {
                     id: `shortcut_${Date.now()}`,
@@ -17284,7 +17423,9 @@
          * Navigate to a shortcut
          */
         function navigateToShortcut(shortcut) {
-            if (shortcut.specialView) {
+            if (shortcut.setInfo) {
+                openSetOverview(shortcut.setInfo);
+            } else if (shortcut.specialView) {
                 switchToSpecialTab(shortcut.specialView);
             } else {
                 switchSet(shortcut.setId, shortcut.viewId);
@@ -24434,11 +24575,52 @@
          * Open the set overview page for a specific set
          */
         function openSetOverview(setId) {
+            const set = state.sets.get(setId);
+            if (!set) return;
+
+            // Ensure we're in the same world as the set
+            if (set.worldId && state.currentWorldId !== set.worldId) {
+                state.currentWorldId = set.worldId;
+                renderWorldSelector();
+            }
+
             state.setOverviewSetId = setId;
             state.currentSpecialView = 'setOverview';
             state.currentSetId = setId;
-            renderNav();
+            state.currentViewId = null;
+
+            // Expand the set in the sidebar
+            if (!state.expandedSets.has(setId)) {
+                state.expandedSets.add(setId);
+            }
+
+            // Ensure the set info tab is open
+            ensureOpenSetInfoTab(setId);
+
+            // Sync with layout system if available
+            if (state.layout && typeof EOLayout !== 'undefined') {
+                const targetPaneId = state.layout.activePaneId || 'pane-main';
+                const pane = EOLayout.findPaneById(state.layout.root, targetPaneId);
+                if (pane) {
+                    state.layout.activePaneId = targetPaneId;
+
+                    // Check if set info is already in this pane
+                    const existingIdx = pane.tabs.findIndex(t => t.setInfo === setId);
+                    if (existingIdx !== -1) {
+                        pane.activeTabIndex = existingIdx;
+                    } else {
+                        // Add set info tab to active pane
+                        pane.tabs.push({ setInfo: setId });
+                        pane.activeTabIndex = pane.tabs.length - 1;
+                    }
+                }
+            }
+
+            closeMobileSidebar();
+            renderSidebar();
+            renderViewTabs();
             renderCurrentView();
+            updateMobileChrome();
         }
 
         /**

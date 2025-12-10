@@ -361,8 +361,14 @@ function activateTab(state, paneId, tabIndex) {
     // Update global state for current view
     const tab = pane.tabs[tabIndex];
     if (tab) {
-        // Handle special view tabs
-        if (tab.specialView) {
+        // Handle set info tabs
+        if (tab.setInfo) {
+            state.setOverviewSetId = tab.setInfo;
+            state.currentSpecialView = 'setOverview';
+            state.currentSetId = tab.setInfo;
+            state.currentViewId = null;
+        } else if (tab.specialView) {
+            // Handle special view tabs
             state.currentSpecialView = tab.specialView;
             state.currentSetId = null;
             state.currentViewId = null;
@@ -379,7 +385,8 @@ function activateTab(state, paneId, tabIndex) {
         tabIndex,
         setId: tab?.setId,
         viewId: tab?.viewId,
-        specialView: tab?.specialView
+        specialView: tab?.specialView,
+        setInfo: tab?.setInfo
     });
 
     return true;
@@ -451,8 +458,24 @@ function splitPane(state, paneId, direction, tabToMove = null) {
 
     // If a tab was specified to move, move it to the new pane
     if (tabToMove) {
-        // Handle special view tabs
-        if (tabToMove.specialView) {
+        // Handle set info tabs
+        if (tabToMove.setInfo) {
+            const fromResult = findPaneInLayout(layout, paneId);
+            if (fromResult) {
+                const tabIndex = fromResult.pane.tabs.findIndex(t => t.setInfo === tabToMove.setInfo);
+                if (tabIndex !== -1) {
+                    // Remove from source pane
+                    fromResult.pane.tabs.splice(tabIndex, 1);
+                    if (fromResult.pane.activeTabIndex >= fromResult.pane.tabs.length) {
+                        fromResult.pane.activeTabIndex = Math.max(0, fromResult.pane.tabs.length - 1);
+                    }
+                    // Add to new pane
+                    newPane.tabs.push({ setInfo: tabToMove.setInfo });
+                    newPane.activeTabIndex = 0;
+                }
+            }
+        } else if (tabToMove.specialView) {
+            // Handle special view tabs
             const fromResult = findPaneInLayout(layout, paneId);
             if (fromResult) {
                 const tabIndex = fromResult.pane.tabs.findIndex(t => t.specialView === tabToMove.specialView);
