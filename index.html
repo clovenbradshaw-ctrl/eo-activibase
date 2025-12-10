@@ -56,11 +56,15 @@
     <script defer src="demo/eo_select_field_settings.js"></script>
     <script defer src="demo/eo_inline_cell_editor.js"></script>
     <script defer src="demo/eo_pivot_dynamic_views.js"></script>
-    <script defer src="demo/eo_eoql_testing.js"></script>
+
+    <!-- EOQL System - Load in dependency order -->
     <script defer src="foundation/eo_query_language.js"></script>
+    <script defer src="foundation/eo_query_crosswalk.js"></script>
     <script defer src="foundation/eo_query_parser.js"></script>
     <script defer src="foundation/eo_query_compiler.js"></script>
     <script defer src="demo/eo_formula_engine.js"></script>
+    <script defer src="demo/eo_query_builder_ui.js"></script>
+    <script defer src="demo/eo_eoql_testing.js"></script>
     <link rel="stylesheet" href="demo/eo_custom_dropdown.css">
     <link rel="stylesheet" href="demo/eo_eoql_testing.css">
     <link rel="stylesheet" href="demo/eo_pivot_dynamic_views.css">
